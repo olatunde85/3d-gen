@@ -6,7 +6,7 @@ import type { Ctx } from './context';
 import { color, macro, NONE, picker, section, selectRow, slider } from './controls';
 import { $, el } from './dom';
 import { accessoriesPanel, piecesPanel } from './sidebar-clothing';
-import { earringPanel, hairPanel, tattooPanel, weaponPanel } from './sidebar-looks';
+import { earringPanel, hairPanel, tattooPanel, vehiclePanel, weaponPanel } from './sidebar-looks';
 
 export function sidebar(ctx: Ctx): void {
   const { store, cat } = ctx;
@@ -49,7 +49,7 @@ export function sidebar(ctx: Ctx): void {
       el('div', { className: 'sub', textContent: 'Hat' }), picker(ctx, cat.hats, 'hat', NONE),
     ),
     section('Accessories', true, accessoriesPanel(ctx), earringPanel(ctx)),
-    section('Weapon', false, weaponPanel(ctx)),
+    section('Props', false, weaponPanel(ctx), vehiclePanel(ctx)),
   );
 
   // Detail sliders, grouped like MakeHuman: one section per category.

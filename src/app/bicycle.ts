@@ -27,7 +27,16 @@ function joints(rig: Rig, pos: Vec3[]) {
     const a = at(`${s}Foot`), t = at(`${s}ToeBase`);
     return a && t ? a.clone().lerp(t, 0.75) : a;
   };
-  return { hips: at('Hips'), hl: at('LeftHand'), hr: at('RightHand'), bl: ball('Left'), br: ball('Right') };
+  // Grips sit in the palm: most of the way from the wrist to the middle finger's knuckle.
+  const palm = (s: string) => {
+    const w = at(`${s}Hand`), m = at(`${s}HandMiddle1`);
+    return w && m ? w.clone().lerp(m, 0.75) : w;
+  };
+  const thigh = (s: string): [V, V] | undefined => {
+    const a = at(`${s}UpLeg`), b = at(`${s}Leg`);
+    return a && b ? [a, b] : undefined;
+  };
+  return { hips: at('Hips'), hl: palm('Left'), hr: palm('Right'), bl: ball('Left'), br: ball('Right'), tl: thigh('Left'), tr: thigh('Right') };
 }
 
 export class Bicycle {
@@ -43,6 +52,7 @@ export class Bicycle {
     const n = 24;
     const hips = new THREE.Vector3(), hl = new THREE.Vector3(), hr = new THREE.Vector3();
     const balls: V[] = [];
+    const thighs: [V, V][] = [];
     let lowHips = Infinity;
     for (let k = 0; k < n; k++) {
       const j = joints(rig, animator.positions(animator.frame(clip, (k / n) * clip.duration)));
@@ -52,6 +62,8 @@ export class Bicycle {
       hl.add(j.hl);
       hr.add(j.hr);
       balls.push(j.bl, j.br);
+      if (j.tl) thighs.push(j.tl);
+      if (j.tr) thighs.push(j.tr);
     }
     hips.divideScalar(n);
     hl.divideScalar(n);
@@ -68,12 +80,31 @@ export class Bicycle {
     const front = new THREE.Vector3(0, wr, C.z + 0.62 * scale);
     // Saddle under the sit bones; grips under the palms; the head tube between the bars and the front hub.
     const saddle = new THREE.Vector3(0, lowHips - 0.08 * scale, hips.z - 0.04 * scale);
+    // The bar runs through the palms; the stem comes forward and down from it to the head tube.
     const grips = hl.clone().add(hr).multiplyScalar(0.5);
-    grips.y -= 0.03 * scale;
-    const stemTop = new THREE.Vector3(0, grips.y - 0.02 * scale, grips.z - 0.07 * scale);
-    const headTop = new THREE.Vector3(0, stemTop.y - 0.07 * scale, stemTop.z - 0.02 * scale);
+    const stemTop = new THREE.Vector3(0, grips.y - 0.01 * scale, grips.z);
+    // Top tube and head tube as low as the thighs need: lower them until every thigh (hip to knee,
+    // about 8 cm thick) clears the top tube and stem through the whole pedal stroke.
+    const clear = 0.085 * scale;
+    const segDist = (a: V, b: V, c: V, d: V) => {
+      let m = Infinity;
+      for (let i = 0; i <= 12; i++) {
+        const p = a.clone().lerp(b, i / 12);
+        const cd = d.clone().sub(c), t = Math.max(0, Math.min(1, p.clone().sub(c).dot(cd) / cd.lengthSq()));
+        m = Math.min(m, p.distanceTo(c.clone().addScaledVector(cd, t)));
+      }
+      return m;
+    };
+    let drop = 0.07 * scale, seatK = 0.78, headTop = new THREE.Vector3(), seatCluster = new THREE.Vector3();
+    for (let it = 0; it < 30; it++) {
+      headTop = new THREE.Vector3(0, stemTop.y - drop, stemTop.z - 0.06 * scale);
+      seatCluster = C.clone().lerp(saddle, seatK);
+      const worst = Math.min(...thighs.map(([a, b]) => Math.min(segDist(seatCluster, headTop, a, b), segDist(headTop, stemTop, a, b))));
+      if (worst >= clear) break;
+      drop += 0.012 * scale;
+      seatK = Math.max(0.55, seatK - 0.015);
+    }
     const headBottom = headTop.clone().lerp(front, 0.28);
-    const seatCluster = C.clone().lerp(saddle, 0.78);
 
     const paint = new THREE.MeshStandardMaterial({ color: '#c8342b', roughness: 0.35, metalness: 0.45 });
     const metal = new THREE.MeshStandardMaterial({ color: '#b9bec7', roughness: 0.3, metalness: 0.9 });

@@ -76,3 +76,14 @@ export function weaponPanel(ctx: Ctx) {
   });
   return el('div', {}, row, note);
 }
+
+/** Vehicle props, shown with their riding clip. */
+export function vehiclePanel(ctx: Ctx) {
+  const { store } = ctx;
+  const row = selectRow(ctx, 'Ride', [['none', 'None'], ['bicycle', 'Bicycle']], () => store.params.vehicle, (v) => {
+    store.set({ vehicle: v as 'none' | 'bicycle' });
+    if (v === 'bicycle' && store.params.rig !== 'none') ctx.playClip('ride_bicycle');
+  });
+  const note = el('div', { className: 'hint', textContent: 'Shown while the matching animation plays (Bicycle: Ride bicycle), fitted to the character. Preview only for now.' });
+  return el('div', {}, row, note);
+}

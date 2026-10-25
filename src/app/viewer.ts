@@ -25,6 +25,7 @@ export class Viewer {
   private lastFrame: Frame | null = null;
   /** The bicycle shown while the Ride bicycle clip plays (built for the current character). */
   private bike: Bicycle | null = null;
+  private vehicle: 'none' | 'bicycle' = 'none';
   private blendFrom: Frame | null = null;
   private blendStart = 0;
   /** Called with (clip, time) every frame while a clip plays (for the timeline UI). */
@@ -194,6 +195,7 @@ export class Viewer {
     this.drawSkeleton();
     this.animator = ch.rig && this.bones.length ? new Animator(ch.rig, ch.face) : null;
     this.dropBike();
+    this.vehicle = ch.params.vehicle ?? 'none';
     this.tick();
 
     // Re-frame only when the height changes noticeably, so tweaking sliders doesn't jump the camera;
@@ -294,7 +296,7 @@ export class Viewer {
 
   /** Ride bicycle shows a bicycle fitted to the character; other clips hide it. */
   private updateBike(frame: Frame) {
-    const riding = this.clip?.id === BICYCLE_CLIP && !!this.animator;
+    const riding = this.clip?.id === BICYCLE_CLIP && this.vehicle === 'bicycle' && !!this.animator;
     if (riding && !this.bike) {
       try {
         this.bike = new Bicycle(this.animator!.rig, this.animator!, this.clip!);

@@ -73,6 +73,8 @@ export interface HumanParams {
   animations: boolean;
   /** Weapon held in the right hand (attached to the WeaponR socket). */
   weapon: WeaponId;
+  /** A vehicle prop shown with its riding clip (preview only for now). */
+  vehicle: 'none' | 'bicycle';
   /** Resting facial expression (applied in the viewer and in every exported clip). */
   expression: ExpressionId;
   /** Export facial blend shapes (expressions, blinking). Off: the expression is baked into the mesh. */
@@ -128,6 +130,7 @@ export const DEFAULT_PARAMS: HumanParams = {
   restPose: 'A',
   animations: true,
   weapon: 'none',
+  vehicle: 'none',
   expression: 'neutral',
   faceShapes: true,
   speechShapes: true,
@@ -380,6 +383,7 @@ export function sanitizeParams(raw: unknown, base: HumanParams = DEFAULT_PARAMS)
   out.rig = oneOf(src.rig, ['game', 'game_lite', 'full', 'none'] as const, base.rig);
   out.restPose = oneOf(src.restPose, ['A', 'T'] as const, base.restPose);
   out.weapon = oneOf(src.weapon, WEAPONS, base.weapon);
+  out.vehicle = oneOf(src.vehicle, ['none', 'bicycle'] as const, base.vehicle);
   out.facialHair = oneOf(src.facialHair, FACIAL_HAIR, base.facialHair);
   out.earrings = oneOf(src.earrings, EARRINGS, base.earrings);
   out.earringMetal = oneOf(src.earringMetal, ['gold', 'silver'] as const, base.earringMetal);

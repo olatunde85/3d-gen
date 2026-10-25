@@ -53,6 +53,8 @@ if (hash.has('skeleton')) {
   viewer.setSkeleton(true);
 }
 if (hash.has('export')) xp.open();
+// Scripted recordings (demo videos) drive the viewer and clips directly.
+if (hash.has('demo')) Object.assign(window, { ara: { viewer, store, play: (id: string) => anim.playClip(id) } });
 if (hash.has('face')) {
   $<HTMLInputElement>('#face').checked = true;
   viewer.focusFace(true);
