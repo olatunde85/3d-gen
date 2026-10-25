@@ -29,6 +29,8 @@ export class Viewer {
   private loader = new THREE.TextureLoader();
   private texCache = new Map<string, THREE.Texture>();
   private framedHeight = 0;
+  /** The shown character's height (the close-up always follows it). */
+  private height = 0;
   wireframe = false;
   showSkeleton = false;
 
@@ -190,8 +192,10 @@ export class Viewer {
     this.animator = ch.rig && this.bones.length ? new Animator(ch.rig, ch.face) : null;
     this.tick();
 
-    // Re-frame only when the height changes noticeably, so tweaking sliders doesn't jump the camera.
-    if (Math.abs(ch.height - this.framedHeight) > 0.2) {
+    // Re-frame only when the height changes noticeably, so tweaking sliders doesn't jump the camera;
+    // the face close-up always follows the face.
+    this.height = ch.height;
+    if (Math.abs(ch.height - this.framedHeight) > 0.2 || (this.faceMode && Math.abs(ch.height - this.framedHeight) > 0.02)) {
       this.framedHeight = ch.height;
       this.frame();
     }
@@ -215,6 +219,7 @@ export class Viewer {
   /** Close-up on the face (or back to full body). */
   focusFace(on: boolean) {
     this.faceMode = on;
+    if (this.height) this.framedHeight = this.height;
     this.frame();
   }
 
