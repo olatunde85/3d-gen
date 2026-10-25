@@ -10,9 +10,9 @@ Shape a body, dress it, give it hair, a beard, tattoos and a weapon, pick from 7
 
 ![Presets: African warrior, Yoruba warrior, cyberpunk hacker, Dahomey warrior, FRSC officer, police officer, wasteland survivor, adventurer](docs/media/presets.jpg)
 
-<p align="center"><img src="docs/media/demo.gif" alt="A motion-captured walk, facial expressions with teeth, and sitting and lying animations in the Ara 3D Gen web app" width="520"></p>
+<p align="center"><img src="docs/media/demo.gif" alt="A motion-captured walk, a face that laughs and talks, and riding a bicycle in Ara 3D Gen" width="560"></p>
 
-<p align="center"><a href="https://ara3dgen.com/media/ara-3d-gen-whats-new.mp4"><img src="docs/media/whats-new-poster.jpg" alt="Watch what's new in Ara 3D Gen (1:35)" width="720"></a><br><sub>▶ <a href="https://ara3dgen.com/media/ara-3d-gen-whats-new.mp4">What's new (1:35)</a>: motion-captured walk and run, faces that blink and look around, expressions, teeth and talking, 70 animations. · <a href="https://ara3dgen.com/media/ara-3d-gen-demo.mp4">Full demo (1:45)</a></sub></p>
+<p align="center"><a href="https://ara3dgen.com/media/ara-3d-gen-whats-new.mp4"><img src="docs/media/whats-new-poster.jpg" alt="Watch what's new in Ara 3D Gen (0:34)" width="720"></a><br><sub>▶ <a href="https://ara3dgen.com/media/ara-3d-gen-whats-new.mp4">What's new (0:34)</a>: a motion-captured walk and run, faces that blink, react and talk, 70 animations. · <a href="https://ara3dgen.com/media/ara-3d-gen-demo.mp4">Full demo (1:45)</a></sub></p>
 
 
 ## Why self-hosted?
