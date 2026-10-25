@@ -57,6 +57,17 @@ npm run dev            # open http://localhost:5173 (landing page; the app is at
 
 On Windows, run the same commands in PowerShell, Command Prompt or Git Bash.
 
+### Updating an existing clone
+
+```bash
+git pull
+npm install            # picks up any new or updated dependencies
+npm run setup-assets   # rebuilds public/assets; reuses the data already downloaded, so it takes about a minute
+npm run dev
+```
+
+Re-run `setup-assets` after every update: new versions can add or change generated assets (for example new eye colours), and the app falls back to the old ones until you do. If you have local changes, commit or stash them before `git pull`.
+
 Production build (static files you can host anywhere, e.g. an internal server or GitHub Pages):
 
 ```bash
