@@ -44,6 +44,12 @@ export interface HandTarget {
    * from where the weapon actually is (pos/dir/palm above are only a fallback).
    */
   support?: 'rifle';
+  /**
+   * 'floor': pos is in the character's floor space (metres at 1.8 m height, from the floor under
+   * the character, +Z forward) and the directions are too, so the hand stays put while the chest
+   * moves: hands on handlebars and other fixed things.
+   */
+  space?: 'floor';
 }
 
 export interface Sample {

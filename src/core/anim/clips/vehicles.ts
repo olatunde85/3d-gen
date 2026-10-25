@@ -96,7 +96,8 @@ const rideBicycle: Clip = {
     side(out, 'Foot', lf, rf);
     grip(out, 'Left');
     grip(out, 'Right');
-    const bar = (s: 1 | -1): HandTarget => ({ pos: v(0.24 * s, -0.24 + 0.006 * Math.sin(2 * c), 0.4), pole: v(s, -0.8, -0.3), dir: v(0.25 * s, -0.25, 1), palm: v(-0.35 * s, -1, 0) });
+    // Hands fixed on the handlebar (floor space), so they stay on the bar while the body pedals.
+    const bar = (s: 1 | -1): HandTarget => ({ space: 'floor', pos: v(0.24 * s, 0.918, 0.437), pole: v(s, -0.39, -0.76), dir: v(0.25 * s, -0.85, 0.58), palm: v(-0.35 * s, -0.74, -0.67) });
     return { bones: out, root: { y: -0.02 + 0.006 * Math.sin(2 * c) }, thumbs: { Left: 0.6, Right: 0.6 }, ik: { Left: bar(1), Right: bar(-1) } };
   },
 };

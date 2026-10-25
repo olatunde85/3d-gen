@@ -553,7 +553,8 @@ export class Animator {
     if (!t) return;
     const B = this.rig.bones;
     // Origin: base of the neck (just above the shoulder line), carried by the chest bone.
-    const { cd, origin } = this.chestSpace(world, pos);
+    const chest = this.chestSpace(world, pos);
+    const { cd, origin } = t.space === 'floor' ? { cd: QI, origin: [0, 0, 0] as Vec3 } : chest;
     const toWorld = (v: Vec3) => qrot(cd, v);
     const fore = this.idx.get(`${side}ForeArm`)!, hand = this.idx.get(`${side}Hand`)!;
     if (part === 'Arm') {

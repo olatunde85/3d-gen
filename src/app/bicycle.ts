@@ -27,10 +27,14 @@ function joints(rig: Rig, pos: Vec3[]) {
     const a = at(`${s}Foot`), t = at(`${s}ToeBase`);
     return a && t ? a.clone().lerp(t, 0.75) : a;
   };
-  // Grips sit in the palm: most of the way from the wrist to the middle finger's knuckle.
+  // Grips run through the closed fist: the centre of the knuckles and the curled middle joints.
   const palm = (s: string) => {
-    const w = at(`${s}Hand`), m = at(`${s}HandMiddle1`);
-    return w && m ? w.clone().lerp(m, 0.75) : w;
+    const pts = ['HandIndex1', 'HandPinky1', 'HandIndex2', 'HandMiddle2', 'HandRing2', 'HandMiddle3'].map((f) => at(`${s}${f}`));
+    if (pts.some((p) => !p)) {
+      const w = at(`${s}Hand`), m = at(`${s}HandMiddle1`);
+      return w && m ? w.clone().lerp(m, 0.75) : w;
+    }
+    return pts.reduce<V>((a, p) => a.add(p!), new THREE.Vector3()).divideScalar(pts.length);
   };
   const thigh = (s: string): [V, V] | undefined => {
     const a = at(`${s}UpLeg`), b = at(`${s}Leg`);
