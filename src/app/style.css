@@ -285,3 +285,5 @@ button.xp-cat:hover { color: var(--text); }
   background: #2e8a57; color: #fff; font-size: 13px; opacity: 0; transition: opacity 0.2s ease;
 }
 .share-note.on { opacity: 1; }
+#panel header h1 .hdr-docs { float: right; margin-top: 3px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none; }
+#panel header h1 .hdr-docs:hover { color: var(--text); }

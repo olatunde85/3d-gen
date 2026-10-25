@@ -27,7 +27,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && tsx scripts/build-docs.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "export": "tsx scripts/export-cli.ts",
@@ -45,6 +45,7 @@
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/three": "^0.186.0",
+    "marked": "^15.0.12",
     "sharp": "^0.35.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

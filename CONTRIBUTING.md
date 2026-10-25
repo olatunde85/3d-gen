@@ -1,7 +1,8 @@
 # Contributing to Ara 3D Gen
 
-Thanks for helping! Bug reports, garments, hairstyles, animations, presets and
-engine-integration notes are all welcome.
+Thanks for helping! Bug reports, garments, hairstyles, animations, presets,
+engine-integration notes and docs are all welcome. Questions are best asked in
+[Discussions](https://github.com/olatunde85/3d-gen/discussions).
 
 ## Getting set up
 
@@ -19,7 +20,7 @@ Requirements: Node 20+ and git, on Windows, macOS or Linux. `npm run test:gltf` 
 
 ```bash
 npm run typecheck
-npm test            # builds ~240 characters and validates GLB, FBX, OBJ and every export mode
+npm test            # builds 259 characters and validates GLB, FBX, OBJ and every export mode
 npm run test:gltf   # loads exported GLBs with three.js in headless Chrome (rig/animation changes)
 npm run test:ui     # drives the app in headless Chrome: build, slider, preset, animation browser, export (UI changes)
 ```
@@ -40,6 +41,11 @@ For visual changes (garments, hair, tattoos, animation), please attach a screens
 | Exporters | `src/export/` (`plan.ts` decides the files, `glb.ts`, `fbx.ts`, `obj.ts` write them) |
 | Web app | `src/app/`: three.js viewer, generation worker, and the UI in `ui/` (one module per part: sidebar, animation bar, export panel, share dialog, header), wired together in `main.ts` through the store's events (`ui/store.ts`) |
 | Landing page | `index.html`, `src/landing/` (the app itself is `app/index.html`) |
+| Documentation | `docs/*.md` (also published at ara3dgen.com/docs by `scripts/build-docs.ts`) |
+
+### Documentation
+
+The guides live in `docs/` as Markdown, so update them in the same pull request as the code they describe. Link between pages with relative links (`[Rigging](rigging.md)`); they work on GitHub and on the website. Keep the README short: it's the front page, and the detail belongs in `docs/`.
 
 ### Adding a garment
 
