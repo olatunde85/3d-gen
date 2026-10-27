@@ -38,13 +38,22 @@ export function color(ctx: Ctx, label: string, key: ColorKey, live = true) {
 }
 
 /** Thumbnail grid choosing one catalog item. */
-export function picker(ctx: Ctx, items: CatalogItem[], key: keyof HumanParams, extra: { id: string; name: string }[] = []) {
+/** Extra picker entries: `src` is a ready image URL; `pick` replaces the default (set the key to the id). */
+export interface PickerExtra {
+  id: string;
+  name: string;
+  src?: string;
+  pick?: () => void;
+}
+
+export function picker(ctx: Ctx, items: CatalogItem[], key: keyof HumanParams, extra: PickerExtra[] = [], after: PickerExtra[] = []) {
   const grid = el('div', { className: 'picker' });
   const buttons = new Map<string, HTMLButtonElement>();
-  for (const it of [...extra, ...items]) {
-    const thumb = 'thumb' in it && it.thumb ? el('img', { src: ctx.lib.source.url!(it.thumb as string), alt: '', loading: 'lazy' }) : it.name;
+  for (const it of [...extra, ...items, ...after] as (PickerExtra | CatalogItem)[]) {
+    const src = 'src' in it && it.src ? it.src : 'thumb' in it && it.thumb ? ctx.lib.source.url!(it.thumb as string) : '';
+    const thumb = src ? el('img', { src, alt: '', loading: 'lazy' }) : it.name;
     const b = el('button', { title: it.name }, thumb, el('span', { className: 'cap', textContent: it.name }));
-    b.addEventListener('click', () => ctx.store.set({ [key]: it.id }));
+    b.addEventListener('click', () => ('pick' in it && it.pick ? it.pick() : ctx.store.set({ [key]: it.id })));
     buttons.set(it.id, b);
     grid.append(b);
   }

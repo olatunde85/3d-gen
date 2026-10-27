@@ -27,19 +27,21 @@ There are 19 presets (athletes, a detective, a secret agent, a soldier, a cyberp
 
 ## Clothing
 
-Choose a full MakeHuman outfit, or **Separate pieces**:
+Choose a full MakeHuman outfit, an **outfit set**, or **Separate pieces**:
 
-- **Tops:** tank top, fatigue shirt, uniform shirt (short or long sleeves, with epaulettes), techwear jacket, tattered shirt, sleeveless tunic, woven tunic (buba), or none (shirtless/topless).
-- **Bottoms:** briefs, cargo shorts, fatigue/uniform/techwear/tattered pants, loose trousers (sokoto), wrappers (knee or ankle length), Zulu hide aprons, a loincloth with front and back panels, or none.
+- **Outfit sets** (Yoruba women's wear): ankara gown with flutter sleeves; ankara peplum top and pencil skirt; aso-ebi lace top (puff sleeves, double peplum, pearls) and maxi skirt with a gele. Each set shares one pattern and colour pair, comes with matching jewellery and high heels, and its pieces are also listed under Tops and Bottoms.
+
+- **Tops:** tank top, fatigue shirt, uniform shirt (short or long sleeves, with epaulettes), techwear jacket, tattered shirt, sleeveless tunic, woven tunic (buba), ankara gown, ankara peplum top, aso-ebi lace top, or none (shirtless/topless).
+- **Bottoms:** briefs, cargo shorts, fatigue/uniform/techwear/tattered pants, loose trousers (sokoto), wrappers (knee or ankle length), Zulu hide aprons, a loincloth with front and back panels, pencil skirts (below the knee or ankle length), or none.
 - **Accessories:**
   - belts and straps: belts, utility belt, waist sash, crossed straps, amulet bandolier
   - armour and vests: leather armor, tactical vest, reflective hi-vis vest
-  - headwear: beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
-  - jewellery and charms: beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
+  - headwear: gele (pleated head tie with lace flowers; it covers the hair), beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
+  - jewellery and charms: coral beads (iyun), gold necklace with pendant, pearl necklace, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
   - wraps and bands: shuka shoulder drape, arm guards, fur bands, arm wraps
   - other: neon accents, wrist watch
-- **Footwear:** MakeHuman shoes, sandals, combat boots, or barefoot.
-- **Fabrics:** generated, tileable, with normal maps: kente, aso-oke, ankara, adire, shuka plaid, cowhide, leopard, camo, MOLLE, leather, techwear, tattered.
+- **Footwear:** MakeHuman shoes, sandals, combat boots, high heels (the feet are arched in the mesh, so every animation keeps the heel pose), or barefoot.
+- **Fabrics:** generated, tileable, with normal maps: kente, aso-oke, ankara (three prints), lace, damask, pleated head-tie cloth, adire, shuka plaid, cowhide, leopard, camo, MOLLE, leather, techwear, tattered.
 
 Every piece has editable colours (Colour + Accent, for example epaulettes, a badge or reflective tape) and, where it has several, a choice of pattern.
 

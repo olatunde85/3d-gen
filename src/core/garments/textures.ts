@@ -182,9 +182,30 @@ const weave = (u: number, v: number, f = 96) => {
 
 export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
-  | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel';
+  | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
+  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated';
 
-export const PATTERNS: Pattern[] = ['solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'adire', 'adire_panel', 'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered'];
+export const PATTERNS: Pattern[] = [
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated',
+  'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
+];
+
+/** Nearest jittered cell centre on a periodic grid of g x g cells: [dx, dy, distance, cell hash]. */
+function cellNearest(u: number, v: number, g: number, seed: number, jitter = 0.6, halfDrop = false): [number, number, number, number] {
+  let best: [number, number, number, number] = [0, 0, 9, 0];
+  const gx = Math.floor(u * g), gy = Math.floor(v * g);
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      const cx = gx + dx, cy = gy + dy;
+      const mx = ((cx % g) + g) % g, my = ((cy % g) + g) % g;
+      const drop = halfDrop && mx % 2 ? 0.5 : 0;
+      const px = (cx + 0.5 + jitter * (hash(mx, my, seed) - 0.5)) / g;
+      const py = (cy + 0.5 + drop + jitter * (hash(mx, my, seed + 1) - 0.5)) / g;
+      const d = Math.hypot(u - px, v - py) * g;
+      if (d < best[2]) best = [(u - px) * g, (v - py) * g, d, hash(mx, my, seed + 2)];
+    }
+  return best;
+}
 
 const S = 512;
 
@@ -376,6 +397,101 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1): TexOu
         return { c: mul(c, 0.9 + 0.1 * w), h: h + w * 0.3 };
       }, false, 2.5);
     }
+    case 'ankara_floral': {
+      // Wax print: big open flowers (light, with fine radial lines) and leaves (c1) on a crackled light ground.
+      const light: RGB = mixc(B, [255, 255, 255], 0.35), deep = mul(A, 0.7);
+      return render(S, (u, v) => {
+        const crack = Math.abs(fbm(u, v, 24, seed + 3, 3) - 0.5) < 0.018;
+        let c: RGB = crack ? mixc(A, B, 0.45) : mixc(B, A, 0.12 + 0.12 * fbm(u, v, 16, seed + 4, 2));
+        let h = 0;
+        // Leaves: pointed lens shapes at random angles (each may reach into its neighbours' cells).
+        const g = 5, gx = Math.floor(u * g), gy = Math.floor(v * g);
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const mx = (((gx + dx) % g) + g) % g, my = (((gy + dy) % g) + g) % g;
+            const lx = u * g - (gx + dx + 0.5 + 0.8 * (hash(mx, my, seed + 5) - 0.5));
+            const ly = v * g - (gy + dy + 0.5 + 0.8 * (hash(mx, my, seed + 6) - 0.5));
+            const ang = hash(mx, my, seed + 7) * Math.PI;
+            const xr = lx * Math.cos(ang) + ly * Math.sin(ang), yr = -lx * Math.sin(ang) + ly * Math.cos(ang);
+            if (Math.abs(xr) < 0.6 && Math.abs(yr) < 0.24 * (1 - (xr / 0.6) ** 2)) {
+              c = Math.abs(yr) < 0.012 ? mul(A, 1.25) : mixc(A, deep, frac(xr * 5) < 0.5 ? 0.15 : 0);
+              h = 0.5;
+            }
+          }
+        const [fx, fy, fd] = cellNearest(u, v, 2, seed, 0.3, true);
+        const th = Math.atan2(fy, fx);
+        const petal = 0.33 * (0.72 + 0.28 * Math.abs(Math.cos(th * 4)));
+        if (fd < petal) {
+          const t = fd / petal;
+          c = t < 0.17 ? (frac(fd * 60) < 0.5 ? deep : mixc(A, light, 0.5)) : frac((th / (2 * Math.PI)) * 96) < 0.28 && t > 0.22 ? mixc(A, light, 0.35) : mixc(light, A, Math.max(0, t - 0.5) * 0.9);
+          if (t > 0.94) c = mixc(A, light, 0.3);
+          h = 1;
+        }
+        const w = weave(u, v, 128);
+        return { c: mul(c, 0.92 + 0.08 * w), h: h + w * 0.3 };
+      }, false, 1.5);
+    }
+    case 'ankara_web': {
+      // Wax print: radial "web" medallions with dark centres, on a crazy-paving ground (c1 ground, c2 lines).
+      return render(S, (u, v) => {
+        const [x, y, d] = cellNearest(u, v, 2, seed, 0.1, true);
+        const th = Math.atan2(y, x);
+        let line = false, dot = false;
+        if (d < 0.46) {
+          dot = d < 0.07;
+          line = frac(d * 16) < 0.16 || (d > 0.08 && frac((th / (2 * Math.PI)) * 24) < 0.07);
+        } else {
+          const wu = u + 0.012 * Math.sin(v * Math.PI * 40), wv = v + 0.012 * Math.sin(u * Math.PI * 36);
+          line = frac(wu * 20) < 0.09 || frac(wv * 20) < 0.09;
+        }
+        const ink = dot || line;
+        const n = fbm(u, v, 16, seed + 2, 2);
+        const w = weave(u, v, 128);
+        return { c: mul(ink ? mixc(B, A, 0.08) : A, (0.9 + 0.12 * n) * (0.93 + 0.07 * w)), h: (ink ? 0.4 : 0) + w * 0.3 };
+      }, false, 1.5);
+    }
+    case 'lace': {
+      // Corded guipure lace: raised spirals and scrolls (cord) over a fine net, all in c1 over a slightly darker lining.
+      const lining = mul(A, 0.62), cordC = mixc(A, [255, 255, 255], 0.2);
+      return render(S, (u, v) => {
+        const [x, y, d, hsh] = cellNearest(u, v, 4, seed, 0.7);
+        const th = Math.atan2(y, x) * (hsh > 0.5 ? 1 : -1);
+        let cordv = 0;
+        if (d < 0.46) {
+          // Archimedean spiral of cord.
+          const s = frac(d * 9 - th / (2 * Math.PI));
+          cordv = Math.max(0, 1 - Math.abs(s - 0.5) / 0.24);
+          if (d > 0.4) cordv *= (0.46 - d) / 0.06;
+        } else {
+          // Scroll fill between spirals: warped contour lines.
+          const f = fbm(u + 0.2 * fbm(u, v, 3, seed + 9, 2), v, 6, seed + 4, 3) * 14;
+          cordv = Math.max(0, 1 - Math.abs(frac(f) - 0.5) / 0.18) * 0.9;
+        }
+        const net = Math.min(Math.abs(frac(u * 90 + v * 52) - 0.5), Math.abs(frac(u * 90 - v * 52) - 0.5)) < 0.12;
+        const c = cordv > 0.3 ? mul(cordC, 0.85 + 0.2 * cordv) : net ? mul(A, 0.86) : lining;
+        return { c, h: cordv * 1.4 + (net ? 0.25 : 0) };
+      }, false, 3.5);
+    }
+    case 'damask': {
+      // Stiff, shiny head-tie fabric (gele): tone-on-tone woven motifs with a fine diagonal twill.
+      return render(S, (u, v) => {
+        const [x, y, d] = cellNearest(u, v, 4, seed, 0, true);
+        const th = Math.atan2(y, x);
+        const motif = d < 0.4 && d > 0.12 && Math.abs(Math.cos(th * 3)) > 0.55 + d;
+        const twill = frac((u + v) * 160) < 0.5 ? 1 : 0;
+        const c = motif ? mixc(A, B, 0.5) : A;
+        return { c: mul(c, 0.9 + 0.08 * twill), h: (motif ? 0.6 : 0) + twill * 0.2 };
+      }, false, 2);
+    }
+    case 'pleated': {
+      // Head-tie fabric pressed into fine horizontal pleats, with a soft sheen and a fine twill.
+      return render(S, (u, v) => {
+        const ridge = 0.5 + 0.5 * Math.sin(v * Math.PI * 2 * 64);
+        const twill = frac((u + v) * 180) < 0.5 ? 1 : 0;
+        const n = fbm(u, v, 8, seed, 2);
+        return { c: mul(mixc(A, B, 0.08 * n), 0.9 + 0.1 * ridge + 0.03 * twill), h: ridge * 1.0 + twill * 0.15 };
+      }, false, 1.6);
+    }
     case 'beadbands': {
       // Concentric bead rows along v; c1/c2 are ignored in favour of a Maasai palette.
       const pal: RGB[] = [[230, 30, 30], [245, 245, 240], [30, 80, 200], [250, 170, 20], [30, 140, 60], [245, 245, 240], [20, 20, 20]];
@@ -415,3 +531,4 @@ export function featherTexture(c1: string, c2: string): TexOut {
     return { c: shaft ? [235, 230, 220] : mul(tip, barb), a: inVane || shaft ? 1 : 0 };
   }, true);
 }
+

@@ -8,7 +8,7 @@ import { buildHuman } from '../src/core/human';
 import type { MeshData } from '../src/core/mesh';
 import { DEFAULT_PARAMS, DETAILS, PRESETS, randomParams, type HumanParams } from '../src/core/params';
 import { DEFAULT_EXPORT, exportCharacter, planExport, runExport, type ExportSettings } from '../src/export';
-import { dressing, GARMENTS } from '../src/core/garments';
+import { dressing, GARMENTS, OUTFIT_SETS } from '../src/core/garments';
 import { Animator } from '../src/core/anim/evaluate';
 import { CLIPS, clipById } from '../src/core/anim/clips';
 import { MOCAP_DATA } from '../src/core/anim/clips/mocap-data';
@@ -212,11 +212,14 @@ for (const o of lib.catalog.outfits) cases.push([`outfit ${o.id}`, { ...DEFAULT_
 for (const h of lib.catalog.hair) cases.push([`hair ${h.id}`, { ...DEFAULT_PARAMS, hair: h.id, hat: 'fedora01' }]);
 // Every procedural garment, on a female and a male body, at medium and HD.
 for (const g of GARMENTS) {
-  const slot = g.slot === 'acc' ? { accessories: [g.id] } : { [g.slot]: g.id };
+  const slot = g.slot === 'acc' ? { accessories: [g.id] } : g.slot === 'feet' ? { shoes: g.id } : { [g.slot]: g.id };
   for (const [gender, detail] of [[0, 'medium'], [1, 'high']] as const)
     cases.push([`garment ${g.id} g${gender}`, { ...DEFAULT_PARAMS, outfit: 'none', gender, detail, ...slot }]);
 }
 cases.push(['sandals', { ...DEFAULT_PARAMS, outfit: 'none', shoes: 'sandals' }]);
+// Outfit sets (paired top and bottom) with their suggested extras.
+for (const set of OUTFIT_SETS)
+  cases.push([`outfit set ${set.id}`, { ...DEFAULT_PARAMS, outfit: set.id, gender: 0, accessories: set.accessories, shoes: set.shoes ?? 'none', hair: 'cornrows' }]);
 cases.push(['barefoot', { ...DEFAULT_PARAMS, outfit: 'none', shoes: 'none', bottom: 'none' }]);
 
 // Share links: every preset and random character survives the round trip; garbage is rejected.

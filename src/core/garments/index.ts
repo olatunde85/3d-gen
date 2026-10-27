@@ -3,16 +3,19 @@ import { ageToYears, type HumanParams } from '../params';
 import { makeBody } from './body';
 import { bootShafts, garmentById, sandals, type GarmentStyle, type GCtx, type GPart } from './catalog';
 import { PATTERNS, type Pattern } from './textures';
+import { setById } from './yoruba';
 
 export { GARMENTS, garmentById } from './catalog';
 export { PATTERNS } from './textures';
+export { archFeet } from './heels';
+export { OUTFIT_SETS, setById, type OutfitSet } from './yoruba';
 
 export interface Dressing {
   top?: string;
   bottom?: string;
   underwear: boolean;
   accessories: string[];
-  footwear?: 'sandals' | 'boots';
+  footwear?: 'sandals' | 'boots' | 'heels';
   styles: HumanParams['garmentStyles'];
 }
 
@@ -22,11 +25,21 @@ export interface Dressing {
  * under-18 character keeps underwear.
  */
 export function dressing(p: HumanParams): Dressing {
-  const pieces = p.outfit === 'none';
+  // An outfit set dresses its own top and bottom, sharing the set's pattern and colours.
+  const set = setById.get(p.outfit);
+  const pieces = p.outfit === 'none' || !!set;
   const minor = ageToYears(p.age) < 18;
   const underwear = p.underwear || minor;
-  let top = pieces && p.top !== 'none' && garmentById.has(p.top) ? p.top : undefined;
-  let bottom = pieces && p.bottom !== 'none' && garmentById.has(p.bottom) ? p.bottom : undefined;
+  const topId = set ? set.top : p.top, bottomId = set ? set.bottom : p.bottom;
+  let top = pieces && topId !== 'none' && garmentById.has(topId) ? topId : undefined;
+  let bottom = pieces && bottomId !== 'none' && garmentById.has(bottomId) ? bottomId : undefined;
+  let styles = p.garmentStyles;
+  if (set) {
+    const shared = { pattern: set.patterns[0], color: set.color, color2: set.color2, ...styles[set.id] };
+    styles = { ...styles, [set.top]: shared, ...(set.bottom !== 'none' ? { [set.bottom]: shared } : {}) };
+    // Matching gele: the set's colours unless the gele has its own.
+    if (!styles.gele) styles = { ...styles, gele: { color: shared.color, color2: shared.color2 } };
+  }
   if (pieces && !bottom && underwear) bottom = 'briefs';
   if (pieces && !top && p.gender < 0.5 && minor) top = 'tank_top';
   return {
@@ -34,8 +47,8 @@ export function dressing(p: HumanParams): Dressing {
     bottom,
     underwear,
     accessories: p.accessories.filter((a) => garmentById.get(a)?.slot === 'acc'),
-    footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : undefined,
-    styles: p.garmentStyles,
+    footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : p.shoes === 'heels' ? 'heels' : undefined,
+    styles,
   };
 }
 
@@ -80,5 +93,6 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
   }
   if (d.footwear === 'sandals') parts.push(...sandals(g));
   if (d.footwear === 'boots') parts.push(...bootShafts(g));
+  if (d.footwear === 'heels') parts.push(...garmentById.get('heels')!.build(g, styleOf('heels', d.styles)));
   return parts;
 }

@@ -4,7 +4,7 @@
  */
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
 import { compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
-import { buildGarments, dressing } from './garments';
+import { archFeet, buildGarments, dressing } from './garments';
 import type { Vec3 } from './math';
 import { applyTPose, baseSkin, placeBones, quatOf, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
 import { socketBone, type HandJoints } from './rig/socket';
@@ -243,6 +243,8 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     });
     faceD = undefined;
   }
+  // High heels arch the feet in the mesh itself, so the skeleton and every clip keep the pose.
+  if (p.shoes === 'heels') archFeet(coords, lib.base.arrays.regions as Uint8Array, lib.base.meta.joints);
   const fv = lib.base.arrays.faceVerts as Uint32Array;
   // Rigging: target skeleton and per-base-vertex weights; every part derives its weights from these.
   const rigged = p.rig !== 'none';
@@ -289,7 +291,9 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     hiddenFaces[f] = coveredFaces[f] | assetDel[fv[f * 4]] | assetDel[fv[f * 4 + 1]] | assetDel[fv[f * 4 + 2]] | assetDel[fv[f * 4 + 3]];
   const neckIdx = lib.base.meta.joints['neck01____head'];
   const neckY = neckIdx.reduce((s, v) => s + coords[v * 3 + 1], 0) / neckIdx.length;
-  const looks = await buildLooks(lib, { p, coords, normals: bodyNormals, fullBody, hidden: hiddenFaces, neckY, low, onStage: stage });
+  // A head tie covers the hair, procedural styles included.
+  const looksP = gparts.some((g) => g.hidesHair) ? { ...p, hair: 'none' } : p;
+  const looks = await buildLooks(lib, { p: looksP, coords, normals: bodyNormals, fullBody, hidden: hiddenFaces, neckY, low, onStage: stage });
   // Hair and earrings follow the skull only; beards also the jaw and neck.
   const skinTo = (m: PolyMesh, mask: (v: number) => boolean): PolyMesh =>
     bskin ? { ...m, skin: skinPart(m, bskin, new VertexGrid(coords, mask), 4) } : m;
@@ -342,7 +346,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     parts.push([hd ? subdivide(m) : m, { ...mat, name: 'Outfit', color: tint(mat.color, p.outfitTint) }]);
   }
   for (const g of gparts) {
-    const m = skinOf(g.mesh, g.smooth ? 4 : 8);
+    const m = g.skinAt ? { ...skinOf({ ...g.mesh, positions: g.skinAt }, 8), positions: g.mesh.positions } : skinOf(g.mesh, g.smooth ? 4 : 8);
     parts.push([hd && g.smooth ? subdivide(m) : m, g.material]);
     if (g.ground) groundParts.push(g.mesh);
   }
@@ -351,7 +355,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   let brim = Infinity;
   for (const m of [hatMesh, ...gparts.filter((g) => g.headwear).map((g) => g.mesh)])
     if (m) for (let i = 1; i < m.positions.length; i += 3) brim = Math.min(brim, m.positions[i]);
-  if (pHair && hair) {
+  if (pHair && hair && !gparts.some((g) => g.hidesHair)) {
     const mat = toMaterial(hair.material!);
     let m = proxyMesh(pHair, coords, bskin, faceD);
     if (brim < Infinity) {

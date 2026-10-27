@@ -1,5 +1,5 @@
 /** Sidebar: separate clothing pieces, garment styles, underwear and accessories. */
-import { GARMENTS, garmentById, PATTERNS } from '../../core/garments';
+import { GARMENTS, garmentById, OUTFIT_SETS, PATTERNS, setById } from '../../core/garments';
 import { ageToYears, type HumanParams } from '../../core/params';
 import type { Ctx } from './context';
 import { selectRow } from './controls';
@@ -18,7 +18,7 @@ export function styleControls(ctx: Ctx, current: () => string) {
     }
     shown = id;
     box.replaceChildren();
-    const def = garmentById.get(id);
+    const def = garmentById.get(id) ?? setById.get(id);
     if (!def) return;
     const st = () => store.params.garmentStyles[id] ?? {};
     const put = (patch: Record<string, string>) =>
@@ -49,8 +49,15 @@ export function piecesPanel(ctx: Ctx) {
   const { store } = ctx;
   const opts = (slot: 'top' | 'bottom', none: string): [string, string][] =>
     [['none', none], ...GARMENTS.filter((g) => g.slot === slot && g.id !== 'briefs').map((g) => [g.id, g.label] as [string, string])];
-  // Always available: picking a top or bottom while a full outfit is worn switches to separate pieces.
+  // Always available: picking a top or bottom while a full outfit is worn switches to separate pieces
+  // (an outfit set's pieces and colours carry over).
   const pick = (patch: Partial<HumanParams>) => {
+    const set = setById.get(store.params.outfit);
+    if (set) {
+      const st = store.params.garmentStyles;
+      const shared = { pattern: set.patterns[0], color: set.color, color2: set.color2, ...st[set.id] };
+      patch = { top: set.top, bottom: set.bottom, garmentStyles: { ...st, [set.top]: shared, ...(set.bottom !== 'none' ? { [set.bottom]: shared } : {}) }, ...patch };
+    }
     store.set({ ...patch, outfit: 'none' });
     store.emit('sync');
   };
@@ -112,4 +119,33 @@ export function accessoriesPanel(ctx: Ctx) {
     if (!g.patterns.includes('beadbands')) wrap.append(styleControls(ctx, () => (store.params.accessories.includes(g.id) ? g.id : '')));
   }
   return wrap;
+}
+
+/** Outfit sets (paired top and bottom) as entries in the full-outfit picker. */
+export function outfitSetEntries(ctx: Ctx) {
+  const { store } = ctx;
+  return OUTFIT_SETS.map((set) => ({
+    id: set.id,
+    name: set.label,
+    src: `${import.meta.env.BASE_URL}outfit-thumbs/${set.id}.png`,
+    pick: () => {
+      const p = store.params;
+      store.set({
+        outfit: set.id,
+        accessories: [...p.accessories, ...set.accessories.filter((a) => !p.accessories.includes(a))],
+        ...(set.shoes ? { shoes: set.shoes } : {}),
+      });
+      store.emit('sync');
+    },
+  }));
+}
+
+/** Pattern and colours of the selected outfit set (shared by its pieces). */
+export function outfitSetStyle(ctx: Ctx) {
+  return styleControls(ctx, () => (setById.has(ctx.store.params.outfit) ? ctx.store.params.outfit : ''));
+}
+
+/** Colour of the high heels, when worn. */
+export function heelsStyle(ctx: Ctx) {
+  return styleControls(ctx, () => (ctx.store.params.shoes === 'heels' ? 'heels' : ''));
 }
