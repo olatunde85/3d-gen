@@ -103,40 +103,68 @@ function pump(g: GCtx, color: string): GPart[] {
   }
   const soles: PolyMesh[] = [], heels: PolyMesh[] = [];
   for (const s of [1, -1]) {
-    const fore = b.verts(REGION.foot, s).filter((v) => b.info[v].t > 0.55).map((v) => b.p(v));
-    const ring = hullRing(fore, { origin: [0, floor, 0], normal: Y }, { slab: cm(3), samples: 24, offset: cm(0.3) });
-    if (ring) {
-      const top = ring.map((p) => [p[0], floor + cm(0.15), p[2]] as Vec3);
-      const bot = ring.map((p) => [p[0], floor - cm(0.7), p[2]] as Vec3);
-      soles.push(orientOutward(loftRings([top, bot, bot.map((p) => v3.lerp(p, centroid(bot), 0.98))], { closedAround: true, tileU: 0.1 }), [centroid(top)[0], floor + cm(1), centroid(top)[2]]));
-    }
-    // Heel block: under the back of the heel, tapering to the floor.
-    const back = b.verts(REGION.foot, s).filter((v) => b.info[v].t < 0.18).map((v) => b.p(v));
-    if (back.length) {
-      const top = soleY(b, s, 0, 0.18);
-      let c = centroid(back.filter((p) => p[1] < top + cm(1.5)));
-      c = [c[0], top, c[2] - cm(0.6)];
-      const rings: Vec3[][] = [];
-      for (let k = 0; k <= 4; k++) {
-        const f = k / 4;
-        const y = top + cm(0.2) + (floor - cm(0.7) - top - cm(0.2)) * f;
-        const r = cm(1.5) - cm(0.85) * f;
-        const zc = c[2] + cm(0.5) * f;
-        rings.push(Array.from({ length: 14 }, (_, i) => {
-          const a = (i / 14) * Math.PI * 2;
-          return [c[0] + Math.cos(a) * r, y, zc + Math.sin(a) * r * 1.25] as Vec3;
-        }));
+    const foot = b.verts(REGION.foot, s).map((v) => b.p(v));
+    // Underside of the foot at (x, z): the lowest foot point nearby.
+    const under = (x: number, z: number) => {
+      let y = Infinity;
+      for (const r of [cm(1.2), cm(2.2), cm(3.5)]) {
+        for (const p of foot) if (Math.hypot(p[0] - x, p[2] - z) < r) y = Math.min(y, p[1]);
+        if (y < Infinity) return y;
       }
-      const cap = rings[rings.length - 1].map((p) => v3.lerp(p, centroid(rings[rings.length - 1]), 0.98));
-      heels.push(orientOutward(loftRings([...rings, cap], { closedAround: true, tileU: 0.1 }), [c[0], (top + floor) / 2, c[2]]));
+      return floor;
+    };
+    // Footprint outline (top view), slightly outside the upper.
+    const outline = hullRing(foot, { origin: [0, floor, 0], normal: Y }, { slab: cm(40), samples: 40, offset: cm(0.45) });
+    if (!outline) continue;
+    const c = centroid(outline);
+    const layer = (k: number, dy: number) => outline.map((p) => {
+      const q = v3.lerp(p, c, k);
+      return [q[0], under(q[0], q[2]) + dy, q[2]] as Vec3;
+    });
+    // Top surface reaches into the upper (no gap); bottom is the sole's tread.
+    const top = cm(0.35), bot = -cm(0.55);
+    const rings = [layer(0.97, top), layer(0.6, top), layer(0.25, top), layer(0, top), layer(0, bot), layer(0.25, bot), layer(0.6, bot), layer(0.97, bot)];
+    const sole = loftRings(rings, { closedAround: true, tileU: 0.1, tileV: 0.1 });
+    soles.push(orientOutward(sole, [c[0], under(c[0], c[2]), c[2]]));
+    // Heel block: from the sole under the heel down to the floor, slimmer at the tip.
+    let hc: Vec3 = [0, 0, 0], zMin = Infinity;
+    for (const p of foot) zMin = Math.min(zMin, p[2]);
+    const heelPts = foot.filter((p) => p[2] < zMin + cm(5));
+    hc = centroid(heelPts);
+    const hz = zMin + cm(2.4);
+    const ht = under(hc[0], hz) + bot + cm(0.2);
+    const hr: Vec3[][] = [];
+    for (let k = 0; k <= 5; k++) {
+      const f = k / 5;
+      const y = ht + (floor - cm(0.7) - ht) * f;
+      const r = cm(1.6) - cm(0.95) * f;
+      const zc = hz + cm(0.6) * f;
+      hr.push(Array.from({ length: 16 }, (_, i) => {
+        const a = (i / 16) * Math.PI * 2;
+        return [hc[0] + Math.cos(a) * r, y, zc + Math.sin(a) * r * 1.2] as Vec3;
+      }));
     }
+    hr.push(hr[hr.length - 1].map((p) => v3.lerp(p, centroid(hr[hr.length - 1]), 0.98)));
+    heels.push(orientOutward(loftRings(hr, { closedAround: true, tileU: 0.1 }), [hc[0], (ht + floor) / 2, hz]));
   }
   const dark = mat('Heel soles', null, { color: '#151313', roughness: 0.45 });
+  // Sole, heel and toe box move rigidly with the foot (a shoe doesn't bend with the toes).
+  const mids = [1, -1].map((s) => {
+    const [a, c] = b.axis(REGION.foot, s);
+    return v3.lerp(a, c, 0.45);
+  });
+  const rigidAt = (m: PolyMesh) => {
+    const P = m.positions, out = new Float32Array(P.length);
+    for (let i = 0; i < P.length; i += 3) out.set(P[i] > 0 ? mids[0] : mids[1], i);
+    return out;
+  };
+  const withRigid = (m: PolyMesh | null) => (m ? { mesh: m, skinAt: rigidAt(m) } : null);
+  const box = withRigid(merge(boxes)), soleM = withRigid(merge(soles)), heelM = withRigid(merge(heels));
   return [
     ...(sides ? [{ mesh: sides.mesh, material: leather, hides: sides.covered, smooth: true }] : []),
-    ...(boxes.length ? [{ mesh: merge(boxes)!, material: leather, hides: hidden }] : []),
-    ...(soles.length ? [{ mesh: merge(soles)!, material: dark, ground: true }] : []),
-    ...(heels.length ? [{ mesh: merge(heels)!, material: leather, ground: true }] : []),
+    ...(box ? [{ ...box, material: leather, hides: hidden }] : []),
+    ...(soleM ? [{ ...soleM, material: dark, ground: true }] : []),
+    ...(heelM ? [{ ...heelM, material: leather, ground: true }] : []),
   ];
 }
 

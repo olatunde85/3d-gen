@@ -36,8 +36,8 @@ Choose a full MakeHuman outfit, an **outfit set**, or **Separate pieces**:
 - **Accessories:**
   - belts and straps: belts, utility belt, waist sash, crossed straps, amulet bandolier
   - armour and vests: leather armor, tactical vest, reflective hi-vis vest
-  - headwear: gele (pleated head tie with lace flowers; it covers the hair), beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
-  - jewellery and charms: coral beads (iyun), gold necklace with pendant, pearl necklace, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
+  - headwear: gele (pleated head tie with lace flowers and a knotted back; it covers the hair), beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
+  - jewellery and charms: coral beads (iyun), gold necklace with pendant, pearl necklace, bangles, gold and silver bracelet watches, wrist beads, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
   - wraps and bands: shuka shoulder drape, arm guards, fur bands, arm wraps
   - other: neon accents, wrist watch
 - **Footwear:** MakeHuman shoes, sandals, combat boots, high heels (the feet are arched in the mesh, so every animation keeps the heel pose), or barefoot.

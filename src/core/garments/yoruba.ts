@@ -306,7 +306,7 @@ function gele(g: GCtx, st: GarmentStyle): GPart[] {
     return t * t * (3 - 2 * t);
   };
   const dome = shell(g, {
-    covers: (v) => v.region === REGION.head && (Math.abs(v.theta) < 1.0 ? v.t > 0.74 : Math.abs(v.theta) < 2.1 ? v.t > 0.6 : v.t > 0.48),
+    covers: (v) => v.region === REGION.head && (Math.abs(v.theta) < 1.0 ? v.t > 0.74 : Math.abs(v.theta) < 2.1 ? v.t > 0.58 : v.t > 0.42),
     offset: (v) => {
       const back = 0.5 - 0.5 * Math.cos(v.theta);
       const side = Math.abs(Math.sin(v.theta));
@@ -315,7 +315,67 @@ function gele(g: GCtx, st: GarmentStyle): GPart[] {
     },
     tile: 0.2, relax: 10,
   });
-  const parts: GPart[] = dome ? [{ mesh: dome.mesh, material: m, headwear: true, hidesHair: true, smooth: true }] : [];
+  // Pleats run in rings round a point at the back of the head (where the ends are knotted): ridges
+  // in the surface plus UVs so the fabric's pleat lines follow them. From the front they read as
+  // horizontal rings across the crown.
+  const axis = v3.norm([0, 0.25, -1]);
+  let ringed: PolyMesh | null = null;
+  let knotAt: Vec3 | null = null;
+  if (dome) {
+    const P = new Float32Array(dome.mesh.positions);
+    const n = P.length / 3;
+    const R = cm(10), period = cm(2.1), amp = cm(0.42);
+    const ref = Math.abs(axis[1]) < 0.9 ? Y : ([1, 0, 0] as Vec3);
+    const ex = v3.norm(v3.cross(ref, axis)), ey = v3.cross(axis, ex);
+    const uvs = new Float32Array(n * 2);
+    let best = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const q: Vec3 = [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]];
+      const d = v3.sub(q, centre);
+      const out = v3.norm(d);
+      const ang = Math.acos(clamp(v3.dot(out, axis), -1, 1));
+      const arc = ang * R;
+      // Rounded coils with tight valleys between them, like wound cloth.
+      const f = arc / period - Math.floor(arc / period);
+      const ridge = Math.sqrt(Math.max(0, 1 - (2 * f - 1) ** 2)) * 2 - 1;
+      P.set(v3.madd(q, out, amp * ridge * smoothStep(0.15, 0.4, ang)), i * 3);
+      uvs[i * 2] = ((Math.atan2(v3.dot(d, ey), v3.dot(d, ex)) / (2 * Math.PI) + 0.5) * 6);
+      uvs[i * 2 + 1] = (arc * 0.1) / (period * 0.1 * 64);
+      const along = v3.dot(d, axis);
+      if (along > best) {
+        best = along;
+        knotAt = q;
+      }
+    }
+    ringed = { ...dome.mesh, positions: P, uvs, faceUVs: dome.mesh.faceVerts };
+  }
+  const parts: GPart[] = ringed ? [{ mesh: ringed, material: m, headwear: true, hidesHair: true, smooth: true }] : [];
+  // The knot: the cloth's ends twisted into a spiral rosette at the back.
+  if (knotAt) {
+    const out = axis;
+    const ex = v3.norm(v3.cross(Y, out)), ey = v3.cross(out, ex);
+    const spiral: Vec3[] = [];
+    const turns = 1.75, steps = 70;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const a = t * turns * Math.PI * 2;
+      const r = cm(1.5) + cm(4.0) * t;
+      const lift = cm(1.8) * (1 - t);
+      spiral.push(v3.madd(v3.add(v3.madd(knotAt, ex, Math.cos(a) * r), v3.scale(ey, Math.sin(a) * r)), out, lift - cm(0.3)));
+    }
+    const twist = cord(spiral, cm(1.5), false, 10);
+    // Twisted ends: three puffed lobes turning round the centre.
+    const lobes: PolyMesh[] = [];
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2 + 0.4;
+      const dir = v3.add(v3.scale(ex, Math.cos(a)), v3.scale(ey, Math.sin(a)));
+      const o = v3.madd(v3.madd(knotAt, dir, cm(1.3)), out, cm(1.6));
+      const tan = v3.cross(out, dir);
+      lobes.push(ellipsoid({ o, x: v3.norm(v3.add(tan, v3.scale(dir, 0.5))), y: dir, z: out }, [cm(2.6), cm(1.3), cm(1.1)], [0.5, 0.5], 12, 6));
+    }
+    const centreBall = merge([ellipsoid(frameOf(v3.madd(knotAt, out, cm(2.0)), out, Y), [cm(1.2), cm(1.2), cm(1.0)], [0.5, 0.5], 10, 6), ...lobes])!;
+    parts.push({ mesh: merge([twist, centreBall])!, material: mat('Gele knot', null, { color: st.color, roughness: 0.5 }) });
+  }
   // Folded bands across the forehead, the upper one rising toward the left.
   const head = points(b, (v) => v.region === REGION.head);
   const H = b.L.crownY - b.L.chinY;
@@ -375,36 +435,72 @@ function rayRing(ring: Vec3[], c: Vec3, d: Vec3): number | null {
   return best;
 }
 
+/** Front-most crossing (largest z) of a closed ring with the vertical plane at lateral position x. */
+function frontZ(ring: Vec3[], x: number): number | null {
+  let best: number | null = null;
+  for (let j = 0; j < ring.length; j++) {
+    const a = ring[j], b = ring[(j + 1) % ring.length];
+    if ((a[0] - x) * (b[0] - x) > 0 || a[0] === b[0]) continue;
+    const z = a[2] + ((b[2] - a[2]) * (x - a[0])) / (b[0] - a[0]);
+    if (best === null || z > best) best = z;
+  }
+  return best;
+}
+
 /**
- * A necklace line: it sits on the base of the neck at the back and sides and drapes down the
- * chest at the front, `drop` below the neck base at its lowest.
+ * A necklace line: snug round the base of the neck at the back and sides, and at the front
+ * hanging `drop` below it, lying on the chest but no wider than the neck.
  */
 function strand(g: GCtx, drop: number): { ring: Vec3[]; centre: Vec3 } | null {
   const b = g.body;
-  const neck = points(b, (v) => v.region === REGION.neck);
-  const trunk = points(b, isTrunk);
-  const yN = b.L.neckY + cm(1.2);
-  const neckRing = hullRing(neck, hplane(b, yN), { slab: cm(1), samples: 64, offset: cm(0.7) });
+  const surf = points(b, (v) => v.region === REGION.neck || isTrunk(v));
+  const yN = b.L.neckY + cm(0.6);
+  const neckRing = hullRing(points(b, (v) => v.region === REGION.neck), hplane(b, yN), { slab: cm(1), samples: 64, offset: cm(0.45) });
   if (!neckRing) return null;
   let c: Vec3 = [0, 0, 0];
   for (const p of neckRing) c = v3.add(c, v3.scale(p, 1 / neckRing.length));
-  const off = cm(0.6) + (g.layered.top ? cm(0.5) : 0);
-  const N = 72, ring: Vec3[] = [];
-  const chest = new Map<number, Vec3[] | null>();
+  const off = cm(0.45) + (g.layered.top ? cm(0.4) : 0);
+  const N = 80, ring: Vec3[] = [];
+  const cache = new Map<number, Vec3[] | null>();
+  const surfAt = (y: number) => {
+    const k = Math.round(y / cm(0.5));
+    if (!cache.has(k)) cache.set(k, hullRing(surf, hplane(b, k * cm(0.5)), { slab: cm(0.6), samples: 128, offset: off }));
+    return cache.get(k)!;
+  };
   for (let i = 0; i < N; i++) {
     const a = -Math.PI + (2 * Math.PI * i) / N;
     const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)];
-    const d = drop * ((1 + Math.cos(a)) / 2) ** 1.8;
-    const y = yN - cm(1.5) - d;
+    const front = (1 + Math.cos(a)) / 2;
+    const y = yN - cm(1.2) - drop * front ** 2.2;
     const rN = rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6);
-    // On the chest: the trunk's surface at this height, along the same direction.
-    const k = Math.round(y / cm(1));
-    if (!chest.has(k)) chest.set(k, hullRing(trunk, hplane(b, k * cm(1)), { slab: cm(1.2), samples: 96, offset: off }));
-    const tr = chest.get(k);
-    const rC = tr ? rayRing(tr, [c[0], y, c[2]], dir) : null;
-    const w = clamp(d / (0.45 * drop || 1), 0, 1);
-    const r = rC ? rN + (Math.max(rN, rC) - rN) * w * w * (3 - 2 * w) : rN;
-    ring.push([c[0] + dir[0] * r, y, c[2] + dir[2] * r]);
+    let p: Vec3 = [c[0] + dir[0] * rN, y, c[2] + dir[2] * rN];
+    const h = surfAt(y);
+    if (h) {
+      if (dir[2] > 0) {
+        // Front: keep the neck's width, lie on the chest.
+        const z = frontZ(h, p[0]);
+        if (z !== null && z > p[2]) p = [p[0], y, z];
+      } else {
+        // Back and sides: on the surface of the neck / trapezius at this height.
+        const rs = rayRing(h, [c[0], y, c[2]], dir);
+        if (rs && rs > rN) p = [c[0] + dir[0] * rs, y, c[2] + dir[2] * rs];
+      }
+    }
+    ring.push(p);
+  }
+  // Smooth the line (the surface has small steps).
+  for (let it = 0; it < 3; it++) {
+    const prev = ring.map((q) => [...q] as Vec3);
+    for (let i = 0; i < N; i++) {
+      const a = prev[(i + N - 1) % N], b2 = prev[(i + 1) % N];
+      for (let k = 0; k < 3; k++) ring[i][k] = Math.max(-1e9, (a[k] + 2 * prev[i][k] + b2[k]) / 4);
+      // Never sink below the unsmoothed surface position (outward).
+      const d0 = Math.hypot(prev[i][0] - c[0], prev[i][2] - c[2]), d1 = Math.hypot(ring[i][0] - c[0], ring[i][2] - c[2]);
+      if (d1 < d0) {
+        ring[i][0] = c[0] + ((ring[i][0] - c[0]) * d0) / (d1 || 1);
+        ring[i][2] = c[2] + ((ring[i][2] - c[2]) * d0) / (d1 || 1);
+      }
+    }
   }
   return { ring, centre: [c[0], yN - cm(6), c[2]] };
 }
@@ -424,7 +520,7 @@ function beadRow(ring: Vec3[], centre: Vec3, r: number, gap: number, spacerEvery
 /** Coral beads (iyun): a choker and two longer strands of large coral, with gold spacers. */
 function coralBeads(g: GCtx, st: GarmentStyle): GPart[] {
   const coral: PolyMesh[] = [], gold: PolyMesh[] = [];
-  for (const [drop, r] of [[cm(2), cm(0.7)], [cm(7), cm(0.8)], [cm(12), cm(0.85)]] as const) {
+  for (const [drop, r] of [[cm(0.5), cm(0.65)], [cm(4.5), cm(0.75)], [cm(9), cm(0.8)]] as const) {
     const s = strand(g, drop);
     if (!s) continue;
     const [a, b] = beadRow(s.ring, s.centre, r, cm(0.08), 7);
@@ -439,7 +535,7 @@ function coralBeads(g: GCtx, st: GarmentStyle): GPart[] {
 
 /** Gold chain with a round pendant. */
 function goldNecklace(g: GCtx, st: GarmentStyle): GPart[] {
-  const s = strand(g, cm(10));
+  const s = strand(g, cm(7));
   if (!s) return [];
   let front = s.ring[0];
   for (const p of s.ring) if (p[2] > front[2]) front = p;
@@ -452,7 +548,7 @@ function goldNecklace(g: GCtx, st: GarmentStyle): GPart[] {
 /** Pearls: two strands. */
 function pearlNecklace(g: GCtx, st: GarmentStyle): GPart[] {
   const rows: PolyMesh[] = [];
-  for (const drop of [cm(4), cm(8)]) {
+  for (const drop of [cm(2), cm(5.5)]) {
     const s = strand(g, drop);
     if (!s) continue;
     const [a] = beadRow(s.ring, s.centre, cm(0.45), cm(0.03));

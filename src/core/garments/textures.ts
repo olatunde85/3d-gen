@@ -489,8 +489,8 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1): TexOu
         const ridge = 0.5 + 0.5 * Math.sin(v * Math.PI * 2 * 64);
         const twill = frac((u + v) * 180) < 0.5 ? 1 : 0;
         const n = fbm(u, v, 8, seed, 2);
-        return { c: mul(mixc(A, B, 0.08 * n), 0.9 + 0.1 * ridge + 0.03 * twill), h: ridge * 1.0 + twill * 0.15 };
-      }, false, 1.6);
+        return { c: mul(mixc(A, B, 0.08 * n), 0.88 + 0.14 * ridge + 0.03 * twill), h: ridge * 1.0 + twill * 0.15 };
+      }, false, 2.4);
     }
     case 'beadbands': {
       // Concentric bead rows along v; c1/c2 are ignored in favour of a Maasai palette.

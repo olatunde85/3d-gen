@@ -16,6 +16,7 @@ import { along, card, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orie
 import { buildShell } from './shell';
 import { featherTexture, makePattern, palette, type Pattern } from './textures';
 import { HEELS } from './heels';
+import { WRIST } from './wrist';
 import { YORUBA } from './yoruba';
 
 export type { GarmentDef, GarmentStyle, GCtx, GPart, Slot } from './kit';
@@ -707,6 +708,7 @@ export const GARMENTS: GarmentDef[] = [
     },
   },
   ...YORUBA,
+  ...WRIST,
   HEELS,
 ];
 
