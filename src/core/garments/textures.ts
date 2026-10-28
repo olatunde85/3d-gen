@@ -183,10 +183,10 @@ const weave = (u: number, v: number, f = 96) => {
 export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
-  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated';
+  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -491,6 +491,29 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1): TexOu
         const n = fbm(u, v, 8, seed, 2);
         return { c: mul(mixc(A, B, 0.08 * n), 0.88 + 0.14 * ridge + 0.03 * twill), h: ridge * 1.0 + twill * 0.15 };
       }, false, 2.4);
+    }
+    case 'foil': {
+      // Metallic foil swim fabric: satin sheen with soft crinkles (c1 base, c2 highlight); the
+      // creases are mostly in the normals, so the colour stays even.
+      return render(S, (u, v) => {
+        const crumple = fbm(u, v, 5, seed, 4), fine = fbm(u * 2, v * 2, 20, seed + 3, 2);
+        const sheen = Math.max(0, crumple - 0.55) * 1.6;
+        return { c: mixc(mul(A, 0.97 + 0.05 * fine), B, Math.min(0.2, sheen * 0.3)), h: crumple * 0.8 + fine * 0.2 };
+      }, false, 2.2);
+    }
+    case 'straw': {
+      // Basket weave of flat straw strips (c1), darker gaps between them (c2).
+      return render(S, (u, v) => {
+        const n = 24, cu = u * n, cv = v * n;
+        const iu = Math.floor(cu), iv = Math.floor(cv), fu = cu - iu, fv = cv - iv;
+        // Over-under: alternate cells show the horizontal or the vertical strip on top.
+        const horiz = (iu + iv) % 2 === 0;
+        const across = horiz ? fv : fu, lengthwise = horiz ? fu : fv;
+        const gap = Math.min(across, 1 - across) < 0.08;
+        const fibre = 0.85 + 0.15 * Math.sin((horiz ? v : u) * Math.PI * 2 * n * 9 + hash(iu, iv, seed) * 6);
+        const shade = 0.82 + 0.25 * Math.sin(lengthwise * Math.PI) * (0.8 + 0.2 * hash(iu, iv, seed + 1));
+        return { c: gap ? B : mul(A, fibre * shade), h: gap ? 0 : 0.5 + 0.5 * Math.sin(lengthwise * Math.PI) };
+      }, false, 3);
     }
     case 'beadbands': {
       // Concentric bead rows along v; c1/c2 are ignored in favour of a Maasai palette.

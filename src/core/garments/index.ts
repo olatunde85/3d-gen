@@ -2,20 +2,21 @@ import type { AssetLibrary } from '../assets';
 import { ageToYears, type HumanParams } from '../params';
 import { makeBody } from './body';
 import { bootShafts, garmentById, sandals, type GarmentStyle, type GCtx, type GPart } from './catalog';
-import { PATTERNS, type Pattern } from './textures';
-import { setById } from './yoruba';
+import { PATTERNS, type Pattern, type TexOut } from './textures';
+import { flipFlops } from './beach';
+import { setById } from './sets';
 
 export { GARMENTS, garmentById } from './catalog';
 export { PATTERNS } from './textures';
 export { archFeet } from './heels';
-export { OUTFIT_SETS, setById, type OutfitSet } from './yoruba';
+export { OUTFIT_SETS, setById, type OutfitSet } from './sets';
 
 export interface Dressing {
   top?: string;
   bottom?: string;
   underwear: boolean;
   accessories: string[];
-  footwear?: 'sandals' | 'boots' | 'heels';
+  footwear?: 'sandals' | 'boots' | 'heels' | 'flipflops';
   styles: HumanParams['garmentStyles'];
 }
 
@@ -47,7 +48,7 @@ export function dressing(p: HumanParams): Dressing {
     bottom,
     underwear,
     accessories: p.accessories.filter((a) => garmentById.get(a)?.slot === 'acc'),
-    footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : p.shoes === 'heels' ? 'heels' : undefined,
+    footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : p.shoes === 'heels' ? 'heels' : p.shoes === 'flipflops' ? 'flipflops' : undefined,
     styles,
   };
 }
@@ -65,6 +66,20 @@ export function styleOf(id: string, styles: HumanParams['garmentStyles']): Garme
   return { pattern, color: o.color ?? def.color, color2: o.color2 ?? def.color2 };
 }
 
+/** Register a generated texture once (by key) and return its file names. */
+export function genTexture(lib: AssetLibrary, key: string, make: () => TexOut): { map: string; normalMap?: string; alpha: boolean } {
+  const id = `gen_${hashKey(key)}`;
+  const color = `${id}.png`, normal = `${id}_n.png`;
+  if (!lib.hasTexture(color)) {
+    const t = make();
+    lib.registerTexture(color, t.color);
+    if (t.normal) lib.registerTexture(normal, t.normal);
+    lib.registerTexture(`${id}.alpha`, new Uint8Array([t.alpha ? 1 : 0]));
+  }
+  const alpha = (lib.peekTexture(`${id}.alpha`)?.[0] ?? 0) === 1;
+  return { map: color, normalMap: lib.hasTexture(normal) ? normal : undefined, alpha };
+}
+
 export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: Float32Array, faceVerts: Uint32Array, d: Dressing): GPart[] {
   if (!d.top && !d.bottom && !d.accessories.length && !d.footwear) return [];
   const body = makeBody(coords, normals, lib.base.arrays.regions as Uint8Array, lib.base.meta.joints);
@@ -73,18 +88,7 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
     faceVerts,
     layered: { top: !!d.top, bottom: !!d.bottom && d.bottom !== 'briefs' },
     underwear: d.underwear,
-    texture(key, make) {
-      const id = `gen_${hashKey(key)}`;
-      const color = `${id}.png`, normal = `${id}_n.png`;
-      if (!lib.hasTexture(color)) {
-        const t = make();
-        lib.registerTexture(color, t.color);
-        if (t.normal) lib.registerTexture(normal, t.normal);
-        lib.registerTexture(`${id}.alpha`, new Uint8Array([t.alpha ? 1 : 0]));
-      }
-      const alpha = (lib.peekTexture(`${id}.alpha`)?.[0] ?? 0) === 1;
-      return { map: color, normalMap: lib.hasTexture(normal) ? normal : undefined, alpha };
-    },
+    texture: (key, make) => genTexture(lib, key, make),
   };
   const parts: GPart[] = [];
   for (const id of [d.bottom, d.top, ...d.accessories]) {
@@ -93,6 +97,7 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
   }
   if (d.footwear === 'sandals') parts.push(...sandals(g));
   if (d.footwear === 'boots') parts.push(...bootShafts(g));
+  if (d.footwear === 'flipflops') parts.push(...flipFlops(g));
   if (d.footwear === 'heels') parts.push(...garmentById.get('heels')!.build(g, styleOf('heels', d.styles)));
   return parts;
 }
