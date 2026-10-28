@@ -10,6 +10,7 @@ import type { AssetLibrary } from './assets';
 import { faceShapeDelta } from './face';
 import { encodePNG } from './garments/textures';
 import { scalpMask } from './looks/hair';
+import { baseBody } from './looks/overlay';
 import { DEFAULT_PARAMS } from './params';
 
 export const SKIN_ROUGH = 'skin_roughness.png';
@@ -37,18 +38,10 @@ export function skinRoughness(lib: AssetLibrary): string {
   const n = lips.length;
   const rough = new Float32Array(n);
   const B = lib.base.arrays.positions as Float32Array;
-  // Base-mesh normals: the inner lips (facing into the mouth) and the corners stay matte, so they
-  // don't catch bright highlights when the mouth opens.
-  const fvN = lib.base.arrays.faceVerts as Uint32Array;
-  const nz = new Float32Array(n * 3);
-  for (let f = 0; f < fvN.length / 4; f++) {
-    const c = [0, 1, 2, 3].map((k) => fvN[f * 4 + k]);
-    const P = c.map((v) => [B[v * 3], B[v * 3 + 1], B[v * 3 + 2]]);
-    const e1 = [P[2][0] - P[0][0], P[2][1] - P[0][1], P[2][2] - P[0][2]], e2 = [P[3][0] - P[1][0], P[3][1] - P[1][1], P[3][2] - P[1][2]];
-    const nn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-    for (const v of c) for (let k = 0; k < 3; k++) nz[v * 3 + k] += nn[k];
-  }
-  const facing = (v: number) => nz[v * 3 + 2] / (Math.hypot(nz[v * 3], nz[v * 3 + 1], nz[v * 3 + 2]) || 1);
+  // The inner lips (facing into the mouth) and the corners stay matte, so they don't catch bright
+  // highlights when the mouth opens.
+  const N = baseBody(lib).normals;
+  const facing = (v: number) => N[v * 3 + 2] / (Math.hypot(N[v * 3], N[v * 3 + 1], N[v * 3 + 2]) || 1);
   for (let v = 0; v < n; v++) {
     let r = BASE;
     // Scalp: matte (under hair, or shaved).
