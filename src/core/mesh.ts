@@ -10,6 +10,8 @@ export interface Material {
   /** Texture file names (see AssetLibrary.texture). */
   map?: string;
   normalMap?: string;
+  /** glTF metallic-roughness texture (roughness in G). Where it's used, it replaces `roughness`, which stays as the average for formats without it. */
+  roughnessMap?: string;
   alpha: 'opaque' | 'mask' | 'blend';
   doubleSided: boolean;
   /** sRGB hex glow colour (neon, visors). */

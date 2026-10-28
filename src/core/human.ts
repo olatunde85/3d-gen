@@ -17,6 +17,7 @@ import { applyTargets, targetWeights } from './morph';
 import type { Pack } from './pack';
 import { ageToYears, type HumanParams } from './params';
 import { buildLooks } from './looks';
+import { skinRoughness } from './skin-rough';
 import { calibrateBlinks, EXPRESSION_WEIGHTS, faceDeltas, faceShapeDelta, faceShapeNames, sealLips, weightsArray } from './face';
 
 export interface Character {
@@ -305,7 +306,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   // own lit-sphere shader; as a multiplier it darkens the painted texture to about a fifth, so
   // the texture is used as painted.
   const skinBase = skin.material!.color.toLowerCase() === '#808080' ? '#ffffff' : skin.material!.color;
-  parts.push([body, { ...toMaterial(skin.material!), name: 'Skin', color: tint(skinBase, p.skinTint), roughness: 0.66 }]);
+  parts.push([body, { ...toMaterial(skin.material!), name: 'Skin', color: tint(skinBase, p.skinTint), roughness: 0.66, roughnessMap: skinRoughness(lib) }]);
   if (looks.overlay) parts.push([hd ? subdivide(looks.overlay[0]) : looks.overlay[0], looks.overlay[1]]);
   // Eyes: the textures' sclera is near pure white; real sclera is off-white and in the lids' shade,
   // so the eye is toned down (the iris stays readable) and a little less glossy.
@@ -325,7 +326,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     };
     const ball = compact(eyes, (f) => !isCornea(f));
     const cornea = compact(eyes, (f) => isCornea(f));
-    parts.push([ball, { ...toMaterial(eyeMat.material!), name: 'Eyes', alpha: 'opaque', color: '#f6f2ec', roughness: 0.38 }]);
+    parts.push([ball, { ...toMaterial(eyeMat.material!), name: 'Eyes', alpha: 'opaque', color: '#ffffff', roughness: 0.35 }]);
     if (cornea.faceSizes.length)
       parts.push([{ ...cornea, faceUVs: new Uint32Array(cornea.faceUVs.length), uvs: new Float32Array(2) }, { name: 'Cornea', color: '#000000', roughness: 0.04, metalness: 0, alpha: 'blend', opacity: 0.3, doubleSided: false }]);
   }
@@ -496,7 +497,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
 
 /** Texture files referenced by a mesh. */
 export function textureFiles(mesh: MeshData): string[] {
-  return [...new Set(mesh.materials.flatMap((m) => [m.map, m.normalMap].filter((x): x is string => !!x)))];
+  return [...new Set(mesh.materials.flatMap((m) => [m.map, m.normalMap, m.roughnessMap].filter((x): x is string => !!x)))];
 }
 
 /** The character without its held weapon (the weapon parts are the last mesh groups). */

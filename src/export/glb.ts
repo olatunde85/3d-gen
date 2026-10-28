@@ -124,13 +124,15 @@ export function exportGLB(
     materials = mesh.materials.map((m) => {
       const base = tex(m.map);
       const normal = tex(m.normalMap);
+      const rough = tex(m.roughnessMap);
       return {
         name: m.name,
         pbrMetallicRoughness: {
           baseColorFactor: [...hexToRgb(m.color).map(srgbToLinear), m.opacity ?? 1],
           metallicFactor: m.metalness,
-          roughnessFactor: m.roughness,
+          roughnessFactor: rough ? 1 : m.roughness,
           ...(base ? { baseColorTexture: base } : {}),
+          ...(rough ? { metallicRoughnessTexture: rough } : {}),
         },
         ...(normal ? { normalTexture: normal } : {}),
         ...(m.emissive ? { emissiveFactor: hexToRgb(m.emissive).map(srgbToLinear) } : {}),
