@@ -13,7 +13,7 @@ import { scalpMask } from './looks/hair';
 import { DEFAULT_PARAMS } from './params';
 
 export const SKIN_ROUGH = 'skin_roughness.png';
-const SIZE = 1024;
+const SIZE = 512;
 const BASE = 0.68, LIPS = 0.5, NOSE = 0.52, FOREHEAD = 0.58, SCALP = 0.85;
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -82,11 +82,22 @@ export function skinRoughness(lib: AssetLibrary): string {
     }
   // Fill the gaps between UV islands with the base value (no dark seams when mip-mapped).
   const px = new Uint8Array(SIZE * SIZE * 4);
+  // Smooth variation (oilier and drier patches, +-0.03): bilinear value noise on a coarse lattice,
+  // so the map compresses well.
+  const G = 32, lat = new Float32Array(G * G);
   let h = 7;
-  for (let i = 0; i < SIZE * SIZE; i++) {
-    // Fine variation (pores, oil): +-0.03.
+  for (let k = 0; k < lat.length; k++) {
     h = (Math.imul(h ^ (h >>> 15), 2246822507) + 0x9e3779b9) | 0;
-    const r = (val[i] < 0 ? BASE : val[i]) + ((h >>> 0) / 4294967296 - 0.5) * 0.06;
+    lat[k] = (h >>> 0) / 4294967296 - 0.5;
+  }
+  const noise = (x: number, y: number) => {
+    const fx = (x / SIZE) * G, fy = (y / SIZE) * G;
+    const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+    const at = (a: number, b: number) => lat[(b % G) * G + (a % G)];
+    return (at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx) * (1 - ty) + (at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx) * ty;
+  };
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    const r = (val[i] < 0 ? BASE : val[i]) + noise(i % SIZE, Math.floor(i / SIZE)) * 0.06;
     px[i * 4] = 255;
     px[i * 4 + 1] = Math.round(Math.max(0, Math.min(1, r)) * 255);
     px[i * 4 + 2] = 0;

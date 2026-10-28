@@ -482,7 +482,9 @@ export function beardCards(c: HeadCtx, style: FacialHairId): PolyMesh | undefine
 export function buzzCards(c: HeadCtx): PolyMesh | undefined {
   const r = rng(c.seed * 53 + 11);
   const B = c.base.coords, P = c.coords, Nn = c.normals, fv = c.faceVerts;
-  const density = (c.low ? 8 : 22) * 100; // per dm2
+  // About 9k triangles at medium detail; none at low detail (game LOD), where the painted scalp is enough.
+  if (c.low) return undefined;
+  const density = 9 * 100; // per dm2
   const pos: number[] = [], uvs: number[] = [], fs: number[] = [], fvs: number[] = [], fu: number[] = [], refs: number[] = [];
   const back: V = [0, -0.35, -1];
   for (let f = 0; f < fv.length / 4; f++) {
