@@ -311,9 +311,9 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   // Eyes: the textures' sclera is near pure white; real sclera is off-white and in the lids' shade,
   // so the eye is toned down (the iris stays readable) and a little less glossy.
   {
-    // The eye mesh has a cornea layer, mapped to a fully transparent disc in the texture's corner.
-    // Split it out as its own clear, glossy surface (a small sharp catchlight and a wet look) over
-    // a matte eyeball.
+    // The eye mesh has a cornea layer, mapped to a fully transparent disc in the texture's corner:
+    // it is left out (as a tinted transparent layer it dims the whole eye), and the eyeball itself
+    // is glossy for the wet look.
     const eyes = proxyMesh(pEyes, coords, bskin, faceD);
     const start: number[] = [];
     for (let f = 0, c = 0; f < eyes.faceSizes.length; c += eyes.faceSizes[f++]) start.push(c);
@@ -324,11 +324,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
       }
       return true;
     };
-    const ball = compact(eyes, (f) => !isCornea(f));
-    const cornea = compact(eyes, (f) => isCornea(f));
-    parts.push([ball, { ...toMaterial(eyeMat.material!), name: 'Eyes', alpha: 'opaque', color: '#ffffff', roughness: 0.35 }]);
-    if (cornea.faceSizes.length)
-      parts.push([{ ...cornea, faceUVs: new Uint32Array(cornea.faceUVs.length), uvs: new Float32Array(2) }, { name: 'Cornea', color: '#000000', roughness: 0.04, metalness: 0, alpha: 'blend', opacity: 0.3, doubleSided: false }]);
+    parts.push([compact(eyes, (f) => !isCornea(f)), { ...toMaterial(eyeMat.material!), name: 'Eyes', alpha: 'opaque', color: '#ffffff', roughness: 0.12 }]);
   }
   // Brows and lashes are blended (soft hair edges) rather than cut out at 50% alpha (hard, jagged).
   if (pBrows && brows) parts.push([proxyMesh(pBrows, coords, bskin, faceD), { ...toMaterial(brows.material!), name: 'Eyebrows', alpha: 'blend', opacity: 0.9 }]);
