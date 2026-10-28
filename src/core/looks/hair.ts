@@ -1,7 +1,7 @@
 /**
  * Procedural hair: shaved / buzzed scalps and stubble (painted into the skin
- * overlay), plus geometry for punk spikes, cornrows, box braids and beards
- * (hair cards). Masks are defined on the unmorphed base body (decimetres) and
+ * overlay), plus geometry for punk spikes, cornrows, box braids, beards and
+ * buzz cuts (hair cards). Masks are defined on the unmorphed base body (decimetres) and
  * looked up per vertex, so they follow every head shape; geometry is built on
  * the morphed body.
  */
@@ -405,62 +405,66 @@ export function boxBraids(c: HeadCtx, stopY: number): PolyMesh | undefined {
   return mergeAll(out);
 }
 
-/** Beard / mustache hair cards rooted on the face. */
-export function beardCards(c: HeadCtx, style: FacialHairId): PolyMesh | undefined {
-  if (style === 'none' || style === 'stubble') return undefined;
-  const r = rng(c.seed * 31 + 7);
+/** One hair card: its centre line (s = 0 at the root, 1 at the tip), half-width vector and taper. */
+interface Strand {
+  segs: number;
+  W: V;
+  point(s: number): V;
+  taper(s: number): number;
+}
+
+interface Scatter {
+  seed: number;
+  regions: number[];
+  /** Hairs per square decimetre of skin. */
+  density: number;
+  /** Coverage 0..1 at a base-body point. */
+  mask(p: V, region: number): number;
+  /** Chance of keeping a hair at coverage m (default m). */
+  keep?(m: number): number;
+  /** Shape one hair rooted at `root` (normal N), at base-body point bp with coverage m. */
+  strand(h: { root: V; N: V; bp: V; m: number; r: () => number }): Strand;
+}
+
+/**
+ * Hair cards scattered over the skin where a mask allows (beards, buzz cuts): random points on
+ * every masked face, each grown into a flat strip that follows the face's base-mesh vertex.
+ */
+function scatterCards(c: HeadCtx, o: Scatter): PolyMesh | undefined {
+  const r = rng(o.seed);
   const B = c.base.coords, P = c.coords, Nn = c.normals, fv = c.faceVerts;
-  const density = (style === 'full_beard' ? 6 : style === 'short_beard' ? 9 : 12) * (c.low ? 0.5 : 1) * 100; // per dm2
   const pos: number[] = [], uvs: number[] = [], fs: number[] = [], fvs: number[] = [], fu: number[] = [], refs: number[] = [];
-  const down: V = [0, -1, 0];
   for (let f = 0; f < fv.length / 4; f++) {
     const region = c.regions[fv[f * 4]];
-    if (region !== REGION.head && region !== REGION.neck) continue;
+    if (!o.regions.includes(region)) continue;
     const ids = [0, 1, 2, 3].map((k) => fv[f * 4 + k]);
     const bc = ids.reduce<V>((s, v) => add(s, mul(at(B, v), 0.25)), [0, 0, 0]);
     // Quick reject (with margin) before sampling.
-    if (Math.max(...ids.map((v) => beardMask(at(B, v), style, region)), beardMask(bc, style, region)) <= 0) continue;
+    if (Math.max(...ids.map((v) => o.mask(at(B, v), region)), o.mask(bc, region)) <= 0) continue;
     for (const [a, b, d] of [[0, 1, 2], [0, 2, 3]]) {
       const pa = at(P, ids[a]), pb = at(P, ids[b]), pd = at(P, ids[d]);
       const area = Math.hypot(...cross(sub(pb, pa), sub(pd, pa))) / 2;
-      let n = area * density;
-      for (; n > 0; n--) {
+      for (let n = area * o.density; n > 0; n--) {
         if (n < 1 && r() > n) break;
         let u = r(), w = r();
         if (u + w > 1) [u, w] = [1 - u, 1 - w];
         const lerp3 = (A: V, Bv: V, D: V): V => add(A, add(mul(sub(Bv, A), u), mul(sub(D, A), w)));
         const bp = lerp3(at(B, ids[a]), at(B, ids[b]), at(B, ids[d]));
-        const m = beardMask(bp, style, region);
-        if (m <= 0 || r() > m) continue;
+        const m = o.mask(bp, region);
+        if (m <= 0 || r() > (o.keep ? o.keep(m) : m)) continue;
         const root = lerp3(pa, pb, pd);
         const N = norm(lerp3(at(Nn, ids[a]), at(Nn, ids[b]), at(Nn, ids[d])));
-        let D = sub(down, mul(N, dot(down, N)));
-        if (Math.hypot(...D) < 0.25) D = sub([0, -0.3, 1], mul(N, dot([0, -0.3, 1], N)));
-        D = norm(D);
-        // Mustache hairs fan out from the midline.
-        if (style !== 'full_beard' && style !== 'short_beard' && bp[1] > 6.69) D = norm(add(D, [Math.sign(root[0] || 1) * 0.6, 0, 0]));
-        const L = beardLength(bp, style) * (0.7 + 0.6 * r());
-        // Lift off the skin gives volume; random sway breaks up the "curtain".
-        const lift = (style === 'short_beard' ? 0.5 : 0.38) + 0.3 * r();
-        D = norm(add(D, mul(cross(N, D), (r() - 0.5) * 0.8)));
-        const S = norm(add(mul(D, Math.cos(lift)), mul(N, Math.sin(lift))));
-        const width = (style === 'full_beard' ? 0.042 : 0.032) * (0.8 + 0.4 * r());
-        const W = mul(norm(cross(N, S)), width / 2);
-        const droop = style === 'full_beard' ? 0.2 : 0.1;
-        const curl = (r() - 0.5) * 0.3;
-        const base0 = add(root, mul(N, -0.004));
+        const h = o.strand({ root, N, bp, m, r });
         const vo = pos.length / 3, uo = uvs.length / 2;
-        const segs = 3;
         const rootVert = 1 - u - w >= Math.max(u, w) ? ids[a] : u >= w ? ids[b] : ids[d];
-        for (let k = 0; k < (segs + 1) * 2; k++) refs.push(rootVert);
-        for (let k = 0; k <= segs; k++) {
-          const s = k / segs;
-          const c0 = add(add(base0, mul(S, L * s)), add(mul(down, L * droop * s * s), mul(W, curl * s * 8)));
-          const taper = 1 - 0.35 * s;
-          pos.push(...add(c0, mul(W, -taper)), ...add(c0, mul(W, taper)));
+        for (let k = 0; k < (h.segs + 1) * 2; k++) refs.push(rootVert);
+        for (let k = 0; k <= h.segs; k++) {
+          const s = k / h.segs;
+          const c0 = h.point(s), t = h.taper(s);
+          pos.push(...add(c0, mul(h.W, -t)), ...add(c0, mul(h.W, t)));
           uvs.push(0, s, 1, s);
         }
-        for (let k = 0; k < segs; k++) {
+        for (let k = 0; k < h.segs; k++) {
           fs.push(4);
           fvs.push(vo + k * 2, vo + k * 2 + 1, vo + k * 2 + 3, vo + k * 2 + 2);
           fu.push(uo + k * 2, uo + k * 2 + 1, uo + k * 2 + 3, uo + k * 2 + 2);
@@ -473,104 +477,73 @@ export function beardCards(c: HeadCtx, style: FacialHairId): PolyMesh | undefine
     positions: Float32Array.from(pos), faceSizes: Uint8Array.from(fs), faceVerts: Uint32Array.from(fvs), faceUVs: Uint32Array.from(fu), uvs: Float32Array.from(uvs),
     ref: Int32Array.from(refs),
   };
+}
+
+/** Beard / mustache hair cards rooted on the face. */
+export function beardCards(c: HeadCtx, style: FacialHairId): PolyMesh | undefined {
+  if (style === 'none' || style === 'stubble') return undefined;
+  const down: V = [0, -1, 0];
+  return scatterCards(c, {
+    seed: c.seed * 31 + 7,
+    regions: [REGION.head, REGION.neck],
+    density: (style === 'full_beard' ? 6 : style === 'short_beard' ? 9 : 12) * (c.low ? 0.5 : 1) * 100,
+    mask: (p, region) => beardMask(p, style, region),
+    strand({ root, N, bp, r }) {
+      let D = sub(down, mul(N, dot(down, N)));
+      if (Math.hypot(...D) < 0.25) D = sub([0, -0.3, 1], mul(N, dot([0, -0.3, 1], N)));
+      D = norm(D);
+      // Mustache hairs fan out from the midline.
+      if (style !== 'full_beard' && style !== 'short_beard' && bp[1] > 6.69) D = norm(add(D, [Math.sign(root[0] || 1) * 0.6, 0, 0]));
+      const L = beardLength(bp, style) * (0.7 + 0.6 * r());
+      // Lift off the skin gives volume; random sway breaks up the "curtain".
+      const lift = (style === 'short_beard' ? 0.5 : 0.38) + 0.3 * r();
+      D = norm(add(D, mul(cross(N, D), (r() - 0.5) * 0.8)));
+      const S = norm(add(mul(D, Math.cos(lift)), mul(N, Math.sin(lift))));
+      const width = (style === 'full_beard' ? 0.042 : 0.032) * (0.8 + 0.4 * r());
+      const W = mul(norm(cross(N, S)), width / 2);
+      const droop = style === 'full_beard' ? 0.2 : 0.1;
+      const curl = (r() - 0.5) * 0.3;
+      const base0 = add(root, mul(N, -0.004));
+      return {
+        segs: 3, W,
+        point: (s) => add(add(base0, mul(S, L * s)), add(mul(down, L * droop * s * s), mul(W, curl * s * 8))),
+        taper: (s) => 1 - 0.35 * s,
+      };
+    },
+  });
 }
 
 /**
  * Buzz cut: very short hair cards (5–9 mm) over the painted scalp. They stand up and curl a
  * little, so the hairline and the head's outline get soft fuzz instead of a flat painted edge.
+ * About 8k triangles at medium detail; none at low detail (game LOD), where the painted scalp is enough.
  */
 export function buzzCards(c: HeadCtx): PolyMesh | undefined {
-  const r = rng(c.seed * 53 + 11);
-  const B = c.base.coords, P = c.coords, Nn = c.normals, fv = c.faceVerts;
-  // About 9k triangles at medium detail; none at low detail (game LOD), where the painted scalp is enough.
   if (c.low) return undefined;
-  const density = 9 * 100; // per dm2
-  const pos: number[] = [], uvs: number[] = [], fs: number[] = [], fvs: number[] = [], fu: number[] = [], refs: number[] = [];
   const back: V = [0, -0.35, -1];
-  for (let f = 0; f < fv.length / 4; f++) {
-    if (c.regions[fv[f * 4]] !== REGION.head) continue;
-    const ids = [0, 1, 2, 3].map((k) => fv[f * 4 + k]);
-    const bc = ids.reduce<V>((s, v) => add(s, mul(at(B, v), 0.25)), [0, 0, 0]);
-    if (Math.max(...ids.map((v) => scalpMask(at(B, v))), scalpMask(bc)) <= 0) continue;
-    for (const [a, b, d] of [[0, 1, 2], [0, 2, 3]]) {
-      const pa = at(P, ids[a]), pb = at(P, ids[b]), pd = at(P, ids[d]);
-      const area = Math.hypot(...cross(sub(pb, pa), sub(pd, pa))) / 2;
-      for (let n = area * density; n > 0; n--) {
-        if (n < 1 && r() > n) break;
-        let u = r(), w = r();
-        if (u + w > 1) [u, w] = [1 - u, 1 - w];
-        const lerp3 = (A: V, Bv: V, D: V): V => add(A, add(mul(sub(Bv, A), u), mul(sub(D, A), w)));
-        const m = scalpMask(lerp3(at(B, ids[a]), at(B, ids[b]), at(B, ids[d])));
-        // Thinner toward the hairline.
-        if (m <= 0 || r() > m * m) continue;
-        const root = lerp3(pa, pb, pd);
-        const N = norm(lerp3(at(Nn, ids[a]), at(Nn, ids[b]), at(Nn, ids[d])));
-        let D = sub(back, mul(N, dot(back, N)));
-        D = Math.hypot(...D) < 0.2 ? norm(cross(N, [1, 0, 0])) : norm(D);
-        D = norm(add(D, mul(cross(N, D), (r() - 0.5) * 1.6)));
-        const lift = 0.3 + 0.4 * r();
-        const S = norm(add(mul(D, Math.cos(lift)), mul(N, Math.sin(lift))));
-        const L = (0.045 + 0.035 * r()) * (0.6 + 0.4 * m);
-        const W = mul(norm(cross(N, S)), (0.016 + 0.008 * r()) / 2);
-        const curl = (r() - 0.5) * 2;
-        const base0 = add(root, mul(N, -0.003));
-        const vo = pos.length / 3, uo = uvs.length / 2;
-        const segs = 1;
-        const rootVert = 1 - u - w >= Math.max(u, w) ? ids[a] : u >= w ? ids[b] : ids[d];
-        for (let k = 0; k < (segs + 1) * 2; k++) refs.push(rootVert);
-        for (let k = 0; k <= segs; k++) {
-          const s = k / segs;
-          // Curls back toward the scalp along the way.
-          const c0 = add(add(base0, mul(S, L * s)), add(mul(N, -L * 0.35 * s * s), mul(W, curl * s * 3)));
-          const taper = 1 - 0.4 * s;
-          pos.push(...add(c0, mul(W, -taper)), ...add(c0, mul(W, taper)));
-          uvs.push(0, s, 1, s);
-        }
-        for (let k = 0; k < segs; k++) {
-          fs.push(4);
-          fvs.push(vo + k * 2, vo + k * 2 + 1, vo + k * 2 + 3, vo + k * 2 + 2);
-          fu.push(uo + k * 2, uo + k * 2 + 1, uo + k * 2 + 3, uo + k * 2 + 2);
-        }
-      }
-    }
-  }
-  if (!fs.length) return undefined;
-  return {
-    positions: Float32Array.from(pos), faceSizes: Uint8Array.from(fs), faceVerts: Uint32Array.from(fvs), faceUVs: Uint32Array.from(fu), uvs: Float32Array.from(uvs),
-    ref: Int32Array.from(refs),
-  };
-}
-
-
-/**
- * Shade inside the lips and the mouth: real mouths are shadowed inside, but the inner lips and
- * corners are otherwise lit like the outer face and glow when the mouth opens. Only surfaces that
- * face into the mouth (normals pointing back or up/down into it) are shaded, never the outer skin.
- */
-export function mouthShadeLayer(base: Body): Layer {
-  const dark = [26, 12, 10] as const;
-  // Inner-mouth vertices of the base mesh: in the mouth box, facing away from the front.
-  const inner: Vec3[] = [];
-  const C = base.coords, N = base.normals;
-  for (let v = 0; v < base.regions.length; v++) {
-    if (base.regions[v] !== REGION.head) continue;
-    const x = Math.abs(C[v * 3]), y = C[v * 3 + 1], z = C[v * 3 + 2];
-    if (x > 0.26 || y < 6.58 || y > 6.74 || z < 1.0) continue;
-    const nl = Math.hypot(N[v * 3], N[v * 3 + 1], N[v * 3 + 2]) || 1;
-    if (N[v * 3 + 2] / nl < 0.15) inner.push([C[v * 3], y, z]);
-  }
-  return {
-    key: 'mouth-shade-2',
-    bounds: [-0.3, 6.56, 0.9, 0.3, 6.76, 99],
+  return scatterCards(c, {
+    seed: c.seed * 53 + 11,
     regions: [REGION.head],
-    paint(p): Paint {
-      let d = Infinity;
-      for (const q of inner) {
-        const e = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
-        if (e < d) d = e;
-      }
-      const a = 1 - smoothstep(0.006, 0.02, Math.sqrt(d));
-      return a > 0 ? [dark[0], dark[1], dark[2], a * 0.8] : null;
+    density: 9 * 100,
+    mask: (p) => scalpMask(p),
+    // Thinner toward the hairline.
+    keep: (m) => m * m,
+    strand({ root, N, m, r }) {
+      let D = sub(back, mul(N, dot(back, N)));
+      D = Math.hypot(...D) < 0.2 ? norm(cross(N, [1, 0, 0])) : norm(D);
+      D = norm(add(D, mul(cross(N, D), (r() - 0.5) * 1.6)));
+      const lift = 0.3 + 0.4 * r();
+      const S = norm(add(mul(D, Math.cos(lift)), mul(N, Math.sin(lift))));
+      const L = (0.045 + 0.035 * r()) * (0.6 + 0.4 * m);
+      const W = mul(norm(cross(N, S)), (0.016 + 0.008 * r()) / 2);
+      const curl = (r() - 0.5) * 2;
+      const base0 = add(root, mul(N, -0.003));
+      return {
+        segs: 1, W,
+        // Curls back toward the scalp along the way.
+        point: (s) => add(add(base0, mul(S, L * s)), add(mul(N, -L * 0.35 * s * s), mul(W, curl * s * 3))),
+        taper: (s) => 1 - 0.4 * s,
+      };
     },
-  };
+  });
 }
