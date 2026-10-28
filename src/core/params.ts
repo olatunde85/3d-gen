@@ -1,6 +1,7 @@
 import type { Catalog } from './assets';
 import { rng } from './math';
 import type { RigType } from './rig/skeletons';
+import { CARRIED, type CarryId } from './props/carry';
 import { WEAPONS, type WeaponId } from './props/weapons';
 import { EARRINGS, FACIAL_HAIR, TATTOOS, type EarringId, type FacialHairId, type Metal, type TattooId } from './looks';
 import { EXPRESSIONS, type ExpressionId } from './face';
@@ -73,6 +74,8 @@ export interface HumanParams {
   animations: boolean;
   /** Weapon held in the right hand (attached to the WeaponR socket). */
   weapon: WeaponId;
+  /** A bag carried in the left hand. */
+  carry: CarryId;
   /** A vehicle prop shown with its riding clip (preview only for now). */
   vehicle: 'none' | 'bicycle';
   /** Resting facial expression (applied in the viewer and in every exported clip). */
@@ -130,6 +133,7 @@ export const DEFAULT_PARAMS: HumanParams = {
   restPose: 'A',
   animations: true,
   weapon: 'none',
+  carry: 'none',
   vehicle: 'none',
   expression: 'neutral',
   faceShapes: true,
@@ -285,6 +289,12 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
       reflective_vest: { pattern: 'solid', color: '#c6e82a', color2: '#d9dee4' },
     },
   },
+  'The Beach Girl': {
+    gender: 0, age: 0.5, muscle: 0.42, weight: 0.56, height: 0.55, proportions: 0.85, breastSize: 0.72, breastFirmness: 0.7,
+    african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', eyebrows: 'eyebrow001', eyelashes: 'eyelashes02',
+    hair: 'long01', hairTint: '#2a1d16', earrings: 'small_hoops', earringMetal: 'gold',
+    outfit: 'set_gold_bikini', shoes: 'flipflops', accessories: ['sunglasses'], carry: 'straw_tote',
+  },
   Detective: {
     gender: 0.95, age: 0.65, muscle: 0.55, weight: 0.5, height: 0.55, african: 0.2, asian: 0.6, caucasian: 0.2, hair: 'short01', outfit: 'male_casualsuit05',
     hat: 'fedora_cocked', shoes: 'shoes06', eyes: 'grey', eyebrows: 'eyebrow007', facialHair: 'stubble', beardColor: '#1a1410',
@@ -387,6 +397,7 @@ export function sanitizeParams(raw: unknown, base: HumanParams = DEFAULT_PARAMS)
   out.rig = oneOf(src.rig, ['game', 'game_lite', 'full', 'none'] as const, base.rig);
   out.restPose = oneOf(src.restPose, ['A', 'T'] as const, base.restPose);
   out.weapon = oneOf(src.weapon, WEAPONS, base.weapon);
+  out.carry = oneOf(src.carry, CARRIED, base.carry);
   out.vehicle = oneOf(src.vehicle, ['none', 'bicycle'] as const, base.vehicle);
   out.facialHair = oneOf(src.facialHair, FACIAL_HAIR, base.facialHair);
   out.earrings = oneOf(src.earrings, EARRINGS, base.earrings);

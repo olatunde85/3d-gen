@@ -212,3 +212,29 @@ export function briefsUnder(g: GCtx): GPart[] {
     offset: cm(0.3), tile: 0.2,
   }, cloth(g, 'Briefs', { pattern: 'solid', color: '#4a3424', color2: '#000000' }));
 }
+
+/**
+ * A flat sole under one foot (side s): the footprint outline pushed out by `margin`, from just
+ * under the sole of the foot down `thick`.
+ */
+export function footSole(b: Body, s: number, thick: number, margin: number): PolyMesh | null {
+  const foot = b.verts(REGION.foot, s).map((v) => b.p(v));
+  if (!foot.length) return null;
+  let minY = Infinity;
+  for (const p of foot) minY = Math.min(minY, p[1]);
+  const ring = hullRing(foot, { origin: [0, minY, 0], normal: Y }, { slab: cm(40), samples: 28, offset: margin });
+  if (!ring) return null;
+  const top = ring.map((p) => [p[0], minY + cm(0.1), p[2]] as Vec3);
+  const bot = ring.map((p) => [p[0], minY + cm(0.1) - thick, p[2]] as Vec3);
+  const side = loftRings([top, bot], { closedAround: true, tileU: 0.1 });
+  const n = ring.length;
+  const cap = (pts: Vec3[], flip: boolean): PolyMesh => ({
+    positions: Float32Array.from(pts.flat()),
+    faceSizes: Uint8Array.from([n]),
+    faceVerts: Uint32Array.from(flip ? [...Array(n).keys()].reverse() : [...Array(n).keys()]),
+    faceUVs: Uint32Array.from([...Array(n).keys()]),
+    uvs: Float32Array.from(pts.flatMap((p) => [p[0] * 0.5, p[2] * 0.5])),
+  });
+  const centre: Vec3 = [ring.reduce((a, p) => a + p[0], 0) / n, minY - thick / 2, ring.reduce((a, p) => a + p[2], 0) / n];
+  return orientOutward(merge([side, cap(top, false), cap(bot, true)])!, centre);
+}

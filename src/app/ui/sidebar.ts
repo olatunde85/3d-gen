@@ -6,7 +6,7 @@ import type { Ctx } from './context';
 import { color, macro, NONE, picker, section, selectRow, slider } from './controls';
 import { $, el } from './dom';
 import { accessoriesPanel, heelsStyle, outfitSetEntries, outfitSetStyle, piecesPanel } from './sidebar-clothing';
-import { earringPanel, hairPanel, tattooPanel, vehiclePanel, weaponPanel } from './sidebar-looks';
+import { carryPanel, earringPanel, hairPanel, tattooPanel, vehiclePanel, weaponPanel } from './sidebar-looks';
 
 export function sidebar(ctx: Ctx): void {
   const { store, cat } = ctx;
@@ -45,12 +45,12 @@ export function sidebar(ctx: Ctx): void {
       picker(ctx, cat.outfits, 'outfit', [{ id: 'none', name: 'Separate pieces' }], outfitSetEntries(ctx)), outfitSetStyle(ctx), color(ctx, 'Outfit tint', 'outfitTint'),
       piecesPanel(ctx),
       el('div', { className: 'sub', textContent: 'Footwear' }),
-      picker(ctx, cat.shoes, 'shoes', [{ id: 'none', name: 'Barefoot' }, { id: 'sandals', name: 'Sandals' }, { id: 'combat_boots', name: 'Combat boots' }, { id: 'heels', name: 'High heels' }]),
+      picker(ctx, cat.shoes, 'shoes', [{ id: 'none', name: 'Barefoot' }, { id: 'sandals', name: 'Sandals' }, { id: 'combat_boots', name: 'Combat boots' }, { id: 'heels', name: 'High heels' }, { id: 'flipflops', name: 'Flip-flops' }]),
       heelsStyle(ctx),
       el('div', { className: 'sub', textContent: 'Hat' }), picker(ctx, cat.hats, 'hat', NONE),
     ),
     section('Accessories', true, accessoriesPanel(ctx), earringPanel(ctx)),
-    section('Props', false, weaponPanel(ctx), vehiclePanel(ctx)),
+    section('Props', false, weaponPanel(ctx), carryPanel(ctx), vehiclePanel(ctx)),
   );
 
   // Detail sliders, grouped like MakeHuman: one section per category.

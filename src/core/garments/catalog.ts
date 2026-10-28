@@ -9,13 +9,15 @@ import type { Vec3 } from '../math';
 import type { Material } from '../mesh';
 import { cm, noise3, REGION } from './body';
 import {
-  beads, briefsUnder, clamp, cloth, hplane, isTrunk, isUpper, leatherStyle, limbBand, limbRing, mat, points, ringAt, shell, shellPart,
+  beads, briefsUnder, clamp, cloth, footSole, hplane, isTrunk, isUpper, leatherStyle, limbBand, limbRing, mat, points, ringAt, shell, shellPart,
   skirt, strapPlane, strapPoints, torsoY, GOLD, STEEL, Y, Z, type GarmentDef, type GarmentStyle, type GCtx, type GPart,
 } from './kit';
 import { along, card, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, roundedBox, solidBand, v3, type Plane } from './ring';
 import { buildShell } from './shell';
 import { featherTexture, makePattern, palette, type Pattern } from './textures';
+import { BEACH } from './beach';
 import { HEELS } from './heels';
+import { SWIMWEAR } from './swimwear';
 import { WRIST } from './wrist';
 import { YORUBA } from './yoruba';
 
@@ -709,6 +711,8 @@ export const GARMENTS: GarmentDef[] = [
   },
   ...YORUBA,
   ...WRIST,
+  ...SWIMWEAR,
+  ...BEACH,
   HEELS,
 ];
 
@@ -806,23 +810,9 @@ export function sandals(g: GCtx, color = '#5a3820'): GPart[] {
   for (const s of [1, -1]) {
     const foot = b.verts(REGION.foot, s).map((v) => b.p(v));
     if (!foot.length) continue;
-    let minY = Infinity;
-    for (const p of foot) minY = Math.min(minY, p[1]);
-    const ring = hullRing(foot, { origin: [0, minY, 0], normal: Y }, { slab: cm(40), samples: 28, offset: cm(0.5) });
-    if (!ring) continue;
-    const top = ring.map((p) => [p[0], minY + cm(0.1), p[2]] as Vec3);
-    const bot = ring.map((p) => [p[0], minY - cm(1.4), p[2]] as Vec3);
-    const side = loftRings([top, bot], { closedAround: true, tileU: 0.1 });
-    const n = ring.length;
-    const capVerts = (pts: Vec3[], flip: boolean): PolyMesh => ({
-      positions: Float32Array.from(pts.flat()),
-      faceSizes: Uint8Array.from([n]),
-      faceVerts: Uint32Array.from(flip ? [...Array(n).keys()].reverse() : [...Array(n).keys()]),
-      faceUVs: Uint32Array.from([...Array(n).keys()]),
-      uvs: Float32Array.from(pts.flatMap((p) => [p[0] * 0.5, p[2] * 0.5])),
-    });
-    const centre: Vec3 = [ring.reduce((a, p) => a + p[0], 0) / n, minY - cm(0.6), ring.reduce((a, p) => a + p[2], 0) / n];
-    soles.push(orientOutward(merge([side, capVerts(top, false), capVerts(bot, true)])!, centre));
+    const sole = footSole(b, s, cm(1.5), cm(0.5));
+    if (!sole) continue;
+    soles.push(sole);
     const [fa, fb] = b.axis(REGION.foot, s);
     const fd = v3.sub(fb, fa);
     for (const t of [0.35, 0.95]) {

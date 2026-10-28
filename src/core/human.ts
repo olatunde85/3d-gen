@@ -4,13 +4,14 @@
  */
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
 import { compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
-import { archFeet, buildGarments, dressing } from './garments';
+import { archFeet, buildGarments, dressing, genTexture } from './garments';
+import { buildCarry } from './props/carry';
 import type { Vec3 } from './math';
 import { applyTPose, baseSkin, placeBones, quatOf, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
 import { socketBone, type HandJoints } from './rig/socket';
 import { buildWeapon, type WeaponId, type WeaponPart } from './props/weapons';
 import { Animator } from './anim/evaluate';
-import { qrot, type Q } from './anim/quat';
+import { qconj, qmul, qrot, type Q } from './anim/quat';
 import type { Skin } from './geometry';
 import { MeshAssembler, pickGroups, type Material, type MeshData } from './mesh';
 import { applyTargets, targetWeights } from './morph';
@@ -445,6 +446,32 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     const sizeK = ((maxBodyY - minY) * DM) / 1.8;
     bones.push(socketBone(hand, handIdx, sizeK));
     rig = { type: p.rig, restPose: p.restPose, bones };
+
+    // Carried bag: hangs straight down from the left hand with the arms relaxed at the sides (the
+    // animation rest pose), and is bound rigidly to the hand bone.
+    if (p.carry !== 'none') {
+      const a = new Animator(rig);
+      const hand = a.relaxedBone('LeftHand'), mid = a.relaxedBone('LeftHandMiddle1');
+      const hi = bones.findIndex((b) => b.name === (p.rig === 'full' ? 'wrist.L' : 'LeftHand'));
+      if (hand && mid && hi >= 0) {
+        // Grip: just past the knuckles, a little toward the palm (which faces the thigh).
+        const grip: Vec3 = [hand.pos[0] + (mid.pos[0] - hand.pos[0]) * 1.5 - 0.01, hand.pos[1] + (mid.pos[1] - hand.pos[1]) * 1.5, hand.pos[2] + (mid.pos[2] - hand.pos[2]) * 1.5];
+        const toBind = qmul(quatOf(bones[hi].rot), qconj(hand.rot));
+        for (const cp of buildCarry(p.carry, (key, make) => genTexture(lib, key, make))) {
+          const P = cp.mesh.positions, positions = new Float32Array(P.length);
+          for (let i = 0; i < P.length; i += 3) {
+            const w = qrot(toBind, [P[i] + grip[0] - hand.pos[0], P[i + 1] + grip[1] - hand.pos[1], P[i + 2] + grip[2] - hand.pos[2]]);
+            positions.set([bones[hi].head[0] + w[0], bones[hi].head[1] + w[1], bones[hi].head[2] + w[2]], i);
+          }
+          const n = P.length / 3, j = new Uint16Array(n * 4).fill(0), wts = new Float32Array(n * 4);
+          for (let v = 0; v < n; v++) {
+            j[v * 4] = hi;
+            wts[v * 4] = 1;
+          }
+          out.push([{ ...cp.mesh, positions, skin: { j, w: wts } }, cp.material]);
+        }
+      }
+    }
 
     // Weapon: modelled in its own frame, mapped onto the socket and fitted to its reference pose.
     if (p.weapon && p.weapon !== 'none') {

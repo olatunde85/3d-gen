@@ -258,6 +258,18 @@ export class Animator {
     return frame;
   }
 
+  /**
+   * World rotation and position of a bone (by generic name, e.g. 'LeftHand') in the animation rest
+   * pose: arms relaxed at the sides. Props carried in a hand are fitted to this pose.
+   */
+  relaxedBone(name: string): { rot: Q; pos: Vec3 } | undefined {
+    const i = this.idx.get(name);
+    if (i === undefined) return undefined;
+    const empty: Clip = { id: '', name: '', category: 'Idle & stance', duration: 0, loop: true, sample: () => ({ bones: {}, root: {} }) };
+    const r = this.solve({ bones: {}, root: {} }, empty, 0, {});
+    return { rot: r.world[i], pos: r.pos[i] };
+  }
+
   /** The resting face (expression + live blinks) for the bind pose, on a continuous clock. */
   restFace(faceTime: number): number[] | undefined {
     if (!this.face) return undefined;
