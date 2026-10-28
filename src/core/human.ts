@@ -305,11 +305,33 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   // own lit-sphere shader; as a multiplier it darkens the painted texture to about a fifth, so
   // the texture is used as painted.
   const skinBase = skin.material!.color.toLowerCase() === '#808080' ? '#ffffff' : skin.material!.color;
-  parts.push([body, { ...toMaterial(skin.material!), name: 'Skin', color: tint(skinBase, p.skinTint), roughness: 0.55 }]);
+  parts.push([body, { ...toMaterial(skin.material!), name: 'Skin', color: tint(skinBase, p.skinTint), roughness: 0.66 }]);
   if (looks.overlay) parts.push([hd ? subdivide(looks.overlay[0]) : looks.overlay[0], looks.overlay[1]]);
-  parts.push([proxyMesh(pEyes, coords, bskin, faceD), { ...toMaterial(eyeMat.material!), name: 'Eyes', alpha: 'mask' }]);
-  if (pBrows && brows) parts.push([proxyMesh(pBrows, coords, bskin, faceD), { ...toMaterial(brows.material!), name: 'Eyebrows' }]);
-  if (pLashes && lashes) parts.push([proxyMesh(pLashes, coords, bskin, faceD), { ...toMaterial(lashes.material!), name: 'Eyelashes' }]);
+  // Eyes: the textures' sclera is near pure white; real sclera is off-white and in the lids' shade,
+  // so the eye is toned down (the iris stays readable) and a little less glossy.
+  {
+    // The eye mesh has a cornea layer, mapped to a fully transparent disc in the texture's corner.
+    // Split it out as its own clear, glossy surface (a small sharp catchlight and a wet look) over
+    // a matte eyeball.
+    const eyes = proxyMesh(pEyes, coords, bskin, faceD);
+    const start: number[] = [];
+    for (let f = 0, c = 0; f < eyes.faceSizes.length; c += eyes.faceSizes[f++]) start.push(c);
+    const isCornea = (f: number) => {
+      for (let k = 0; k < eyes.faceSizes[f]; k++) {
+        const t = eyes.faceUVs[start[f] + k];
+        if (eyes.uvs[t * 2] < 0.8 || eyes.uvs[t * 2 + 1] > 0.2) return false;
+      }
+      return true;
+    };
+    const ball = compact(eyes, (f) => !isCornea(f));
+    const cornea = compact(eyes, (f) => isCornea(f));
+    parts.push([ball, { ...toMaterial(eyeMat.material!), name: 'Eyes', alpha: 'opaque', color: '#d9d0c6', roughness: 0.45 }]);
+    if (cornea.faceSizes.length)
+      parts.push([{ ...cornea, faceUVs: new Uint32Array(cornea.faceUVs.length), uvs: new Float32Array(2) }, { name: 'Cornea', color: '#000000', roughness: 0.04, metalness: 0, alpha: 'blend', opacity: 0.3, doubleSided: false }]);
+  }
+  // Brows and lashes are blended (soft hair edges) rather than cut out at 50% alpha (hard, jagged).
+  if (pBrows && brows) parts.push([proxyMesh(pBrows, coords, bskin, faceD), { ...toMaterial(brows.material!), name: 'Eyebrows', alpha: 'blend', opacity: 0.9 }]);
+  if (pLashes && lashes) parts.push([proxyMesh(pLashes, coords, bskin, faceD), { ...toMaterial(lashes.material!), name: 'Eyelashes', alpha: 'blend' }]);
   // Mouth interior: hidden behind the lips until the mouth opens.
   const jawJoint = (name: string): Vec3 => {
     const idx = lib.base.meta.joints[name];
