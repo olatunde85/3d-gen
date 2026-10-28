@@ -6,7 +6,8 @@ import type { AssetLibrary } from '../assets';
 import { compact, type PolyMesh } from '../geometry';
 import type { Material } from '../mesh';
 import { ageToYears, type HumanParams } from '../params';
-import { beardCards, boxBraids, cornrows, hairLayers, isProceduralHair, spikes, type HeadCtx } from './hair';
+import { beardCards, boxBraids, buzzCards, cornrows, hairLayers, isProceduralHair, spikes, type HeadCtx } from './hair';
+import { mouthShadeLayer } from './mouth';
 import { earrings, metalMaterial } from './jewelry';
 import { baseBody, paintOverlay, overlaySurface, type Layer } from './overlay';
 import { tattooLayers } from './tattoos';
@@ -101,7 +102,7 @@ export async function buildLooks(lib: AssetLibrary, i: LooksInput): Promise<Look
   const proc = isProceduralHair(p.hair) ? p.hair : '';
 
   // --- Skin overlay ---
-  const layers: Layer[] = [...hairLayers(proc, facial, hairColor, beardColor), ...tattooLayers(base, tattoos, p.tattooInk ?? '#1c2128')];
+  const layers: Layer[] = [mouthShadeLayer(base), ...hairLayers(proc, facial, hairColor, beardColor), ...tattooLayers(base, tattoos, p.tattooInk ?? '#1c2128')];
   if (layers.length) {
     const size = i.low ? 1024 : 2048;
     const key = `look_${hashKey(JSON.stringify([tattoos, p.tattooInk, proc, facial, hairColor, beardColor, size]))}`;
@@ -122,7 +123,7 @@ export async function buildLooks(lib: AssetLibrary, i: LooksInput): Promise<Look
     for (let k = 0; k < positions.length; k++) positions[k] = i.coords[k] + i.normals[k] * d;
     const mesh = compact({ ...i.fullBody, positions }, (f) => sel[f] === 1);
     if (mesh.faceSizes.length)
-      out.overlay = [mesh, { name: 'Skin details', color: '#ffffff', roughness: 0.6, metalness: 0, alpha: 'blend', doubleSided: false, map }];
+      out.overlay = [mesh, { name: 'Skin details', color: '#ffffff', roughness: 0.85, metalness: 0, alpha: 'blend', doubleSided: false, map }];
   }
 
   // --- Geometry (cached per head shape: a tattoo or colour change doesn't regrow hair) ---
@@ -148,6 +149,10 @@ export async function buildLooks(lib: AssetLibrary, i: LooksInput): Promise<Look
   } else if (proc === 'box_braids') {
     const m = grown('box_braids', () => boxBraids(ctx, i.neckY + 0.25));
     if (m) out.hair.push([m, hairMat('Braids', tex(lib, 'gen_hair_braid', braidTexture))]);
+  }
+  if (proc === 'buzz') {
+    const m = grown('buzz', () => buzzCards(ctx));
+    if (m) out.hair.push([m, hairMat('Buzz cut', tex(lib, 'gen_hair_card', hairCardTexture), { alpha: 'mask', doubleSided: true, roughness: 0.8 })]);
   }
   const beard = facial === 'none' || facial === 'stubble' ? undefined : grown(`beard:${facial}`, () => beardCards(ctx, facial));
   if (beard)

@@ -99,7 +99,7 @@ async function checkExports(ch: Awaited<ReturnType<typeof buildHuman>>, label: s
   if (gdv.getUint32(0, true) !== 0x46546c67 || gdv.getUint32(8, true) !== glb.length) fail(`${label}: bad GLB header`);
   const json = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + gdv.getUint32(12, true))));
   if (json.meshes[0].primitives.length !== ch.mesh.groups.length) fail(`${label}: GLB primitive count`);
-  const texCount = new Set(ch.mesh.materials.flatMap((m) => [m.map, m.normalMap]).filter(Boolean)).size;
+  const texCount = new Set(ch.mesh.materials.flatMap((m) => [m.map, m.normalMap, m.roughnessMap]).filter(Boolean)).size;
   if ((json.images?.length ?? 0) !== texCount) fail(`${label}: GLB image count ${json.images?.length} != ${texCount}`);
 
   if (ch.rig) {
@@ -121,7 +121,9 @@ async function checkExports(ch: Awaited<ReturnType<typeof buildHuman>>, label: s
   if (ch.rig && (!counts.get('Pose') || (counts.get('Deformer') ?? 0) < 2)) fail(`${label}: FBX skin/bind pose missing`);
   if (ch.rig && ch.params.animations && counts.get('AnimationStack') !== CLIPS.length) fail(`${label}: FBX animation stacks ${counts.get('AnimationStack')}`);
   if (counts.get('Material') !== ch.mesh.materials.length) fail(`${label}: FBX material count`);
-  if ((counts.get('Video') ?? 0) !== texCount) fail(`${label}: FBX embedded texture count`);
+  // FBX has no roughness-map slot, so the roughness map isn't embedded.
+  const fbxTex = new Set(ch.mesh.materials.flatMap((m) => [m.map, m.normalMap]).filter(Boolean)).size;
+  if ((counts.get('Video') ?? 0) !== fbxTex) fail(`${label}: FBX embedded texture count`);
 
   const objZip = unzipSync((await exportCharacter(lib, ch, 'obj')).data);
   const objName = Object.keys(objZip).find((n) => n.endsWith('.obj'))!;
@@ -236,7 +238,10 @@ cases.push(['barefoot', { ...DEFAULT_PARAMS, outfit: 'none', shoes: 'none', bott
 // Modesty rules: under-18 female characters always get a top; nobody is fully undressed. Tattoos are adult-only.
 {
   const inkedMinor = await buildHuman(lib, { ...DEFAULT_PARAMS, age: 0.3, hair: 'short02', tattoos: [...TATTOOS] });
-  if (inkedMinor.mesh.materials.some((m) => m.name === 'Skin details')) fail('minor has tattoos');
+  // The skin overlay is always there (mouth shading); tattoos must not change it for a minor.
+  const plainMinor = await buildHuman(lib, { ...DEFAULT_PARAMS, age: 0.3, hair: 'short02' });
+  const overlayMap = (c: typeof inkedMinor) => c.mesh.materials.find((m) => m.name === 'Skin details')?.map;
+  if (overlayMap(inkedMinor) !== overlayMap(plainMinor)) fail('minor has tattoos');
   const teen = dressing({ ...DEFAULT_PARAMS, outfit: 'none', top: 'none', bottom: 'none', gender: 0, age: 0.3 });
   if (teen.top !== 'tank_top') fail('minor without top');
   if (teen.bottom !== 'briefs') fail('no bottom fallback');
@@ -307,8 +312,8 @@ for (const [label, p] of cases) {
       }
     }
     if (label.startsWith('look')) {
-      const wantOverlay = !!(p.tattoos?.length || (p.facialHair && p.facialHair !== 'none') || ['buzz', 'mohawk', 'cornrows', 'box_braids'].includes(p.hair));
-      if (wantOverlay !== mats.includes('Skin details')) fail(`${label}: skin overlay present=${mats.includes('Skin details')}`);
+      // Every character has the skin overlay (mouth shading, plus any tattoos, stubble or scalp).
+      if (!mats.includes('Skin details')) fail(`${label}: skin overlay missing`);
       if (['mustache', 'goatee', 'short_beard', 'full_beard'].includes(p.facialHair) !== mats.includes('Beard')) fail(`${label}: beard cards`);
       if ((p.earrings !== 'none') !== (mats.includes('Silver') || mats.includes('Gold'))) fail(`${label}: earrings`);
       if (['mohawk', 'cornrows', 'box_braids'].includes(p.hair) && !p.hat?.startsWith('fedora') && !mats.some((m) => m === 'Braids' || m === 'Hair spikes')) fail(`${label}: hair geometry missing`);

@@ -144,10 +144,11 @@ export class Viewer {
       const mat = new THREE.MeshStandardMaterial({
         name: mt.name,
         color: new THREE.Color(mt.color),
-        roughness: mt.roughness,
+        roughness: mt.roughnessMap ? 1 : mt.roughness,
         metalness: mt.metalness,
         map: mt.map ? this.texture(mt.map, true) : null,
         normalMap: mt.normalMap ? this.texture(mt.normalMap, false) : null,
+        roughnessMap: mt.roughnessMap ? this.texture(mt.roughnessMap, false) : null,
         side: mt.doubleSided ? THREE.DoubleSide : THREE.FrontSide,
         emissive: mt.emissive ? new THREE.Color(mt.emissive) : new THREE.Color(0),
         emissiveIntensity: mt.emissive ? 1.6 : 0,

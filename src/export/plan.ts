@@ -106,7 +106,7 @@ export function planExport(ch: Character, s: ExportSettings): ExportPlan {
   if (s.format === 'all' && mode !== 'static') notes.push('OBJ is left out of "All formats" because it cannot hold the rig.');
 
   const tris = triangleCount(ch.mesh).toLocaleString();
-  const textures = new Set(ch.mesh.materials.flatMap((m) => [m.map, m.normalMap]).filter(Boolean)).size;
+  const textures = new Set(ch.mesh.materials.flatMap((m) => [m.map, m.normalMap, m.roughnessMap]).filter(Boolean)).size;
   const rig = ch.rig;
   const rigDesc = rig ? `${rig.bones.length}-bone ${RIG_LABELS[rig.type].split(' —')[0].split(' (')[0].toLowerCase()}, ${rig.restPose}-pose bind` : '';
   const clipName = (id: string) => exportClipName(id, s);

@@ -64,7 +64,7 @@ export const EXPRESSION_LABELS: Record<ExpressionId, string> = {
 };
 
 /** Expressions as blend-shape weights (the resting face for every clip). */
-export const EXPRESSION_WEIGHTS: Record<ExpressionId, FaceWeights> = {
+const EXPRESSIONS_RAW: Record<ExpressionId, FaceWeights> = {
   neutral: {},
   happy: { mouthSmile: 0.85, eyeSquintLeft: 0.35, eyeSquintRight: 0.35, browOuterUpLeft: 0.15, browOuterUpRight: 0.15 },
   angry: { browDownLeft: 1, browDownRight: 1, mouthPress: 0.65, mouthUpperUp: 0.2, mouthFrown: 0.25, noseSneerLeft: 0.6, noseSneerRight: 0.6, eyeSquintLeft: 0.35, eyeSquintRight: 0.35 },
@@ -75,6 +75,18 @@ export const EXPRESSION_WEIGHTS: Record<ExpressionId, FaceWeights> = {
   afraid: { browInnerUp: 0.9, eyeWideLeft: 0.6, eyeWideRight: 0.6, mouthStretch: 0.55, jawOpen: 0.15 },
   determined: { browDownLeft: 0.65, browDownRight: 0.65, mouthPress: 0.55, eyeSquintLeft: 0.3, eyeSquintRight: 0.3 },
 };
+
+/**
+ * Relaxed upper lids: MakeHuman's eyes rest wide open (a staring look), so every expression that
+ * doesn't widen or close the eyes itself lowers the lids slightly. Blinks still close fully.
+ */
+const RESTING_LID = 0.16;
+export const EXPRESSION_WEIGHTS = Object.fromEntries(
+  Object.entries(EXPRESSIONS_RAW).map(([id, w]) => [
+    id,
+    'eyeWideLeft' in w || 'eyeBlinkLeft' in w ? w : { ...w, eyeBlinkLeft: RESTING_LID, eyeBlinkRight: RESTING_LID },
+  ]),
+) as Record<ExpressionId, FaceWeights>;
 
 /** The shapes a character gets: all, or without the speech shapes (they come last, so the other
  * shapes keep their indices). */
