@@ -325,7 +325,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     };
     const ball = compact(eyes, (f) => !isCornea(f));
     const cornea = compact(eyes, (f) => isCornea(f));
-    parts.push([ball, { ...toMaterial(eyeMat.material!), name: 'Eyes', alpha: 'opaque', color: '#d9d0c6', roughness: 0.45 }]);
+    parts.push([ball, { ...toMaterial(eyeMat.material!), name: 'Eyes', alpha: 'opaque', color: '#f6f2ec', roughness: 0.38 }]);
     if (cornea.faceSizes.length)
       parts.push([{ ...cornea, faceUVs: new Uint32Array(cornea.faceUVs.length), uvs: new Float32Array(2) }, { name: 'Cornea', color: '#000000', roughness: 0.04, metalness: 0, alpha: 'blend', opacity: 0.3, doubleSided: false }]);
   }
