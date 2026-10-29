@@ -388,29 +388,31 @@ function baseballCap(g: GCtx, st: GarmentStyle): GPart[] {
   }
   if (rings.length < 3) return [];
   // Side panels: from the visor's ends round the back, the crown's lower edge comes down level
-  // with the visor's drooping side edge (so the two meet), rising only where it passes over an ear.
+  // with the visor's drooping side edge (so the two meet). It stays snug on the skull, so the ears
+  // stand out in front of it.
   const band0 = rings[0];
+  let cb: Vec3 = [0, 0, 0];
+  for (const p of band0) cb = v3.add(cb, v3.scale(p, 1 / S));
+  // The skull without the ears: below the band, points further out than the band's own radius
+  // in their direction (less the cap's ease) are ears; the panels wrap the skull behind them.
+  const bandR = (q: Vec3) => {
+    const a = Math.atan2(q[0] - cb[0], q[2] - cb[2]);
+    const p0 = band0[((Math.round(((a + Math.PI) / (2 * Math.PI)) * S) % S) + S) % S];
+    return Math.hypot(p0[0] - cb[0], p0[2] - cb[2]);
+  };
+  const skull = head.filter((q) => q[1] > brimY || Math.hypot(q[0] - cb[0], q[2] - cb[2]) < bandR(q) - cm(0.3));
   const hulls = new Map<number, Vec3[] | null>();
   const hullAt = (y: number) => {
     const k = Math.round(y / cm(0.4));
-    if (!hulls.has(k)) hulls.set(k, hullRing(head, hplane(b, k * cm(0.4)), { slab: cm(0.6), samples: 128, offset: 0 }));
+    if (!hulls.has(k)) hulls.set(k, hullRing(skull, hplane(b, k * cm(0.4)), { slab: cm(0.6), samples: 128, offset: 0 }));
     return hulls.get(k)!;
   };
-  let cb: Vec3 = [0, 0, 0];
-  for (const p of band0) cb = v3.add(cb, v3.scale(p, 1 / S));
-  const visorDrop = cm(2.4);
+  const visorDrop = cm(2.4), visorA = 0.85;
   const edgeY: number[] = [];
   for (let j = 0; j < S; j++) {
     const a = -Math.PI + (2 * Math.PI * j) / S, p0 = band0[j];
-    const dir = v3.norm([p0[0] - cb[0], 0, p0[2] - cb[2]]);
-    const r0 = Math.hypot(p0[0] - cb[0], p0[2] - cb[2]);
-    let y = p0[1] - visorDrop * smoothstep(0.6, 0.95, Math.abs(a));
-    // Over the ear the head bulges out: lift the edge until it clears it.
-    for (; y < p0[1]; y += cm(0.2)) {
-      const h = hullAt(y);
-      const r = h ? rayRing(h, [cb[0], y, cb[2]], dir) : null;
-      if (r === null || r < r0 * 1.06) break;
-    }
+    // Level with the visor's root where the visor is, dipping down behind its ends.
+    const y = p0[1] - visorDrop * smoothstep(visorA - 0.05, visorA + 0.45, Math.abs(a));
     edgeY.push(Math.min(y, p0[1]));
   }
   // A smooth edge line round the head.
@@ -428,7 +430,7 @@ function baseballCap(g: GCtx, st: GarmentStyle): GPart[] {
       const h = hullAt(y);
       const r = h ? rayRing(h, [cb[0], y, cb[2]], dir) : null;
       const r0 = Math.hypot(p0[0] - cb[0], p0[2] - cb[2]);
-      const rr = r !== null ? Math.max(Math.min(r + cm(0.7), r0 * 1.04), r0 * 0.96) : r0;
+      const rr = r !== null ? Math.min(r + cm(0.7), r0 * 1.02) : r0;
       row.push([cb[0] + dir[0] * rr, y, cb[2] + dir[2] * rr]);
     }
     skirt.push(row);
@@ -477,7 +479,7 @@ function baseballCap(g: GCtx, st: GarmentStyle): GPart[] {
   // Visor: rooted on the band ring's front arc, reaching forward, its sides curving down.
   const band = rings[K];
   const at = (a: number) => band[((Math.round(((a + Math.PI) / (2 * Math.PI)) * S) % S) + S) % S];
-  const A = 0.85, R = 10, C = 28;
+  const A = visorA, R = 10, C = 28;
   const visor: Vec3[][] = [];
   for (let i = 0; i <= R; i++) {
     const t = i / R;
@@ -488,7 +490,9 @@ function baseballCap(g: GCtx, st: GarmentStyle): GPart[] {
       const out = v3.norm(v3.lerp(v3.norm([p0[0] - O[0], 0, p0[2] - O[2]]), [0, 0, 1], 0.8));
       // Rounded front edge: full length across the middle, curving back to the band at the sides.
       const len = cm(7.2) * Math.sqrt(Math.max(0, 1 - u * u));
-      row.push([p0[0] + out[0] * len * t, p0[1] - cm(1.6) * u * u * t - cm(1.2) * t, p0[2] + out[2] * len * t]);
+      // The droop grows with the distance out from the band, so the visor's ends meet it cleanly.
+      const droop = (cm(1.6) * u * u + cm(1.2)) * t * (len / cm(7.2));
+      row.push([p0[0] + out[0] * len * t, p0[1] - droop, p0[2] + out[2] * len * t]);
     }
     visor.push(row);
   }
