@@ -300,6 +300,7 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', eyebrows: 'eyebrow001',
     hair: 'buzz', facialHair: 'stubble', beardColor: '#15100c', expression: 'determined',
     outfit: 'set_street_tee_jeans', shoes: 'sneakers', hat: 'baseball_cap', accessories: ['cuban_chain', 'watch_gold'],
+    earrings: 'studs', earringMetal: 'gold',
   },
   Detective: {
     gender: 0.95, age: 0.65, muscle: 0.55, weight: 0.5, height: 0.55, african: 0.2, asian: 0.6, caucasian: 0.2, hair: 'short01', outfit: 'male_casualsuit05',

@@ -415,6 +415,21 @@ function baseballCap(g: GCtx, st: GarmentStyle): GPart[] {
     const y = p0[1] - visorDrop * smoothstep(visorA - 0.05, visorA + 0.45, Math.abs(a));
     edgeY.push(Math.min(y, p0[1]));
   }
+  // Over each ear the edge rises to just above the ear's top, so the ear sits wholly below the
+  // cap (tucked in) instead of cutting through it. Ears: the head points left out of the skull.
+  const ears = head.filter((q) => q[1] <= brimY && Math.hypot(q[0] - cb[0], q[2] - cb[2]) >= bandR(q) - cm(0.3));
+  for (const sgn of [1, -1]) {
+    const ear = ears.filter((q) => Math.sign(q[0] - cb[0]) === sgn);
+    if (!ear.length) continue;
+    const angs = ear.map((q) => Math.atan2(q[0] - cb[0], q[2] - cb[2]));
+    const a0 = Math.min(...angs), a1 = Math.max(...angs), top = Math.max(...ear.map((q) => q[1]));
+    for (let j = 0; j < S; j++) {
+      const a = -Math.PI + (2 * Math.PI * j) / S;
+      // Full lift across the ear, easing off over 0.25 rad either side.
+      const w = Math.min(smoothstep(a0 - 0.3, a0 - 0.05, a), 1 - smoothstep(a1 + 0.05, a1 + 0.3, a));
+      if (w > 0) edgeY[j] = Math.max(edgeY[j], edgeY[j] + (top + cm(0.4) - edgeY[j]) * w);
+    }
+  }
   // A smooth edge line round the head.
   for (let it = 0; it < 6; it++) {
     const e = [...edgeY];
