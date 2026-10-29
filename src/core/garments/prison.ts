@@ -9,10 +9,11 @@ import type { Vec3 } from '../math';
 import type { Material } from '../mesh';
 import { cm, REGION } from './body';
 import { crotchY, hideMask, part, seatOverLegs, soleY, wideLeg } from './drape';
-import { clamp, cloth, cylinderUVs, isTrunk, isUpper, limbBand, mat, points, shell, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { clamp, cloth, cylinderUVs, isTrunk, isUpper, limbBand, mat, shell, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { Caster, gridMesh, liftGrid, OUTWARD } from './project';
-import { cord, loftRings, merge, orientOutward, solidBand, v3 } from './ring';
+import { loftRings, merge, orientOutward, v3 } from './ring';
 import { placket, vNeck } from './shirts';
+import { keepIslands, outfitCloth, type Island } from './outfit-cut';
 import { stencilText } from './textures';
 
 /** A print laid on the front or back of the trunk: a w x h rectangle centred at (x, y), lifted `lift` off `surface`. */
@@ -39,13 +40,17 @@ function print(cast: Caster, x: number, y: number, w: number, h: number, lift: n
   return orientOutward({ ...m, uvs, faceUVs: m.faceVerts }, v3.madd(c, out, -1));
 }
 
+const COLLAR_FROM = 'male_casualsuit03';
+// Its collar: two small islands of the suit's UV atlas (the fall and the stand).
+const isCollar = (i: Island) => i.v0 > 0.44 && i.v1 < 0.74 && ((i.u0 > 0.04 && i.u1 < 0.15) || (i.u0 > 0.43 && i.u1 < 0.48));
+
 function jumpsuitTop(g: GCtx, st: GarmentStyle): GPart[] {
   const b = g.body;
   const m = cloth(g, 'Jumpsuit', st, { roughness: 0.92 });
   const sx = b.L.shoulderX;
   const ease = cm(1.5), sleeveEnd = 0.6;
   // Open collar: a V down the chest; a little lower at the back of the neck.
-  const neck = vNeck(b, { ttV: 0.8, vw: 0.42 });
+  const neck = vNeck(b, { ttV: 0.9, vw: 0.22 });
   const top = shell(g, {
     // Down to the waist seam, easing out at the bottom to lie over the trousers' seat.
     covers: (v) => ((isUpper(v) && v.tt >= 0.08) || (v.region === REGION.upperarm && v.t < sleeveEnd)) && !neck(v),
@@ -60,57 +65,20 @@ function jumpsuitTop(g: GCtx, st: GarmentStyle): GPart[] {
     for (let f = 0; f < hides.length; f++)
       for (let k = 0; k < 4 && hides[f]; k++) {
         const v = b.info[g.faceVerts[f * 4 + k]];
-        if (v.region === REGION.neck || (isTrunk(v) && (v.tt > 0.9 || (v.tt > 0.76 && Math.abs(v.tth) < Math.PI / 2 && v.ax < 0.5 * sx)))) hides[f] = 0;
+        if (v.region === REGION.neck || (isTrunk(v) && (v.tt > 0.9 || (v.tt > 0.82 && Math.abs(v.tth) < Math.PI / 2 && v.ax < 0.4 * sx)))) hides[f] = 0;
       }
   const parts: GPart[] = top && hides ? [{ mesh: top.mesh, material: m, hides, smooth: true }] : [];
   // Rolled sleeves: a thick roll of cloth at each sleeve's end.
   const rolls = merge([1, -1].map((s) => limbBand(b, REGION.upperarm, s, sleeveEnd - 0.04, cm(3.2), cm(0.7), ease + cm(1.6))));
   parts.push(...part(rolls, m));
   if (!top) return parts;
-  // Simple V-neck: a narrow facing folded back down each side of the V, with a soft rolled edge,
-  // and a low band round the back of the neck joining them.
-  // (Cast only at the front panel: inside the V the rays would reach the back.)
-  const P = top.mesh.positions, isFront: boolean[] = [];
-  for (let f = 0, c = 0; f < top.mesh.faceSizes.length; c += top.mesh.faceSizes[f++]) {
-    let z = 0;
-    for (let k = 0; k < top.mesh.faceSizes[f]; k++) z += P[top.mesh.faceVerts[c + k] * 3 + 2] / top.mesh.faceSizes[f];
-    isFront.push(z > b.L.torsoZ);
-  }
-  const front = new Caster(top.mesh, null, (f) => isFront[f], 'front');
+  // Collar: the shirt collar of MakeHuman's casual suit 03 (stand and fall), in the jumpsuit's cloth.
+  const o = g.outfits?.[COLLAR_FROM];
+  if (o) parts.push({ mesh: keepIslands(o.mesh, isCollar), material: outfitCloth(g, o, 'Jumpsuit collar', st, 6, { roughness: 0.92, doubleSided: true, color: '#d6cbc2' }), smooth: true });
+  const front = new Caster(top.mesh, null, () => true, 'front');
   const back = new Caster(top.mesh, null, () => true, 'back');
-  const facings: PolyMesh[] = [];
-  for (const s of [1, -1]) {
-    // Rows down the V, from as high as the front panel reaches (rays above it miss) to its point.
-    let ttTop = 1.0;
-    while (ttTop > 0.9 && !front.hit(s * (0.42 * sx * clamp((ttTop - 0.8) / 0.2, 0, 1) + cm(3)), torsoY(b, ttTop))) ttTop -= 0.005;
-    const R = 14, C = 3, grid: Vec3[][] = [];
-    for (let i = 0; i <= R; i++) {
-      const t = i / R, tt = ttTop + (0.8 - ttTop) * t, row: Vec3[] = [];
-      const edge = 0.42 * sx * clamp((tt - 0.8) / 0.2, 0, 1) + cm(0.6);
-      for (let j = 0; j <= C; j++) {
-        // From inside the cut edge (covering it) out 3.5 cm, narrowing to the V's point.
-        const x = s * (edge - cm(0.9) + (j / C) * cm(3.5) * (1 - 0.6 * t));
-        const hit = front.hit(x, torsoY(b, tt));
-        const prev = row[row.length - 1] ?? grid[grid.length - 1]?.[j];
-        if (hit) row.push(hit.p);
-        else if (prev) row.push([x, prev[1], prev[2]]);
-        else row.push([x, torsoY(b, tt), b.L.torsoZ + cm(10)]);
-      }
-      grid.push(row);
-    }
-    const lifted = liftGrid(grid, cm(0.3), OUTWARD.front, 1);
-    facings.push(orientOutward(gridMesh(lifted, 0.3), v3.madd(grid[R >> 1][1], OUTWARD.front, -1)));
-    // The fold along the V.
-    facings.push(cord(lifted.map((row) => row[0]), cm(0.3), false, 6));
-  }
-  const neckPts = points(b, (v) => v.region === REGION.neck || (isTrunk(v) && v.tt > 0.9));
-  // Tilted so it dips toward the front, where its ends meet the facings' tops (covering the cut).
-  const band = solidBand(neckPts, { origin: [0, b.L.neckY - cm(0.8), b.L.torsoZ], normal: v3.norm([0, 1, 0.45]) }, cm(2.8), cm(0.35), ease * 0.8, {
-    samples: 48, slab: cm(1.4), arc: [Math.PI - 2.15, Math.PI + 2.15],
-  });
-  parts.push(...part(merge([...facings, band]), { ...m, doubleSided: true }));
   // Button placket: from the V's point down to the waist.
-  parts.push(...placket(g, top.mesh, m, { ttV: 0.8, buttons: 4, spacing: cm(9), placketTo: 0.12, buttonColor: '#d8d2c4' }));
+  parts.push(...placket(g, top.mesh, m, { ttV: 0.9, buttons: 4, spacing: cm(9), placketTo: 0.12, buttonColor: '#d8d2c4' }));
   // "DOC": small on the left chest, large across the upper back.
   const ink = mat('DOC print', g.texture('stencil_DOC_#1c1a18', () => stencilText('DOC', '#1c1a18')), { roughness: 0.8 });
   const chest = print(front, 0.7 * sx, torsoY(b, 0.72), cm(6.5), cm(2.4), cm(0.06), OUTWARD.front);
@@ -177,6 +145,6 @@ function jumpsuitTrousers(g: GCtx, st: GarmentStyle): GPart[] {
 }
 
 export const PRISON: GarmentDef[] = [
-  { id: 'prison_top', label: 'Jumpsuit top (rolled sleeves)', slot: 'top', patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a', build: jumpsuitTop },
+  { id: 'prison_top', label: 'Jumpsuit top (rolled sleeves)', slot: 'top', patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a', fromOutfit: COLLAR_FROM, build: jumpsuitTop },
   { id: 'prison_trousers', label: 'Jumpsuit trousers (rolled up)', slot: 'bottom', patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a', build: jumpsuitTrousers },
 ];
