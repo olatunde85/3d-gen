@@ -39,7 +39,7 @@ function lobeVerts(base: Body): [number, number] {
 const studs = new WeakMap<Body, [number, number]>();
 /**
  * Base-mesh vertex where a stud goes on each lobe (left, right): on the lobe's outer face, about
- * 7 mm above its bottom edge (a stud pierces the middle of the lobe, not its rim).
+ * low in the lobe (the reference vertex sits a little above its lowest point).
  */
 function studVerts(base: Body): [number, number] {
   let st = studs.get(base);
@@ -47,7 +47,7 @@ function studVerts(base: Body): [number, number] {
     st = lobeVerts(base).map((lv) => {
       const C = base.coords;
       const s = Math.sign(C[lv * 3]) || 1;
-      const y = C[lv * 3 + 1] + 0.07, z = C[lv * 3 + 2];
+      const y = C[lv * 3 + 1] - 0.025, z = C[lv * 3 + 2];
       let best = lv, score = -Infinity;
       for (let v = 0; v < base.regions.length; v++) {
         if (base.regions[v] !== REGION.head) continue;
