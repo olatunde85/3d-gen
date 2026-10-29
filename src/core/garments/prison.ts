@@ -53,54 +53,62 @@ function jumpsuitTop(g: GCtx, st: GarmentStyle): GPart[] {
     tile: 0.3, relax: 6, hemDepth: cm(0.3),
   });
   if (top) top.mesh = cylinderUVs(top.mesh, 0, b.L.torsoZ, 0.3);
-  const parts: GPart[] = top ? [{ mesh: top.mesh, material: m, hides: top.covered, smooth: true }] : [];
+  // The skin stays round the neck and in the V (under the collar and facings): hiding it there
+  // leaves holes along the cut.
+  const hides = top && Uint8Array.from(top.covered);
+  if (hides)
+    for (let f = 0; f < hides.length; f++)
+      for (let k = 0; k < 4 && hides[f]; k++) {
+        const v = b.info[g.faceVerts[f * 4 + k]];
+        if (v.region === REGION.neck || (isTrunk(v) && (v.tt > 0.9 || (v.tt > 0.76 && Math.abs(v.tth) < Math.PI / 2 && v.ax < 0.5 * sx)))) hides[f] = 0;
+      }
+  const parts: GPart[] = top && hides ? [{ mesh: top.mesh, material: m, hides, smooth: true }] : [];
   // Rolled sleeves: a thick roll of cloth at each sleeve's end.
   const rolls = merge([1, -1].map((s) => limbBand(b, REGION.upperarm, s, sleeveEnd - 0.04, cm(3.2), cm(0.7), ease + cm(1.6))));
   parts.push(...part(rolls, m));
-  // Collar: a stand round the back of the neck, and two flat points lying on the chest either side of the V.
-  const neckPts = points(b, (v) => v.region === REGION.neck || (isTrunk(v) && v.tt > 0.88));
-  // Wide enough to cover the neckline's edge round the back and sides.
-  const stand = solidBand(neckPts, { origin: [0, b.L.neckY - cm(0.9), b.L.torsoZ], normal: v3.norm([0, 1, 0.25]) }, cm(4), cm(0.4), ease * 0.8, {
-    samples: 56, slab: cm(1.4), arc: [Math.PI - 2.4, Math.PI + 2.4],
-  });
-  parts.push(...part(stand, m));
   if (!top) return parts;
-  // Collar points, placket, buttons and prints lie on the jumpsuit itself.
-  const front = new Caster(top.mesh, null, () => true, 'front');
+  // Simple V-neck: a narrow facing folded back down each side of the V, with a soft rolled edge,
+  // and a low band round the back of the neck joining them.
+  // (Cast only at the front panel: inside the V the rays would reach the back.)
+  const P = top.mesh.positions, isFront: boolean[] = [];
+  for (let f = 0, c = 0; f < top.mesh.faceSizes.length; c += top.mesh.faceSizes[f++]) {
+    let z = 0;
+    for (let k = 0; k < top.mesh.faceSizes[f]; k++) z += P[top.mesh.faceVerts[c + k] * 3 + 2] / top.mesh.faceSizes[f];
+    isFront.push(z > b.L.torsoZ);
+  }
+  const front = new Caster(top.mesh, null, (f) => isFront[f], 'front');
   const back = new Caster(top.mesh, null, () => true, 'back');
-  // The collar's points lie on the chest from the collarbones (tt 0.94) down the V to its point (tt 0.8).
-  const ttTop = 0.94, yTopV = torsoY(b, ttTop), yBotV = torsoY(b, 0.8);
-  const flaps: PolyMesh[] = [];
+  const facings: PolyMesh[] = [];
   for (const s of [1, -1]) {
-    // A lapel: its inner edge runs down the V from the neck to the V's point; its outer edge flares
-    // out to a collar point 6.5 cm wide at the top, angled down toward the shoulder.
-    const R = 10, C = 6, grid: Vec3[][] = [];
+    // Rows down the V, from as high as the front panel reaches (rays above it miss) to its point.
+    let ttTop = 1.0;
+    while (ttTop > 0.9 && !front.hit(s * (0.42 * sx * clamp((ttTop - 0.8) / 0.2, 0, 1) + cm(3)), torsoY(b, ttTop))) ttTop -= 0.005;
+    const R = 14, C = 3, grid: Vec3[][] = [];
     for (let i = 0; i <= R; i++) {
-      const t = i / R;
-      const row: Vec3[] = [];
+      const t = i / R, tt = ttTop + (0.8 - ttTop) * t, row: Vec3[] = [];
+      const edge = 0.42 * sx * clamp((tt - 0.8) / 0.2, 0, 1) + cm(0.6);
       for (let j = 0; j <= C; j++) {
-        const u = j / C;
-        const yIn = yTopV + (yBotV - yTopV) * t;
-        const xIn = s * (0.42 * sx * ((ttTop - 0.8) / 0.2) * (1 - t) + cm(0.6));
-        const wOut = cm(7.5) * (1 - t) ** 0.6;
-        const x = xIn + s * u * wOut;
-        const y = yIn - u * cm(2.2) * (1 - t);
-        // A ray that misses (past the shoulder's edge) reuses its neighbour.
-        const hit = front.hit(x, y);
+        // From inside the cut edge (covering it) out 3.5 cm, narrowing to the V's point.
+        const x = s * (edge - cm(0.9) + (j / C) * cm(3.5) * (1 - 0.6 * t));
+        const hit = front.hit(x, torsoY(b, tt));
         const prev = row[row.length - 1] ?? grid[grid.length - 1]?.[j];
         if (hit) row.push(hit.p);
-        else if (prev) row.push(prev);
-        else row.push([x, y, b.L.torsoZ + cm(10)]);
+        else if (prev) row.push([x, prev[1], prev[2]]);
+        else row.push([x, torsoY(b, tt), b.L.torsoZ + cm(10)]);
       }
       grid.push(row);
     }
-    const lifted = liftGrid(grid, cm(0.45), OUTWARD.front, 1);
-    flaps.push(orientOutward(gridMesh(lifted, 0.3), v3.madd(grid[R >> 1][C >> 1], OUTWARD.front, -1)));
-    // A rolled edge along the lapel's outer and top edges gives it thickness and a shadow line.
-    const edge = [...lifted.map((row) => row[C]).reverse(), ...lifted[0].slice(0, C).reverse()];
-    flaps.push(cord(edge, cm(0.22), false, 6));
+    const lifted = liftGrid(grid, cm(0.3), OUTWARD.front, 1);
+    facings.push(orientOutward(gridMesh(lifted, 0.3), v3.madd(grid[R >> 1][1], OUTWARD.front, -1)));
+    // The fold along the V.
+    facings.push(cord(lifted.map((row) => row[0]), cm(0.3), false, 6));
   }
-  parts.push(...part(merge(flaps), { ...m, doubleSided: true }));
+  const neckPts = points(b, (v) => v.region === REGION.neck || (isTrunk(v) && v.tt > 0.9));
+  // Tilted so it dips toward the front, where its ends meet the facings' tops (covering the cut).
+  const band = solidBand(neckPts, { origin: [0, b.L.neckY - cm(0.8), b.L.torsoZ], normal: v3.norm([0, 1, 0.45]) }, cm(2.8), cm(0.35), ease * 0.8, {
+    samples: 48, slab: cm(1.4), arc: [Math.PI - 2.15, Math.PI + 2.15],
+  });
+  parts.push(...part(merge([...facings, band]), { ...m, doubleSided: true }));
   // Button placket: from the V's point down to the waist.
   parts.push(...placket(g, top.mesh, m, { ttV: 0.8, buttons: 4, spacing: cm(9), placketTo: 0.12, buttonColor: '#d8d2c4' }));
   // "DOC": small on the left chest, large across the upper back.

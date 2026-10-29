@@ -98,12 +98,13 @@ function backpack(g: GCtx, st: GarmentStyle): GPart[] {
   const hulls = new Map<number, Vec3[] | null>();
   const hullAt = (y: number) => {
     const k = Math.round(y / cm(1));
-    if (!hulls.has(k)) hulls.set(k, hullRing(torso, hplane(b, k * cm(1)), { slab: cm(1.2), samples: 96, offset: cm(0.5) }));
+    if (!hulls.has(k)) hulls.set(k, hullRing(torso, hplane(b, k * cm(1)), { slab: cm(1.2), samples: 96, offset: cm(0.8) }));
     return hulls.get(k)!;
   };
   for (const s of [1, -1]) {
     const xs = s * 0.55 * sx;
-    const loop = hullRing(surf, { origin: [xs, torsoY(b, 0.85), b.L.torsoZ], normal: [1, 0, 0], ref: [0, 0, 1] }, { slab: cm(1.2), samples: 96, offset: cm(0.5) });
+    // (Over the top's collar and prints: always on top.)
+    const loop = hullRing(surf, { origin: [xs, torsoY(b, 0.85), b.L.torsoZ], normal: [1, 0, 0], ref: [0, 0, 1] }, { slab: cm(2), samples: 96, offset: cm(0.8) });
     if (!loop) continue;
     // Over the shoulder: from the back (z < torso) at the pack's top, over the top, down the front to the chest.
     const chestY = torsoY(b, 0.72);
