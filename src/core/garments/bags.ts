@@ -8,7 +8,7 @@ import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import { cm, REGION } from './body';
 import { clamp, cloth, hplane, isTrunk, mat, points, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
-import { hullRing, loftRings, merge, orientOutward, rayRing, roundedBox, frameOf, v3 } from './ring';
+import { hullRing, loftRings, merge, orientOutward, rayRing, ribbon, roundedBox, frameOf, v3 } from './ring';
 
 /** Rounded-rectangle outline in the horizontal plane at height y, centred (cx, cz): half sizes hx, hz. */
 function slab(cx: number, y: number, cz: number, hx: number, hz: number, n = 32, k = 4): Vec3[] {
@@ -42,22 +42,6 @@ function pillow(yBot: number, yTop: number, zFront: (y: number) => number, w: nu
   };
   const m = loftRings([cap(rings[0]), ...rings, cap(rings[K])], { closedAround: true, tileU: 0.25, tileV: 0.25 });
   return orientOutward(m, [0, (yBot + yTop) / 2, zFront((yBot + yTop) / 2) - d / 2]);
-}
-
-/** A flat strap (webbing) along a polyline, lying on a surface with the given normals: width w. */
-function ribbon(line: Vec3[], normals: Vec3[], w: number, th: number): PolyMesh {
-  const top: Vec3[] = [], bot: Vec3[] = [], tl: Vec3[] = [], bl: Vec3[] = [];
-  line.forEach((p, i) => {
-    const t = v3.norm(v3.sub(line[Math.min(line.length - 1, i + 1)], line[Math.max(0, i - 1)]));
-    const n = normals[i], side = v3.norm(v3.cross(t, n));
-    top.push(v3.madd(v3.madd(p, side, w / 2), n, th));
-    bot.push(v3.madd(v3.madd(p, side, -w / 2), n, th));
-    tl.push(v3.madd(p, side, w / 2));
-    bl.push(v3.madd(p, side, -w / 2));
-  });
-  // A thin closed band: outer face, edges and inner face.
-  const rings = line.map((_, i) => [top[i], bot[i], bl[i], tl[i]]);
-  return loftRings(rings, { closedAround: true, tileU: 0.05, tileV: 0.1 });
 }
 
 function backpack(g: GCtx, st: GarmentStyle): GPart[] {

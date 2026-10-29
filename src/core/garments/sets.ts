@@ -46,6 +46,10 @@ export function setStyles(set: OutfitSet, styles: Styles): Styles {
 
 export const OUTFIT_SETS: OutfitSet[] = [
   {
+    id: 'set_thobe', label: 'Thobe & keffiyeh', top: 'thobe', bottom: 'none', accessories: ['gold_necklace_long', 'watch_gold', 'gold_ring', 'sunglasses'], shoes: 'slides', hat: 'keffiyeh',
+    patterns: ['linen', 'solid'], color: '#f4f2ec', color2: '#e3dfd4',
+  },
+  {
     id: 'set_ankara_gown', label: 'Ankara gown', top: 'ankara_gown', bottom: 'none', accessories: ['gold_necklace'], shoes: 'heels',
     patterns: ['ankara_floral', 'ankara_web', 'ankara', 'lace', 'solid'], color: '#4b2a9a', color2: '#e9e4f2',
   },

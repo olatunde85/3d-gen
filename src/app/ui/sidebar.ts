@@ -45,7 +45,7 @@ export function sidebar(ctx: Ctx): void {
       picker(ctx, cat.outfits, 'outfit', [{ id: 'none', name: 'Separate pieces' }], outfitSetEntries(ctx)), outfitSetStyle(ctx), color(ctx, 'Outfit tint', 'outfitTint'),
       piecesPanel(ctx),
       el('div', { className: 'sub', textContent: 'Footwear' }),
-      picker(ctx, cat.shoes, 'shoes', [{ id: 'none', name: 'Barefoot' }, { id: 'sandals', name: 'Sandals' }, { id: 'combat_boots', name: 'Combat boots' }, { id: 'heels', name: 'High heels' }, { id: 'flipflops', name: 'Flip-flops' }, { id: 'sneakers', name: 'Sneakers' }, { id: 'loafers', name: 'Loafers' }]),
+      picker(ctx, cat.shoes, 'shoes', [{ id: 'none', name: 'Barefoot' }, { id: 'sandals', name: 'Sandals' }, { id: 'combat_boots', name: 'Combat boots' }, { id: 'heels', name: 'High heels' }, { id: 'flipflops', name: 'Flip-flops' }, { id: 'sneakers', name: 'Sneakers' }, { id: 'loafers', name: 'Loafers' }, { id: 'slides', name: 'Slides' }]),
       shoeStyle(ctx),
       el('div', { className: 'sub', textContent: 'Hat' }), picker(ctx, cat.hats, 'hat', [...NONE, ...HAT_ENTRIES]), hatStyle(ctx),
     ),

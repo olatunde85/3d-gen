@@ -16,12 +16,13 @@ import { along, card, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orie
 import { buildShell } from './shell';
 import { featherTexture, makePattern, palette, type Pattern } from './textures';
 import { BAGS } from './bags';
-import { BEACH } from './beach';
+import { BEACH, SLIDES } from './beach';
 import { HEELS } from './heels';
 import { SNEAKERS } from './sneakers';
 import { LOAFERS } from './loafers';
 import { PRISON } from './prison';
 import { SHIRTS } from './shirts';
+import { GULF } from './gulf';
 import { SUIT } from './suit';
 import { STREET } from './street';
 import { SWIMWEAR } from './swimwear';
@@ -724,12 +725,14 @@ export const GARMENTS: GarmentDef[] = [
   ...STREET,
   ...PRISON,
   ...SHIRTS,
+  ...GULF,
   ...SUIT,
   ...BAGS,
   ...BEACH,
   HEELS,
   SNEAKERS,
   LOAFERS,
+  SLIDES,
 ];
 
 // --- Shared builders -------------------------------------------------------------

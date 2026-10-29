@@ -159,6 +159,15 @@ export function yearsToAge(y: number): number {
 
 export const PRESETS: Record<string, Partial<HumanParams>> = {
   // Newest characters first.
+  // Gulf oil tycoon: a white thobe, red-and-white keffiyeh with a black agal, gold chain, gold watch
+  // and signet ring, dark sunglasses and black leather slides.
+  'The Arabian Oil Tycoon': {
+    gender: 1, age: 0.56, muscle: 0.6, weight: 0.58, height: 0.6, proportions: 0.6,
+    african: 0.15, asian: 0.25, caucasian: 0.6, eyes: 'blackbrown', eyebrows: 'eyebrow001',
+    hair: 'short02', facialHair: 'stubble', beardColor: '#1a120d', expression: 'determined',
+    outfit: 'set_thobe', shoes: 'slides', hat: 'keffiyeh', accessories: ['gold_necklace_long', 'watch_gold', 'gold_ring', 'sunglasses'],
+    garmentStyles: { sunglasses: { pattern: 'solid', color: '#151311', color2: '#161616' } },
+  },
   // 80s Miami: a pastel pink suit worn open over a tropical-print shirt unbuttoned to the chest,
   // layered gold chains, a gold watch, aviators and oxblood horsebit loafers without socks.
   'The Miami Dealer': {

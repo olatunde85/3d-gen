@@ -1,11 +1,12 @@
 /**
- * Wrist accessories: bangles, gold and silver bracelet watches, and bead bracelets.
+ * Wrist and hand accessories: bangles, gold and silver bracelet watches, bead bracelets and a gold
+ * signet ring.
  */
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import { cm, REGION, type Body } from './body';
 import { limbRing, mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
-import { along, cord, ellipsoid, frameOf, merge, roundedBox, v3 } from './ring';
+import { along, cord, ellipsoid, frameOf, hullRing, merge, roundedBox, v3 } from './ring';
 
 /** A loop round the wrist (side s), `t` along the forearm, standing `gap` off the skin. */
 function wristLoop(b: Body, s: number, t: number, gap: number): { ring: Vec3[]; centre: Vec3; dir: Vec3 } | null {
@@ -87,7 +88,33 @@ function wristBeads(g: GCtx, st: GarmentStyle): GPart[] {
   ];
 }
 
+/**
+ * Gold signet ring on the right ring finger: a band round the finger's first joint, sized to the
+ * finger, with a flat oval face on its back.
+ */
+function signetRing(g: GCtx, st: GarmentStyle): GPart[] {
+  const b = g.body, s = -1;
+  const a = b.joint('finger4-1.R____head'), c = b.joint('finger4-1.R____tail');
+  const dir = v3.norm(v3.sub(c, a)), o = v3.lerp(a, c, 0.45);
+  // The finger's surface round that point: hand vertices close to the bone there.
+  const near = b.verts(REGION.hand, s).map((v) => b.p(v)).filter((p) => {
+    const d = v3.sub(p, o), along = v3.dot(d, dir);
+    return Math.abs(along) < cm(0.4) && v3.len(v3.madd(d, dir, -along)) < cm(1.1);
+  });
+  const ring = hullRing(near, { origin: o, normal: dir }, { slab: cm(0.4), samples: 32, offset: cm(0.12) });
+  if (!ring) return [];
+  const up = dorsal(b, s);
+  let top = ring[0];
+  for (const p of ring) if (v3.dot(v3.sub(p, o), up) > v3.dot(v3.sub(top, o), up)) top = p;
+  const face = ellipsoid(frameOf(v3.madd(top, up, cm(0.12)), up, dir), [cm(0.55), cm(0.45), cm(0.14)], [0.5, 0.5], 12, 5);
+  const mesh = merge([cord([...ring, ring[0]], cm(0.13), false, 8), face])!;
+  const at = new Float32Array(mesh.positions.length);
+  for (let i = 0; i < at.length; i += 3) at.set(o, i);
+  return [{ mesh, material: metal(st.color, 'Gold ring'), skinAt: at }];
+}
+
 export const WRIST: GarmentDef[] = [
+  { id: 'gold_ring', label: 'Gold signet ring', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000', build: signetRing },
   { id: 'bangles', label: 'Bangles', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000', build: bangles },
   { id: 'watch_gold', label: 'Gold watch', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#f4efe4', build: (g, st) => braceletWatch(g, st, 'Gold watch') },
   { id: 'watch_silver', label: 'Silver watch', slot: 'acc', patterns: ['solid'], color: '#c9ccd1', color2: '#1b2433', build: (g, st) => braceletWatch(g, st, 'Silver watch') },
