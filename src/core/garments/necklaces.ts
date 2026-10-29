@@ -77,7 +77,7 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
     // The loop's radius here, and where it rests: going down from the narrowest point until the
     // body (or the top worn over it) reaches out that far.
     // (Inside a collar: snug on the neck.)
-    const rT = (rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6)) * (inside ? 1.04 : 1.15) + off;
+    const rT = (rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6)) * (inside ? 1.0 : 1.15) + off;
     // Never higher than just above the base of the neck (a slim neck widens early).
     const yTop = Math.min(yN, b.L.neckY + cm(1));
     let yRest = yTop;
@@ -247,14 +247,15 @@ function cubanChain(g: GCtx, st: GarmentStyle): GPart[] {
 }
 
 /**
- * Layered gold chains (worn on the bare chest of an open shirt): a fine chain close round the
- * neck, a rope chain lower, and a curb chain lowest.
+ * Layered gold chains (worn on the bare chest of an open shirt): a rope chain close round the neck
+ * and a curb chain below it.
  */
 function goldChains(g: GCtx, st: GarmentStyle): GPart[] {
-  // Compact: close round the neck, inside the collars, the lowest resting on the top of the sternum.
-  const fine = strand(g, cm(3.5), 0.15, true), rope = strand(g, cm(7), 0.08, true), curb = strand(g, cm(10.5), 0, true);
+  // Compact: two layers close round the neck, inside the collars, the lower resting on the top of
+  // the sternum.
+  const rope = strand(g, cm(3), 0.1, true), curb = strand(g, cm(7), 0, true);
   const metal = mat('Gold chains', null, { color: st.color, roughness: 0.18, metalness: 1 });
-  return part(merge([fine && cord(fine.ring, cm(0.09), true, 5), rope && ropeChain(rope, cm(0.32)), curb && curbLinks(curb, 0.75, 8, 3)]), metal);
+  return part(merge([rope && ropeChain(rope, cm(0.24)), curb && curbLinks(curb, 0.6, 8, 3)]), metal);
 }
 
 export const NECKLACES: GarmentDef[] = [

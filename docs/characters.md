@@ -39,7 +39,7 @@ Choose a full MakeHuman outfit, an **outfit set**, or **Separate pieces**:
   - armour and vests: leather armor, tactical vest, reflective hi-vis vest
   - eyewear: sunglasses, aviators
   - headwear: baseball cap, gele (pleated head tie with lace flowers and a knotted back; it covers the hair), beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
-  - jewellery and charms: Cuban link chain, layered gold chains (fine, rope and curb), coral beads (iyun), gold necklace with pendant, pearl necklace, bangles, gold and silver bracelet watches, wrist beads, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
+  - jewellery and charms: Cuban link chain, layered gold chains (rope and curb), coral beads (iyun), gold necklace with pendant, pearl necklace, bangles, gold and silver bracelet watches, wrist beads, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
   - wraps and bands: shuka shoulder drape, arm guards, fur bands, arm wraps
   - bags: canvas backpack (webbing straps over the shoulders)
   - other: neon accents, wrist watch

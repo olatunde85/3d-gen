@@ -130,11 +130,13 @@ function collarOver(body: Body, parts: GPart[], tops: Set<GPart>, jackets: Set<G
     const a = Math.floor(k / 1000);
     for (const da of [-1, 0, 1])
       for (let d = -1; d <= 1; d++)
-        for (const q of jacketR.get(k + da * 1000 + d) ?? []) if (q > r - 0.1 && q < r + 0.25) push[a] = Math.max(push[a], q + 0.03 - r);
+        for (const q of jacketR.get(k + da * 1000 + d) ?? []) if (q > r - 0.1 && q < r + 0.25) push[a] = Math.max(push[a], q + 0.06 - r);
   }
-  // At most 2 cm (the collar keeps its shape), smoothed round the neck.
-  push = push.map((x) => Math.min(x, 0.2));
-  for (let it = 0; it < 4; it++) push = push.map((_, a) => (push[(a + AB - 1) % AB] + 2 * push[a] + push[(a + 1) % AB]) / 4);
+  // At most 2.5 cm (the collar keeps its shape); each angle takes the most its neighbours need, then
+  // smoothed round the neck (so the edge runs straight and nothing pokes through between them).
+  push = push.map((x) => Math.min(x, 0.25));
+  for (let it = 0; it < 2; it++) push = push.map((_, a) => Math.max(push[(a + AB - 1) % AB], push[a], push[(a + 1) % AB]));
+  for (let it = 0; it < 3; it++) push = push.map((_, a) => (push[(a + AB - 1) % AB] + 2 * push[a] + push[(a + 1) % AB]) / 4);
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i];
     if (!collars.includes(p)) continue;
