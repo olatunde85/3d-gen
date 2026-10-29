@@ -1,12 +1,12 @@
 /**
- * Beach accessories: sunglasses (and aviators) and flip-flops (the straw tote is a carried prop: props/carry.ts).
+ * Beach accessories: sunglasses (and aviators), flip-flops and leather slides (the straw tote is a carried prop: props/carry.ts).
  */
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import { cm, REGION, type Body } from './body';
-import { mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { cloth, footSole, mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { Caster } from './project';
-import { cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, v3 } from './ring';
+import { cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, ribbon, v3 } from './ring';
 import { makePattern } from './textures';
 
 /** Every vertex of a part looks up its skin weights at `at` (the part moves rigidly with that spot). */
@@ -222,6 +222,74 @@ export function flipFlops(g: GCtx, color = '#d8c39a', strap = '#c9963a'): GPart[
     ...(straps.length ? [{ mesh: merge(straps)!, material: mat('Flip-flop straps', null, { color: strap, roughness: 0.35, metalness: 0.5 }) }] : []),
   ];
 }
+
+/**
+ * Leather slides: a flat footbed and two wide leather straps over
+ * the foot, one over the instep and one over the base of the toes, laid on the foot's top and
+ * dropping to the sole at either side.
+ */
+function slides(g: GCtx, st: GarmentStyle): GPart[] {
+  const b = g.body;
+  const fv = g.faceVerts;
+  const soles: PolyMesh[] = [], straps: PolyMesh[] = [];
+  for (const s of [1, -1]) {
+    const keepFoot = (f: number) => b.regions[fv[f * 4]] === REGION.foot && b.info[fv[f * 4]].side === s;
+    // A flat footbed, 2.2 cm thick, just outside the footprint.
+    const sole = footSole(b, s, cm(2.2), cm(0.6), cm(0.2));
+    if (!sole) continue;
+    soles.push(sole);
+    const top = new Caster(b, fv, keepFoot, 'above');
+    const foot = b.verts(REGION.foot, s).map((v) => b.p(v));
+    let minY = Infinity;
+    for (const p of foot) minY = Math.min(minY, p[1]);
+    const [fa, fb] = b.axis(REGION.foot, s);
+    const dir = v3.norm([fb[0] - fa[0], 0, fb[2] - fa[2]]), across: Vec3 = [dir[2], 0, -dir[0]];
+    for (const f of [0.42, 0.78]) {
+      const mid = v3.lerp(fa, fb, f);
+      // Across the foot's top from one side to the other, then down to the sole at each end.
+      const line: Vec3[] = [], normals: Vec3[] = [];
+      for (let k = -14; k <= 14; k++) {
+        const x = mid[0] + across[0] * cm(0.45) * k, z = mid[2] + across[2] * cm(0.45) * k;
+        const h = top.hit(x, z);
+        if (!h) continue;
+        line.push(v3.madd(h.p, [0, 1, 0], cm(0.35)));
+        normals.push(h.n);
+      }
+      if (line.length < 4) continue;
+      for (const end of [0, 1]) {
+        const p = end ? line[line.length - 1] : line[0], n = end ? normals[normals.length - 1] : normals[0];
+        const side = v3.scale(across, end ? 1 : -1);
+        const down: Vec3 = [p[0] + side[0] * cm(0.4), minY + cm(0.3), p[2] + side[2] * cm(0.4)];
+        const pts = [v3.lerp(p, down, 0.5), down];
+        if (end) {
+          line.push(...pts);
+          normals.push(n, side);
+        } else {
+          line.unshift(...pts.reverse());
+          normals.unshift(side, n);
+        }
+      }
+      // A smooth arch: the path smoothed, its normals pointing out from an axis under the foot.
+      let path = line;
+      for (let it = 0; it < 4; it++) path = path.map((q, i) => (i === 0 || i === path.length - 1 ? q : v3.scale(v3.add(v3.add(path[i - 1], v3.scale(q, 2)), path[i + 1]), 0.25)));
+      const axis: Vec3 = [mid[0], minY - cm(1.5), mid[2]];
+      const ns = path.map((q) => {
+        const d = v3.sub(q, axis);
+        return v3.norm(v3.sub(d, v3.scale(dir, v3.dot(d, dir))));
+      });
+      straps.push(ribbon(path, ns, cm(f < 0.6 ? 3.6 : 3), cm(0.35)));
+    }
+  }
+  const leather = cloth(g, 'Slide straps', st, { roughness: 0.45 });
+  return [
+    ...(soles.length ? [{ mesh: merge(soles)!, material: mat('Slide soles', null, { color: st.color2, roughness: 0.7 }), ground: true }] : []),
+    ...(straps.length ? [{ mesh: merge(straps)!, material: { ...leather, doubleSided: true } }] : []),
+  ];
+}
+
+export const SLIDES: GarmentDef = {
+  id: 'slides', label: 'Leather slides', slot: 'feet', patterns: ['nappa', 'leather'], color: '#151515', color2: '#2a2522', build: slides,
+};
 
 export const BEACH: GarmentDef[] = [
   { id: 'sunglasses', label: 'Sunglasses', slot: 'acc', patterns: ['solid'], color: '#1a1410', color2: '#c9963a', build: (g, st) => eyewear(g, st, WAYFARER) },

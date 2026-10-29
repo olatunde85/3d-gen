@@ -158,6 +158,47 @@ export function yearsToAge(y: number): number {
 }
 
 export const PRESETS: Record<string, Partial<HumanParams>> = {
+  // Newest characters first.
+  // Gulf oil tycoon: a white thobe, red-and-white keffiyeh with a black agal, gold chain, gold watch
+  // and signet ring, dark sunglasses and black leather slides.
+  'The Arabian Oil Tycoon': {
+    gender: 1, age: 0.56, muscle: 0.6, weight: 0.58, height: 0.6, proportions: 0.6,
+    african: 0.15, asian: 0.25, caucasian: 0.6, eyes: 'blackbrown', eyebrows: 'eyebrow001',
+    hair: 'short02', facialHair: 'stubble', beardColor: '#1a120d', expression: 'determined',
+    outfit: 'set_thobe', shoes: 'slides', hat: 'keffiyeh', accessories: ['gold_necklace_long', 'watch_gold', 'gold_ring', 'sunglasses'],
+    garmentStyles: { sunglasses: { pattern: 'solid', color: '#151311', color2: '#161616' } },
+  },
+  // 80s Miami: a pastel pink suit worn open over a tropical-print shirt unbuttoned to the chest,
+  // layered gold chains, a gold watch, aviators and oxblood horsebit loafers without socks.
+  'The Miami Dealer': {
+    gender: 1, age: 0.5, muscle: 0.6, weight: 0.48, height: 0.62, proportions: 0.6,
+    african: 0.1, asian: 0.05, caucasian: 0.85, eyes: 'brown', eyebrows: 'eyebrow001',
+    hair: 'short02', facialHair: 'mustache_stubble', beardColor: '#5e4130', expression: 'determined',
+    outfit: 'set_pastel_suit', shoes: 'loafers', accessories: ['gold_chains', 'aviators', 'watch_gold'],
+  },
+  // Orange DOC jumpsuit, sleeves and legs rolled, worn grey sneakers and a makeshift canvas pack;
+  // messy hair, stubble and inked arms.
+  'The Prison Escapee': {
+    gender: 1, age: 0.55, muscle: 0.6, weight: 0.5, height: 0.6, proportions: 0.6,
+    african: 0.05, asian: 0.05, caucasian: 0.9, eyes: 'brown', eyebrows: 'eyebrow001',
+    hair: 'short02', facialHair: 'stubble', beardColor: '#2a1e16', expression: 'determined',
+    tattoos: ['sleeve_r', 'forearm_l'],
+    outfit: 'set_prison_jumpsuit', shoes: 'sneakers', accessories: ['backpack'],
+    garmentStyles: { sneakers: { pattern: 'workwear', color: '#8e8a82', color2: '#6f6b64' } },
+  },
+  'The Gangster': {
+    gender: 1, age: 0.6, muscle: 0.62, weight: 0.78, height: 0.62, proportions: 0.6,
+    african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', eyebrows: 'eyebrow001',
+    hair: 'buzz', facialHair: 'stubble', beardColor: '#15100c', expression: 'determined',
+    outfit: 'set_street_tee_jeans', shoes: 'sneakers', hat: 'baseball_cap', accessories: ['cuban_chain', 'watch_gold'],
+    earrings: 'studs', earringMetal: 'gold',
+  },
+  'The Beach Girl': {
+    gender: 0, age: 0.5, muscle: 0.42, weight: 0.56, height: 0.55, proportions: 0.85, breastSize: 0.72, breastFirmness: 0.7,
+    african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', eyebrows: 'eyebrow001', eyelashes: 'eyelashes02',
+    hair: 'long01', hairTint: '#2a1d16', earrings: 'small_hoops', earringMetal: 'gold',
+    outfit: 'set_gold_bikini', shoes: 'flipflops', accessories: ['sunglasses'], carry: 'straw_tote',
+  },
   'Athletic man': {},
   'Athletic woman': {
     gender: 0, muscle: 0.6, weight: 0.45, height: 0.55, african: 0.15, asian: 0.15, caucasian: 0.7, breastSize: 0.55, hair: 'ponytail01',
@@ -291,37 +332,6 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
       belt: { pattern: 'leather', color: '#111111' },
       reflective_vest: { pattern: 'solid', color: '#c6e82a', color2: '#d9dee4' },
     },
-  },
-  'The Beach Girl': {
-    gender: 0, age: 0.5, muscle: 0.42, weight: 0.56, height: 0.55, proportions: 0.85, breastSize: 0.72, breastFirmness: 0.7,
-    african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', eyebrows: 'eyebrow001', eyelashes: 'eyelashes02',
-    hair: 'long01', hairTint: '#2a1d16', earrings: 'small_hoops', earringMetal: 'gold',
-    outfit: 'set_gold_bikini', shoes: 'flipflops', accessories: ['sunglasses'], carry: 'straw_tote',
-  },
-  'The Gangster': {
-    gender: 1, age: 0.6, muscle: 0.62, weight: 0.78, height: 0.62, proportions: 0.6,
-    african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', eyebrows: 'eyebrow001',
-    hair: 'buzz', facialHair: 'stubble', beardColor: '#15100c', expression: 'determined',
-    outfit: 'set_street_tee_jeans', shoes: 'sneakers', hat: 'baseball_cap', accessories: ['cuban_chain', 'watch_gold'],
-    earrings: 'studs', earringMetal: 'gold',
-  },
-  // Orange DOC jumpsuit, sleeves and legs rolled, worn grey sneakers and a makeshift canvas pack;
-  // messy hair, stubble and inked arms.
-  'The Prison Escapee': {
-    gender: 1, age: 0.55, muscle: 0.6, weight: 0.5, height: 0.6, proportions: 0.6,
-    african: 0.05, asian: 0.05, caucasian: 0.9, eyes: 'brown', eyebrows: 'eyebrow001',
-    hair: 'short02', facialHair: 'stubble', beardColor: '#2a1e16', expression: 'determined',
-    tattoos: ['sleeve_r', 'forearm_l'],
-    outfit: 'set_prison_jumpsuit', shoes: 'sneakers', accessories: ['backpack'],
-    garmentStyles: { sneakers: { pattern: 'workwear', color: '#8e8a82', color2: '#6f6b64' } },
-  },
-  // 80s Miami: a pastel pink suit worn open over a tropical-print shirt unbuttoned to the chest,
-  // layered gold chains, a gold watch, aviators and oxblood horsebit loafers without socks.
-  'The Miami Dealer': {
-    gender: 1, age: 0.5, muscle: 0.6, weight: 0.48, height: 0.62, proportions: 0.6,
-    african: 0.1, asian: 0.05, caucasian: 0.85, eyes: 'brown', eyebrows: 'eyebrow001',
-    hair: 'short02', facialHair: 'mustache_stubble', beardColor: '#5e4130', expression: 'determined',
-    outfit: 'set_pastel_suit', shoes: 'loafers', accessories: ['gold_chains', 'aviators', 'watch_gold'],
   },
   Detective: {
     gender: 0.95, age: 0.65, muscle: 0.55, weight: 0.5, height: 0.55, african: 0.2, asian: 0.6, caucasian: 0.2, hair: 'short01', outfit: 'male_casualsuit05',

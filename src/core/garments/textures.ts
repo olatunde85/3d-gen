@@ -219,10 +219,10 @@ export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
   | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa' | 'workwear'
-  | 'tropical' | 'linen' | 'suiting' | 'patent';
+  | 'tropical' | 'linen' | 'suiting' | 'patent' | 'shemagh';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'linen', 'suiting', 'nappa', 'patent',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'linen', 'suiting', 'nappa', 'patent', 'shemagh',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -597,6 +597,19 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat
         c = mixc(c, B, dirt);
         return { c: mul(c, twill), h: twill * 0.7 + fade * 0.3 };
       }, false, 2);
+    }
+    case 'shemagh': {
+      // Keffiyeh cotton: a net of small c1 diamonds joined at their points on a c2 ground (about
+      // 1 cm repeat), woven.
+      const N = 30;
+      return render(S, (u, v) => {
+        const dx = frac(u * N) - 0.5, dy = frac(v * N) - 0.5;
+        const diamond = Math.abs(dx) + Math.abs(dy) < 0.33;
+        const link = (Math.abs(dx) > 0.36 && Math.abs(dy) < 0.13) || (Math.abs(dy) > 0.36 && Math.abs(dx) < 0.13);
+        const w = weave(u, v, 160), n = fbm(u, v, 8, seed, 2);
+        const c = diamond || link ? mul(A, 0.92 + 0.08 * n) : mul(B, 0.95 + 0.05 * n);
+        return { c: mul(c, 0.94 + 0.06 * w), h: w * 0.5 };
+      }, false, 1);
     }
     case 'tropical': {
       // Tropical print on a soft rayon ground (c1): broad leaves in teal and sage with a pale

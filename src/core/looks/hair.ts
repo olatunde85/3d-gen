@@ -74,7 +74,8 @@ export function beardMask(p: Vec3, style: FacialHairId, region: number): number 
   const corners = smoothstep(0.15, 0.17, x) * (1 - smoothstep(0.25, 0.28, x)) * smoothstep(6.48, 6.52, y) * (1 - smoothstep(6.7, 6.74, y)) * smoothstep(1.1, 1.2, z);
   if (style === 'goatee') return Math.max(mus, chin, corners) * lips;
   // Full zone: everything under the cheek line, in front of the ears / jaw angle.
-  const front = y > 6.55 ? smoothstep(0.5, 0.64, z) : smoothstep(0.2, 0.38, z);
+  // (Below the jaw, the same as on the neck: the two regions meet there.)
+  const front = y > 6.55 ? smoothstep(0.5, 0.64, z) : smoothstep(0.45, 0.65, z);
   return below * front * lips;
 }
 

@@ -368,3 +368,59 @@ export function rayRing(ring: Vec3[], c: Vec3, d: Vec3): number | null {
   }
   return best;
 }
+
+/**
+ * The longest chain of a mesh's boundary edges (an open edge such as a neckline) among those whose
+ * ends pass `keep`, in order; closed loops come back with the first point repeated.
+ */
+export function boundaryChain(m: PolyMesh, keep: (p: Vec3) => boolean): Vec3[] {
+  const P = m.positions, at = (v: number): Vec3 => [P[v * 3], P[v * 3 + 1], P[v * 3 + 2]];
+  const count = new Map<string, [number, number, number]>();
+  for (let f = 0, c = 0; f < m.faceSizes.length; c += m.faceSizes[f++])
+    for (let k = 0; k < m.faceSizes[f]; k++) {
+      const a = m.faceVerts[c + k], b = m.faceVerts[c + ((k + 1) % m.faceSizes[f])];
+      const key = a < b ? `${a},${b}` : `${b},${a}`;
+      const e = count.get(key);
+      count.set(key, e ? [e[0], e[1], e[2] + 1] : [a, b, 1]);
+    }
+  const next = new Map<number, number[]>();
+  for (const [a, b, n] of count.values()) {
+    if (n !== 1 || !keep(at(a)) || !keep(at(b))) continue;
+    (next.get(a) ?? next.set(a, []).get(a)!).push(b);
+    (next.get(b) ?? next.set(b, []).get(b)!).push(a);
+  }
+  const seen = new Set<number>();
+  let best: number[] = [], closed = false;
+  // Open chains from their ends first, then loops.
+  for (const v0 of [...[...next].filter(([, l]) => l.length === 1).map(([v]) => v), ...next.keys()]) {
+    if (seen.has(v0)) continue;
+    const chain = [v0];
+    seen.add(v0);
+    for (let v = v0; ; ) {
+      const n = (next.get(v) ?? []).find((w) => !seen.has(w));
+      if (n === undefined) break;
+      chain.push(n);
+      seen.add(n);
+      v = n;
+    }
+    if (chain.length > best.length) [best, closed] = [chain, (next.get(chain[chain.length - 1]) ?? []).includes(v0) && chain.length > 2];
+  }
+  const pts = best.map(at);
+  return closed ? [...pts, pts[0]] : pts;
+}
+
+/** A flat strap (webbing) along a polyline, lying on a surface with the given normals: width w. */
+export function ribbon(line: Vec3[], normals: Vec3[], w: number, th: number): PolyMesh {
+  const top: Vec3[] = [], bot: Vec3[] = [], tl: Vec3[] = [], bl: Vec3[] = [];
+  line.forEach((p, i) => {
+    const t = v3.norm(v3.sub(line[Math.min(line.length - 1, i + 1)], line[Math.max(0, i - 1)]));
+    const n = normals[i], side = v3.norm(v3.cross(t, n));
+    top.push(v3.madd(v3.madd(p, side, w / 2), n, th));
+    bot.push(v3.madd(v3.madd(p, side, -w / 2), n, th));
+    tl.push(v3.madd(p, side, w / 2));
+    bl.push(v3.madd(p, side, -w / 2));
+  });
+  // A thin closed band: outer face, edges and inner face.
+  const rings = line.map((_, i) => [top[i], bot[i], bl[i], tl[i]]);
+  return loftRings(rings, { closedAround: true, tileU: 0.05, tileV: 0.1 });
+}

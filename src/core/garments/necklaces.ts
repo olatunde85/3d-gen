@@ -171,9 +171,10 @@ function coralBeads(g: GCtx, st: GarmentStyle): GPart[] {
   ];
 }
 
-/** Gold chain with a round pendant. */
-function goldNecklace(g: GCtx, st: GarmentStyle): GPart[] {
-  const s = strand(g, cm(7));
+/** Gold chain with a round pendant, hanging `drop` below the base of the neck. */
+function goldNecklace(g: GCtx, st: GarmentStyle, drop = cm(7)): GPart[] {
+  // (A long chain hangs nearly straight; the short one fans out.)
+  const s = strand(g, drop, drop > cm(10) ? 0.3 : 1);
   if (!s) return [];
   let front = s.ring[0];
   for (const p of s.ring) if (p[2] > front[2]) front = p;
@@ -270,6 +271,10 @@ export const NECKLACES: GarmentDef[] = [
   {
     id: 'gold_necklace', label: 'Gold necklace & pendant', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000',
     build: goldNecklace,
+  },
+  {
+    id: 'gold_necklace_long', label: 'Long gold chain & pendant', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000',
+    build: (g, st) => goldNecklace(g, st, cm(17)),
   },
   {
     id: 'pearl_necklace', label: 'Pearl necklace', slot: 'acc', patterns: ['solid'], color: '#f2ece0', color2: '#000000',
