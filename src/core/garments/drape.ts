@@ -209,6 +209,46 @@ export function soleY(b: Body): number {
 
 const smooth01 = (t: number) => t * t * (3 - 2 * t);
 
+/**
+ * Trousers' seat over the tops of their legs: where the seat (a shell round the hips) overlaps a
+ * leg below `yTop`, it is pushed out over that leg's surface so the two meet without a step.
+ * Moves the seat's vertices in place.
+ */
+export function seatOverLegs(seat: PolyMesh, legs: PolyMesh[], yTop: number): void {
+  const S = seat.positions;
+  for (const lm of legs) {
+    const L = lm.positions;
+    // Leg vertices near the top, with their row centre.
+    const near: Vec3[] = [];
+    for (let i = 0; i < L.length; i += 3) if (L[i + 1] > yTop - cm(6)) near.push([L[i], L[i + 1], L[i + 2]]);
+    if (!near.length) continue;
+    let c: Vec3 = [0, 0, 0];
+    for (const p of near) c = v3.add(c, v3.scale(p, 1 / near.length));
+    const side = Math.sign(c[0]);
+    for (let i = 0; i < S.length; i += 3) {
+      const y = S[i + 1];
+      if (y > yTop + cm(1) || Math.sign(S[i]) !== side) continue;
+      const d: Vec3 = [S[i] - c[0], 0, S[i + 2] - c[2]];
+      const r = Math.hypot(d[0], d[2]) || 1, a = Math.atan2(d[0], d[2]);
+      // The leg's radius here: its vertices at about this height and angle.
+      let best = 0, score = Infinity;
+      for (const q of near) {
+        if (Math.abs(q[1] - y) > cm(1.5)) continue;
+        const qa = Math.atan2(q[0] - c[0], q[2] - c[2]);
+        const da = Math.abs(Math.atan2(Math.sin(qa - a), Math.cos(qa - a)));
+        if (da < score) [score, best] = [da, Math.hypot(q[0] - c[0], q[2] - c[2])];
+      }
+      const w = clamp((yTop + cm(1) - y) / cm(2), 0, 1);
+      const target = best + cm(0.25);
+      if (best && r < target) {
+        const k = (r + (target - r) * w) / r;
+        S[i] = c[0] + d[0] * k;
+        S[i + 2] = c[2] + d[2] * k;
+      }
+    }
+  }
+}
+
 export interface WideLegOpts {
   /** Bunched folds where a long hem stacks over the shoe. */
   stack?: boolean;

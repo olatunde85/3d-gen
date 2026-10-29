@@ -29,7 +29,11 @@ function frontZ(ring: Vec3[], x: number): number | null {
  * `spread`: how much wider the front gets as it hangs (0 = straight down from the sides of the neck,
  * a narrow V like a heavy chain; 0.5 = fanning out over the chest like graduated beads).
  */
-function strand(g: GCtx, drop: number, spread = 1): { ring: Vec3[]; centre: Vec3 } | null {
+/**
+ * `inside`: round the back and sides it lies on the neck itself, inside any collar (only the front
+ * lies over the top worn).
+ */
+function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3[]; centre: Vec3 } | null {
   const b = g.body;
   // Back and sides lie on the body (round the neck); the front lies on the chest, over any top worn.
   const body = points(b, (v) => v.region === REGION.neck || isTrunk(v));
@@ -72,13 +76,14 @@ function strand(g: GCtx, drop: number, spread = 1): { ring: Vec3[]; centre: Vec3
     const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)];
     // The loop's radius here, and where it rests: going down from the narrowest point until the
     // body (or the top worn over it) reaches out that far.
-    const rT = (rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6)) * 1.15 + off;
+    // (Inside a collar: snug on the neck.)
+    const rT = (rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6)) * (inside ? 1.0 : 1.15) + off;
     // Never higher than just above the base of the neck (a slim neck widens early).
     const yTop = Math.min(yN, b.L.neckY + cm(1));
     let yRest = yTop;
     for (let y = yTop; y > yTop - cm(12); y -= cm(0.5)) {
       const hb = bodyAt(y), hw = surfAt(y);
-      const rb = Math.max(hb ? rayRing(hb, [c[0], y, c[2]], dir) ?? 0 : 0, hw ? rayRing(hw, [c[0], y, c[2]], dir) ?? 0 : 0);
+      const rb = Math.max(hb ? rayRing(hb, [c[0], y, c[2]], dir) ?? 0 : 0, hw && !inside ? rayRing(hw, [c[0], y, c[2]], dir) ?? 0 : 0);
       yRest = y;
       if (rb >= rT) break;
     }
@@ -88,8 +93,12 @@ function strand(g: GCtx, drop: number, spread = 1): { ring: Vec3[]; centre: Vec3
     const rN = rT;
     const wide = 1 + spread * (drop / cm(10)) * front;
     let p: Vec3 = [c[0] + dir[0] * rN * wide, y, c[2] + dir[2] * rN];
+    // Inside the collars the front rests on the skin itself (in or out to it).
+    const hb = inside ? bodyAt(y) : null;
+    const zb = hb && dir[2] > 0 ? frontZ(hb, p[0]) : null;
+    if (zb !== null) p = [p[0], y, zb];
     const h = surfAt(y);
-    if (h) {
+    if (h && !inside) {
       if (dir[2] > 0) {
         // Front: keep the neck's width, lie on the chest.
         const z = frontZ(h, p[0]);
@@ -102,7 +111,7 @@ function strand(g: GCtx, drop: number, spread = 1): { ring: Vec3[]; centre: Vec3
         const r2 = rayRing(h, [c[0], y, c[2]], d2), cur = Math.hypot(p[0] - c[0], p[2] - c[2]);
         if (r2 !== null && r2 > cur && r2 < cur + cm(3)) p = [c[0] + d2[0] * r2, y, c[2] + d2[2] * r2];
       }
-      if (g.worn) {
+      if (g.worn && !inside) {
         // Where the top lies above the line (its collar and shoulders), lift it onto the fabric.
         let top = -Infinity;
         for (const q of g.worn) if (Math.abs(q[0] - p[0]) < cm(1) && Math.abs(q[2] - p[2]) < cm(1) && q[1] < p[1] + cm(3)) top = Math.max(top, q[1]);
@@ -187,15 +196,12 @@ function pearlNecklace(g: GCtx, st: GarmentStyle): GPart[] {
 }
 
 /**
- * Cuban link chain: heavy oval curb links round a line that hangs low on the chest, each link
- * twisted about the chain so they lie flat and interlock, polished gold.
+ * Curb links along a strand: oval links, each overlapping the next by half (pitch = half its
+ * length), lying almost flat with a slight alternating twist and pressed flat (oval wire).
+ * `k` scales the links (1 = a heavy Cuban chain); `seg` and `sides` set each link's detail.
  */
-function cubanChain(g: GCtx, st: GarmentStyle): GPart[] {
-  const s = strand(g, cm(24), 0);
-  if (!s) return [];
-  // Tight, flat curb links: each link overlaps the next by half (pitch = half its length), lies
-  // almost flat on the chest with a slight alternating twist, and is pressed flat (oval wire).
-  const pitch = cm(0.62), len = cm(0.72), wide = cm(0.62), wire = cm(0.26);
+function curbLinks(s: { ring: Vec3[]; centre: Vec3 }, k: number, seg = 10, sides = 4): PolyMesh | null {
+  const pitch = cm(0.62) * k, len = cm(0.72) * k, wide = cm(0.62) * k, wire = cm(0.26) * k;
   const links: PolyMesh[] = [];
   for (const { p, tangent, i } of along(s.ring, pitch, true)) {
     const out0 = v3.norm([p[0] - s.centre[0], 0, p[2] - s.centre[2]]);
@@ -205,21 +211,55 @@ function cubanChain(g: GCtx, st: GarmentStyle): GPart[] {
     const side = v3.norm(v3.add(v3.scale(across, Math.cos(tilt)), v3.scale(out, Math.sin(tilt))));
     const c = v3.madd(p, out, wire);
     const loop: Vec3[] = [];
-    for (let k = 0; k < 10; k++) {
-      const a = (k / 10) * Math.PI * 2;
+    for (let q = 0; q < seg; q++) {
+      const a = (q / seg) * Math.PI * 2;
       loop.push(v3.add(c, v3.add(v3.scale(tangent, Math.cos(a) * len), v3.scale(side, Math.sin(a) * wide))));
     }
-    const m = cord([...loop, loop[0]], wire, false, 4);
-    // Press the wire flat against the chest (Cuban links are flat, not round).
+    const m = cord([...loop, loop[0]], wire, false, sides);
+    // Press the wire flat against the chest (curb links are flat, not round).
     const P = m.positions;
     for (let q = 0; q < P.length; q += 3) {
       const d: Vec3 = [P[q] - c[0], P[q + 1] - c[1], P[q + 2] - c[2]];
-      const h = v3.dot(d, out);
-      P.set(v3.madd([P[q], P[q + 1], P[q + 2]], out, -h * 0.45), q);
+      P.set(v3.madd([P[q], P[q + 1], P[q + 2]], out, -v3.dot(d, out) * 0.45), q);
     }
     links.push(m);
   }
-  return part(merge(links), mat('Cuban chain', null, { color: st.color, roughness: 0.16, metalness: 1 }));
+  return merge(links);
+}
+
+/** Rope chain: two strands twisted round each other along a strand, `r` thick overall. */
+function ropeChain(s: { ring: Vec3[]; centre: Vec3 }, r: number): PolyMesh | null {
+  const pts = along(s.ring, r * 0.8, true);
+  const strands: Vec3[][] = [[], []];
+  for (const { p, tangent, i } of pts) {
+    const out0 = v3.norm([p[0] - s.centre[0], 0, p[2] - s.centre[2]]);
+    const out = v3.norm(v3.sub(out0, v3.scale(tangent, v3.dot(out0, tangent))));
+    const across = v3.cross(out, tangent);
+    const c = v3.madd(p, out, r);
+    // One full twist every 5 r along the chain.
+    const a = (i * r * 0.8 * 2 * Math.PI) / (r * 5);
+    for (const [k, ph] of [[0, 0], [1, Math.PI]] as const)
+      strands[k].push(v3.add(c, v3.add(v3.scale(out, Math.cos(a + ph) * r * 0.45), v3.scale(across, Math.sin(a + ph) * r * 0.45))));
+  }
+  return merge(strands.map((l) => cord([...l, l[0]], r * 0.55, false, 5)));
+}
+
+/** Cuban link chain: heavy curb links round a line that hangs low on the chest, polished gold. */
+function cubanChain(g: GCtx, st: GarmentStyle): GPart[] {
+  const s = strand(g, cm(24), 0);
+  return part(s && curbLinks(s, 1), mat('Cuban chain', null, { color: st.color, roughness: 0.16, metalness: 1 }));
+}
+
+/**
+ * Layered gold chains (worn on the bare chest of an open shirt): a rope chain close round the neck
+ * and a curb chain below it.
+ */
+function goldChains(g: GCtx, st: GarmentStyle): GPart[] {
+  // Compact: two layers close round the neck, inside the collars, the lower resting on the top of
+  // the sternum.
+  const rope = strand(g, cm(3), 0.1, true), curb = strand(g, cm(7), 0, true);
+  const metal = mat('Gold chains', null, { color: st.color, roughness: 0.18, metalness: 1 });
+  return part(merge([rope && ropeChain(rope, cm(0.24)), curb && curbLinks(curb, 0.6, 8, 3)]), metal);
 }
 
 export const NECKLACES: GarmentDef[] = [
@@ -234,6 +274,10 @@ export const NECKLACES: GarmentDef[] = [
   {
     id: 'pearl_necklace', label: 'Pearl necklace', slot: 'acc', patterns: ['solid'], color: '#f2ece0', color2: '#000000',
     build: pearlNecklace,
+  },
+  {
+    id: 'gold_chains', label: 'Layered gold chains', slot: 'acc', patterns: ['solid'], color: '#e0b04a', color2: '#000000',
+    build: goldChains,
   },
   {
     id: 'cuban_chain', label: 'Cuban link chain', slot: 'acc', patterns: ['solid'], color: '#e2b24c', color2: '#000000',

@@ -10,14 +10,17 @@ export interface OutfitSet {
   id: string;
   label: string;
   top: string;
+  /** Worn over the top: a suit jacket. */
+  jacket?: string;
   bottom: string;
   /** Added when the set is picked (can be removed afterwards). */
   accessories: string[];
   shoes?: string;
   hat?: string;
   /**
-   * Patterns offered for the whole set (first = default) and default colours, shared by both
-   * pieces. Without them each piece keeps its own pattern and colours (e.g. a tee and jeans).
+   * Patterns offered for the whole set (first = default) and default colours, shared by the top
+   * and bottom, or by the jacket and bottom when there is a jacket (a suit; the shirt keeps its
+   * own). Without them each piece keeps its own pattern and colours (e.g. a tee and jeans).
    */
   patterns?: GarmentDef['patterns'];
   color?: string;
@@ -26,14 +29,17 @@ export interface OutfitSet {
 
 type Styles = HumanParams['garmentStyles'];
 
+/** The pieces of a set that share its pattern and colours: a suit's jacket and trousers, otherwise top and bottom. */
+export const sharedPieces = (set: OutfitSet): string[] => [set.jacket ?? set.top, set.bottom].filter((id) => id !== 'none');
+
 /**
  * The garment styles a set dresses with: a shared set applies its pattern and colours (and any
- * the user picked for the set) to both pieces, and a matching gele unless it has its own.
+ * the user picked for the set) to its shared pieces, and a matching gele unless it has its own.
  */
 export function setStyles(set: OutfitSet, styles: Styles): Styles {
   if (!set.patterns) return styles;
   const shared = { pattern: set.patterns[0], color: set.color, color2: set.color2, ...styles[set.id] };
-  const out: Styles = { ...styles, [set.top]: shared, ...(set.bottom !== 'none' ? { [set.bottom]: shared } : {}) };
+  const out: Styles = { ...styles, ...Object.fromEntries(sharedPieces(set).map((id) => [id, shared])) };
   if (!out.gele) out.gele = { color: shared.color, color2: shared.color2 };
   return out;
 }
@@ -61,6 +67,10 @@ export const OUTFIT_SETS: OutfitSet[] = [
   {
     id: 'set_prison_jumpsuit', label: 'Prison jumpsuit', top: 'prison_top', bottom: 'prison_trousers', accessories: ['backpack'], shoes: 'sneakers',
     patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a',
+  },
+  {
+    id: 'set_pastel_suit', label: 'Pastel suit & tropical shirt', top: 'camp_shirt', jacket: 'suit_jacket', bottom: 'suit_trousers', accessories: ['gold_chains', 'aviators', 'watch_gold'], shoes: 'loafers',
+    patterns: ['linen', 'suiting', 'solid'], color: '#e9b7c0', color2: '#f3d6db',
   },
 ];
 export const setById = new Map(OUTFIT_SETS.map((x) => [x.id, x]));

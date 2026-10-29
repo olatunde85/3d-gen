@@ -5,7 +5,7 @@ import { ageToYears, DETAILS, yearsToAge, type HumanParams } from '../../core/pa
 import type { Ctx } from './context';
 import { color, macro, NONE, picker, section, selectRow, slider } from './controls';
 import { $, el } from './dom';
-import { accessoriesPanel, HAT_ENTRIES, hatStyle, heelsStyle, outfitSetEntries, outfitSetStyle, piecesPanel } from './sidebar-clothing';
+import { accessoriesPanel, HAT_ENTRIES, hatStyle, shoeStyle, outfitSetEntries, outfitSetStyle, piecesPanel } from './sidebar-clothing';
 import { carryPanel, earringPanel, hairPanel, tattooPanel, vehiclePanel, weaponPanel } from './sidebar-looks';
 
 export function sidebar(ctx: Ctx): void {
@@ -45,8 +45,8 @@ export function sidebar(ctx: Ctx): void {
       picker(ctx, cat.outfits, 'outfit', [{ id: 'none', name: 'Separate pieces' }], outfitSetEntries(ctx)), outfitSetStyle(ctx), color(ctx, 'Outfit tint', 'outfitTint'),
       piecesPanel(ctx),
       el('div', { className: 'sub', textContent: 'Footwear' }),
-      picker(ctx, cat.shoes, 'shoes', [{ id: 'none', name: 'Barefoot' }, { id: 'sandals', name: 'Sandals' }, { id: 'combat_boots', name: 'Combat boots' }, { id: 'heels', name: 'High heels' }, { id: 'flipflops', name: 'Flip-flops' }, { id: 'sneakers', name: 'Sneakers' }]),
-      heelsStyle(ctx),
+      picker(ctx, cat.shoes, 'shoes', [{ id: 'none', name: 'Barefoot' }, { id: 'sandals', name: 'Sandals' }, { id: 'combat_boots', name: 'Combat boots' }, { id: 'heels', name: 'High heels' }, { id: 'flipflops', name: 'Flip-flops' }, { id: 'sneakers', name: 'Sneakers' }, { id: 'loafers', name: 'Loafers' }]),
+      shoeStyle(ctx),
       el('div', { className: 'sub', textContent: 'Hat' }), picker(ctx, cat.hats, 'hat', [...NONE, ...HAT_ENTRIES]), hatStyle(ctx),
     ),
     section('Accessories', true, accessoriesPanel(ctx), earringPanel(ctx)),

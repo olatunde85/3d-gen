@@ -2,22 +2,25 @@ import type { AssetLibrary } from '../assets';
 import { ageToYears, type HumanParams } from '../params';
 import { makeBody } from './body';
 import { bootShafts, garmentById, sandals, type GarmentStyle, type GCtx, type GPart } from './catalog';
+import type { FittedOutfit } from './kit';
+import { layerUnderJacket } from './layering';
 import { PATTERNS, type Pattern, type TexOut } from './textures';
 import { flipFlops } from './beach';
-import { sneakers } from './sneakers';
 import { setById, setStyles } from './sets';
 
 export { GARMENTS, garmentById } from './catalog';
 export { PATTERNS } from './textures';
 export { archFeet } from './heels';
-export { OUTFIT_SETS, setById, setStyles, type OutfitSet } from './sets';
+export { OUTFIT_SETS, setById, setStyles, sharedPieces, type OutfitSet } from './sets';
 
 export interface Dressing {
   top?: string;
+  jacket?: string;
   bottom?: string;
   underwear: boolean;
   accessories: string[];
-  footwear?: 'sandals' | 'boots' | 'heels' | 'flipflops' | 'sneakers';
+  /** Built-in footwear, or a generated shoe's garment id (heels, sneakers, loafers). */
+  footwear?: 'sandals' | 'boots' | 'flipflops' | string;
   styles: HumanParams['garmentStyles'];
 }
 
@@ -35,17 +38,26 @@ export function dressing(p: HumanParams): Dressing {
   const topId = set ? set.top : p.top, bottomId = set ? set.bottom : p.bottom;
   let top = pieces && topId !== 'none' && garmentById.has(topId) ? topId : undefined;
   let bottom = pieces && bottomId !== 'none' && garmentById.has(bottomId) ? bottomId : undefined;
+  const jacketId = set ? (set.jacket ?? 'none') : p.jacket;
+  const jacket = pieces && garmentById.get(jacketId)?.slot === 'jacket' ? jacketId : undefined;
   const styles = set ? setStyles(set, p.garmentStyles) : p.garmentStyles;
   if (pieces && !bottom && underwear) bottom = 'briefs';
   if (pieces && !top && p.gender < 0.5 && minor) top = 'tank_top';
   return {
     top,
+    jacket,
     bottom,
     underwear,
     accessories: [...p.accessories.filter((a) => garmentById.get(a)?.slot === 'acc'), ...(garmentById.get(p.hat)?.slot === 'hat' ? [p.hat] : [])],
-    footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : p.shoes === 'heels' ? 'heels' : p.shoes === 'flipflops' ? 'flipflops' : p.shoes === 'sneakers' ? 'sneakers' : undefined,
+    footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : p.shoes === 'flipflops' ? 'flipflops' : garmentById.get(p.shoes)?.slot === 'feet' ? p.shoes : undefined,
     styles,
   };
+}
+
+/** The MakeHuman outfits the dressed garments are cut from. */
+export function outfitsUsed(d: Dressing): string[] {
+  const ids = [d.top, d.jacket, d.bottom, ...d.accessories].map((id) => (id ? garmentById.get(id)?.fromOutfit : undefined));
+  return [...new Set(ids.filter((x): x is string => !!x))];
 }
 
 function hashKey(s: string): string {
@@ -75,8 +87,8 @@ export function genTexture(lib: AssetLibrary, key: string, make: () => TexOut): 
   return { map: color, normalMap: lib.hasTexture(normal) ? normal : undefined, alpha };
 }
 
-export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: Float32Array, faceVerts: Uint32Array, d: Dressing): GPart[] {
-  if (!d.top && !d.bottom && !d.accessories.length && !d.footwear) return [];
+export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: Float32Array, faceVerts: Uint32Array, d: Dressing, outfits: Record<string, FittedOutfit> = {}): GPart[] {
+  if (!d.top && !d.jacket && !d.bottom && !d.accessories.length && !d.footwear) return [];
   const body = makeBody(coords, normals, lib.base.arrays.regions as Uint8Array, lib.base.meta.joints);
   const g: GCtx = {
     body,
@@ -84,22 +96,31 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
     layered: { top: !!d.top, bottom: !!d.bottom && d.bottom !== 'briefs' },
     underwear: d.underwear,
     texture: (key, make) => genTexture(lib, key, make),
+    outfits,
   };
   const parts: GPart[] = [];
-  for (const id of [d.bottom, d.top, ...d.accessories]) {
-    if (!id) continue;
+  // Which parts are the top's and the jacket's.
+  const tops = { top: new Set<GPart>(), jacket: new Set<GPart>() };
+  const dress = (id: string | undefined) => {
+    if (!id) return;
     const built = garmentById.get(id)!.build(g, styleOf(id, d.styles));
     parts.push(...built);
-    if (id === d.top) {
-      const worn: [number, number, number][] = [];
-      for (const p of built) for (let i = 0; i < p.mesh.positions.length; i += 3) worn.push([p.mesh.positions[i], p.mesh.positions[i + 1], p.mesh.positions[i + 2]]);
-      g.worn = worn;
+    if (id === d.top && d.jacket) built.forEach((p) => tops.top.add(p));
+    if (id === d.jacket) built.forEach((p) => tops.jacket.add(p));
+    // The bottom and top, and the jacket over them: what later layers rest on.
+    if (id === d.bottom || id === d.top || id === d.jacket) {
+      const pts: [number, number, number][] = [];
+      for (const p of built) for (let i = 0; i < p.mesh.positions.length; i += 3) pts.push([p.mesh.positions[i], p.mesh.positions[i + 1], p.mesh.positions[i + 2]]);
+      if (id === d.jacket) g.jacket = pts;
+      else g.worn = [...(g.worn ?? []), ...pts];
     }
-  }
+  };
+  for (const id of [d.bottom, d.top, d.jacket, ...d.accessories]) dress(id);
+  if (d.top && d.jacket) layerUnderJacket(body, parts, tops.top, tops.jacket);
   if (d.footwear === 'sandals') parts.push(...sandals(g));
   if (d.footwear === 'boots') parts.push(...bootShafts(g));
   if (d.footwear === 'flipflops') parts.push(...flipFlops(g));
-  if (d.footwear === 'sneakers') parts.push(...sneakers(g, styleOf('sneakers', d.styles)));
-  if (d.footwear === 'heels') parts.push(...garmentById.get('heels')!.build(g, styleOf('heels', d.styles)));
+  const shoe = d.footwear ? garmentById.get(d.footwear) : undefined;
+  if (shoe?.slot === 'feet') parts.push(...shoe.build(g, styleOf(shoe.id, d.styles)));
   return parts;
 }

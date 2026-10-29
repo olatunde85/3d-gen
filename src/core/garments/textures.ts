@@ -144,10 +144,18 @@ export function render(size: number, fn: (u: number, v: number) => { c: RGB; a?:
   return renderRect(size, size, fn, wantAlpha, normalStrength);
 }
 
+// (makePattern shadows `render` with a tiling version.)
+const renderTex = (...a: Parameters<typeof render>) => render(...a);
+
 /** As render, for a w x h texture (u across, v down). */
 export function renderRect(w: number, h: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, wantAlpha: boolean, normalStrength = 0): TexOut {
+  const { px, height } = renderPixels(w, h, fn, !!normalStrength);
+  return encodeTex(w, h, px, height, wantAlpha, normalStrength);
+}
+
+function renderPixels(w: number, h: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, wantHeight: boolean) {
   const px = new Uint8Array(w * h * 4);
-  const height = normalStrength ? new Float32Array(w * h) : null;
+  const height = wantHeight ? new Float32Array(w * h) : null;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const r = fn((x + 0.5) / w, (y + 0.5) / h);
@@ -158,6 +166,27 @@ export function renderRect(w: number, h: number, fn: (u: number, v: number) => {
       px[i + 3] = Math.round(Math.max(0, Math.min(1, r.a ?? 1)) * 255);
       if (height) height[y * w + x] = r.h ?? 0;
     }
+  return { px, height };
+}
+
+/**
+ * A pattern tile repeated `n` times each way across a texture `n * tile` pixels square: the tile is
+ * rendered once and copied (a garment's UV atlas spanning several tiles of cloth).
+ */
+function renderTiled(tile: number, n: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, wantAlpha: boolean, normalStrength = 0): TexOut {
+  const t = renderPixels(tile, tile, fn, !!normalStrength), W = tile * n;
+  const px = new Uint8Array(W * W * 4), height = t.height ? new Float32Array(W * W) : null;
+  for (let y = 0; y < W; y++) {
+    const ty = y % tile;
+    for (let k = 0; k < n; k++) {
+      px.set(t.px.subarray(ty * tile * 4, (ty + 1) * tile * 4), (y * W + k * tile) * 4);
+      if (height) height.set(t.height!.subarray(ty * tile, (ty + 1) * tile), y * W + k * tile);
+    }
+  }
+  return encodeTex(W, W, px, height, wantAlpha, normalStrength);
+}
+
+function encodeTex(w: number, h: number, px: Uint8Array, height: Float32Array | null, wantAlpha: boolean, normalStrength: number): TexOut {
   let normal: Uint8Array | undefined;
   if (height) {
     const np = new Uint8Array(w * h * 4);
@@ -189,10 +218,11 @@ const weave = (u: number, v: number, f = 96) => {
 export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
-  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa' | 'workwear';
+  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa' | 'workwear'
+  | 'tropical' | 'linen' | 'suiting' | 'patent';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'linen', 'suiting', 'nappa', 'patent',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -215,8 +245,14 @@ function cellNearest(u: number, v: number, g: number, seed: number, jitter = 0.6
 
 const S = 512;
 
-export function makePattern(p: Pattern, c1: string, c2: string, seed = 1): TexOut {
+/**
+ * A pattern texture. `repeat`: how many times the pattern tiles across the texture each way (for
+ * an atlas whose UVs span a whole garment, such as a MakeHuman outfit's): one 256 px tile, copied.
+ */
+export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat = 1): TexOut {
   const A = rgb(c1), B = rgb(c2);
+  const render = (size: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, alpha: boolean, normal = 0): TexOut =>
+    repeat === 1 ? renderTex(size, fn, alpha, normal) : renderTiled(Math.round(Math.min(2048, size * 3) / repeat), repeat, fn, alpha, normal);
   switch (p) {
     case 'solid':
     case 'khaki':
@@ -561,6 +597,77 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1): TexOu
         c = mixc(c, B, dirt);
         return { c: mul(c, twill), h: twill * 0.7 + fade * 0.3 };
       }, false, 2);
+    }
+    case 'tropical': {
+      // Tropical print on a soft rayon ground (c1): broad leaves in teal and sage with a pale
+      // midrib and side veins, and hibiscus flowers in c2 with a deep throat and a stamen.
+      const leafCols: RGB[] = [[72, 146, 140], [128, 168, 128], [96, 158, 170], [160, 190, 150]];
+      const pink = B, throat = mul(B, 0.62);
+      return render(S, (u, v) => {
+        let c: RGB = mul(A, 0.97 + 0.04 * fbm(u, v, 8, seed + 1, 2));
+        let h = 0;
+        // Leaves: two layers of lens shapes at random angles, reaching into neighbouring cells.
+        for (const [g, sd, size] of [[3, 11, 0.62], [4, 23, 0.5]] as const) {
+          const gx = Math.floor(u * g), gy = Math.floor(v * g);
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dx = -1; dx <= 1; dx++) {
+              const mx = (((gx + dx) % g) + g) % g, my = (((gy + dy) % g) + g) % g;
+              if (hash(mx, my, sd + 9) < 0.15) continue;
+              const lx = u * g - (gx + dx + 0.5 + 0.7 * (hash(mx, my, sd) - 0.5));
+              const ly = v * g - (gy + dy + 0.5 + 0.7 * (hash(mx, my, sd + 1) - 0.5));
+              const ang = hash(mx, my, sd + 2) * Math.PI * 2;
+              const xr = lx * Math.cos(ang) + ly * Math.sin(ang), yr = -lx * Math.sin(ang) + ly * Math.cos(ang);
+              const half = size * 0.36 * Math.sin(Math.PI * Math.min(1, Math.max(0, (xr + size) / (2 * size)))) ** 0.8;
+              if (Math.abs(xr) < size && Math.abs(yr) < half) {
+                const col = leafCols[Math.floor(hash(mx, my, sd + 3) * leafCols.length)];
+                // Midrib, angled side veins, and a lighter edge.
+                const vein = Math.abs(yr) < 0.012 || frac((xr - Math.abs(yr) * 1.4) * 9) < 0.06;
+                const edge = Math.abs(yr) / half;
+                c = vein ? mixc(col, A, 0.55) : mixc(mul(col, 0.88), col, edge);
+                h = 0.4;
+              }
+            }
+        }
+        // Hibiscus: five rounded petals with a dark throat.
+        const [fx, fy, fd, fh] = cellNearest(u, v, 3, seed + 31, 0.7, true);
+        const th = Math.atan2(fy, fx) + fh * 6;
+        const petal = 0.27 * (0.7 + 0.3 * Math.abs(Math.cos(th * 2.5)));
+        if (fh > 0.25 && fd < petal) {
+          const t = fd / petal;
+          c = t < 0.28 ? mixc(throat, pink, t / 0.28) : mixc(pink, mixc(pink, [255, 255, 255], 0.35), (t - 0.28) * 0.9);
+          if (frac((th / (2 * Math.PI)) * 40) < 0.1 && t > 0.3) c = mul(c, 0.93);
+          h = 0.6;
+        }
+        // Stamen: a short spike from the centre.
+        const sa = fh * 40, sxr = fx * Math.cos(sa) + fy * Math.sin(sa), syr = fy * Math.cos(sa) - fx * Math.sin(sa);
+        if (fh > 0.25 && Math.abs(syr) < 0.008 && sxr > 0 && sxr < 0.17) c = [226, 196, 120];
+        if (fh > 0.25 && Math.hypot(sxr - 0.17, syr) < 0.022) c = [214, 160, 70];
+        const w = weave(u, v, 160);
+        return { c: mul(c, 0.95 + 0.05 * w), h: h + w * 0.2 };
+      }, false, 0.9);
+    }
+    case 'linen': {
+      // Linen (c1): slubby threads (thicker and thinner runs both ways) and a soft, uneven weave.
+      return render(S, (u, v) => {
+        const su = pnoise(0.5, v, 128, seed) * 0.6 + pnoise(0.5, v, 256, seed + 1) * 0.4;
+        const sv = pnoise(u, 0.5, 128, seed + 2) * 0.6 + pnoise(u, 0.5, 256, seed + 3) * 0.4;
+        const w = weave(u, v, 110);
+        const slub = (su - 0.5) * 0.02 + (sv - 0.5) * 0.015;
+        const mottle = fbm(u, v, 6, seed + 4, 3) - 0.5;
+        return { c: mul(mixc(A, B, Math.max(0, mottle) * 0.15), 0.97 + slub + 0.012 * w + mottle * 0.05), h: w * 0.2 + su * 0.2 + sv * 0.2 };
+      }, false, 0.5);
+    }
+    case 'suiting': {
+      // Fine worsted wool (c1): a tight twill and a faint heathered mix toward c2.
+      return render(S, (u, v) => {
+        const twill = frac((u * 2 + v) * 200) < 0.5 ? 1 : 0.9;
+        const heather = fbm(u, v, 64, seed, 2);
+        return { c: mul(mixc(A, B, (heather - 0.5) * 0.12 + 0.02), 0.93 + 0.08 * twill), h: twill * 0.5 + heather * 0.2 };
+      }, false, 1);
+    }
+    case 'patent': {
+      // Patent leather (c1): mirror smooth, with only the faintest grain.
+      return render(S, (u, v) => ({ c: mul(A, 0.98 + 0.03 * fbm(u, v, 6, seed, 2)), h: fbm(u, v, 64, seed + 1, 2) * 0.03 }), false, 0.3);
     }
     case 'rib': {
       // Rib knit (necklines, cuffs): fine raised ribs across u in c1.

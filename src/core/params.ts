@@ -48,6 +48,8 @@ export interface HumanParams {
   outfit: string;
   /** Procedural top / bottom garment ids or 'none' (used when outfit is 'none'). 'none' top = shirtless/topless. */
   top: string;
+  /** Procedural jacket worn over the top (used with separate pieces or an outfit set), or 'none'. */
+  jacket: string;
   bottom: string;
   /**
    * Briefs under (or instead of) bottoms. Can be switched off for adult (18+)
@@ -120,6 +122,7 @@ export const DEFAULT_PARAMS: HumanParams = {
   earringMetal: 'gold',
   outfit: 'male_casualsuit01',
   top: 'none',
+  jacket: 'none',
   bottom: 'none',
   underwear: true,
   accessories: [],
@@ -312,6 +315,14 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     outfit: 'set_prison_jumpsuit', shoes: 'sneakers', accessories: ['backpack'],
     garmentStyles: { sneakers: { pattern: 'workwear', color: '#8e8a82', color2: '#6f6b64' } },
   },
+  // 80s Miami: a pastel pink suit worn open over a tropical-print shirt unbuttoned to the chest,
+  // layered gold chains, a gold watch, aviators and oxblood horsebit loafers without socks.
+  'The Miami Dealer': {
+    gender: 1, age: 0.5, muscle: 0.6, weight: 0.48, height: 0.62, proportions: 0.6,
+    african: 0.1, asian: 0.05, caucasian: 0.85, eyes: 'brown', eyebrows: 'eyebrow001',
+    hair: 'short02', facialHair: 'mustache_stubble', beardColor: '#5e4130', expression: 'determined',
+    outfit: 'set_pastel_suit', shoes: 'loafers', accessories: ['gold_chains', 'aviators', 'watch_gold'],
+  },
   Detective: {
     gender: 0.95, age: 0.65, muscle: 0.55, weight: 0.5, height: 0.55, african: 0.2, asian: 0.6, caucasian: 0.2, hair: 'short01', outfit: 'male_casualsuit05',
     hat: 'fedora_cocked', shoes: 'shoes06', eyes: 'grey', eyebrows: 'eyebrow007', facialHair: 'stubble', beardColor: '#1a1410',
@@ -400,7 +411,7 @@ export function sanitizeParams(raw: unknown, base: HumanParams = DEFAULT_PARAMS)
   // Same range as the app's age slider (12-90 years).
   out.age = num(src.age, yearsToAge(12), 1, base.age);
   out.seed = Math.round(num(src.seed, 0, 1e9, base.seed));
-  for (const k of ['name', 'skin', 'eyes', 'eyebrows', 'eyelashes', 'hair', 'outfit', 'top', 'bottom', 'shoes', 'hat'] as const) out[k] = str(src[k], base[k]);
+  for (const k of ['name', 'skin', 'eyes', 'eyebrows', 'eyelashes', 'hair', 'outfit', 'top', 'jacket', 'bottom', 'shoes', 'hat'] as const) out[k] = str(src[k], base[k]);
   for (const k of ['skinTint', 'hairTint', 'outfitTint', 'hairColor', 'beardColor', 'tattooInk'] as const) out[k] = color(src[k], base[k]);
   if (typeof src.underwear === 'boolean') out.underwear = src.underwear;
   if (typeof src.faceBones === 'boolean') out.faceBones = src.faceBones;

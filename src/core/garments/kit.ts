@@ -11,8 +11,11 @@ import { along, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, s
 import { buildShell, UVs, type ShellSpec } from './shell';
 import { makePattern, type Pattern, type TexOut } from './textures';
 
-/** 'hat': picked in the Hat section (the params' `hat`), built like an accessory. */
-export type Slot = 'top' | 'bottom' | 'acc' | 'feet' | 'hat';
+/**
+ * 'jacket': worn over the top (the params' `jacket`). 'hat': picked in the Hat section (the params'
+ * `hat`), built like an accessory.
+ */
+export type Slot = 'top' | 'jacket' | 'bottom' | 'acc' | 'feet' | 'hat';
 
 export interface GarmentStyle {
   pattern: Pattern;
@@ -28,6 +31,11 @@ export interface GarmentDef {
   patterns: Pattern[];
   color: string;
   color2: string;
+  /**
+   * A MakeHuman outfit whose fitted mesh the garment is cut from (`g.outfits[id]`), e.g. the shirt
+   * of a casual suit.
+   */
+  fromOutfit?: string;
   /** Hides the skin it covers (opaque fitted garments). */
   build(g: GCtx, st: GarmentStyle): GPart[];
 }
@@ -45,6 +53,8 @@ export interface GPart {
   over?: Uint8Array;
   /** Touches the ground (soles): used for grounding. */
   ground?: boolean;
+  /** A top's collar: never hidden under a jacket, and laid over the jacket's collar. */
+  collar?: boolean;
   /** Fitted cloth that should be subdivided in HD. */
   smooth?: boolean;
   /**
@@ -52,6 +62,16 @@ export interface GPart {
    * nearer the hips or torso so it doesn't follow a single leg or arm.
    */
   skinAt?: Float32Array;
+}
+
+export interface FittedOutfit {
+  mesh: PolyMesh;
+  /** Base-mesh vertices the whole outfit hides (MakeHuman's delete list). */
+  deleteVerts: Uint32Array;
+  /** Per vertex: the nearest body vertex (under it). */
+  ref: Uint32Array;
+  /** The outfit's own normal map (folds, seams), on its UVs. */
+  normalMap?: string;
 }
 
 export interface GCtx {
@@ -63,8 +83,12 @@ export interface GCtx {
   layered: { top: boolean; bottom: boolean };
   /** Briefs under wrappers / aprons / loincloths (always on for under-18 characters). */
   underwear: boolean;
-  /** Vertices of the top already dressed, for things worn over it (necklaces lie on it). */
+  /** Vertices of the bottom and top already dressed, for things worn over them (necklaces lie on the top). */
   worn?: Vec3[];
+  /** MakeHuman outfits fitted to the body (and rigged), for garments cut from them. */
+  outfits?: Record<string, FittedOutfit>;
+  /** Vertices of the jacket over the top, for things worn over everything (a backpack). */
+  jacket?: Vec3[];
 }
 
 // --- Helpers ---------------------------------------------------------------------

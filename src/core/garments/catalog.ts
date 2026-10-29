@@ -19,7 +19,10 @@ import { BAGS } from './bags';
 import { BEACH } from './beach';
 import { HEELS } from './heels';
 import { SNEAKERS } from './sneakers';
+import { LOAFERS } from './loafers';
 import { PRISON } from './prison';
+import { SHIRTS } from './shirts';
+import { SUIT } from './suit';
 import { STREET } from './street';
 import { SWIMWEAR } from './swimwear';
 import { WRIST } from './wrist';
@@ -720,10 +723,13 @@ export const GARMENTS: GarmentDef[] = [
   ...SWIMWEAR,
   ...STREET,
   ...PRISON,
+  ...SHIRTS,
+  ...SUIT,
   ...BAGS,
   ...BEACH,
   HEELS,
   SNEAKERS,
+  LOAFERS,
 ];
 
 // --- Shared builders -------------------------------------------------------------

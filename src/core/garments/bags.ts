@@ -66,7 +66,7 @@ function backpack(g: GCtx, st: GarmentStyle): GPart[] {
   // Large: from just below the shoulders to the lower back.
   const W = cm(32), D = cm(15), yTop = torsoY(b, 0.88), yBot = torsoY(b, 0.22);
   // What it rests on: the back (and any top over it).
-  const surf = [...points(b, (v) => isTrunk(v) || v.region === REGION.neck || (v.region === REGION.upperarm && v.t < 0.12)), ...(g.worn ?? [])];
+  const surf = [...points(b, (v) => isTrunk(v) || v.region === REGION.neck || (v.region === REGION.upperarm && v.t < 0.12)), ...(g.worn ?? []), ...(g.jacket ?? [])];
   // The back's depth at each height (its rearmost point across the pack's width), smoothed: the
   // pack's front face rests on it.
   const step = cm(2), backZ: number[] = [];
@@ -94,19 +94,20 @@ function backpack(g: GCtx, st: GarmentStyle): GPart[] {
   // chest; then from the chest under the arm back to the pack's bottom corner.
   const straps: PolyMesh[] = [];
   // The torso alone (no arms), for the lower straps hugging the sides.
-  const torso = [...points(b, isTrunk), ...(g.worn ?? []).filter((p) => Math.abs(p[0]) < 0.95 * sx)];
+  const torso = [...points(b, isTrunk), ...[...(g.worn ?? []), ...(g.jacket ?? [])].filter((p) => Math.abs(p[0]) < 0.95 * sx)];
   const hulls = new Map<number, Vec3[] | null>();
   const hullAt = (y: number) => {
     const k = Math.round(y / cm(1));
-    if (!hulls.has(k)) hulls.set(k, hullRing(torso, hplane(b, k * cm(1)), { slab: cm(1.2), samples: 96, offset: cm(0.5) }));
+    if (!hulls.has(k)) hulls.set(k, hullRing(torso, hplane(b, k * cm(1)), { slab: cm(1.2), samples: 96, offset: cm(0.8) }));
     return hulls.get(k)!;
   };
   for (const s of [1, -1]) {
-    const xs = s * 0.5 * sx;
-    const loop = hullRing(surf, { origin: [xs, torsoY(b, 0.85), b.L.torsoZ], normal: [1, 0, 0], ref: [0, 0, 1] }, { slab: cm(1.2), samples: 96, offset: cm(0.5) });
+    const xs = s * 0.55 * sx;
+    // (Over the top's collar and prints: always on top.)
+    const loop = hullRing(surf, { origin: [xs, torsoY(b, 0.85), b.L.torsoZ], normal: [1, 0, 0], ref: [0, 0, 1] }, { slab: cm(2), samples: 96, offset: cm(0.8) });
     if (!loop) continue;
     // Over the shoulder: from the back (z < torso) at the pack's top, over the top, down the front to the chest.
-    const chestY = torsoY(b, 0.55);
+    const chestY = torsoY(b, 0.72);
     // Angle round the slice from the front (0) up over the shoulder (pi/2) to the back (pi); the
     // strap runs from the back, at the pack's top, over the shoulder and down to the chest.
     const yc = torsoY(b, 0.85);
@@ -116,15 +117,15 @@ function backpack(g: GCtx, st: GarmentStyle): GPart[] {
       .sort((p, q) => q.a - p.a)
       .map((o) => o.p);
     if (over.length < 4) continue;
-    // Lower strap: from the chest end round the side (just under the arm) to the pack's bottom corner.
+    // Lower strap: from the chest end out to the front of the armpit, then round the side under
+    // the arm to the pack's bottom corner.
     const low: Vec3[] = [];
     const start = over[over.length - 1], end: Vec3 = [s * W * 0.42, yBot + cm(5), zFront(yBot + cm(5)) - D * 0.3];
-    for (let k = 1; k <= 14; k++) {
-      const t = k / 14;
-      // Round the side of the torso, just below the armpit, to the pack's bottom corner.
-      const x = start[0] + (end[0] - start[0]) * t;
-      const y = start[1] + (end[1] - start[1]) * t;
-      const z = start[2] + (end[2] - start[2]) * t;
+    const pit: Vec3 = [s * 0.9 * sx, torsoY(b, 0.6), b.L.torsoZ + cm(6)];
+    const path = (t: number): Vec3 => (t < 0.35 ? v3.lerp(start, pit, t / 0.35) : v3.lerp(pit, end, (t - 0.35) / 0.65));
+    for (let k = 1; k <= 18; k++) {
+      const t = k / 18;
+      const [x, y, z] = path(t);
       const h = hullAt(y);
       const c: Vec3 = [0, y, b.L.torsoZ];
       const d = v3.norm([x - c[0], 0, z - c[2]]);

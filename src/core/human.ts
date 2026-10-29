@@ -4,7 +4,7 @@
  */
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
 import { compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
-import { archFeet, buildGarments, dressing, genTexture } from './garments';
+import { archFeet, buildGarments, dressing, genTexture, outfitsUsed } from './garments';
 import { buildCarry } from './props/carry';
 import type { Vec3 } from './math';
 import { applyTPose, baseSkin, placeBones, quatOf, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
@@ -272,7 +272,21 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   // --- Procedural garments ---
   stage('Fitting clothes');
   const bodyNormals = vertexNormals(fullBody);
-  const gparts = buildGarments(lib, coords, bodyNormals, fv, pieces);
+  // Garments cut from a MakeHuman outfit (a shirt from a suit): the outfit fitted and rigged.
+  const fitted: Parameters<typeof buildGarments>[5] = {};
+  for (const id of outfitsUsed(pieces)) {
+    const item = find(cat.outfits, id);
+    if (!item?.file) continue;
+    const px = await lib.proxy(item.file);
+    const mesh = proxyMesh(px, coords, bskin, faceD);
+    // The body vertex under each outfit vertex (outfits are fitted to MakeHuman's helper mesh,
+    // not the skin).
+    const skinGrid = new VertexGrid(coords, (v) => regions[v] !== 255);
+    const P = mesh.positions;
+    const ref = Uint32Array.from({ length: P.length / 3 }, (_, i) => skinGrid.nearest([P[i * 3], P[i * 3 + 1], P[i * 3 + 2]], 1)[0]?.v ?? 0);
+    fitted[id] = { mesh, ref, deleteVerts: px.arrays.deleteVerts as Uint32Array, normalMap: item.material?.normal };
+  }
+  const gparts = buildGarments(lib, coords, bodyNormals, fv, pieces, fitted);
 
   // --- Body (hide skin that clothes cover, to avoid poke-through) ---
   // Asset proxies hide any face touching one of their deleted vertices (MakeHuman behaviour);

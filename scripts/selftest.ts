@@ -248,6 +248,9 @@ for (const g of GARMENTS) {
     cases.push([`garment ${g.id} g${gender}`, { ...DEFAULT_PARAMS, outfit: 'none', gender, detail, ...slot }]);
 }
 cases.push(['sandals', { ...DEFAULT_PARAMS, outfit: 'none', shoes: 'sandals' }]);
+// Every jacket over a shirt.
+for (const g of GARMENTS.filter((x) => x.slot === 'jacket'))
+  cases.push([`jacket ${g.id} over a shirt`, { ...DEFAULT_PARAMS, outfit: 'none', gender: 1, top: 'uniform_shirt', bottom: 'uniform_trousers', jacket: g.id }]);
 // Outfit sets (paired top and bottom) with their suggested extras.
 for (const set of OUTFIT_SETS)
   cases.push([`outfit set ${set.id}`, { ...DEFAULT_PARAMS, outfit: set.id, gender: 0, accessories: set.accessories, shoes: set.shoes ?? 'none', hat: set.hat ?? 'none', hair: 'cornrows' }]);
@@ -343,7 +346,7 @@ for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
     if (label.startsWith('look')) {
       // Every character has the skin overlay (mouth shading, plus any tattoos, stubble or scalp).
       if (!mats.includes('Skin details')) fail(`${label}: skin overlay missing`);
-      if (['mustache', 'goatee', 'short_beard', 'full_beard'].includes(p.facialHair) !== mats.includes('Beard')) fail(`${label}: beard cards`);
+      if (['mustache', 'mustache_stubble', 'goatee', 'short_beard', 'full_beard'].includes(p.facialHair) !== mats.includes('Beard')) fail(`${label}: beard cards`);
       if ((p.earrings !== 'none') !== (mats.includes('Silver') || mats.includes('Gold'))) fail(`${label}: earrings`);
       if (['mohawk', 'cornrows', 'box_braids'].includes(p.hair) && !p.hat?.startsWith('fedora') && !mats.some((m) => m === 'Braids' || m === 'Hair spikes')) fail(`${label}: hair geometry missing`);
     }
