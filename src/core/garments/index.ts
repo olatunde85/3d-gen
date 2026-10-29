@@ -90,8 +90,8 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
     texture: (key, make) => genTexture(lib, key, make),
   };
   const parts: GPart[] = [];
-  for (const id of [d.bottom, d.top, d.jacket, ...d.accessories]) {
-    if (!id) continue;
+  const dress = (id: string | undefined) => {
+    if (!id) return;
     const built = garmentById.get(id)!.build(g, styleOf(id, d.styles));
     parts.push(...built);
     // The top, and the jacket over it: what later layers rest on.
@@ -100,8 +100,14 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
       for (const p of built) for (let i = 0; i < p.mesh.positions.length; i += 3) pts.push([p.mesh.positions[i], p.mesh.positions[i + 1], p.mesh.positions[i + 2]]);
       if (id === d.top) g.worn = pts;
       else g.jacket = pts;
+      g.wornMeshes = [...(g.wornMeshes ?? []), ...built.map((p) => p.mesh)];
     }
-  }
+  };
+  for (const id of [d.bottom, d.top, d.jacket]) dress(id);
+  // The top's collar, over any jacket's lapels; necklaces then go inside it.
+  const topDef = d.top ? garmentById.get(d.top) : undefined;
+  if (topDef?.collar) parts.push(...topDef.collar(g, styleOf(topDef.id, d.styles)));
+  for (const id of d.accessories) dress(id);
   if (d.footwear === 'sandals') parts.push(...sandals(g));
   if (d.footwear === 'boots') parts.push(...bootShafts(g));
   if (d.footwear === 'flipflops') parts.push(...flipFlops(g));

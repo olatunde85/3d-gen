@@ -12,7 +12,7 @@ import { crotchY, hideMask, part, seatOverLegs, soleY, wideLeg } from './drape';
 import { clamp, cloth, cylinderUVs, isTrunk, isUpper, limbBand, mat, shell, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { Caster, gridMesh, liftGrid, OUTWARD } from './project';
 import { loftRings, merge, orientOutward, v3 } from './ring';
-import { openCollar, vNeck, type CollarOpts } from './shirts';
+import { openCollar, placket, vNeck, type CollarOpts } from './shirts';
 import { stencilText } from './textures';
 
 /** A print laid on the front or back of the trunk: a w x h rectangle centred at (x, y), lifted `lift` off `surface`. */
@@ -39,12 +39,15 @@ function print(cast: Caster, x: number, y: number, w: number, h: number, lift: n
   return orientOutward({ ...m, uvs, faceUVs: m.faceVerts }, v3.madd(c, out, -1));
 }
 
+const jumpsuitCloth = (g: GCtx, st: GarmentStyle) => cloth(g, 'Jumpsuit', st, { roughness: 0.92 });
+const JUMPSUIT: CollarOpts = { ttV: 0.8, vw: 0.42, lapelW: cm(7.5), buttons: 4, spacing: cm(9), placketTo: 0.12, buttonColor: '#d8d2c4', standOffset: cm(1.2) };
+
 function jumpsuitTop(g: GCtx, st: GarmentStyle): GPart[] {
   const b = g.body;
-  const m = cloth(g, 'Jumpsuit', st, { roughness: 0.92 });
+  const m = jumpsuitCloth(g, st);
   const sx = b.L.shoulderX;
   const ease = cm(1.5), sleeveEnd = 0.6;
-  const collar: CollarOpts = { ttV: 0.8, vw: 0.42, lapelW: cm(7.5), buttons: 4, spacing: cm(9), placketTo: 0.12, buttonColor: '#d8d2c4', standOffset: ease * 0.8 };
+  const collar = JUMPSUIT;
   const neck = vNeck(b, collar);
   const top = shell(g, {
     // Down to the waist seam, easing out at the bottom to lie over the trousers' seat.
@@ -57,7 +60,7 @@ function jumpsuitTop(g: GCtx, st: GarmentStyle): GPart[] {
   const parts: GPart[] = [{ mesh: top.mesh, material: m, hides: top.covered, smooth: true }];
   // Rolled sleeves: a thick roll of cloth at each sleeve's end.
   const rolls = merge([1, -1].map((s) => limbBand(b, REGION.upperarm, s, sleeveEnd - 0.04, cm(3.2), cm(0.7), ease + cm(1.6))));
-  parts.push(...part(rolls, m), ...openCollar(g, top.mesh, m, collar));
+  parts.push(...part(rolls, m), ...placket(g, top.mesh, m, collar));
   // "DOC": small on the left chest, large across the upper back.
   const front = new Caster(top.mesh, null, () => true, 'front');
   const back = new Caster(top.mesh, null, () => true, 'back');
@@ -126,6 +129,6 @@ function jumpsuitTrousers(g: GCtx, st: GarmentStyle): GPart[] {
 }
 
 export const PRISON: GarmentDef[] = [
-  { id: 'prison_top', label: 'Jumpsuit top (rolled sleeves)', slot: 'top', patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a', build: jumpsuitTop },
+  { id: 'prison_top', label: 'Jumpsuit top (rolled sleeves)', slot: 'top', patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a', build: jumpsuitTop, collar: (g, st) => openCollar(g, jumpsuitCloth(g, st), JUMPSUIT) },
   { id: 'prison_trousers', label: 'Jumpsuit trousers (rolled up)', slot: 'bottom', patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a', build: jumpsuitTrousers },
 ];

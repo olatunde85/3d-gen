@@ -33,6 +33,11 @@ export interface GarmentDef {
   color2: string;
   /** Hides the skin it covers (opaque fitted garments). */
   build(g: GCtx, st: GarmentStyle): GPart[];
+  /**
+   * A top's collar, built once any jacket is on so it can lie over the jacket's lapels. Necklaces
+   * go inside it (they rest on the top, not the collar).
+   */
+  collar?(g: GCtx, st: GarmentStyle): GPart[];
 }
 
 export interface GPart {
@@ -70,6 +75,8 @@ export interface GCtx {
   worn?: Vec3[];
   /** Vertices of the jacket over the top, for things worn over everything (a backpack). */
   jacket?: Vec3[];
+  /** Surfaces of the top and jacket dressed so far (a collar is laid over them). */
+  wornMeshes?: PolyMesh[];
 }
 
 // --- Helpers ---------------------------------------------------------------------
