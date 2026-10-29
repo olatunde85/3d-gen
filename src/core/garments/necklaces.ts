@@ -93,8 +93,12 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
     const rN = rT;
     const wide = 1 + spread * (drop / cm(10)) * front;
     let p: Vec3 = [c[0] + dir[0] * rN * wide, y, c[2] + dir[2] * rN];
+    // Inside the collars the front rests on the skin itself (in or out to it).
+    const hb = inside ? bodyAt(y) : null;
+    const zb = hb && dir[2] > 0 ? frontZ(hb, p[0]) : null;
+    if (zb !== null) p = [p[0], y, zb];
     const h = surfAt(y);
-    if (h) {
+    if (h && !inside) {
       if (dir[2] > 0) {
         // Front: keep the neck's width, lie on the chest.
         const z = frontZ(h, p[0]);
