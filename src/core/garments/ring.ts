@@ -353,3 +353,18 @@ export function cord(poly: Vec3[], radius: number, closed: boolean, sides = 5): 
   if (closed) rings.push(rings[0]);
   return loftRings(rings, { closedAround: true, uRepeats: 1, tileV: 0.05 });
 }
+
+/** Farthest crossing of a closed ring (in the horizontal plane) along a ray from c in direction d. */
+export function rayRing(ring: Vec3[], c: Vec3, d: Vec3): number | null {
+  let best: number | null = null;
+  for (let j = 0; j < ring.length; j++) {
+    const a = ring[j], b = ring[(j + 1) % ring.length];
+    const ex = b[0] - a[0], ez = b[2] - a[2];
+    const den = d[0] * ez - d[2] * ex;
+    if (Math.abs(den) < 1e-9) continue;
+    const t = ((a[0] - c[0]) * ez - (a[2] - c[2]) * ex) / den;
+    const u = ((a[0] - c[0]) * d[2] - (a[2] - c[2]) * d[0]) / den;
+    if (t > 0 && u >= 0 && u <= 1 && (best === null || t > best)) best = t;
+  }
+  return best;
+}

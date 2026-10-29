@@ -28,6 +28,8 @@ export interface LooksInput {
   fullBody: PolyMesh;
   /** Base faces hidden under clothes (the overlay skips them). */
   hidden: Uint8Array;
+  /** Base faces under headwear (no hair cards grow there). */
+  underHat?: Uint8Array;
   /** Neck base height (dm): box braids stop above the shoulders. */
   neckY: number;
   low: boolean;
@@ -129,11 +131,11 @@ export async function buildLooks(lib: AssetLibrary, i: LooksInput): Promise<Look
   // --- Geometry (cached per head shape: a tattoo or colour change doesn't regrow hair) ---
   const ctx: HeadCtx = {
     base, coords: i.coords, normals: i.normals, regions: base.regions, faceVerts: lib.base.arrays.faceVerts as Uint32Array,
-    seed: p.seed, low: i.low,
+    seed: p.seed, low: i.low, underHat: i.underHat,
   };
   const shape = coordsHash(i.coords);
   const grown = <T>(what: string, make: () => T): T =>
-    cached(lib, `${what}|${shape}|${p.seed}|${i.low}`, () => {
+    cached(lib, `${what}|${shape}|${p.seed}|${i.low}|${i.underHat ? hashKey(String(i.underHat.reduce((n, x, k) => (x ? n + k : n), 0))) : ''}`, () => {
       i.onStage?.('Growing hair');
       return make();
     });

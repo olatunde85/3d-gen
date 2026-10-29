@@ -146,6 +146,8 @@ export interface HeadCtx {
   seed: number;
   /** Fewer hair cards (low detail). */
   low: boolean;
+  /** Base faces under headwear: no hair cards grow there. */
+  underHat?: Uint8Array;
 }
 
 type V = Vec3;
@@ -436,7 +438,7 @@ function scatterCards(c: HeadCtx, o: Scatter): PolyMesh | undefined {
   const pos: number[] = [], uvs: number[] = [], fs: number[] = [], fvs: number[] = [], fu: number[] = [], refs: number[] = [];
   for (let f = 0; f < fv.length / 4; f++) {
     const region = c.regions[fv[f * 4]];
-    if (!o.regions.includes(region)) continue;
+    if (!o.regions.includes(region) || c.underHat?.[f]) continue;
     const ids = [0, 1, 2, 3].map((k) => fv[f * 4 + k]);
     const bc = ids.reduce<V>((s, v) => add(s, mul(at(B, v), 0.25)), [0, 0, 0]);
     // Quick reject (with margin) before sampling.

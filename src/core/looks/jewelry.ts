@@ -36,6 +36,29 @@ function lobeVerts(base: Body): [number, number] {
   return l;
 }
 
+const studs = new WeakMap<Body, [number, number]>();
+/**
+ * Base-mesh vertex where a stud goes on each lobe (left, right): the outer face of the lower lobe,
+ * centred front to back (a piercing sits inside the lobe, clear of its edges).
+ */
+function studVerts(base: Body): [number, number] {
+  let st = studs.get(base);
+  if (!st) {
+    st = ([1, -1] as const).map((s) => {
+      const t: Vec3 = [s * 0.765, 6.93, 0.49];
+      let best = -1, d0 = Infinity;
+      for (let v = 0; v < base.regions.length; v++) {
+        if (base.regions[v] !== REGION.head) continue;
+        const d = Math.hypot(base.coords[v * 3] - t[0], base.coords[v * 3 + 1] - t[1], base.coords[v * 3 + 2] - t[2]);
+        if (d < d0) [d0, best] = [d, v];
+      }
+      return best;
+    }) as [number, number];
+    studs.set(base, st);
+  }
+  return st;
+}
+
 function torus(c: Vec3, axisA: Vec3, axisB: Vec3, R: number, r: number, seg = 24, sides = 8): PolyMesh {
   // Ring in the plane (axisA, axisB); tube normal = cross for the minor circle.
   const n: Vec3 = [axisA[1] * axisB[2] - axisA[2] * axisB[1], axisA[2] * axisB[0] - axisA[0] * axisB[2], axisA[0] * axisB[1] - axisA[1] * axisB[0]];
@@ -82,11 +105,17 @@ function sphere(c: Vec3, r: number, seg = 12, rings = 8): PolyMesh {
 /** Earring meshes (decimetres, morphed body space), or [] for none. */
 export function earrings(id: EarringId, base: Body, coords: Float32Array, normals: Float32Array): PolyMesh[] {
   if (id === 'none') return [];
+  if (id === 'studs')
+    return studVerts(base).map((v) => {
+      const p: Vec3 = [coords[v * 3], coords[v * 3 + 1], coords[v * 3 + 2]];
+      const n: Vec3 = [normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]];
+      const l = Math.hypot(...n) || 1;
+      // Seated on the lobe: the ball's centre just over half its radius out from the skin.
+      return sphere([p[0] + (n[0] / l) * 0.014, p[1] + (n[1] / l) * 0.014, p[2] + (n[2] / l) * 0.014], 0.022);
+    });
   return lobeVerts(base).map((v) => {
     const p: Vec3 = [coords[v * 3], coords[v * 3 + 1], coords[v * 3 + 2]];
     const s = Math.sign(p[0]) || 1;
-    const n: Vec3 = [normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]];
-    if (id === 'studs') return sphere([p[0] + n[0] * 0.012, p[1] + n[1] * 0.012, p[2] + n[2] * 0.012], 0.024);
     const R = id === 'small_hoops' ? 0.075 : 0.17, r = id === 'small_hoops' ? 0.009 : 0.012;
     // Hoop hangs in a plane facing sideways (slightly turned forward), passing through the lobe.
     const A: Vec3 = [0, 1, 0];

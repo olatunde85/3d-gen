@@ -17,8 +17,10 @@ import { buildShell } from './shell';
 import { featherTexture, makePattern, palette, type Pattern } from './textures';
 import { BEACH } from './beach';
 import { HEELS } from './heels';
+import { STREET } from './street';
 import { SWIMWEAR } from './swimwear';
 import { WRIST } from './wrist';
+import { NECKLACES } from './necklaces';
 import { YORUBA } from './yoruba';
 
 export type { GarmentDef, GarmentStyle, GCtx, GPart, Slot } from './kit';
@@ -710,8 +712,10 @@ export const GARMENTS: GarmentDef[] = [
     },
   },
   ...YORUBA,
+  ...NECKLACES,
   ...WRIST,
   ...SWIMWEAR,
+  ...STREET,
   ...BEACH,
   HEELS,
 ];

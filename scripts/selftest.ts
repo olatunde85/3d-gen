@@ -2,6 +2,8 @@
  * Generates many random characters at every detail level and checks mesh
  * validity plus the structural integrity of every export format.
  *   npm test
+ * Runs in parallel: the parent starts one shard per CPU core (SHARDS=n to choose, SHARDS=1 for a
+ * single serial run); each shard builds every n-th character, shard 0 also runs the one-off checks.
  */
 import { unzipSync, unzlibSync } from 'fflate';
 import { buildHuman } from '../src/core/human';
@@ -17,6 +19,33 @@ import { WEAPONS } from '../src/core/props/weapons';
 import { EARRINGS, FACIAL_HAIR, HAIRSTYLES, TATTOOS } from '../src/core/looks';
 import { decodeCharacter, encodeCharacter } from '../src/app/share';
 import { EXPRESSIONS } from '../src/core/face';
+import { spawn } from 'node:child_process';
+import { availableParallelism } from 'node:os';
+
+// Parent: run the shards and add up their results.
+if (process.env.SHARD === undefined) {
+  const n = Math.max(1, Number(process.env.SHARDS) || Math.min(8, availableParallelism() - 1));
+  const t = performance.now();
+  const results = await Promise.all(
+    Array.from({ length: n }, (_, k) =>
+      new Promise<{ code: number; count: number }>((done) => {
+        const child = spawn(process.execPath, [...process.execArgv, process.argv[1]], { env: { ...process.env, SHARD: `${k}/${n}` }, stdio: ['ignore', 'pipe', 'inherit'] });
+        let out = '';
+        child.stdout.on('data', (d) => {
+          out += d;
+          for (const line of String(d).split('\n')) if (line && !line.includes('characters checked')) console.log(line);
+        });
+        child.on('close', (code) => done({ code: code ?? 1, count: Number(/(\d+) characters checked/.exec(out)?.[1] ?? 0) }));
+      }),
+    ),
+  );
+  const failed = results.filter((r) => r.code !== 0).length;
+  const total = results.reduce((s, r) => s + r.count, 0);
+  console.log(`${total} characters checked in ${((performance.now() - t) / 1000).toFixed(1)} s on ${n} shards, ${failed ? `${failed} shard(s) with failures` : '0 failures'}`);
+  process.exit(failed ? 1 : 0);
+}
+const [shard, shards] = process.env.SHARD.split('/').map(Number);
+const primary = shard === 0;
 
 let failures = 0;
 const fail = (msg: string) => {
@@ -200,7 +229,7 @@ async function checkExportModes() {
   if (held.files.some((f) => f.kind === 'prop') || !held.files[0].desc.includes('holding')) fail('weapon held: plan wrong');
   console.log('weapon prop export checked');
 }
-await checkExportModes();
+if (primary) await checkExportModes();
 
 const t0 = performance.now();
 const cases: [string, HumanParams][] = [];
@@ -214,18 +243,18 @@ for (const o of lib.catalog.outfits) cases.push([`outfit ${o.id}`, { ...DEFAULT_
 for (const h of lib.catalog.hair) cases.push([`hair ${h.id}`, { ...DEFAULT_PARAMS, hair: h.id, hat: 'fedora01' }]);
 // Every procedural garment, on a female and a male body, at medium and HD.
 for (const g of GARMENTS) {
-  const slot = g.slot === 'acc' ? { accessories: [g.id] } : g.slot === 'feet' ? { shoes: g.id } : { [g.slot]: g.id };
+  const slot = g.slot === 'acc' ? { accessories: [g.id] } : g.slot === 'feet' ? { shoes: g.id } : g.slot === 'hat' ? { hat: g.id } : { [g.slot]: g.id };
   for (const [gender, detail] of [[0, 'medium'], [1, 'high']] as const)
     cases.push([`garment ${g.id} g${gender}`, { ...DEFAULT_PARAMS, outfit: 'none', gender, detail, ...slot }]);
 }
 cases.push(['sandals', { ...DEFAULT_PARAMS, outfit: 'none', shoes: 'sandals' }]);
 // Outfit sets (paired top and bottom) with their suggested extras.
 for (const set of OUTFIT_SETS)
-  cases.push([`outfit set ${set.id}`, { ...DEFAULT_PARAMS, outfit: set.id, gender: 0, accessories: set.accessories, shoes: set.shoes ?? 'none', hair: 'cornrows' }]);
+  cases.push([`outfit set ${set.id}`, { ...DEFAULT_PARAMS, outfit: set.id, gender: 0, accessories: set.accessories, shoes: set.shoes ?? 'none', hat: set.hat ?? 'none', hair: 'cornrows' }]);
 cases.push(['barefoot', { ...DEFAULT_PARAMS, outfit: 'none', shoes: 'none', bottom: 'none' }]);
 
 // Share links: every preset and random character survives the round trip; garbage is rejected.
-{
+if (primary) {
   const all = [...Object.entries(PRESETS).map(([name, p]) => ({ ...DEFAULT_PARAMS, ...p, name })), ...Array.from({ length: 20 }, (_, i) => randomParams(1000 + i, lib.catalog))];
   for (const p of all) {
     const back = decodeCharacter(encodeCharacter(p), p.detail);
@@ -236,7 +265,7 @@ cases.push(['barefoot', { ...DEFAULT_PARAMS, outfit: 'none', shoes: 'none', bott
 }
 
 // Modesty rules: under-18 female characters always get a top; nobody is fully undressed. Tattoos are adult-only.
-{
+if (primary) {
   const inkedMinor = await buildHuman(lib, { ...DEFAULT_PARAMS, age: 0.3, hair: 'short02', tattoos: [...TATTOOS] });
   // The skin overlay is always there (mouth shading); tattoos must not change it for a minor.
   const plainMinor = await buildHuman(lib, { ...DEFAULT_PARAMS, age: 0.3, hair: 'short02' });
@@ -280,7 +309,7 @@ for (const rig of ['game', 'game_lite', 'full', 'none'] as const)
     cases.push([`rig ${rig} ${restPose}`, { ...DEFAULT_PARAMS, ...PRESETS['The Adventurer'], rig, restPose, faceBones: restPose === 'T' }]);
 cases.push(['rig low detail', { ...DEFAULT_PARAMS, detail: 'low', restPose: 'T' }]);
 
-for (const [label, p] of cases) {
+for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
   try {
     const ch = await buildHuman(lib, p);
     if ((p.rig ?? 'game') !== 'none' && (!ch.rig || !ch.mesh.joints)) fail(`${label}: not rigged`);
@@ -360,5 +389,5 @@ for (const [label, p] of cases) {
     fail(`${label}: threw ${(e as Error).stack}`);
   }
 }
-console.log(`${cases.length} characters checked in ${((performance.now() - t0) / 1000).toFixed(1)} s, ${failures} failures`);
+console.log(`${cases.filter((_, i) => i % shards === shard).length} characters checked in ${((performance.now() - t0) / 1000).toFixed(1)} s, ${failures} failures`);
 process.exit(failures ? 1 : 0);

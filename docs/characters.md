@@ -29,20 +29,20 @@ There are 19 presets (athletes, a detective, a secret agent, a soldier, a cyberp
 
 Choose a full MakeHuman outfit, an **outfit set**, or **Separate pieces**:
 
-- **Outfit sets:** a gold bikini (triangle top with halter and back ties, string bottom; the cups size themselves to the bust). Yoruba women's wear: ankara gown with flutter sleeves; ankara peplum top and pencil skirt; aso-ebi lace top (puff sleeves, double peplum, pearls) and maxi skirt with a gele. Each set shares one pattern and colour pair, comes with matching jewellery and high heels, and its pieces are also listed under Tops and Bottoms.
+- **Outfit sets:** tee & baggy jeans (with a cap, Cuban chain and sneakers); a gold bikini (triangle top with halter and back ties, string bottom; the cups size themselves to the bust). Yoruba women's wear: ankara gown with flutter sleeves; ankara peplum top and pencil skirt; aso-ebi lace top (puff sleeves, double peplum, pearls) and maxi skirt with a gele. Each set shares one pattern and colour pair, comes with matching jewellery and high heels, and its pieces are also listed under Tops and Bottoms.
 
-- **Tops:** tank top, fatigue shirt, uniform shirt (short or long sleeves, with epaulettes), techwear jacket, tattered shirt, sleeveless tunic, woven tunic (buba), ankara gown, ankara peplum top, aso-ebi lace top, or none (shirtless/topless).
-- **Bottoms:** briefs, cargo shorts, fatigue/uniform/techwear/tattered pants, loose trousers (sokoto), wrappers (knee or ankle length), Zulu hide aprons, a loincloth with front and back panels, pencil skirts (below the knee or ankle length), or none.
+- **Tops:** tank top, fatigue shirt, uniform shirt (short or long sleeves, with epaulettes), techwear jacket, tattered shirt, sleeveless tunic, woven tunic (buba), ankara gown, ankara peplum top, aso-ebi lace top, oversized tee, or none (shirtless/topless).
+- **Bottoms:** briefs, cargo shorts, fatigue/uniform/techwear/tattered pants, loose trousers (sokoto), wrappers (knee or ankle length), Zulu hide aprons, a loincloth with front and back panels, pencil skirts (below the knee or ankle length), baggy jeans, or none.
 - **Accessories:**
   - belts and straps: belts, utility belt, waist sash, crossed straps, amulet bandolier
   - armour and vests: leather armor, tactical vest, reflective hi-vis vest
   - eyewear: sunglasses
-  - headwear: gele (pleated head tie with lace flowers and a knotted back; it covers the hair), beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
-  - jewellery and charms: coral beads (iyun), gold necklace with pendant, pearl necklace, bangles, gold and silver bracelet watches, wrist beads, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
+  - headwear: baseball cap, gele (pleated head tie with lace flowers and a knotted back; it covers the hair), beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
+  - jewellery and charms: Cuban link chain, coral beads (iyun), gold necklace with pendant, pearl necklace, bangles, gold and silver bracelet watches, wrist beads, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
   - wraps and bands: shuka shoulder drape, arm guards, fur bands, arm wraps
   - other: neon accents, wrist watch
-- **Footwear:** MakeHuman shoes, sandals, combat boots, high heels (the feet are arched in the mesh, so every animation keeps the heel pose), flip-flops, or barefoot.
-- **Fabrics:** generated, tileable, with normal maps: kente, aso-oke, ankara (three prints), lace, metallic foil, straw, damask, pleated head-tie cloth, adire, shuka plaid, cowhide, leopard, camo, MOLLE, leather, techwear, tattered.
+- **Footwear:** MakeHuman shoes, sandals, combat boots, high heels (the feet are arched in the mesh, so every animation keeps the heel pose), flip-flops, chunky white sneakers, or barefoot.
+- **Fabrics:** generated, tileable, with normal maps: kente, aso-oke, ankara (three prints), lace, metallic foil, straw, washed denim, jersey, damask, pleated head-tie cloth, adire, shuka plaid, cowhide, leopard, camo, MOLLE, leather, techwear, tattered.
 
 Every piece has editable colours (Colour + Accent, for example epaulettes, a badge or reflective tape) and, where it has several, a choice of pattern.
 

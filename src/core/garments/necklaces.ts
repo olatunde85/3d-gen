@@ -1,0 +1,242 @@
+/**
+ * Necklaces: a line that sits snug round the base of the neck and drapes down the chest, strung
+ * with beads, links or a chain.
+ */
+import type { PolyMesh } from '../geometry';
+import type { Vec3 } from '../math';
+import { cm, REGION } from './body';
+import { hplane, isTrunk, mat, points, Y, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { part } from './drape';
+import { along, cord, ellipsoid, frameOf, hullRing, merge, rayRing, v3 } from './ring';
+
+/** Front-most crossing (largest z) of a closed ring with the vertical plane at lateral position x. */
+function frontZ(ring: Vec3[], x: number): number | null {
+  let best: number | null = null;
+  for (let j = 0; j < ring.length; j++) {
+    const a = ring[j], b = ring[(j + 1) % ring.length];
+    if ((a[0] - x) * (b[0] - x) > 0 || a[0] === b[0]) continue;
+    const z = a[2] + ((b[2] - a[2]) * (x - a[0])) / (b[0] - a[0]);
+    if (best === null || z > best) best = z;
+  }
+  return best;
+}
+
+/**
+ * A necklace line: snug round the base of the neck at the back and sides, and at the front
+ * hanging `drop` below it, lying on the chest but no wider than the neck.
+ */
+/**
+ * `spread`: how much wider the front gets as it hangs (0 = straight down from the sides of the neck,
+ * a narrow V like a heavy chain; 0.5 = fanning out over the chest like graduated beads).
+ */
+function strand(g: GCtx, drop: number, spread = 1): { ring: Vec3[]; centre: Vec3 } | null {
+  const b = g.body;
+  // Back and sides lie on the body (round the neck); the front lies on the chest, over any top worn.
+  const body = points(b, (v) => v.region === REGION.neck || isTrunk(v));
+  const neckPts = points(b, (v) => v.region === REGION.neck);
+  const surf = [...body, ...(g.worn ?? [])];
+  // The neck's narrowest cross-section: the chain is a loop a little bigger than it, resting where
+  // the neck widens to meet it (on a thick neck that is still on the neck, not out on the shoulders).
+  let neckRing: Vec3[] | null = null, yN = b.L.neckY, best = Infinity;
+  for (let y = b.L.neckY; y < b.L.neckY + cm(9); y += cm(0.5)) {
+    // Only slices that go right round the neck (enough points on every side).
+    const slab = neckPts.filter((q) => Math.abs(q[1] - y) < cm(0.6));
+    if (slab.length < 24 || Math.min(...slab.map((q) => q[2])) > b.L.torsoZ - cm(2)) continue;
+    const r = hullRing(neckPts, hplane(b, y), { slab: cm(0.6), samples: 64, offset: 0 });
+    if (!r) continue;
+    let cc: Vec3 = [0, 0, 0];
+    for (const q of r) cc = v3.add(cc, v3.scale(q, 1 / r.length));
+    const avg = r.reduce((m, q) => m + Math.hypot(q[0] - cc[0], q[2] - cc[2]), 0) / r.length;
+    if (avg < best) [best, neckRing, yN] = [avg, r, y];
+  }
+  if (!neckRing) return null;
+  let c: Vec3 = [0, 0, 0];
+  for (const p of neckRing) c = v3.add(c, v3.scale(p, 1 / neckRing.length));
+  const off = cm(0.45);
+  const N = 80, ring: Vec3[] = [];
+  const cache = new Map<number, Vec3[] | null>();
+  const surfAt = (y: number) => {
+    const k = Math.round(y / cm(0.5));
+    // A thicker slice when a top is worn: its vertices are a couple of centimetres apart.
+    if (!cache.has(k)) cache.set(k, hullRing(surf, hplane(b, k * cm(0.5)), { slab: g.worn ? cm(1.4) : cm(0.6), samples: 128, offset: off }));
+    return cache.get(k)!;
+  };
+  const bodyCache = new Map<number, Vec3[] | null>();
+  const bodyAt = (y: number) => {
+    const k = Math.round(y / cm(0.5));
+    if (!bodyCache.has(k)) bodyCache.set(k, hullRing(body, hplane(b, k * cm(0.5)), { slab: cm(0.8), samples: 128, offset: off + (g.worn ? cm(0.4) : 0) }));
+    return bodyCache.get(k)!;
+  };
+  for (let i = 0; i < N; i++) {
+    const a = -Math.PI + (2 * Math.PI * i) / N;
+    const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)];
+    // The loop's radius here, and where it rests: going down from the narrowest point until the
+    // body (or the top worn over it) reaches out that far.
+    const rT = (rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6)) * 1.15 + off;
+    // Never higher than just above the base of the neck (a slim neck widens early).
+    const yTop = Math.min(yN, b.L.neckY + cm(1));
+    let yRest = yTop;
+    for (let y = yTop; y > yTop - cm(12); y -= cm(0.5)) {
+      const hb = bodyAt(y), hw = surfAt(y);
+      const rb = Math.max(hb ? rayRing(hb, [c[0], y, c[2]], dir) ?? 0 : 0, hw ? rayRing(hw, [c[0], y, c[2]], dir) ?? 0 : 0);
+      yRest = y;
+      if (rb >= rT) break;
+    }
+    // Only the front hangs lower, onto the chest.
+    const front = Math.max(0, Math.cos(a)) ** 1.6;
+    const y = yRest - drop * front ** 1.4;
+    const rN = rT;
+    const wide = 1 + spread * (drop / cm(10)) * front;
+    let p: Vec3 = [c[0] + dir[0] * rN * wide, y, c[2] + dir[2] * rN];
+    const h = surfAt(y);
+    if (h) {
+      if (dir[2] > 0) {
+        // Front: keep the neck's width, lie on the chest.
+        const z = frontZ(h, p[0]);
+        if (z !== null && z > p[2]) p = [p[0], y, z];
+      }
+      // Never inside the surface it lies on (over the shoulder seam of a top, say): push it out
+      // along its own direction from the axis.
+      if (g.worn && dir[2] > 0.5) {
+        const d2 = v3.norm([p[0] - c[0], 0, p[2] - c[2]]);
+        const r2 = rayRing(h, [c[0], y, c[2]], d2), cur = Math.hypot(p[0] - c[0], p[2] - c[2]);
+        if (r2 !== null && r2 > cur && r2 < cur + cm(3)) p = [c[0] + d2[0] * r2, y, c[2] + d2[2] * r2];
+      }
+      if (g.worn) {
+        // Where the top lies above the line (its collar and shoulders), lift it onto the fabric.
+        let top = -Infinity;
+        for (const q of g.worn) if (Math.abs(q[0] - p[0]) < cm(1) && Math.abs(q[2] - p[2]) < cm(1) && q[1] < p[1] + cm(3)) top = Math.max(top, q[1]);
+        if (top > p[1] - off) p = [p[0], top + off, p[2]];
+      }
+    }
+    ring.push(p);
+  }
+  // Smooth the line (the surface has small steps).
+  for (let it = 0; it < 3; it++) {
+    const prev = ring.map((q) => [...q] as Vec3);
+    for (let i = 0; i < N; i++) {
+      const a = prev[(i + N - 1) % N], b2 = prev[(i + 1) % N];
+      for (let k = 0; k < 3; k++) ring[i][k] = Math.max(-1e9, (a[k] + 2 * prev[i][k] + b2[k]) / 4);
+      // Never sink below the unsmoothed surface position (outward).
+      const d0 = Math.hypot(prev[i][0] - c[0], prev[i][2] - c[2]), d1 = Math.hypot(ring[i][0] - c[0], ring[i][2] - c[2]);
+      if (d1 < d0) {
+        ring[i][0] = c[0] + ((ring[i][0] - c[0]) * d0) / (d1 || 1);
+        ring[i][2] = c[2] + ((ring[i][2] - c[2]) * d0) / (d1 || 1);
+      }
+    }
+  }
+  // Heights: a smooth curve that never dips below where each point had to be (over a collar, say).
+  const floor = ring.map((q) => q[1]);
+  for (let it = 0; it < 12; it++) {
+    const ys = ring.map((q) => q[1]);
+    for (let i = 0; i < N; i++) ring[i][1] = Math.max(floor[i], (ys[(i + N - 1) % N] + 2 * ys[i] + ys[(i + 1) % N]) / 4);
+  }
+  return { ring, centre: [c[0], yN - cm(6), c[2]] };
+}
+
+/** Round beads along a ring; every `spacerEvery`-th bead goes to the second list (gold spacers). */
+function beadRow(ring: Vec3[], centre: Vec3, r: number, gap: number, spacerEvery = 0): [PolyMesh | null, PolyMesh | null] {
+  const main: PolyMesh[] = [], spacers: PolyMesh[] = [];
+  for (const { p, tangent, i } of along(ring, r * 2 + gap, true)) {
+    const out = v3.norm([p[0] - centre[0], 0, p[2] - centre[2]]);
+    const f = frameOf(v3.madd(p, out, r * 0.6), out, tangent);
+    const spacer = spacerEvery > 0 && i % spacerEvery === spacerEvery - 1;
+    (spacer ? spacers : main).push(ellipsoid({ o: f.o, x: f.y, y: f.x, z: f.z }, spacer ? [r * 0.7, r * 0.5, r * 0.7] : [r, r, r], [0.5, 0.5], 10, 6));
+  }
+  return [merge(main), merge(spacers)];
+}
+
+/** Coral beads (iyun): a choker and two longer strands of large coral, with gold spacers. */
+function coralBeads(g: GCtx, st: GarmentStyle): GPart[] {
+  const coral: PolyMesh[] = [], gold: PolyMesh[] = [];
+  for (const [drop, r] of [[cm(0.5), cm(0.65)], [cm(4.5), cm(0.75)], [cm(9), cm(0.8)]] as const) {
+    const s = strand(g, drop);
+    if (!s) continue;
+    const [a, b] = beadRow(s.ring, s.centre, r, cm(0.08), 7);
+    if (a) coral.push(a);
+    if (b) gold.push(b);
+  }
+  return [
+    ...part(merge(coral), mat('Coral beads', null, { color: st.color, roughness: 0.35 })),
+    ...part(merge(gold), mat('Gold spacers', null, { color: st.color2, roughness: 0.3, metalness: 0.9 })),
+  ];
+}
+
+/** Gold chain with a round pendant. */
+function goldNecklace(g: GCtx, st: GarmentStyle): GPart[] {
+  const s = strand(g, cm(7));
+  if (!s) return [];
+  let front = s.ring[0];
+  for (const p of s.ring) if (p[2] > front[2]) front = p;
+  const out = v3.norm([front[0] - s.centre[0], 0.15, front[2] - s.centre[2]]);
+  const pendant = ellipsoid(frameOf(v3.madd(v3.madd(front, Y, -cm(1.6)), out, cm(0.3)), out, Y), [cm(1.4), cm(1.6), cm(0.35)], [0.5, 0.5], 16, 6);
+  const metal = mat('Gold', null, { color: st.color, roughness: 0.25, metalness: 0.95 });
+  return [{ mesh: merge([cord(s.ring, cm(0.12), true), pendant])!, material: metal }];
+}
+
+/** Pearls: two strands. */
+function pearlNecklace(g: GCtx, st: GarmentStyle): GPart[] {
+  const rows: PolyMesh[] = [];
+  for (const drop of [cm(2), cm(5.5)]) {
+    const s = strand(g, drop);
+    if (!s) continue;
+    const [a] = beadRow(s.ring, s.centre, cm(0.45), cm(0.03));
+    if (a) rows.push(a);
+  }
+  return part(merge(rows), mat('Pearls', null, { color: st.color, roughness: 0.18, metalness: 0.1 }));
+}
+
+/**
+ * Cuban link chain: heavy oval curb links round a line that hangs low on the chest, each link
+ * twisted about the chain so they lie flat and interlock, polished gold.
+ */
+function cubanChain(g: GCtx, st: GarmentStyle): GPart[] {
+  const s = strand(g, cm(24), 0);
+  if (!s) return [];
+  // Tight, flat curb links: each link overlaps the next by half (pitch = half its length), lies
+  // almost flat on the chest with a slight alternating twist, and is pressed flat (oval wire).
+  const pitch = cm(0.62), len = cm(0.72), wide = cm(0.62), wire = cm(0.26);
+  const links: PolyMesh[] = [];
+  for (const { p, tangent, i } of along(s.ring, pitch, true)) {
+    const out0 = v3.norm([p[0] - s.centre[0], 0, p[2] - s.centre[2]]);
+    const out = v3.norm(v3.sub(out0, v3.scale(tangent, v3.dot(out0, tangent))));
+    const across = v3.norm(v3.cross(out, tangent));
+    const tilt = (i % 2 ? 1 : -1) * 0.22;
+    const side = v3.norm(v3.add(v3.scale(across, Math.cos(tilt)), v3.scale(out, Math.sin(tilt))));
+    const c = v3.madd(p, out, wire);
+    const loop: Vec3[] = [];
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      loop.push(v3.add(c, v3.add(v3.scale(tangent, Math.cos(a) * len), v3.scale(side, Math.sin(a) * wide))));
+    }
+    const m = cord([...loop, loop[0]], wire, false, 4);
+    // Press the wire flat against the chest (Cuban links are flat, not round).
+    const P = m.positions;
+    for (let q = 0; q < P.length; q += 3) {
+      const d: Vec3 = [P[q] - c[0], P[q + 1] - c[1], P[q + 2] - c[2]];
+      const h = v3.dot(d, out);
+      P.set(v3.madd([P[q], P[q + 1], P[q + 2]], out, -h * 0.45), q);
+    }
+    links.push(m);
+  }
+  return part(merge(links), mat('Cuban chain', null, { color: st.color, roughness: 0.16, metalness: 1 }));
+}
+
+export const NECKLACES: GarmentDef[] = [
+  {
+    id: 'coral_beads', label: 'Coral beads (iyun)', slot: 'acc', patterns: ['solid'], color: '#c8322a', color2: '#d9a441',
+    build: coralBeads,
+  },
+  {
+    id: 'gold_necklace', label: 'Gold necklace & pendant', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000',
+    build: goldNecklace,
+  },
+  {
+    id: 'pearl_necklace', label: 'Pearl necklace', slot: 'acc', patterns: ['solid'], color: '#f2ece0', color2: '#000000',
+    build: pearlNecklace,
+  },
+  {
+    id: 'cuban_chain', label: 'Cuban link chain', slot: 'acc', patterns: ['solid'], color: '#e2b24c', color2: '#000000',
+    build: cubanChain,
+  },
+];

@@ -14,6 +14,13 @@ export interface ShellSpec {
   tile?: number;
   /** Laplacian relaxation passes: cloth bridges over small skin detail. */
   relax?: number;
+  /**
+   * Depth of the hem's turned-in edge. By default the rim runs back down to the skin (right for
+   * fitted clothes); loose clothes set a small depth so their edges read as thin fabric.
+   */
+  hemDepth?: number;
+  /** Leave the hems open (no rim), for garments that continue the surface from a hem. */
+  noRim?: boolean;
 }
 
 /** Collects face-varying UVs with value de-duplication. */
@@ -245,13 +252,13 @@ export function buildShell(body: Body, faceVerts: Uint32Array, spec: ShellSpec):
       i = pos.length / 3;
       inner.set(v, i);
       ref.push(v);
-      const o = Math.min(offsetOf(v) * 0.15, 0.01);
+      const o = spec.hemDepth !== undefined ? Math.max(offsetOf(v) - spec.hemDepth, 0) : Math.min(offsetOf(v) * 0.15, 0.01);
       const s = shift.get(v) ?? [0, 0, 0];
       pos.push(C[v * 3] + N[v * 3] * o + s[0], C[v * 3 + 1] + N[v * 3 + 1] * o + s[1], C[v * 3 + 2] + N[v * 3 + 2] * o + s[2]);
     }
     return i;
   };
-  for (const f of faces) {
+  for (const f of spec.noRim ? [] : faces) {
     for (let k = 0; k < 4; k++) {
       const a = faceVerts[f + k], b = faceVerts[f + ((k + 1) % 4)];
       if (edgeCount.get(ekey(a, b)) !== 1) continue;

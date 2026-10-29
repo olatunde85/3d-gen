@@ -11,7 +11,8 @@ import { along, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, s
 import { buildShell, type ShellSpec } from './shell';
 import { makePattern, type Pattern, type TexOut } from './textures';
 
-export type Slot = 'top' | 'bottom' | 'acc' | 'feet';
+/** 'hat': picked in the Hat section (the params' `hat`), built like an accessory. */
+export type Slot = 'top' | 'bottom' | 'acc' | 'feet' | 'hat';
 
 export interface GarmentStyle {
   pattern: Pattern;
@@ -40,6 +41,8 @@ export interface GPart {
   headwear?: boolean;
   /** Covers all the hair (a head tie): the hairstyle is left out. */
   hidesHair?: boolean;
+  /** Body faces this part sits over without hiding them (a cap over the scalp): no hair grows there. */
+  over?: Uint8Array;
   /** Touches the ground (soles): used for grounding. */
   ground?: boolean;
   /** Fitted cloth that should be subdivided in HD. */
@@ -60,6 +63,8 @@ export interface GCtx {
   layered: { top: boolean; bottom: boolean };
   /** Briefs under wrappers / aprons / loincloths (always on for under-18 characters). */
   underwear: boolean;
+  /** Vertices of the top already dressed, for things worn over it (necklaces lie on it). */
+  worn?: Vec3[];
 }
 
 // --- Helpers ---------------------------------------------------------------------
@@ -214,18 +219,18 @@ export function briefsUnder(g: GCtx): GPart[] {
 }
 
 /**
- * A flat sole under one foot (side s): the footprint outline pushed out by `margin`, from just
- * under the sole of the foot down `thick`.
+ * A flat sole under one foot (side s): the footprint outline pushed out by `margin`, with its top
+ * `rise` above the bottom of the foot (a midsole wrapping up the sides) and `thick` deep.
  */
-export function footSole(b: Body, s: number, thick: number, margin: number): PolyMesh | null {
+export function footSole(b: Body, s: number, thick: number, margin: number, rise = cm(0.1)): PolyMesh | null {
   const foot = b.verts(REGION.foot, s).map((v) => b.p(v));
   if (!foot.length) return null;
   let minY = Infinity;
   for (const p of foot) minY = Math.min(minY, p[1]);
-  const ring = hullRing(foot, { origin: [0, minY, 0], normal: Y }, { slab: cm(40), samples: 28, offset: margin });
+  const ring = hullRing(foot, { origin: [0, minY, 0], normal: Y }, { slab: cm(40), samples: 48, offset: margin });
   if (!ring) return null;
-  const top = ring.map((p) => [p[0], minY + cm(0.1), p[2]] as Vec3);
-  const bot = ring.map((p) => [p[0], minY + cm(0.1) - thick, p[2]] as Vec3);
+  const top = ring.map((p) => [p[0], minY + rise, p[2]] as Vec3);
+  const bot = ring.map((p) => [p[0], minY + rise - thick, p[2]] as Vec3);
   const side = loftRings([top, bot], { closedAround: true, tileU: 0.1 });
   const n = ring.length;
   const cap = (pts: Vec3[], flip: boolean): PolyMesh => ({
@@ -235,6 +240,6 @@ export function footSole(b: Body, s: number, thick: number, margin: number): Pol
     faceUVs: Uint32Array.from([...Array(n).keys()]),
     uvs: Float32Array.from(pts.flatMap((p) => [p[0] * 0.5, p[2] * 0.5])),
   });
-  const centre: Vec3 = [ring.reduce((a, p) => a + p[0], 0) / n, minY - thick / 2, ring.reduce((a, p) => a + p[2], 0) / n];
+  const centre: Vec3 = [ring.reduce((a, p) => a + p[0], 0) / n, minY + rise - thick / 2, ring.reduce((a, p) => a + p[2], 0) / n];
   return orientOutward(merge([side, cap(top, false), cap(bot, true)])!, centre);
 }
