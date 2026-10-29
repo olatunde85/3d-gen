@@ -295,7 +295,13 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   const neckY = neckIdx.reduce((s, v) => s + coords[v * 3 + 1], 0) / neckIdx.length;
   // A head tie covers the hair, procedural styles included.
   const looksP = gparts.some((g) => g.hidesHair) ? { ...p, hair: 'none' } : p;
-  const looks = await buildLooks(lib, { p: looksP, coords, normals: bodyNormals, fullBody, hidden: hiddenFaces, neckY, low, onStage: stage });
+  const hats = gparts.filter((g) => g.over);
+  let underHat: Uint8Array | undefined;
+  if (hats.length) {
+    underHat = new Uint8Array(hiddenFaces.length);
+    for (const g of hats) for (let f = 0; f < underHat.length; f++) underHat[f] |= g.over![f];
+  }
+  const looks = await buildLooks(lib, { p: looksP, coords, normals: bodyNormals, fullBody, hidden: hiddenFaces, underHat, neckY, low, onStage: stage });
   // Hair and earrings follow the skull only; beards also the jaw and neck.
   const skinTo = (m: PolyMesh, mask: (v: number) => boolean): PolyMesh =>
     bskin ? { ...m, skin: skinPart(m, bskin, new VertexGrid(coords, mask), 4) } : m;

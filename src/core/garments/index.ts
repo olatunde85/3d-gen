@@ -4,19 +4,20 @@ import { makeBody } from './body';
 import { bootShafts, garmentById, sandals, type GarmentStyle, type GCtx, type GPart } from './catalog';
 import { PATTERNS, type Pattern, type TexOut } from './textures';
 import { flipFlops } from './beach';
-import { setById } from './sets';
+import { sneakers } from './sneakers';
+import { setById, setStyles } from './sets';
 
 export { GARMENTS, garmentById } from './catalog';
 export { PATTERNS } from './textures';
 export { archFeet } from './heels';
-export { OUTFIT_SETS, setById, type OutfitSet } from './sets';
+export { OUTFIT_SETS, setById, setStyles, type OutfitSet } from './sets';
 
 export interface Dressing {
   top?: string;
   bottom?: string;
   underwear: boolean;
   accessories: string[];
-  footwear?: 'sandals' | 'boots' | 'heels' | 'flipflops';
+  footwear?: 'sandals' | 'boots' | 'heels' | 'flipflops' | 'sneakers';
   styles: HumanParams['garmentStyles'];
 }
 
@@ -34,21 +35,15 @@ export function dressing(p: HumanParams): Dressing {
   const topId = set ? set.top : p.top, bottomId = set ? set.bottom : p.bottom;
   let top = pieces && topId !== 'none' && garmentById.has(topId) ? topId : undefined;
   let bottom = pieces && bottomId !== 'none' && garmentById.has(bottomId) ? bottomId : undefined;
-  let styles = p.garmentStyles;
-  if (set) {
-    const shared = { pattern: set.patterns[0], color: set.color, color2: set.color2, ...styles[set.id] };
-    styles = { ...styles, [set.top]: shared, ...(set.bottom !== 'none' ? { [set.bottom]: shared } : {}) };
-    // Matching gele: the set's colours unless the gele has its own.
-    if (!styles.gele) styles = { ...styles, gele: { color: shared.color, color2: shared.color2 } };
-  }
+  const styles = set ? setStyles(set, p.garmentStyles) : p.garmentStyles;
   if (pieces && !bottom && underwear) bottom = 'briefs';
   if (pieces && !top && p.gender < 0.5 && minor) top = 'tank_top';
   return {
     top,
     bottom,
     underwear,
-    accessories: p.accessories.filter((a) => garmentById.get(a)?.slot === 'acc'),
-    footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : p.shoes === 'heels' ? 'heels' : p.shoes === 'flipflops' ? 'flipflops' : undefined,
+    accessories: [...p.accessories.filter((a) => garmentById.get(a)?.slot === 'acc'), ...(garmentById.get(p.hat)?.slot === 'hat' ? [p.hat] : [])],
+    footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : p.shoes === 'heels' ? 'heels' : p.shoes === 'flipflops' ? 'flipflops' : p.shoes === 'sneakers' ? 'sneakers' : undefined,
     styles,
   };
 }
@@ -93,11 +88,18 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
   const parts: GPart[] = [];
   for (const id of [d.bottom, d.top, ...d.accessories]) {
     if (!id) continue;
-    parts.push(...garmentById.get(id)!.build(g, styleOf(id, d.styles)));
+    const built = garmentById.get(id)!.build(g, styleOf(id, d.styles));
+    parts.push(...built);
+    if (id === d.top) {
+      const worn: [number, number, number][] = [];
+      for (const p of built) for (let i = 0; i < p.mesh.positions.length; i += 3) worn.push([p.mesh.positions[i], p.mesh.positions[i + 1], p.mesh.positions[i + 2]]);
+      g.worn = worn;
+    }
   }
   if (d.footwear === 'sandals') parts.push(...sandals(g));
   if (d.footwear === 'boots') parts.push(...bootShafts(g));
   if (d.footwear === 'flipflops') parts.push(...flipFlops(g));
+  if (d.footwear === 'sneakers') parts.push(...sneakers(g));
   if (d.footwear === 'heels') parts.push(...garmentById.get('heels')!.build(g, styleOf('heels', d.styles)));
   return parts;
 }

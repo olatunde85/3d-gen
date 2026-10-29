@@ -295,6 +295,12 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     hair: 'long01', hairTint: '#2a1d16', earrings: 'small_hoops', earringMetal: 'gold',
     outfit: 'set_gold_bikini', shoes: 'flipflops', accessories: ['sunglasses'], carry: 'straw_tote',
   },
+  'The Gangster': {
+    gender: 1, age: 0.6, muscle: 0.62, weight: 0.78, height: 0.62, proportions: 0.6,
+    african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', eyebrows: 'eyebrow001',
+    hair: 'buzz', facialHair: 'stubble', beardColor: '#15100c', expression: 'determined',
+    outfit: 'set_street_tee_jeans', shoes: 'sneakers', hat: 'baseball_cap', accessories: ['cuban_chain', 'watch_gold'],
+  },
   Detective: {
     gender: 0.95, age: 0.65, muscle: 0.55, weight: 0.5, height: 0.55, african: 0.2, asian: 0.6, caucasian: 0.2, hair: 'short01', outfit: 'male_casualsuit05',
     hat: 'fedora_cocked', shoes: 'shoes06', eyes: 'grey', eyebrows: 'eyebrow007', facialHair: 'stubble', beardColor: '#1a1410',

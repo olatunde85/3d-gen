@@ -131,6 +131,7 @@ export const rgb = (hex: string): RGB => {
 const mixc = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 const mul = (a: RGB, k: number): RGB => [a[0] * k, a[1] * k, a[2] * k];
 const frac = (x: number) => x - Math.floor(x);
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
 export interface TexOut {
   color: Uint8Array; // PNG
@@ -140,36 +141,41 @@ export interface TexOut {
 
 /** Fill a texture from a per-pixel function returning colour, alpha (0..1) and height. */
 export function render(size: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, wantAlpha: boolean, normalStrength = 0): TexOut {
-  const px = new Uint8Array(size * size * 4);
-  const height = normalStrength ? new Float32Array(size * size) : null;
-  for (let y = 0; y < size; y++)
-    for (let x = 0; x < size; x++) {
-      const r = fn((x + 0.5) / size, (y + 0.5) / size);
-      const i = (y * size + x) * 4;
+  return renderRect(size, size, fn, wantAlpha, normalStrength);
+}
+
+/** As render, for a w x h texture (u across, v down). */
+export function renderRect(w: number, h: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, wantAlpha: boolean, normalStrength = 0): TexOut {
+  const px = new Uint8Array(w * h * 4);
+  const height = normalStrength ? new Float32Array(w * h) : null;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const r = fn((x + 0.5) / w, (y + 0.5) / h);
+      const i = (y * w + x) * 4;
       px[i] = Math.max(0, Math.min(255, r.c[0]));
       px[i + 1] = Math.max(0, Math.min(255, r.c[1]));
       px[i + 2] = Math.max(0, Math.min(255, r.c[2]));
       px[i + 3] = Math.round(Math.max(0, Math.min(1, r.a ?? 1)) * 255);
-      if (height) height[y * size + x] = r.h ?? 0;
+      if (height) height[y * w + x] = r.h ?? 0;
     }
   let normal: Uint8Array | undefined;
   if (height) {
-    const np = new Uint8Array(size * size * 4);
-    const H = (x: number, y: number) => height[(((y + size) % size) * size + ((x + size) % size))];
-    for (let y = 0; y < size; y++)
-      for (let x = 0; x < size; x++) {
+    const np = new Uint8Array(w * h * 4);
+    const H = (x: number, y: number) => height[((y + h) % h) * w + ((x + w) % w)];
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
         const dx = (H(x + 1, y) - H(x - 1, y)) * normalStrength;
         const dy = (H(x, y + 1) - H(x, y - 1)) * normalStrength;
         const l = Math.hypot(dx, dy, 1);
-        const i = (y * size + x) * 4;
+        const i = (y * w + x) * 4;
         np[i] = (-dx / l * 0.5 + 0.5) * 255;
         np[i + 1] = (dy / l * 0.5 + 0.5) * 255;
         np[i + 2] = (1 / l * 0.5 + 0.5) * 255;
         np[i + 3] = 255;
       }
-    normal = encodePNG(size, size, np, false);
+    normal = encodePNG(w, h, np, false);
   }
-  return { color: encodePNG(size, size, px, wantAlpha), normal, alpha: wantAlpha };
+  return { color: encodePNG(w, h, px, wantAlpha), normal, alpha: wantAlpha };
 }
 
 /** Fine woven-cloth relief, shared by fabric patterns. */
@@ -183,10 +189,10 @@ const weave = (u: number, v: number, f = 96) => {
 export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
-  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw';
+  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -515,6 +521,38 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1): TexOu
         return { c: gap ? B : mul(A, fibre * shade), h: gap ? 0 : 0.5 + 0.5 * Math.sin(lengthwise * Math.PI) };
       }, false, 3);
     }
+    case 'denim': {
+      // Indigo twill (c1) worn toward c2: diagonal twill ridges, vertical slub streaks and soft fading.
+      return render(S, (u, v) => {
+        const ridge = frac(u * 270 + v * 90) < 0.5 ? 1 : 0.72;
+        const slub = pnoise(u, 0.5, 96, seed) * 0.7 + pnoise(u, 0.5, 192, seed + 2) * 0.3;
+        const fade = Math.max(0, fbm(u, v, 3, seed + 4, 3) - 0.45) * 1.2;
+        const c = mixc(A, B, Math.max(0, Math.min(0.5, fade * 0.5 + (slub - 0.5) * 0.18 + (1 - ridge) * 0.1)));
+        return { c: mul(c, 0.86 + 0.18 * ridge), h: ridge * 0.8 + slub * 0.3 };
+      }, false, 2.2);
+    }
+    case 'jersey': {
+      // Cotton jersey: a very fine knit, nearly flat, with soft mottling.
+      return render(S, (u, v) => {
+        const knit = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 220) * Math.sin(v * Math.PI * 2 * 160);
+        const n = fbm(u, v, 6, seed, 3);
+        return { c: mul(A, 0.94 + 0.1 * n + 0.03 * knit), h: knit * 0.3 + n * 0.4 };
+      }, false, 1.2);
+    }
+    case 'nappa': {
+      // Smooth finished leather: an even colour with a very fine pebbled grain in the normals.
+      return render(S, (u, v) => {
+        const grain = fbm(u, v, 128, seed, 2), soft = fbm(u, v, 8, seed + 3, 2);
+        return { c: mul(A, 0.98 + 0.03 * soft), h: grain * 0.12 + soft * 0.1 };
+      }, false, 0.8);
+    }
+    case 'rib': {
+      // Rib knit (necklines, cuffs): fine raised ribs across u in c1.
+      return render(256, (u) => {
+        const r = 0.5 + 0.5 * Math.cos(u * Math.PI * 2 * 32);
+        return { c: mul(A, 0.82 + 0.22 * r), h: r };
+      }, false, 2.5);
+    }
     case 'beadbands': {
       // Concentric bead rows along v; c1/c2 are ignored in favour of a Maasai palette.
       const pal: RGB[] = [[230, 30, 30], [245, 245, 240], [30, 80, 200], [250, 170, 20], [30, 140, 60], [245, 245, 240], [20, 20, 20]];
@@ -555,3 +593,54 @@ export function featherTexture(c1: string, c2: string): TexOut {
   }, true);
 }
 
+
+/**
+ * Unwrapped wash for one jeans leg (both legs share it): u runs round the leg (0.5 = front,
+ * 0.75 = outer side, 0.25 = inseam, 0 / 1 = back), v from the crotch (0) down to the hem (1).
+ * Indigo c1 worn toward c2 on the front of the thighs and knees, whiskers at the top, honeycomb
+ * behind the knee, roped side seams with topstitching on the outer one, and a worn hem.
+ */
+export function jeansLegTexture(c1: string, c2: string, seed = 3): TexOut {
+  const A = rgb(c1), B = rgb(c2), W = 768, H = 1280;
+  const thread: RGB = [196, 146, 62];
+  const bell = (x: number, c: number, w: number) => Math.exp(-(((x - c) / w) ** 2));
+  // Whiskers: short arcs fanning from the crotch toward the hip on the front of the thigh.
+  const whiskers = Array.from({ length: 6 }, (_, i) => ({ u0: 0.43 + i * 0.012, v0: 0.015 + i * 0.012, du: 0.17 - i * 0.012, dv: 0.06 + i * 0.008 }));
+  return renderRect(W, H, (u, v) => {
+    const x = u * W, y = v * H;
+    const twill = frac((x + y) / 3) < 0.5 ? 1 : 0.8;
+    const slub = pnoise(u, 0.5, 96, seed) * 0.6 + pnoise(u, v, 48, seed + 1) * 0.4;
+    // Wear map 0..1.
+    const front = bell(u, 0.5, 0.11), back = Math.max(bell(u, 0, 0.1), bell(u, 1, 0.1));
+    let wear = front * (bell(v, 0.2, 0.15) * 0.9 + bell(v, 0.5, 0.07) * 0.75) + back * bell(v, 0.12, 0.08) * 0.3;
+    wear += (fbm(u, v * 0.6, 4, seed + 7, 3) - 0.5) * 0.35;
+    for (const w of whiskers) {
+      // Distance to the arc from (u0, v0) bending toward the hip.
+      const t = clamp01((u - w.u0) / w.du);
+      const arcV = w.v0 + w.dv * t + 0.02 * Math.sin(t * Math.PI);
+      const d = Math.abs(v - arcV) * H;
+      if (u > w.u0 - 0.005 && u < w.u0 + w.du && d < 3.5) wear += (1 - d / 3.5) * 0.5 * Math.sin(t * Math.PI);
+    }
+    // Honeycomb behind the knee: short horizontal streaks.
+    if (back > 0.4 && Math.abs(v - 0.52) < 0.05) wear += 0.35 * back * Math.max(0, Math.sin(v * Math.PI * 2 * 60)) * pnoise(u, v, 24, seed + 3);
+    // Stack creases near the hem: lighter ridges.
+    const stack = clamp01((v - 0.82) / 0.18);
+    wear += stack * 0.3 * Math.max(0, Math.sin((v + 0.03 * pnoise(u, 0.5, 8, seed + 5)) * Math.PI * 2 * 40));
+    // Worn hem edge.
+    wear += bell(v, 0.995, 0.006) * 0.6;
+    // Fade in from the top, where the legs meet the seat's plain denim.
+    wear = clamp01(wear) * (0.25 + 0.75 * clamp01(v / 0.07));
+    let c = mixc(mul(A, 0.93 + 0.1 * slub), B, wear * 0.75);
+    let h = twill * 0.6 + slub * 0.2;
+    // Side seams: a slightly darker roped ridge; a fine tan topstitch along the inseam.
+    for (const su of [0.25, 0.75]) {
+      const d = Math.abs(u - su) * W;
+      if (d < 2) {
+        c = mul(c, 0.82 + 0.15 * Math.max(0, Math.sin(y / 5)));
+        h += 0.6;
+      }
+      if (su === 0.25 && Math.abs(d - 4) < 0.6 && frac(y / 6) < 0.55) c = mixc(c, thread, 0.7);
+    }
+    return { c: mul(c, twill), h };
+  }, false, 2.2);
+}
