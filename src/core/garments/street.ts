@@ -3,8 +3,8 @@
  */
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
-import { cm, noise3, REGION, type Body, type VInfo } from './body';
-import { dressPts, hideMask, knee, looseSkin, part } from './drape';
+import { cm, REGION, type Body, type VInfo } from './body';
+import { crotchY, dressPts, hideMask, knee, looseSkin, part, soleY, wideLeg } from './drape';
 import { clamp, cloth, hplane, isTrunk, isUpper, mat, points, shell, shellPart, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { Caster, gridMesh, gridOutline, liftGrid, OUTWARD } from './project';
 import { cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, rayRing, solidBand, v3 } from './ring';
@@ -185,111 +185,6 @@ function oversizedTee(g: GCtx, st: GarmentStyle): GPart[] {
 
 // --- Baggy jeans -----------------------------------------------------------------------------
 
-/** Lowest point of the trunk between the legs. */
-function crotchY(b: Body): number {
-  let y = Infinity;
-  for (let v = 0; v < b.info.length; v++) if (isTrunk(b.info[v]) && Math.abs(b.coords[v * 3]) < cm(1.5)) y = Math.min(y, b.coords[v * 3 + 1]);
-  return y;
-}
-
-/** Lowest point of the feet (the floor under them, before any shoes lift the body). */
-function soleY(b: Body): number {
-  let y = Infinity;
-  for (const v of b.verts(REGION.foot)) y = Math.min(y, b.coords[v * 3 + 1]);
-  return y;
-}
-
-const smooth01 = (t: number) => t * t * (3 - 2 * t);
-
-/**
- * One jeans leg (side s): it hangs from the thigh around an axis running down to the ankle, wide
- * and nearly straight, never closer to the leg than `ease`; soft irregular drape folds grow toward
- * the hem, where the fabric stacks in a few bunched rings over the shoe. The hem sits higher at the
- * front, where it rests on the shoe. UVs unwrap the leg for the wash texture (u: 0.5 front, 0.75
- * outer side; v: 0 top, 1 hem).
- */
-function jeansLeg(b: Body, s: number, yTop: number, yHem: number): { mesh: PolyMesh; skinAt: Float32Array } | null {
-  const src = points(b, (v) => (v.region === REGION.upperleg || v.region === REGION.lowerleg) && v.side === s).filter((p) => p[0] * s > cm(1));
-  const hulls = new Map<number, Vec3[] | null>();
-  const hullAt = (y: number) => {
-    const k = Math.round(y / cm(1));
-    if (!hulls.has(k)) hulls.set(k, hullRing(src, hplane(b, k * cm(1)), { slab: cm(1.2), samples: 96, offset: 0 }));
-    return hulls.get(k)!;
-  };
-  const top = hullAt(yTop);
-  if (!top) return null;
-  let cTop: Vec3 = [0, 0, 0];
-  for (const p of top) cTop = v3.add(cTop, v3.scale(p, 1 / top.length));
-  const ank = b.joint(`foot${s > 0 ? '.L' : '.R'}____head`);
-  const cBot: Vec3 = [ank[0], 0, ank[2] + cm(1)];
-  let thighR = 0;
-  for (const p of top) thighR += Math.hypot(p[0] - cTop[0], p[2] - cTop[2]) / top.length;
-  const ease = cm(1.6);
-  const topW = thighR + cm(2), hemW = Math.max(cm(9.5), thighR * 0.95);
-  const N = 48, R = Math.max(20, Math.round((yTop - yHem) / cm(1.8)));
-  // Radii first (rows x columns), so they can be smoothed down each column.
-  const radius: number[][] = [], ys: number[][] = [], dirs: Vec3[] = [];
-  for (let j = 0; j < N; j++) {
-    const a = ((j / N) * 2 * Math.PI - Math.PI) * s; // u = j / N; mirrored on the right leg so u 0.75 is always the outer side
-    dirs.push([Math.sin(a), 0, Math.cos(a)]);
-  }
-  const centre = (t: number): Vec3 => v3.lerp([cTop[0], 0, cTop[2]], cBot, smooth01(t));
-  for (let i = 0; i <= R; i++) {
-    const t = i / R;
-    const rr: number[] = [], yy: number[] = [];
-    for (let j = 0; j < N; j++) {
-      const d = dirs[j];
-      // Hem: higher at the front (resting on the shoe), lower at the back.
-      const y = yTop + (yHem + cm(2.2) * Math.max(0, d[2]) - yTop) * t;
-      const c = centre(t);
-      const w = topW + (hemW - topW) * smooth01(Math.min(1, t * 1.6));
-      const rx = w * 0.95, rz = w * 1.06;
-      const hull = hullAt(y);
-      const legR = hull ? rayRing(hull, [c[0], y, c[2]], d) : null;
-      // At the top the leg follows the thigh (meeting the seat without a step), then eases out
-      // to its full, straight width.
-      const fit = legR !== null ? legR + ease : 0;
-      const drape = 1 / Math.hypot(d[0] / rx, d[2] / rz);
-      let r = Math.max(fit, fit + (drape - fit) * smooth01(Math.min(1, t / 0.18)));
-      // Drape folds: low-frequency, irregular, growing down the leg.
-      r += cm(0.9) * smooth01(Math.min(1, t * 1.3)) * (noise3(d[0] * 1.3 + s * 3, d[2] * 1.3, y * 2.2) - 0.5) * 2;
-      // Stacking over the shoe: bunched horizontal folds rather than a flare.
-      const st = Math.max(0, (t - 0.8) / 0.2);
-      r += st * (cm(0.3) + cm(0.9) * Math.sin(y / cm(1.6) + noise3(d[0] * 2 + 7, d[2] * 2, y * 4) * 4));
-      rr.push(r);
-      yy.push(y);
-    }
-    radius.push(rr);
-    ys.push(yy);
-  }
-  for (let it = 0; it < 2; it++)
-    for (let i = 1; i < R; i++) for (let j = 0; j < N; j++) radius[i][j] = (radius[i - 1][j] + 2 * radius[i][j] + radius[i + 1][j]) / 4;
-  // Mesh: an extra column closes the loop with its own UVs (u = 1).
-  const pos: number[] = [], uv: number[] = [], look: number[] = [];
-  for (let i = 0; i <= R; i++) {
-    const t = i / R, c = centre(t);
-    for (let j = 0; j <= N; j++) {
-      const jj = j % N, d = dirs[jj], r = radius[i][jj], y = ys[i][jj];
-      pos.push(c[0] + d[0] * r, y, c[2] + d[2] * r);
-      uv.push(j / N, 1 - t);
-      // Skin lookup: pulled in toward this leg's own surface (not the other leg's).
-      look.push(c[0] + d[0] * r * 0.35, y, c[2] + d[2] * r * 0.35);
-    }
-  }
-  const sizes: number[] = [], fv: number[] = [];
-  for (let i = 0; i < R; i++)
-    for (let j = 0; j < N; j++) {
-      const a = i * (N + 1) + j;
-      sizes.push(4);
-      fv.push(a, a + 1, a + N + 2, a + N + 1);
-    }
-  const mesh = orientOutward(
-    { positions: Float32Array.from(pos), faceSizes: Uint8Array.from(sizes), faceVerts: Uint32Array.from(fv), faceUVs: Uint32Array.from(fv), uvs: Float32Array.from(uv) },
-    [cTop[0], (yTop + yHem) / 2, cTop[2]],
-  );
-  return { mesh, skinAt: Float32Array.from(look) };
-}
-
 /**
  * Baggy jeans: a seat that sits on the hips and wide legs hanging nearly straight from the thighs,
  * long enough to stack over the shoes, washed lighter on the thighs and knees. Back pockets with
@@ -309,7 +204,7 @@ function baggyJeans(g: GCtx, st: GarmentStyle): GPart[] {
   const legMat = mat('Jeans legs', wash, { roughness: 0.9, doubleSided: true });
   const parts: GPart[] = [...seat];
   for (const s of [1, -1]) {
-    const leg = jeansLeg(b, s, yTop, yHem);
+    const leg = wideLeg(b, s, yTop, yHem, { stack: true });
     if (leg) parts.push({ mesh: leg.mesh, material: legMat, skinAt: leg.skinAt });
   }
   // Skin hidden under both legs (a body-wide mask, carried by the first leg).

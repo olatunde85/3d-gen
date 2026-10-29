@@ -99,7 +99,7 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
   if (d.footwear === 'sandals') parts.push(...sandals(g));
   if (d.footwear === 'boots') parts.push(...bootShafts(g));
   if (d.footwear === 'flipflops') parts.push(...flipFlops(g));
-  if (d.footwear === 'sneakers') parts.push(...sneakers(g));
+  if (d.footwear === 'sneakers') parts.push(...sneakers(g, styleOf('sneakers', d.styles)));
   if (d.footwear === 'heels') parts.push(...garmentById.get('heels')!.build(g, styleOf('heels', d.styles)));
   return parts;
 }

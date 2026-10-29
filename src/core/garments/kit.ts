@@ -8,7 +8,7 @@ import type { Vec3 } from '../math';
 import type { Material } from '../mesh';
 import { cm, REGION, type Body, type VInfo } from './body';
 import { along, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, solidBand, v3, type Plane } from './ring';
-import { buildShell, type ShellSpec } from './shell';
+import { buildShell, UVs, type ShellSpec } from './shell';
 import { makePattern, type Pattern, type TexOut } from './textures';
 
 /** 'hat': picked in the Hat section (the params' `hat`), built like an accessory. */
@@ -242,4 +242,29 @@ export function footSole(b: Body, s: number, thick: number, margin: number, rise
   });
   const centre: Vec3 = [ring.reduce((a, p) => a + p[0], 0) / n, minY + rise - thick / 2, ring.reduce((a, p) => a + p[2], 0) / n];
   return orientOutward(merge([side, cap(top, false), cap(bot, true)])!, centre);
+}
+
+/**
+ * Re-map a garment's UVs as a cylinder round a vertical axis at (cx, cz): u by angle, v by height,
+ * tiling every `tile` metres. Body-region UVs meet at seams between regions (torso to upper arm,
+ * hips to thigh) that show on fabrics with large features; one cylinder has a single seam, at the back.
+ */
+export function cylinderUVs(m: PolyMesh, cx: number, cz: number, tile: number, circ = 0.95): PolyMesh {
+  const reps = Math.max(1, Math.round(circ / tile));
+  const P = m.positions;
+  const uvs = new UVs();
+  const fu = new Uint32Array(m.faceVerts.length);
+  for (let f = 0, c = 0; f < m.faceSizes.length; c += m.faceSizes[f++]) {
+    const k = m.faceSizes[f];
+    const corner: [number, number][] = [];
+    for (let i = 0; i < k; i++) {
+      const v = m.faceVerts[c + i];
+      corner.push([((Math.atan2(P[v * 3] - cx, P[v * 3 + 2] - cz) / (2 * Math.PI) + 0.5) % 1) * reps, (P[v * 3 + 1] * 0.1) / tile]);
+    }
+    // Faces across the back seam: keep their u on one side.
+    const us = corner.map((x) => x[0]);
+    if (Math.max(...us) - Math.min(...us) > reps / 2) for (const x of corner) if (x[0] < reps / 2) x[0] += reps;
+    for (let i = 0; i < k; i++) fu[c + i] = uvs.add(corner[i][0], corner[i][1]);
+  }
+  return { ...m, faceUVs: fu, uvs: Float32Array.from(uvs.data) };
 }

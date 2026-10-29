@@ -29,16 +29,24 @@ export class Caster {
   private readonly sign: number;
   private readonly cell = cm(1.5);
 
-  constructor(body: Body, faceVerts: Uint32Array, keep: (face: number) => boolean, readonly dir: CastDir) {
+  /**
+   * Casts at body faces (`keep` picks them) or, given a mesh, at all its polygons (a garment
+   * already built, to lay things on top of it).
+   */
+  constructor(src: Body | PolyMesh, faceVerts: Uint32Array | null, keep: (face: number) => boolean, readonly dir: CastDir) {
     [this.u, this.w, this.d] = dir === 'below' || dir === 'above' ? [0, 2, 1] : [0, 1, 2];
     // Rays come from the far side: front rays start at +Z, back at -Z, below at -Y, above at +Y.
     this.sign = dir === 'front' || dir === 'above' ? 1 : -1;
-    const P = (v: number): Vec3 => body.p(v);
-    for (let f = 0; f < faceVerts.length / 4; f++) {
-      if (!keep(f)) continue;
-      const q = [0, 1, 2, 3].map((k) => P(faceVerts[f * 4 + k]));
-      for (const [i, j, k] of [[0, 1, 2], [0, 2, 3]]) {
-        const t: Tri = { a: q[i], b: q[j], c: q[k], face: f };
+    const polys: { q: Vec3[]; f: number }[] = [];
+    if ('faceSizes' in src) {
+      const P = src.positions, at = (v: number): Vec3 => [P[v * 3], P[v * 3 + 1], P[v * 3 + 2]];
+      for (let f = 0, c = 0; f < src.faceSizes.length; c += src.faceSizes[f++])
+        if (keep(f)) polys.push({ q: Array.from(src.faceVerts.subarray(c, c + src.faceSizes[f]), at), f });
+    } else
+      for (let f = 0; f < faceVerts!.length / 4; f++) if (keep(f)) polys.push({ q: [0, 1, 2, 3].map((k) => src.p(faceVerts![f * 4 + k])), f });
+    for (const { q, f } of polys) {
+      for (let k = 1; k < q.length - 1; k++) {
+        const t: Tri = { a: q[0], b: q[k], c: q[k + 1], face: f };
         const id = this.tris.push(t) - 1;
         const lo = [0, 1].map((n) => Math.floor(Math.min(t.a[n ? this.w : this.u], t.b[n ? this.w : this.u], t.c[n ? this.w : this.u]) / this.cell));
         const hi = [0, 1].map((n) => Math.floor(Math.max(t.a[n ? this.w : this.u], t.b[n ? this.w : this.u], t.c[n ? this.w : this.u]) / this.cell));

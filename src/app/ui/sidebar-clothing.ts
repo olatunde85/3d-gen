@@ -160,7 +160,7 @@ export function hatStyle(ctx: Ctx) {
 /** Generated hats, as extra entries in the Hat picker. */
 export const HAT_ENTRIES = GARMENTS.filter((g) => g.slot === 'hat').map((g) => ({ id: g.id, name: g.label }));
 
-/** Colour of the high heels, when worn. */
+/** Colour (and finish) of generated shoes, when worn: high heels, sneakers. */
 export function heelsStyle(ctx: Ctx) {
-  return styleControls(ctx, () => (ctx.store.params.shoes === 'heels' ? 'heels' : ''));
+  return styleControls(ctx, () => (['heels', 'sneakers'].includes(ctx.store.params.shoes) ? ctx.store.params.shoes : ''));
 }

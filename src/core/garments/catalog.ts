@@ -15,8 +15,11 @@ import {
 import { along, card, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, roundedBox, solidBand, v3, type Plane } from './ring';
 import { buildShell } from './shell';
 import { featherTexture, makePattern, palette, type Pattern } from './textures';
+import { BAGS } from './bags';
 import { BEACH } from './beach';
 import { HEELS } from './heels';
+import { SNEAKERS } from './sneakers';
+import { PRISON } from './prison';
 import { STREET } from './street';
 import { SWIMWEAR } from './swimwear';
 import { WRIST } from './wrist';
@@ -716,8 +719,11 @@ export const GARMENTS: GarmentDef[] = [
   ...WRIST,
   ...SWIMWEAR,
   ...STREET,
+  ...PRISON,
+  ...BAGS,
   ...BEACH,
   HEELS,
+  SNEAKERS,
 ];
 
 // --- Shared builders -------------------------------------------------------------

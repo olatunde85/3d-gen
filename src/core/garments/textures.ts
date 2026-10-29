@@ -189,10 +189,10 @@ const weave = (u: number, v: number, f = 96) => {
 export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
-  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa';
+  | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa' | 'workwear';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -546,6 +546,22 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1): TexOu
         return { c: mul(A, 0.98 + 0.03 * soft), h: grain * 0.12 + soft * 0.1 };
       }, false, 0.8);
     }
+    case 'workwear': {
+      // Worn cotton twill (c1) with grime (c2): faded patches, smudges, and darker grime gathered
+      // in streaks, all over a fine diagonal twill.
+      return render(S, (u, v) => {
+        const twill = frac((u * 3 + v) * 140) < 0.5 ? 1 : 0.86;
+        const fade = fbm(u, v, 4, seed + 1, 3);
+        const smudge = Math.max(0, fbm(u, v, 6, seed + 5, 4) - 0.56) * 2.6;
+        const streak = Math.max(0, pnoise(u * 0.3, v, 24, seed + 9) - 0.7) * 2;
+        const speck = Math.max(0, fbm(u, v, 48, seed + 3, 2) - 0.72) * 2.5;
+        const dirt = Math.min(0.6, smudge * 0.7 + streak * 0.45 + speck * 0.5);
+        let c = mul(A, 0.86 + 0.22 * fade);
+        c = mixc(c, mixc(A, [245, 230, 205], 0.3), Math.max(0, fade - 0.6) * 0.9);
+        c = mixc(c, B, dirt);
+        return { c: mul(c, twill), h: twill * 0.7 + fade * 0.3 };
+      }, false, 2);
+    }
     case 'rib': {
       // Rib knit (necklines, cuffs): fine raised ribs across u in c1.
       return render(256, (u) => {
@@ -643,4 +659,43 @@ export function jeansLegTexture(c1: string, c2: string, seed = 3): TexOut {
     }
     return { c: mul(c, twill), h };
   }, false, 2.2);
+}
+
+/**
+ * Stencilled block letters (alpha mask) for print on workwear: `text` in c1, worn through in places.
+ * Supports the letters the garments use (D, O, C).
+ */
+export function stencilText(text: string, c1: string, seed = 5): TexOut {
+  const A = rgb(c1), n = text.length, W = 256 * n, H = 256;
+  const inLetter = (ch: string, x: number, y: number): boolean => {
+    // Letter box: x, y in 0..1 (y down); stroke width w.
+    const w = 0.2;
+    const ex = (x - 0.5) / 0.4, ey = (y - 0.5) / 0.42;
+    const ring = (rx: number) => {
+      const r = Math.hypot(ex, ey);
+      return r <= 1 && r >= 1 - w / rx;
+    };
+    switch (ch) {
+      case 'O':
+        return ring(0.4);
+      case 'C':
+        return ring(0.4) && !(ex > 0.25 && Math.abs(ey) < 0.5);
+      case 'D': {
+        if (x >= 0.12 && x <= 0.12 + w * 0.8 && y >= 0.08 && y <= 0.92) return true;
+        const dx = (x - 0.12) / 0.75, dy = (y - 0.5) / 0.42;
+        const r = Math.hypot(dx, dy);
+        return dx >= 0 && r <= 1 && r >= 1 - w / 0.75 * 0.9;
+      }
+      default:
+        return false;
+    }
+  };
+  return renderRect(W, H, (u, v) => {
+    const k = Math.min(n - 1, Math.floor(u * n));
+    const x = (u * n - k - 0.08) / 0.84;
+    const on = x >= 0 && x <= 1 && inLetter(text[k], x, v);
+    // Worn print: the paint is missing in small patches and cracks.
+    const wear = fbm(u * n * 0.5, v, 16, seed, 3) < 0.24 || frac(fbm(u * n, v, 8, seed + 2, 2) * 9) < 0.03;
+    return { c: mul(A, 0.9 + 0.2 * fbm(u, v, 32, seed + 4, 2)), a: on && !wear ? 0.92 : 0 };
+  }, true);
 }
