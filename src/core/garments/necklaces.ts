@@ -29,7 +29,11 @@ function frontZ(ring: Vec3[], x: number): number | null {
  * `spread`: how much wider the front gets as it hangs (0 = straight down from the sides of the neck,
  * a narrow V like a heavy chain; 0.5 = fanning out over the chest like graduated beads).
  */
-function strand(g: GCtx, drop: number, spread = 1): { ring: Vec3[]; centre: Vec3 } | null {
+/**
+ * `inside`: round the back and sides it lies on the neck itself, inside any collar (only the front
+ * lies over the top worn).
+ */
+function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3[]; centre: Vec3 } | null {
   const b = g.body;
   // Back and sides lie on the body (round the neck); the front lies on the chest, over any top worn.
   const body = points(b, (v) => v.region === REGION.neck || isTrunk(v));
@@ -72,13 +76,14 @@ function strand(g: GCtx, drop: number, spread = 1): { ring: Vec3[]; centre: Vec3
     const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)];
     // The loop's radius here, and where it rests: going down from the narrowest point until the
     // body (or the top worn over it) reaches out that far.
-    const rT = (rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6)) * 1.15 + off;
+    // (Inside a collar: snug on the neck.)
+    const rT = (rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6)) * (inside ? 1.04 : 1.15) + off;
     // Never higher than just above the base of the neck (a slim neck widens early).
     const yTop = Math.min(yN, b.L.neckY + cm(1));
     let yRest = yTop;
     for (let y = yTop; y > yTop - cm(12); y -= cm(0.5)) {
       const hb = bodyAt(y), hw = surfAt(y);
-      const rb = Math.max(hb ? rayRing(hb, [c[0], y, c[2]], dir) ?? 0 : 0, hw ? rayRing(hw, [c[0], y, c[2]], dir) ?? 0 : 0);
+      const rb = Math.max(hb ? rayRing(hb, [c[0], y, c[2]], dir) ?? 0 : 0, hw && !inside ? rayRing(hw, [c[0], y, c[2]], dir) ?? 0 : 0);
       yRest = y;
       if (rb >= rT) break;
     }
@@ -102,7 +107,7 @@ function strand(g: GCtx, drop: number, spread = 1): { ring: Vec3[]; centre: Vec3
         const r2 = rayRing(h, [c[0], y, c[2]], d2), cur = Math.hypot(p[0] - c[0], p[2] - c[2]);
         if (r2 !== null && r2 > cur && r2 < cur + cm(3)) p = [c[0] + d2[0] * r2, y, c[2] + d2[2] * r2];
       }
-      if (g.worn) {
+      if (g.worn && !inside) {
         // Where the top lies above the line (its collar and shoulders), lift it onto the fabric.
         let top = -Infinity;
         for (const q of g.worn) if (Math.abs(q[0] - p[0]) < cm(1) && Math.abs(q[2] - p[2]) < cm(1) && q[1] < p[1] + cm(3)) top = Math.max(top, q[1]);
@@ -246,7 +251,8 @@ function cubanChain(g: GCtx, st: GarmentStyle): GPart[] {
  * neck, a rope chain lower, and a curb chain lowest.
  */
 function goldChains(g: GCtx, st: GarmentStyle): GPart[] {
-  const fine = strand(g, cm(6), 0.4), rope = strand(g, cm(12), 0.2), curb = strand(g, cm(18), 0.1);
+  // Compact: close round the neck, inside the collars, the lowest resting on the top of the sternum.
+  const fine = strand(g, cm(3.5), 0.15, true), rope = strand(g, cm(7), 0.08, true), curb = strand(g, cm(10.5), 0, true);
   const metal = mat('Gold chains', null, { color: st.color, roughness: 0.18, metalness: 1 });
   return part(merge([fine && cord(fine.ring, cm(0.09), true, 5), rope && ropeChain(rope, cm(0.32)), curb && curbLinks(curb, 0.75, 8, 3)]), metal);
 }

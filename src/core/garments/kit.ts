@@ -31,13 +31,13 @@ export interface GarmentDef {
   patterns: Pattern[];
   color: string;
   color2: string;
+  /**
+   * A MakeHuman outfit whose fitted mesh the garment is cut from (`g.outfits[id]`), e.g. the shirt
+   * of a casual suit.
+   */
+  fromOutfit?: string;
   /** Hides the skin it covers (opaque fitted garments). */
   build(g: GCtx, st: GarmentStyle): GPart[];
-  /**
-   * A top's collar, built once any jacket is on so it can lie over the jacket's lapels. Necklaces
-   * go inside it (they rest on the top, not the collar).
-   */
-  collar?(g: GCtx, st: GarmentStyle): GPart[];
 }
 
 export interface GPart {
@@ -62,6 +62,16 @@ export interface GPart {
   skinAt?: Float32Array;
 }
 
+export interface FittedOutfit {
+  mesh: PolyMesh;
+  /** Base-mesh vertices the whole outfit hides (MakeHuman's delete list). */
+  deleteVerts: Uint32Array;
+  /** Per vertex: the nearest body vertex (under it). */
+  ref: Uint32Array;
+  /** The outfit's own normal map (folds, seams), on its UVs. */
+  normalMap?: string;
+}
+
 export interface GCtx {
   body: Body;
   faceVerts: Uint32Array;
@@ -71,12 +81,12 @@ export interface GCtx {
   layered: { top: boolean; bottom: boolean };
   /** Briefs under wrappers / aprons / loincloths (always on for under-18 characters). */
   underwear: boolean;
-  /** Vertices of the top already dressed, for things worn over it (necklaces lie on it). */
+  /** Vertices of the bottom and top already dressed, for things worn over them (necklaces lie on the top). */
   worn?: Vec3[];
+  /** MakeHuman outfits fitted to the body (and rigged), for garments cut from them. */
+  outfits?: Record<string, FittedOutfit>;
   /** Vertices of the jacket over the top, for things worn over everything (a backpack). */
   jacket?: Vec3[];
-  /** Surfaces of the top and jacket dressed so far (a collar is laid over them). */
-  wornMeshes?: PolyMesh[];
 }
 
 // --- Helpers ---------------------------------------------------------------------

@@ -256,12 +256,6 @@ export interface WideLegOpts {
   tile?: number;
   /** How far down the leg (0..1) it keeps following the thigh before easing out to its full width. */
   flareFrom?: number;
-  /** Pressed creases down the front and back (their height, decimetres). */
-  crease?: number;
-  /** Strength of the soft drape folds (1 = loose trousers). */
-  folds?: number;
-  /** Hem width (radius, decimetres) instead of the default loose one. */
-  hemW?: number;
 }
 
 /**
@@ -286,7 +280,7 @@ export function wideLeg(b: Body, s: number, yTop: number, yHem: number, o: WideL
   let thighR = 0;
   for (const p of top) thighR += Math.hypot(p[0] - cTop[0], p[2] - cTop[2]) / top.length;
   const ease = cm(1.6);
-  const topW = thighR + cm(2), hemW = o.hemW ?? Math.max(cm(9.5), thighR * 0.95);
+  const topW = thighR + cm(2), hemW = Math.max(cm(9.5), thighR * 0.95);
   const N = 48, R = Math.max(20, Math.round((yTop - yHem) / cm(1.8)));
   // Radii first (rows x columns), so they can be smoothed down each column.
   const radius: number[][] = [], ys: number[][] = [], dirs: Vec3[] = [];
@@ -314,9 +308,7 @@ export function wideLeg(b: Body, s: number, yTop: number, yHem: number, o: WideL
       const f0 = o.flareFrom ?? 0;
       let r = Math.max(fit, fit + (drape - fit) * smooth01(Math.max(0, Math.min(1, (t - f0) / 0.18))));
       // Drape folds: low-frequency, irregular, growing down the leg.
-      r += (o.folds ?? 1) * cm(0.9) * smooth01(Math.max(0, Math.min(1, (t - (o.flareFrom ?? 0)) * 1.3))) * (noise3(d[0] * 1.3 + s * 3, d[2] * 1.3, y * 2.2) - 0.5) * 2;
-      // Pressed creases: a narrow ridge at the front and back of the leg, fading out at the top.
-      if (o.crease) r += o.crease * Math.min(1, t * 4) * Math.exp(-(d[0] * d[0]) / 0.01);
+      r += cm(0.9) * smooth01(Math.max(0, Math.min(1, (t - (o.flareFrom ?? 0)) * 1.3))) * (noise3(d[0] * 1.3 + s * 3, d[2] * 1.3, y * 2.2) - 0.5) * 2;
       // Stacking over the shoe: bunched horizontal folds rather than a flare.
       const st = o.stack ? Math.max(0, (t - 0.8) / 0.2) : 0;
       r += st * (cm(0.3) + cm(0.9) * Math.sin(y / cm(1.6) + noise3(d[0] * 2 + 7, d[2] * 2, y * 4) * 4));

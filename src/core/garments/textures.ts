@@ -144,10 +144,18 @@ export function render(size: number, fn: (u: number, v: number) => { c: RGB; a?:
   return renderRect(size, size, fn, wantAlpha, normalStrength);
 }
 
+// (makePattern shadows `render` with a tiling version.)
+const renderTex = (...a: Parameters<typeof render>) => render(...a);
+
 /** As render, for a w x h texture (u across, v down). */
 export function renderRect(w: number, h: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, wantAlpha: boolean, normalStrength = 0): TexOut {
+  const { px, height } = renderPixels(w, h, fn, !!normalStrength);
+  return encodeTex(w, h, px, height, wantAlpha, normalStrength);
+}
+
+function renderPixels(w: number, h: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, wantHeight: boolean) {
   const px = new Uint8Array(w * h * 4);
-  const height = normalStrength ? new Float32Array(w * h) : null;
+  const height = wantHeight ? new Float32Array(w * h) : null;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const r = fn((x + 0.5) / w, (y + 0.5) / h);
@@ -158,6 +166,27 @@ export function renderRect(w: number, h: number, fn: (u: number, v: number) => {
       px[i + 3] = Math.round(Math.max(0, Math.min(1, r.a ?? 1)) * 255);
       if (height) height[y * w + x] = r.h ?? 0;
     }
+  return { px, height };
+}
+
+/**
+ * A pattern tile repeated `n` times each way across a texture `n * tile` pixels square: the tile is
+ * rendered once and copied (a garment's UV atlas spanning several tiles of cloth).
+ */
+function renderTiled(tile: number, n: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, wantAlpha: boolean, normalStrength = 0): TexOut {
+  const t = renderPixels(tile, tile, fn, !!normalStrength), W = tile * n;
+  const px = new Uint8Array(W * W * 4), height = t.height ? new Float32Array(W * W) : null;
+  for (let y = 0; y < W; y++) {
+    const ty = y % tile;
+    for (let k = 0; k < n; k++) {
+      px.set(t.px.subarray(ty * tile * 4, (ty + 1) * tile * 4), (y * W + k * tile) * 4);
+      if (height) height.set(t.height!.subarray(ty * tile, (ty + 1) * tile), y * W + k * tile);
+    }
+  }
+  return encodeTex(W, W, px, height, wantAlpha, normalStrength);
+}
+
+function encodeTex(w: number, h: number, px: Uint8Array, height: Float32Array | null, wantAlpha: boolean, normalStrength: number): TexOut {
   let normal: Uint8Array | undefined;
   if (height) {
     const np = new Uint8Array(w * h * 4);
@@ -216,8 +245,14 @@ function cellNearest(u: number, v: number, g: number, seed: number, jitter = 0.6
 
 const S = 512;
 
-export function makePattern(p: Pattern, c1: string, c2: string, seed = 1): TexOut {
+/**
+ * A pattern texture. `repeat`: how many times the pattern tiles across the texture each way (for
+ * an atlas whose UVs span a whole garment, such as a MakeHuman outfit's): one 256 px tile, copied.
+ */
+export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat = 1): TexOut {
   const A = rgb(c1), B = rgb(c2);
+  const render = (size: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, alpha: boolean, normal = 0): TexOut =>
+    repeat === 1 ? renderTex(size, fn, alpha, normal) : renderTiled(Math.round(Math.min(2048, size * 3) / repeat), repeat, fn, alpha, normal);
   switch (p) {
     case 'solid':
     case 'khaki':
