@@ -81,7 +81,7 @@ export function weaponPanel(ctx: Ctx) {
 /** Vehicle props, shown with their riding clip. */
 export function carryPanel(ctx: Ctx) {
   const { store } = ctx;
-  return selectRow(ctx, 'Carried bag', CARRIED.map((c) => [c, CARRY_LABELS[c]]), () => store.params.carry, (v) => store.set({ carry: v as CarryId }));
+  return selectRow(ctx, 'Bag', CARRIED.map((c) => [c, CARRY_LABELS[c]]), () => store.params.carry, (v) => store.set({ carry: v as CarryId }));
 }
 
 export function vehiclePanel(ctx: Ctx) {

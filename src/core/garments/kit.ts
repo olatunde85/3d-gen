@@ -13,9 +13,9 @@ import { makePattern, type Pattern, type TexOut } from './textures';
 
 /**
  * 'jacket': worn over the top (the params' `jacket`). 'hat': picked in the Hat section (the params'
- * `hat`), built like an accessory.
+ * `hat`), and 'bag' in the Props section (the params' `carry`), both built like an accessory.
  */
-export type Slot = 'top' | 'jacket' | 'bottom' | 'acc' | 'feet' | 'hat';
+export type Slot = 'top' | 'jacket' | 'bottom' | 'acc' | 'feet' | 'hat' | 'bag';
 
 export interface GarmentStyle {
   pattern: Pattern;

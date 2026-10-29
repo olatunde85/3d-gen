@@ -219,10 +219,10 @@ export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
   | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa' | 'workwear'
-  | 'tropical' | 'linen' | 'suiting' | 'patent' | 'shemagh';
+  | 'tropical' | 'linen' | 'suiting' | 'patent' | 'shemagh' | 'satin';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'linen', 'suiting', 'nappa', 'patent', 'shemagh',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'linen', 'suiting', 'nappa', 'patent', 'shemagh', 'satin',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -597,6 +597,16 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat
         c = mixc(c, B, dirt);
         return { c: mul(c, twill), h: twill * 0.7 + fade * 0.3 };
       }, false, 2);
+    }
+    case 'satin': {
+      // Silk satin (c1): a smooth, very fine warp-faced weave with long soft lustre streaks along
+      // the warp; c2 tints the sheen.
+      return render(S, (u, v) => {
+        const streak = pnoise(u * 0.25, v, 64, seed) * 0.6 + pnoise(u * 0.5, v, 128, seed + 1) * 0.4;
+        const warp = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 260);
+        const c = mixc(A, B, Math.max(0, streak - 0.45) * 0.5);
+        return { c: mul(c, 0.97 + 0.03 * warp), h: warp * 0.15 + streak * 0.1 };
+      }, false, 0.4);
     }
     case 'shemagh': {
       // Keffiyeh cotton: a net of small c1 diamonds joined at their points on a c2 ground (about

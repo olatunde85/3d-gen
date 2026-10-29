@@ -4,6 +4,7 @@
  */
 import type { HumanParams } from '../params';
 import type { GarmentDef } from './kit';
+import type { CarryId } from '../props/carry';
 
 /** Outfits that pair a top and a bottom (and suggested extras), listed with the full outfits. */
 export interface OutfitSet {
@@ -16,6 +17,8 @@ export interface OutfitSet {
   /** Added when the set is picked (can be removed afterwards). */
   accessories: string[];
   shoes?: string;
+  /** Bag (see props/carry). */
+  carry?: CarryId;
   hat?: string;
   /**
    * Patterns offered for the whole set (first = default) and default colours, shared by the top
@@ -46,6 +49,10 @@ export function setStyles(set: OutfitSet, styles: Styles): Styles {
 
 export const OUTFIT_SETS: OutfitSet[] = [
   {
+    id: 'set_pantsuit', label: 'Pantsuit & silk blouse', top: 'silk_blouse', jacket: 'suit_jacket', bottom: 'suit_trousers', accessories: ['gold_necklace', 'watch_gold'], shoes: 'heels', carry: 'handbag',
+    patterns: ['suiting', 'linen', 'solid'], color: '#c9b597', color2: '#b9a382',
+  },
+  {
     id: 'set_thobe', label: 'Thobe & keffiyeh', top: 'thobe', bottom: 'none', accessories: ['gold_necklace_long', 'watch_gold', 'gold_ring', 'sunglasses'], shoes: 'slides', hat: 'keffiyeh',
     patterns: ['linen', 'solid'], color: '#f4f2ec', color2: '#e3dfd4',
   },
@@ -69,7 +76,7 @@ export const OUTFIT_SETS: OutfitSet[] = [
     patterns: ['foil', 'solid', 'ankara', 'leopard'], color: '#c9963a', color2: '#fff1c4',
   },
   {
-    id: 'set_prison_jumpsuit', label: 'Prison jumpsuit', top: 'prison_top', bottom: 'prison_trousers', accessories: ['backpack'], shoes: 'sneakers',
+    id: 'set_prison_jumpsuit', label: 'Prison jumpsuit', top: 'prison_top', bottom: 'prison_trousers', accessories: [], shoes: 'sneakers', carry: 'backpack',
     patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a',
   },
   {
