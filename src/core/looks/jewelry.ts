@@ -38,24 +38,19 @@ function lobeVerts(base: Body): [number, number] {
 
 const studs = new WeakMap<Body, [number, number]>();
 /**
- * Base-mesh vertex where a stud goes on each lobe (left, right): on the lobe's outer face, about
- * low in the lobe (the reference vertex sits a little above its lowest point).
+ * Base-mesh vertex where a stud goes on each lobe (left, right): the outer face of the lower lobe,
+ * centred front to back (a piercing sits inside the lobe, clear of its edges).
  */
 function studVerts(base: Body): [number, number] {
   let st = studs.get(base);
   if (!st) {
-    st = lobeVerts(base).map((lv) => {
-      const C = base.coords;
-      const s = Math.sign(C[lv * 3]) || 1;
-      const y = C[lv * 3 + 1] - 0.025, z = C[lv * 3 + 2];
-      let best = lv, score = -Infinity;
+    st = ([1, -1] as const).map((s) => {
+      const t: Vec3 = [s * 0.765, 6.93, 0.49];
+      let best = -1, d0 = Infinity;
       for (let v = 0; v < base.regions.length; v++) {
         if (base.regions[v] !== REGION.head) continue;
-        const dy = C[v * 3 + 1] - y, dz = C[v * 3 + 2] - z;
-        if (Math.hypot(dy, dz) > 0.035) continue;
-        // The outermost point there: the lobe's outer face.
-        const sc = s * C[v * 3] - Math.hypot(dy, dz) * 0.5;
-        if (sc > score) [score, best] = [sc, v];
+        const d = Math.hypot(base.coords[v * 3] - t[0], base.coords[v * 3 + 1] - t[1], base.coords[v * 3 + 2] - t[2]);
+        if (d < d0) [d0, best] = [d, v];
       }
       return best;
     }) as [number, number];
