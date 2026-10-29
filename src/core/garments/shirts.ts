@@ -8,7 +8,7 @@ import type { Material } from '../mesh';
 import { cm, type Body, type VInfo } from './body';
 import { part } from './drape';
 import { clamp, hplane, mat, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
-import { keepIslands, outfitCloth, outfitCovers, SHIRT_REGIONS } from './outfit-cut';
+import { keepIslands, outfitCloth, outfitCovers, SHIRT_REGIONS, type Island } from './outfit-cut';
 import { Caster, OUTWARD } from './project';
 import { cord, ellipsoid, frameOf, hullRing, merge, rayRing, v3 } from './ring';
 
@@ -74,14 +74,21 @@ function resortShirt(g: GCtx, st: GarmentStyle): GPart[] {
   if (!o) return [];
   // The suit's shirt pieces are on both sides of its UV atlas; the jeans are in the middle. Each
   // vertex keeps the body vertex it follows (`ref`: a jacket over it hides what it covers).
-  let mesh = keepIslands({ ...o.mesh, ref: Int32Array.from(o.ref) }, (i) => i.u1 < 0.36 || i.u0 > 0.71);
+  const src = { ...o.mesh, ref: Int32Array.from(o.ref) };
+  let mesh = keepIslands(src, (i) => (i.u1 < 0.36 || i.u0 > 0.71) && !isCollar(i));
   if (g.layered.bottom && g.worn?.length) mesh = tuckInto(g, mesh);
+  const collar = keepIslands(src, isCollar);
   // Rayon: a soft sheen. The print tiles six times across the atlas (one unit is about 2 m of cloth).
   const m = outfitCloth(g, o, 'Resort shirt', st, 6, { roughness: 0.62 });
-  return [{ mesh, material: m, hides: outfitCovers(g, o, mesh, SHIRT_REGIONS), smooth: true }];
+  return [
+    { mesh, material: m, hides: outfitCovers(g, o, mesh, SHIRT_REGIONS), smooth: true },
+    { mesh: collar, material: m, collar: true, smooth: true },
+  ];
 }
 
 const RESORT_FROM = 'male_casualsuit01';
+// The suit shirt's collar: one island at the right of its UV atlas.
+const isCollar = (i: Island) => i.u0 > 0.71 && i.u1 < 0.8 && i.v0 > 0.28 && i.v1 < 0.49;
 
 /**
  * Tuck a shirt into the bottom already dressed (`g.worn`): from just above the top of the bottom

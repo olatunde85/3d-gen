@@ -53,6 +53,8 @@ export interface GPart {
   over?: Uint8Array;
   /** Touches the ground (soles): used for grounding. */
   ground?: boolean;
+  /** A top's collar: never hidden under a jacket, and laid over the jacket's collar. */
+  collar?: boolean;
   /** Fitted cloth that should be subdivided in HD. */
   smooth?: boolean;
   /**
