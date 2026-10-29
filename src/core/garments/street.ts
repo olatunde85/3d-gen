@@ -387,21 +387,9 @@ function baseballCap(g: GCtx, st: GarmentStyle): GPart[] {
     rings.push(r);
   }
   if (rings.length < 3) return [];
-  // Side panels: below the band plane the crown continues down the sides to just above the ears
-  // (and a little lower round the back), the front staying at the visor's root.
-  const headPts = b.verts(REGION.head).map((v) => b.p(v));
-  let wMax = 0;
-  for (const p of headPts) wMax = Math.max(wMax, Math.abs(p[0]));
-  let earTop = -Infinity;
-  for (const p of headPts) if (Math.abs(p[0]) > wMax - cm(0.8)) earTop = Math.max(earTop, p[1]);
+  // Side panels: from the visor's ends round the back, the crown's lower edge comes down level
+  // with the visor's drooping side edge (so the two meet), rising only where it passes over an ear.
   const band0 = rings[0];
-  const lowAt = (a: number, yPlane: number) => {
-    // From the visor's ends back over the temples, down to the top of the ears.
-    const side = smoothstep(0.35, 0.95, Math.abs(a));
-    const target = Math.min(yPlane, earTop + cm(0.2));
-    return yPlane + (target - yPlane) * side;
-  };
-  const K = 5, skirt: Vec3[][] = [];
   const hulls = new Map<number, Vec3[] | null>();
   const hullAt = (y: number) => {
     const k = Math.round(y / cm(0.4));
@@ -410,16 +398,37 @@ function baseballCap(g: GCtx, st: GarmentStyle): GPart[] {
   };
   let cb: Vec3 = [0, 0, 0];
   for (const p of band0) cb = v3.add(cb, v3.scale(p, 1 / S));
+  const visorDrop = cm(2.4);
+  const edgeY: number[] = [];
+  for (let j = 0; j < S; j++) {
+    const a = -Math.PI + (2 * Math.PI * j) / S, p0 = band0[j];
+    const dir = v3.norm([p0[0] - cb[0], 0, p0[2] - cb[2]]);
+    const r0 = Math.hypot(p0[0] - cb[0], p0[2] - cb[2]);
+    let y = p0[1] - visorDrop * smoothstep(0.6, 0.95, Math.abs(a));
+    // Over the ear the head bulges out: lift the edge until it clears it.
+    for (; y < p0[1]; y += cm(0.2)) {
+      const h = hullAt(y);
+      const r = h ? rayRing(h, [cb[0], y, cb[2]], dir) : null;
+      if (r === null || r < r0 * 1.06) break;
+    }
+    edgeY.push(Math.min(y, p0[1]));
+  }
+  // A smooth edge line round the head.
+  for (let it = 0; it < 6; it++) {
+    const e = [...edgeY];
+    for (let j = 0; j < S; j++) edgeY[j] = Math.min(band0[j][1], (e[(j + S - 1) % S] + 2 * e[j] + e[(j + 1) % S]) / 4);
+  }
+  const K = 5, skirt: Vec3[][] = [];
   for (let k = K; k >= 1; k--) {
     const row: Vec3[] = [];
     for (let j = 0; j < S; j++) {
-      const a = -Math.PI + (2 * Math.PI * j) / S, p0 = band0[j];
-      const y = p0[1] + (lowAt(a, p0[1]) - p0[1]) * (k / K);
+      const p0 = band0[j];
+      const y = p0[1] + (edgeY[j] - p0[1]) * (k / K);
       const dir = v3.norm([p0[0] - cb[0], 0, p0[2] - cb[2]]);
       const h = hullAt(y);
       const r = h ? rayRing(h, [cb[0], y, cb[2]], dir) : null;
       const r0 = Math.hypot(p0[0] - cb[0], p0[2] - cb[2]);
-      const rr = r !== null ? Math.max(r + cm(0.7), r0 * 0.96) : r0;
+      const rr = r !== null ? Math.max(Math.min(r + cm(0.7), r0 * 1.04), r0 * 0.96) : r0;
       row.push([cb[0] + dir[0] * rr, y, cb[2] + dir[2] * rr]);
     }
     skirt.push(row);
@@ -450,13 +459,17 @@ function baseballCap(g: GCtx, st: GarmentStyle): GPart[] {
   rings.push(last.map(() => top));
   const crown = orientOutward(loftRings(rings, { closedAround: true, tileU: 0.15, tileV: 0.15 }), v3.madd(O, n, cm(5)));
   const fabric = cloth(g, 'Cap', st, { roughness: 0.9 });
-  // Hair: none grows under the cap (faces wholly above the band plane).
+  // Hair: none grows under the cap (head faces wholly above its lower edge).
+  const edgeAt = (q: Vec3) => {
+    const a = Math.atan2(q[0] - cb[0], q[2] - cb[2]);
+    return edgeY[((Math.round(((a + Math.PI) / (2 * Math.PI)) * S) % S) + S) % S];
+  };
   const fv = g.faceVerts, over = new Uint8Array(fv.length / 4);
   for (let f = 0; f < over.length; f++) {
     let ok = true;
     for (let k = 0; k < 4 && ok; k++) {
       const v = fv[f * 4 + k];
-      ok = b.regions[v] === REGION.head && v3.dot(v3.sub(b.p(v), O), n) > -cm(0.3);
+      ok = b.regions[v] === REGION.head && b.p(v)[1] > edgeAt(b.p(v)) + cm(0.3);
     }
     over[f] = ok ? 1 : 0;
   }
