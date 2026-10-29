@@ -15,7 +15,7 @@ Realism comes from data, not hand-built shapes. The generator uses the MakeHuman
   - diffuse and normal maps for clothes, and alpha textures for hair and lashes
   - 11 eye colours: MakeHuman's 9, plus dark brown and black-brown, the most common shades
 
-There are 19 presets (athletes, a detective, a secret agent, a soldier, a cyberpunk hacker, a wasteland survivor, African warriors and Nigerian Police and FRSC officers), and *Randomize* makes reproducible random characters from a seed. Random eye colours follow the ethnicity mix.
+There are 22 presets (athletes, a detective, a secret agent, a soldier, a cyberpunk hacker, a wasteland survivor, African warriors, Nigerian Police and FRSC officers, a beach girl, a gangster and a prison escapee), and *Randomize* makes reproducible random characters from a seed. Random eye colours follow the ethnicity mix.
 
 ## Detail levels
 
@@ -29,10 +29,10 @@ There are 19 presets (athletes, a detective, a secret agent, a soldier, a cyberp
 
 Choose a full MakeHuman outfit, an **outfit set**, or **Separate pieces**:
 
-- **Outfit sets:** tee & baggy jeans (with a cap, Cuban chain and sneakers); a gold bikini (triangle top with halter and back ties, string bottom; the cups size themselves to the bust). Yoruba women's wear: ankara gown with flutter sleeves; ankara peplum top and pencil skirt; aso-ebi lace top (puff sleeves, double peplum, pearls) and maxi skirt with a gele. Each set shares one pattern and colour pair, comes with matching jewellery and high heels, and its pieces are also listed under Tops and Bottoms.
+- **Outfit sets:** tee & baggy jeans (with a cap, Cuban chain and sneakers); a gold bikini (triangle top with halter and back ties, string bottom; the cups size themselves to the bust); an orange prison jumpsuit (collar and lapels, button placket, DOC prints front and back, rolled sleeves and trouser cuffs, worn and dirty) with a canvas backpack and worn sneakers. Yoruba women's wear: ankara gown with flutter sleeves; ankara peplum top and pencil skirt; aso-ebi lace top (puff sleeves, double peplum, pearls) and maxi skirt with a gele. Each set shares one pattern and colour pair, comes with matching jewellery and high heels, and its pieces are also listed under Tops and Bottoms.
 
-- **Tops:** tank top, fatigue shirt, uniform shirt (short or long sleeves, with epaulettes), techwear jacket, tattered shirt, sleeveless tunic, woven tunic (buba), ankara gown, ankara peplum top, aso-ebi lace top, oversized tee, or none (shirtless/topless).
-- **Bottoms:** briefs, cargo shorts, fatigue/uniform/techwear/tattered pants, loose trousers (sokoto), wrappers (knee or ankle length), Zulu hide aprons, a loincloth with front and back panels, pencil skirts (below the knee or ankle length), baggy jeans, or none.
+- **Tops:** tank top, fatigue shirt, uniform shirt (short or long sleeves, with epaulettes), techwear jacket, tattered shirt, sleeveless tunic, woven tunic (buba), ankara gown, ankara peplum top, aso-ebi lace top, oversized tee, prison jumpsuit top, or none (shirtless/topless).
+- **Bottoms:** briefs, cargo shorts, fatigue/uniform/techwear/tattered pants, loose trousers (sokoto), wrappers (knee or ankle length), Zulu hide aprons, a loincloth with front and back panels, pencil skirts (below the knee or ankle length), baggy jeans, prison jumpsuit trousers, or none.
 - **Accessories:**
   - belts and straps: belts, utility belt, waist sash, crossed straps, amulet bandolier
   - armour and vests: leather armor, tactical vest, reflective hi-vis vest
@@ -40,8 +40,9 @@ Choose a full MakeHuman outfit, an **outfit set**, or **Separate pieces**:
   - headwear: baseball cap, gele (pleated head tie with lace flowers and a knotted back; it covers the hair), beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
   - jewellery and charms: Cuban link chain, coral beads (iyun), gold necklace with pendant, pearl necklace, bangles, gold and silver bracelet watches, wrist beads, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
   - wraps and bands: shuka shoulder drape, arm guards, fur bands, arm wraps
+  - bags: canvas backpack (webbing straps over the shoulders)
   - other: neon accents, wrist watch
-- **Footwear:** MakeHuman shoes, sandals, combat boots, high heels (the feet are arched in the mesh, so every animation keeps the heel pose), flip-flops, chunky white sneakers, or barefoot.
+- **Footwear:** MakeHuman shoes, sandals, combat boots, high heels (the feet are arched in the mesh, so every animation keeps the heel pose), flip-flops, sneakers (chunky white or worn grey), or barefoot.
 - **Fabrics:** generated, tileable, with normal maps: kente, aso-oke, ankara (three prints), lace, metallic foil, straw, washed denim, jersey, damask, pleated head-tie cloth, adire, shuka plaid, cowhide, leopard, camo, MOLLE, leather, techwear, tattered.
 
 Every piece has editable colours (Colour + Accent, for example epaulettes, a badge or reflective tape) and, where it has several, a choice of pattern.

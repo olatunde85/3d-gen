@@ -8,7 +8,7 @@
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import { cm, REGION, type Body } from './body';
-import { cloth, hplane, mat, type GCtx, type GPart } from './kit';
+import { cloth, hplane, mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { cord, hullRing, loftRings, merge, orientOutward, v3 } from './ring';
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -192,10 +192,17 @@ function shoe(b: Body, s: number): Shoe | null {
   return { upper, sole, outsole, laces: merge([...lacesParts, ...stitch])!, collar, mid: v3.lerp(fa, fb, 0.45) };
 }
 
-export function sneakers(g: GCtx, color = '#f3f2ee', sole = '#f7f7f5', outsole = '#cfcdc8'): GPart[] {
+/**
+ * `st`: the upper's finish (smooth leather, or worn canvas) and colour; color2 tints the sole
+ * (a worn pair's sole is grubby too).
+ */
+export function sneakers(g: GCtx, st: GarmentStyle): GPart[] {
   const b = g.body;
   const fv = g.faceVerts;
-  const leather = cloth(g, 'Sneaker leather', { pattern: 'nappa', color, color2: '#000000' }, { roughness: 0.45 });
+  // A worn pair: grubby laces and a darker outsole too.
+  const worn = st.pattern !== 'nappa';
+  const sole = st.color2, outsole = worn ? '#8f8a80' : '#cfcdc8', laces = worn ? '#b3ada1' : '#e9e6df';
+  const leather = cloth(g, 'Sneaker leather', st, { roughness: st.pattern === 'nappa' ? 0.45 : 0.85 });
   const shoes = [1, -1].map((s) => shoe(b, s)).filter((x): x is Shoe => !!x);
   if (shoes.length < 2) return [];
   // Rigid: every vertex follows the middle of its own foot.
@@ -221,7 +228,12 @@ export function sneakers(g: GCtx, color = '#f3f2ee', sole = '#f7f7f5', outsole =
     part((x) => x.upper, { material: leather, hides }),
     part((x) => x.sole, { material: mat('Sneaker midsole', null, { color: sole, roughness: 0.6 }), ground: true }),
     part((x) => x.outsole, { material: mat('Sneaker outsole', null, { color: outsole, roughness: 0.85 }), ground: true }),
-    part((x) => x.laces, { material: mat('Sneaker laces', null, { color: '#e9e6df', roughness: 0.9 }) }),
+    part((x) => x.laces, { material: mat('Sneaker laces', null, { color: laces, roughness: 0.9 }) }),
     part((x) => x.collar, { material: leather }),
   ];
 }
+
+export const SNEAKERS: GarmentDef = {
+  id: 'sneakers', label: 'Sneakers', slot: 'feet', patterns: ['nappa', 'workwear'], color: '#f3f2ee', color2: '#f7f7f5',
+  build: sneakers,
+};

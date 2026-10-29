@@ -58,5 +58,9 @@ export const OUTFIT_SETS: OutfitSet[] = [
     id: 'set_gold_bikini', label: 'Gold bikini', top: 'bikini_top', bottom: 'bikini_bottom', accessories: ['sunglasses'], shoes: 'flipflops',
     patterns: ['foil', 'solid', 'ankara', 'leopard'], color: '#c9963a', color2: '#fff1c4',
   },
+  {
+    id: 'set_prison_jumpsuit', label: 'Prison jumpsuit', top: 'prison_top', bottom: 'prison_trousers', accessories: ['backpack'], shoes: 'sneakers',
+    patterns: ['workwear', 'solid'], color: '#e2621f', color2: '#4a3a2a',
+  },
 ];
 export const setById = new Map(OUTFIT_SETS.map((x) => [x.id, x]));

@@ -302,6 +302,16 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     outfit: 'set_street_tee_jeans', shoes: 'sneakers', hat: 'baseball_cap', accessories: ['cuban_chain', 'watch_gold'],
     earrings: 'studs', earringMetal: 'gold',
   },
+  // Orange DOC jumpsuit, sleeves and legs rolled, worn grey sneakers and a makeshift canvas pack;
+  // messy hair, stubble and inked arms.
+  'The Prison Escapee': {
+    gender: 1, age: 0.55, muscle: 0.6, weight: 0.5, height: 0.6, proportions: 0.6,
+    african: 0.05, asian: 0.05, caucasian: 0.9, eyes: 'brown', eyebrows: 'eyebrow001',
+    hair: 'short02', facialHair: 'stubble', beardColor: '#2a1e16', expression: 'determined',
+    tattoos: ['sleeve_r', 'forearm_l'],
+    outfit: 'set_prison_jumpsuit', shoes: 'sneakers', accessories: ['backpack'],
+    garmentStyles: { sneakers: { pattern: 'workwear', color: '#8e8a82', color2: '#6f6b64' } },
+  },
   Detective: {
     gender: 0.95, age: 0.65, muscle: 0.55, weight: 0.5, height: 0.55, african: 0.2, asian: 0.6, caucasian: 0.2, hair: 'short01', outfit: 'male_casualsuit05',
     hat: 'fedora_cocked', shoes: 'shoes06', eyes: 'grey', eyebrows: 'eyebrow007', facialHair: 'stubble', beardColor: '#1a1410',
