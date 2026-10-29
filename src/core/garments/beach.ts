@@ -1,12 +1,12 @@
 /**
- * Beach accessories: sunglasses and flip-flops (the straw tote is a carried prop: props/carry.ts).
+ * Beach accessories: sunglasses (and aviators) and flip-flops (the straw tote is a carried prop: props/carry.ts).
  */
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import { cm, REGION, type Body } from './body';
 import { mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { Caster } from './project';
-import { cord, hullRing, loftRings, merge, orientOutward, v3 } from './ring';
+import { cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, v3 } from './ring';
 import { makePattern } from './textures';
 
 /** Every vertex of a part looks up its skin weights at `at` (the part moves rigidly with that spot). */
@@ -42,7 +42,38 @@ function disc(outline: Vec3[], out: Vec3, bulge: number): PolyMesh {
 
 // --- Sunglasses ------------------------------------------------------------------------------
 
-function sunglasses(g: GCtx, st: GarmentStyle): GPart[] {
+/** Teardrop aviator lens outline: a flat top, deepest toward the nose (inner side toward -s along x). */
+function teardrop(o: Vec3, x: Vec3, y: Vec3, rx: number, ry: number, s: number, n = 48): Vec3[] {
+  const out: Vec3[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const c = Math.cos(a), sn = Math.sin(a);
+    const px = c * rx;
+    // Upper half: a gently arched brow line; lower half: rounder and deeper on the inner side.
+    const py = sn >= 0 ? Math.abs(sn) ** 0.45 * ry * 0.72 : -(Math.abs(sn) ** 0.85) * ry * (1 + 0.16 * -s * c);
+    out.push(v3.add(o, v3.add(v3.scale(x, px), v3.scale(y, py))));
+  }
+  return out;
+}
+
+interface Frames {
+  name: string;
+  /** Lens half-width and half-height. */
+  rx: number;
+  ry: number;
+  outline: (o: Vec3, x: Vec3, y: Vec3, rx: number, ry: number, s: number) => Vec3[];
+  /** Rim and temple thickness. */
+  rim: number;
+  arm: number;
+  /** Aviators: a straight top bar between the lenses and nose pads, as well as the bridge. */
+  aviator: boolean;
+}
+
+const WAYFARER: Frames = { name: 'Sunglasses', rx: cm(2.9), ry: cm(2.3), outline: (o, x, y, rx, ry) => superellipse(o, x, y, rx, ry), rim: cm(0.16), arm: cm(0.18), aviator: false };
+const AVIATOR: Frames = { name: 'Aviators', rx: cm(2.95), ry: cm(2.55), outline: teardrop, rim: cm(0.085), arm: cm(0.1), aviator: true };
+
+/** Glasses fitted to the face: lenses over the eyes wrapping a little round it, temples back over the ears. */
+function eyewear(g: GCtx, st: GarmentStyle, f: Frames): GPart[] {
   const b = g.body;
   const eyeR = b.joint('eye.R____head'), eyeL = b.joint('eye.L____head');
   const front = Math.max(b.joint('eye.L____tail')[2], b.joint('eye.R____tail')[2]);
@@ -52,34 +83,43 @@ function sunglasses(g: GCtx, st: GarmentStyle): GPart[] {
   let bridgeZ = front;
   for (const p of head) if (Math.abs(p[0]) < cm(0.6) && Math.abs(p[1] - eyeY) < cm(0.8)) bridgeZ = Math.max(bridgeZ, p[2]);
   const lensZ = Math.max(front + cm(1.0), bridgeZ + cm(0.15));
-  const lenses: PolyMesh[] = [], rims: PolyMesh[] = [], arms: PolyMesh[] = [];
+  const lenses: PolyMesh[] = [], rims: PolyMesh[] = [], arms: PolyMesh[] = [], tops: Vec3[] = [];
   for (const [s, eye] of [[1, eyeL], [-1, eyeR]] as const) {
-    // Lens: a rounded rectangle centred a little outside the eye, turned 12 degrees to wrap the face.
+    // Lens: centred a little outside the eye, turned 12 degrees to wrap the face.
     const yaw = s * 0.21;
     const x: Vec3 = [Math.cos(yaw), 0, -Math.sin(yaw)], y: Vec3 = [0, 1, 0], out = v3.cross(x, y);
     const o: Vec3 = [eye[0] + s * cm(0.3), eyeY - cm(0.2), lensZ - Math.abs(eye[0]) * Math.sin(Math.abs(yaw)) * 0.4];
-    const rim = superellipse(o, x, y, cm(2.9), cm(2.3));
+    const rim = f.outline(o, x, y, f.rx, f.ry, s);
     lenses.push(disc(rim, out, cm(0.25)));
-    rims.push(cord([...rim, rim[0]], cm(0.16), false, 6));
+    rims.push(cord([...rim, rim[0]], f.rim, false, 6));
+    // The rim's inner top corner (where an aviator's top bar meets it).
+    tops.push(v3.madd(v3.madd(o, x, -s * f.rx * 0.62), y, f.ry * 0.62));
     // Temple arm: from the lens's outer corner back above the ear and down behind it.
     let ear: Vec3 = [s * 0.5, eyeY, 0];
     for (const p of head) if (p[0] * s > ear[0] * s && Math.abs(p[1] - eyeY) < cm(3)) ear = p;
-    const hinge = v3.madd(o, x, s * cm(2.9));
+    const hinge = v3.madd(v3.madd(o, x, s * f.rx), y, f.aviator ? f.ry * 0.45 : 0);
     const above: Vec3 = [ear[0] + s * cm(0.3), eyeY + cm(0.2), ear[2] + cm(1)];
     const behind: Vec3 = [ear[0], eyeY - cm(2), ear[2] - cm(2)];
-    arms.push(cord([hinge, v3.lerp(hinge, above, 0.5), above, behind], cm(0.18), false, 6));
+    arms.push(cord([hinge, v3.lerp(hinge, above, 0.5), above, behind], f.arm, false, 6));
   }
-  // Bridge between the lenses, over the nose.
-  const bridge = cord([
+  // Bridge between the lenses, over the nose; aviators add a straight bar above it and nose pads.
+  const extras: (PolyMesh | null)[] = [cord([
     [cm(1.4), eyeY + cm(0.6), lensZ],
     [0, eyeY + cm(0.9), bridgeZ + cm(0.5)],
     [-cm(1.4), eyeY + cm(0.6), lensZ],
-  ], cm(0.15), false, 6);
-  const frame = mat('Sunglasses frame', null, { color: st.color2, roughness: 0.25, metalness: 0.85 });
-  const lens = mat('Sunglasses lenses', null, { color: st.color, roughness: 0.04, metalness: 0.3, alpha: 'blend', opacity: 0.88 });
+  ], f.aviator ? f.rim * 1.2 : cm(0.15), false, 6)];
+  if (f.aviator) {
+    extras.push(cord([tops[0], [0, tops[0][1] + cm(0.1), (tops[0][2] + tops[1][2]) / 2 + cm(0.1)], tops[1]], f.rim, false, 6));
+    for (const s of [1, -1]) {
+      const pad: Vec3 = [s * cm(0.75), eyeY - cm(0.6), bridgeZ - cm(0.1)];
+      extras.push(ellipsoid(frameOf(pad, v3.norm([s * 0.8, 0, 0.6]), [0, 1, 0]), [cm(0.35), cm(0.55), cm(0.12)], [0.5, 0.5], 8, 4));
+    }
+  }
+  const frame = mat(`${f.name} frame`, null, { color: st.color2, roughness: 0.25, metalness: 0.85 });
+  const lens = mat(`${f.name} lenses`, null, { color: st.color, roughness: 0.04, metalness: 0.3, alpha: 'blend', opacity: 0.88 });
   const skull = b.joint('head____head');
   const at: Vec3 = [0, eyeY, skull[2]];
-  const frameMesh = merge([...rims, ...arms, bridge])!, lensMesh = merge(lenses)!;
+  const frameMesh = merge([...rims, ...arms, ...extras])!, lensMesh = merge(lenses)!;
   return [
     { mesh: frameMesh, material: frame, skinAt: rigidAt(frameMesh, at) },
     { mesh: lensMesh, material: lens, skinAt: rigidAt(lensMesh, at) },
@@ -184,5 +224,6 @@ export function flipFlops(g: GCtx, color = '#d8c39a', strap = '#c9963a'): GPart[
 }
 
 export const BEACH: GarmentDef[] = [
-  { id: 'sunglasses', label: 'Sunglasses', slot: 'acc', patterns: ['solid'], color: '#1a1410', color2: '#c9963a', build: sunglasses },
+  { id: 'sunglasses', label: 'Sunglasses', slot: 'acc', patterns: ['solid'], color: '#1a1410', color2: '#c9963a', build: (g, st) => eyewear(g, st, WAYFARER) },
+  { id: 'aviators', label: 'Aviator sunglasses', slot: 'acc', patterns: ['solid'], color: '#3b2a1c', color2: '#d8b25a', build: (g, st) => eyewear(g, st, AVIATOR) },
 ];

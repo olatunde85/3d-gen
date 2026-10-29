@@ -11,8 +11,11 @@ import { along, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, s
 import { buildShell, UVs, type ShellSpec } from './shell';
 import { makePattern, type Pattern, type TexOut } from './textures';
 
-/** 'hat': picked in the Hat section (the params' `hat`), built like an accessory. */
-export type Slot = 'top' | 'bottom' | 'acc' | 'feet' | 'hat';
+/**
+ * 'jacket': worn over the top (the params' `jacket`). 'hat': picked in the Hat section (the params'
+ * `hat`), built like an accessory.
+ */
+export type Slot = 'top' | 'jacket' | 'bottom' | 'acc' | 'feet' | 'hat';
 
 export interface GarmentStyle {
   pattern: Pattern;
@@ -65,6 +68,8 @@ export interface GCtx {
   underwear: boolean;
   /** Vertices of the top already dressed, for things worn over it (necklaces lie on it). */
   worn?: Vec3[];
+  /** Vertices of the jacket over the top, for things worn over everything (a backpack). */
+  jacket?: Vec3[];
 }
 
 // --- Helpers ---------------------------------------------------------------------

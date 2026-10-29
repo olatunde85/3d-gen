@@ -1,5 +1,5 @@
 /** Sidebar: separate clothing pieces, garment styles, underwear and accessories. */
-import { GARMENTS, garmentById, OUTFIT_SETS, PATTERNS, setById, setStyles } from '../../core/garments';
+import { GARMENTS, garmentById, OUTFIT_SETS, PATTERNS, setById, setStyles, sharedPieces } from '../../core/garments';
 import { ageToYears, type HumanParams } from '../../core/params';
 import type { Ctx } from './context';
 import { selectRow } from './controls';
@@ -49,13 +49,13 @@ export function styleControls(ctx: Ctx, current: () => string) {
 
 export function piecesPanel(ctx: Ctx) {
   const { store } = ctx;
-  const opts = (slot: 'top' | 'bottom', none: string): [string, string][] =>
+  const opts = (slot: 'top' | 'jacket' | 'bottom', none: string): [string, string][] =>
     [['none', none], ...GARMENTS.filter((g) => g.slot === slot && g.id !== 'briefs').map((g) => [g.id, g.label] as [string, string])];
   // Always available: picking a top or bottom while a full outfit is worn switches to separate pieces
   // (an outfit set's pieces and colours carry over).
   const pick = (patch: Partial<HumanParams>) => {
     const set = setById.get(store.params.outfit);
-    if (set) patch = { top: set.top, bottom: set.bottom, garmentStyles: setStyles(set, store.params.garmentStyles), ...patch };
+    if (set) patch = { top: set.top, jacket: set.jacket ?? 'none', bottom: set.bottom, garmentStyles: setStyles(set, store.params.garmentStyles), ...patch };
     store.set({ ...patch, outfit: 'none' });
     store.emit('sync');
   };
@@ -66,6 +66,9 @@ export function piecesPanel(ctx: Ctx) {
     selectRow(ctx, 'Top', opts('top', 'None (shirtless / topless)'), () => store.params.top, (v) => pick({ top: v })),
     styleControls(ctx, () => store.params.top),
     el('div', { className: 'hint', textContent: 'Topless is available for adult characters; under-18 female characters automatically get a top.' }),
+    el('div', { className: 'sub', textContent: 'Jacket' }),
+    selectRow(ctx, 'Jacket', opts('jacket', 'None'), () => store.params.jacket, (v) => pick({ jacket: v })),
+    styleControls(ctx, () => store.params.jacket),
     el('div', { className: 'sub', textContent: 'Bottom' }),
     selectRow(ctx, 'Bottom', opts('bottom', 'None'), () => store.params.bottom, (v) => pick({ bottom: v })),
     styleControls(ctx, () => store.params.bottom),
@@ -139,15 +142,14 @@ export function outfitSetEntries(ctx: Ctx) {
   }));
 }
 
-/** Pattern and colours of the selected outfit set (shared by its pieces). */
 /**
- * Pattern and colours of the selected outfit set: one set of controls when its pieces share a
- * style, otherwise controls for the top and for the bottom.
+ * Pattern and colours of the selected outfit set: one set of controls for the pieces sharing a
+ * style (plus the shirt under a suit jacket), otherwise controls for the top and for the bottom.
  */
 export function outfitSetStyle(ctx: Ctx) {
   const set = () => setById.get(ctx.store.params.outfit);
   const shared = styleControls(ctx, () => (set()?.patterns ? set()!.id : ''));
-  const top = styleControls(ctx, () => (set() && !set()!.patterns ? set()!.top : ''));
+  const top = styleControls(ctx, () => (set() && !(set()!.patterns && sharedPieces(set()!).includes(set()!.top)) ? set()!.top : ''));
   const bottom = styleControls(ctx, () => (set() && !set()!.patterns && set()!.bottom !== 'none' ? set()!.bottom : ''));
   return el('div', {}, shared, top, bottom);
 }
@@ -160,7 +162,7 @@ export function hatStyle(ctx: Ctx) {
 /** Generated hats, as extra entries in the Hat picker. */
 export const HAT_ENTRIES = GARMENTS.filter((g) => g.slot === 'hat').map((g) => ({ id: g.id, name: g.label }));
 
-/** Colour (and finish) of generated shoes, when worn: high heels, sneakers. */
-export function heelsStyle(ctx: Ctx) {
-  return styleControls(ctx, () => (['heels', 'sneakers'].includes(ctx.store.params.shoes) ? ctx.store.params.shoes : ''));
+/** Colour (and finish) of generated shoes, when worn: high heels, sneakers, loafers. */
+export function shoeStyle(ctx: Ctx) {
+  return styleControls(ctx, () => (garmentById.get(ctx.store.params.shoes)?.slot === 'feet' ? ctx.store.params.shoes : ''));
 }

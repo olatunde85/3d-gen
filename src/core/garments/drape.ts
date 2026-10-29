@@ -209,6 +209,46 @@ export function soleY(b: Body): number {
 
 const smooth01 = (t: number) => t * t * (3 - 2 * t);
 
+/**
+ * Trousers' seat over the tops of their legs: where the seat (a shell round the hips) overlaps a
+ * leg below `yTop`, it is pushed out over that leg's surface so the two meet without a step.
+ * Moves the seat's vertices in place.
+ */
+export function seatOverLegs(seat: PolyMesh, legs: PolyMesh[], yTop: number): void {
+  const S = seat.positions;
+  for (const lm of legs) {
+    const L = lm.positions;
+    // Leg vertices near the top, with their row centre.
+    const near: Vec3[] = [];
+    for (let i = 0; i < L.length; i += 3) if (L[i + 1] > yTop - cm(6)) near.push([L[i], L[i + 1], L[i + 2]]);
+    if (!near.length) continue;
+    let c: Vec3 = [0, 0, 0];
+    for (const p of near) c = v3.add(c, v3.scale(p, 1 / near.length));
+    const side = Math.sign(c[0]);
+    for (let i = 0; i < S.length; i += 3) {
+      const y = S[i + 1];
+      if (y > yTop + cm(1) || Math.sign(S[i]) !== side) continue;
+      const d: Vec3 = [S[i] - c[0], 0, S[i + 2] - c[2]];
+      const r = Math.hypot(d[0], d[2]) || 1, a = Math.atan2(d[0], d[2]);
+      // The leg's radius here: its vertices at about this height and angle.
+      let best = 0, score = Infinity;
+      for (const q of near) {
+        if (Math.abs(q[1] - y) > cm(1.5)) continue;
+        const qa = Math.atan2(q[0] - c[0], q[2] - c[2]);
+        const da = Math.abs(Math.atan2(Math.sin(qa - a), Math.cos(qa - a)));
+        if (da < score) [score, best] = [da, Math.hypot(q[0] - c[0], q[2] - c[2])];
+      }
+      const w = clamp((yTop + cm(1) - y) / cm(2), 0, 1);
+      const target = best + cm(0.25);
+      if (best && r < target) {
+        const k = (r + (target - r) * w) / r;
+        S[i] = c[0] + d[0] * k;
+        S[i + 2] = c[2] + d[2] * k;
+      }
+    }
+  }
+}
+
 export interface WideLegOpts {
   /** Bunched folds where a long hem stacks over the shoe. */
   stack?: boolean;
@@ -216,6 +256,12 @@ export interface WideLegOpts {
   tile?: number;
   /** How far down the leg (0..1) it keeps following the thigh before easing out to its full width. */
   flareFrom?: number;
+  /** Pressed creases down the front and back (their height, decimetres). */
+  crease?: number;
+  /** Strength of the soft drape folds (1 = loose trousers). */
+  folds?: number;
+  /** Hem width (radius, decimetres) instead of the default loose one. */
+  hemW?: number;
 }
 
 /**
@@ -240,7 +286,7 @@ export function wideLeg(b: Body, s: number, yTop: number, yHem: number, o: WideL
   let thighR = 0;
   for (const p of top) thighR += Math.hypot(p[0] - cTop[0], p[2] - cTop[2]) / top.length;
   const ease = cm(1.6);
-  const topW = thighR + cm(2), hemW = Math.max(cm(9.5), thighR * 0.95);
+  const topW = thighR + cm(2), hemW = o.hemW ?? Math.max(cm(9.5), thighR * 0.95);
   const N = 48, R = Math.max(20, Math.round((yTop - yHem) / cm(1.8)));
   // Radii first (rows x columns), so they can be smoothed down each column.
   const radius: number[][] = [], ys: number[][] = [], dirs: Vec3[] = [];
@@ -268,7 +314,9 @@ export function wideLeg(b: Body, s: number, yTop: number, yHem: number, o: WideL
       const f0 = o.flareFrom ?? 0;
       let r = Math.max(fit, fit + (drape - fit) * smooth01(Math.max(0, Math.min(1, (t - f0) / 0.18))));
       // Drape folds: low-frequency, irregular, growing down the leg.
-      r += cm(0.9) * smooth01(Math.max(0, Math.min(1, (t - (o.flareFrom ?? 0)) * 1.3))) * (noise3(d[0] * 1.3 + s * 3, d[2] * 1.3, y * 2.2) - 0.5) * 2;
+      r += (o.folds ?? 1) * cm(0.9) * smooth01(Math.max(0, Math.min(1, (t - (o.flareFrom ?? 0)) * 1.3))) * (noise3(d[0] * 1.3 + s * 3, d[2] * 1.3, y * 2.2) - 0.5) * 2;
+      // Pressed creases: a narrow ridge at the front and back of the leg, fading out at the top.
+      if (o.crease) r += o.crease * Math.min(1, t * 4) * Math.exp(-(d[0] * d[0]) / 0.01);
       // Stacking over the shoe: bunched horizontal folds rather than a flare.
       const st = o.stack ? Math.max(0, (t - 0.8) / 0.2) : 0;
       r += st * (cm(0.3) + cm(0.9) * Math.sin(y / cm(1.6) + noise3(d[0] * 2 + 7, d[2] * 2, y * 4) * 4));

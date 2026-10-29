@@ -66,7 +66,7 @@ function backpack(g: GCtx, st: GarmentStyle): GPart[] {
   // Large: from just below the shoulders to the lower back.
   const W = cm(32), D = cm(15), yTop = torsoY(b, 0.88), yBot = torsoY(b, 0.22);
   // What it rests on: the back (and any top over it).
-  const surf = [...points(b, (v) => isTrunk(v) || v.region === REGION.neck || (v.region === REGION.upperarm && v.t < 0.12)), ...(g.worn ?? [])];
+  const surf = [...points(b, (v) => isTrunk(v) || v.region === REGION.neck || (v.region === REGION.upperarm && v.t < 0.12)), ...(g.worn ?? []), ...(g.jacket ?? [])];
   // The back's depth at each height (its rearmost point across the pack's width), smoothed: the
   // pack's front face rests on it.
   const step = cm(2), backZ: number[] = [];
@@ -94,7 +94,7 @@ function backpack(g: GCtx, st: GarmentStyle): GPart[] {
   // chest; then from the chest under the arm back to the pack's bottom corner.
   const straps: PolyMesh[] = [];
   // The torso alone (no arms), for the lower straps hugging the sides.
-  const torso = [...points(b, isTrunk), ...(g.worn ?? []).filter((p) => Math.abs(p[0]) < 0.95 * sx)];
+  const torso = [...points(b, isTrunk), ...[...(g.worn ?? []), ...(g.jacket ?? [])].filter((p) => Math.abs(p[0]) < 0.95 * sx)];
   const hulls = new Map<number, Vec3[] | null>();
   const hullAt = (y: number) => {
     const k = Math.round(y / cm(1));

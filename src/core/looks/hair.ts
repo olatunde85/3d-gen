@@ -20,10 +20,10 @@ export const HAIRSTYLES = [
 export type HairstyleId = (typeof HAIRSTYLES)[number]['id'];
 export const isProceduralHair = (id: string): id is HairstyleId => HAIRSTYLES.some((h) => h.id === id);
 
-export const FACIAL_HAIR = ['none', 'stubble', 'mustache', 'goatee', 'short_beard', 'full_beard'] as const;
+export const FACIAL_HAIR = ['none', 'stubble', 'mustache', 'mustache_stubble', 'goatee', 'short_beard', 'full_beard'] as const;
 export type FacialHairId = (typeof FACIAL_HAIR)[number];
 export const FACIAL_HAIR_LABELS: Record<FacialHairId, string> = {
-  none: 'Clean shaven', stubble: 'Stubble', mustache: 'Mustache', goatee: 'Goatee', short_beard: 'Short beard', full_beard: 'Full beard',
+  none: 'Clean shaven', stubble: 'Stubble', mustache: 'Mustache', mustache_stubble: 'Mustache & stubble', goatee: 'Goatee', short_beard: 'Short beard', full_beard: 'Full beard',
 };
 
 // --- Masks on the base body ------------------------------------------------------------------
@@ -50,20 +50,26 @@ export function scalpMask(p: Vec3): number {
 const cheekLine = pchip([0, 0.15, 0.25, 0.4, 0.55, 0.68, 0.76], [6.88, 6.87, 6.84, 6.86, 6.95, 7.15, 7.3]);
 const mouth = (x: number, y: number, z: number) => (z > 1.2 ? (x / 0.205) ** 2 + ((y - 6.645) / 0.085) ** 2 : 9);
 
-/** Facial hair coverage 0..1 at a base-body point (head + neck). */
+/** A mustache, alone or over stubble. */
+const isMustache = (style: FacialHairId) => style === 'mustache' || style === 'mustache_stubble';
+
+/**
+ * Facial hair coverage 0..1 at a base-body point (head + neck). For 'mustache_stubble' this is
+ * the mustache (its cards); the stubble round it uses the stubble mask.
+ */
 export function beardMask(p: Vec3, style: FacialHairId, region: number): number {
   if (style === 'none') return 0;
   const x = Math.abs(p[0]), y = p[1], z = p[2];
   if (isEar(x, y, z)) return 0;
   const lips = smoothstep(1.0, 1.3, mouth(x, y, z));
   if (region === REGION.neck) {
-    if (style === 'mustache' || style === 'goatee') return 0;
+    if (isMustache(style) || style === 'goatee') return 0;
     return smoothstep(6.08, 6.17, y) * smoothstep(0.45, 0.65, z);
   }
   if (region !== REGION.head) return 0;
   const below = 1 - smoothstep(cheekLine(x) - 0.035, cheekLine(x) + 0.035, y);
   const mus = (1 - smoothstep(0.23, 0.28, x)) * smoothstep(6.69, 6.72, y) * below * smoothstep(1.15, 1.25, z);
-  if (style === 'mustache') return mus * lips;
+  if (isMustache(style)) return mus * lips;
   const chin = (1 - smoothstep(0.22, 0.27, x)) * (1 - smoothstep(6.55, 6.6, y)) * smoothstep(0.8, 1.0, z);
   const corners = smoothstep(0.15, 0.17, x) * (1 - smoothstep(0.25, 0.28, x)) * smoothstep(6.48, 6.52, y) * (1 - smoothstep(6.7, 6.74, y)) * smoothstep(1.1, 1.2, z);
   if (style === 'goatee') return Math.max(mus, chin, corners) * lips;
@@ -79,7 +85,9 @@ function beardLength(p: Vec3, style: FacialHairId): number {
   const chin = smoothstep(6.62, 6.3, y) * (1 - smoothstep(0.2, 0.55, x)) * smoothstep(0.95, 1.25, z);
   switch (style) {
     case 'mustache':
-      return 0.085;
+    case 'mustache_stubble':
+      // Longer toward the mouth's corners.
+      return 0.07 + 0.05 * Math.min(1, x / 0.24);
     case 'goatee':
       return y > 6.69 ? 0.085 : 0.11 + 0.12 * chin;
     case 'short_beard':
@@ -127,8 +135,11 @@ export function hairLayers(hairstyle: string, facial: FacialHairId, color: strin
       regions: [REGION.head, REGION.neck],
       paint(p, region): Paint {
         const m = beardMask(p, facial, region);
-        if (m <= 0) return null;
-        return [bc[0], bc[1], bc[2], m * fa * speckle(p, 260, facial === 'stubble' ? 0.55 : 0.8)];
+        // A mustache over stubble: the stubble everywhere else.
+        const s = facial === 'mustache_stubble' ? beardMask(p, 'stubble', region) : 0;
+        if (m <= 0 && s <= 0) return null;
+        const a = Math.max(m * fa * speckle(p, 260, 0.8), s * 0.38 * speckle(p, 260, 0.55));
+        return [bc[0], bc[1], bc[2], a];
       },
     });
   }
@@ -488,20 +499,22 @@ export function beardCards(c: HeadCtx, style: FacialHairId): PolyMesh | undefine
   return scatterCards(c, {
     seed: c.seed * 31 + 7,
     regions: [REGION.head, REGION.neck],
-    density: (style === 'full_beard' ? 6 : style === 'short_beard' ? 9 : 12) * (c.low ? 0.5 : 1) * 100,
+    density: (style === 'full_beard' ? 6 : style === 'short_beard' ? 9 : isMustache(style) ? 24 : 12) * (c.low ? 0.5 : 1) * 100,
     mask: (p, region) => beardMask(p, style, region),
     strand({ root, N, bp, r }) {
       let D = sub(down, mul(N, dot(down, N)));
       if (Math.hypot(...D) < 0.25) D = sub([0, -0.3, 1], mul(N, dot([0, -0.3, 1], N)));
       D = norm(D);
-      // Mustache hairs fan out from the midline.
-      if (style !== 'full_beard' && style !== 'short_beard' && bp[1] > 6.69) D = norm(add(D, [Math.sign(root[0] || 1) * 0.6, 0, 0]));
-      const L = beardLength(bp, style) * (0.7 + 0.6 * r());
+      // Mustache hairs fan out from the midline, more toward the corners of the mouth, and lie
+      // close to the lip: a groomed mustache, not a brush.
+      const mus = isMustache(style);
+      if (style !== 'full_beard' && style !== 'short_beard' && bp[1] > 6.69) D = norm(add(D, [Math.sign(root[0] || 1) * (mus ? 0.15 + 1.1 * Math.min(1, Math.abs(bp[0]) / 0.24) : 0.6), 0, 0]));
+      const L = beardLength(bp, style) * (0.8 + 0.4 * r());
       // Lift off the skin gives volume; random sway breaks up the "curtain".
-      const lift = (style === 'short_beard' ? 0.5 : 0.38) + 0.3 * r();
-      D = norm(add(D, mul(cross(N, D), (r() - 0.5) * 0.8)));
+      const lift = (mus ? 0.14 : style === 'short_beard' ? 0.5 : 0.38) + (mus ? 0.14 : 0.3) * r();
+      D = norm(add(D, mul(cross(N, D), (r() - 0.5) * (mus ? 0.4 : 0.8))));
       const S = norm(add(mul(D, Math.cos(lift)), mul(N, Math.sin(lift))));
-      const width = (style === 'full_beard' ? 0.042 : 0.032) * (0.8 + 0.4 * r());
+      const width = (style === 'full_beard' ? 0.042 : mus ? 0.02 : 0.032) * (0.8 + 0.4 * r());
       const W = mul(norm(cross(N, S)), width / 2);
       const droop = style === 'full_beard' ? 0.2 : 0.1;
       const curl = (r() - 0.5) * 0.3;
