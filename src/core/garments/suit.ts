@@ -11,8 +11,9 @@ import { cm, REGION } from './body';
 import { crotchY, dressPts, knee, looseSkin, soleY } from './drape';
 import { Caster, OUTWARD } from './project';
 import { cord, hullRing, loftRings, merge, orientOutward, rayRing, v3 } from './ring';
-import { hplane, mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { hplane, isTrunk, mat, shell, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { keepIslands, outfitCloth, outfitCovers, type Island } from './outfit-cut';
+import { shade, shirtTieTexture } from './textures';
 
 const FROM = 'male_elegantsuit01';
 // The suit's UV atlas: the trouser legs fill its lower left; the shirt front, tie, collar and
@@ -32,15 +33,44 @@ function cut(g: GCtx, st: GarmentStyle, name: string, keep: (i: Island) => boole
   return [{ mesh, material: cloth, hides: outfitCovers(g, o, mesh, regions), smooth: true }];
 }
 
+// The tie on the suit's shirt front, in its texture (0..1, y down): traced from the outfit's own
+// texture (the shirt front is the island at u 0.35..0.49, v 0.82..0.98).
+const TIE: [number, number][] = ([[170, 278], [252, 268], [258, 335], [232, 415], [195, 515], [150, 600], [108, 668], [55, 672], [82, 560], [108, 450], [132, 380], [145, 322]] as const)
+  .map(([x, y]): [number, number] => [(712 + x / 2) / 2048, (36 + y / 2) / 2048]);
+
+/**
+ * The suit's own shirt and tie (its shirt front, collar and cuffs), worn under the suit jacket: the
+ * shirt in `color`, the tie in `color2`, plain or with repp stripes in the shirt's colour.
+ */
+function suitShirtTie(g: GCtx, st: GarmentStyle): GPart[] {
+  const o = g.outfits?.[FROM];
+  if (!o) return [];
+  const mesh = keepIslands({ ...o.mesh, ref: Int32Array.from(o.ref) }, isShirt);
+  const stripe = st.pattern === 'striped' ? st.color : null;
+  const tex = g.texture(`shirt_tie_${st.color}_${st.color2}_${st.pattern}`, () => shirtTieTexture(2048, TIE, st.color, st.color2, stripe));
+  // A backing in the shirt's colour on the skin under the shirt front, collar and knot: the outfit's
+  // pieces leave small gaps between them (wider on a thick neck), which it fills.
+  const r = shell(g, {
+    covers: (v) => (isTrunk(v) && v.tt > 0.7 && Math.abs(v.tth) < 1.2) || (v.region === REGION.neck && v.t < 0.55),
+    offset: cm(0.15), tile: 0.3, relax: 2,
+  });
+  return [
+    { mesh, material: mat('Shirt and tie', tex, { roughness: 0.6, doubleSided: true }), hides: outfitCovers(g, o, mesh, [REGION.torso, REGION.neck]), smooth: true, collar: true },
+    ...(r ? [{ mesh: r.mesh, material: mat('Shirt backing', null, { color: st.color, roughness: 0.7 }), hides: r.covered }] : []),
+  ];
+}
+
 function suitJacket(g: GCtx, st: GarmentStyle): GPart[] {
   const o = g.outfits?.[FROM];
   if (!o) return [];
   const buttons = keepIslands(o.mesh, isButton);
   return [
-    ...cut(g, st, 'Suit jacket', (i) => !isTrousers(i) && !isShirt(i) && !isButton(i), [REGION.torso, REGION.hips, REGION.upperarm, REGION.lowerarm]),
-    { mesh: buttons, material: mat('Suit buttons', null, { color: '#d8c7b8', roughness: 0.35 }) },
+    ...cut(g, st, 'Suit jacket', (i) => !isTrousers(i) && !isShirt(i) && !isButton(i), [REGION.torso, REGION.hips, REGION.neck, REGION.upperarm, REGION.lowerarm]),
+    // Horn buttons a shade darker than the cloth.
+    { mesh: buttons, material: mat('Suit buttons', null, { color: shade(st.color, 0.6), roughness: 0.35 }) },
   ];
 }
+
 
 /**
  * Overcoat: the suit jacket lengthened to just below the knee. A skirt hangs from the jacket's hem
@@ -52,7 +82,7 @@ function overcoat(g: GCtx, st: GarmentStyle): GPart[] {
   const o = g.outfits?.[FROM];
   if (!o) return [];
   const b = g.body;
-  const jacket = cut(g, st, 'Overcoat', (i) => !isTrousers(i) && !isShirt(i) && !isButton(i), [REGION.torso, REGION.hips, REGION.upperarm, REGION.lowerarm]);
+  const jacket = cut(g, st, 'Overcoat', (i) => !isTrousers(i) && !isShirt(i) && !isButton(i), [REGION.torso, REGION.hips, REGION.neck, REGION.upperarm, REGION.lowerarm]);
   if (!jacket.length) return [];
   const jm = jacket[0].mesh;
   // The jacket's outline by angle round the body (0 = front) and height (1 cm): its outermost
@@ -198,6 +228,10 @@ function suitTrousers(g: GCtx, st: GarmentStyle): GPart[] {
 }
 
 export const SUIT: GarmentDef[] = [
+  {
+    id: 'suit_shirt_tie', label: 'Shirt & tie (under a suit jacket)', slot: 'top', patterns: ['solid', 'striped'], color: '#f4f4f2', color2: '#121214',
+    colorLabels: ['Shirt', 'Tie'], setOnly: true, fromOutfit: FROM, build: suitShirtTie,
+  },
   { id: 'suit_jacket', label: 'Suit jacket', slot: 'jacket', patterns: ['linen', 'suiting', 'solid'], color: '#e9b7c0', color2: '#f3d6db', fromOutfit: FROM, build: suitJacket },
   { id: 'overcoat', label: 'Long overcoat', slot: 'jacket', patterns: ['suiting', 'solid', 'linen'], color: '#141416', color2: '#26262c', fromOutfit: FROM, build: overcoat },
   { id: 'suit_trousers', label: 'Suit trousers', slot: 'bottom', patterns: ['linen', 'suiting', 'solid'], color: '#e9b7c0', color2: '#f3d6db', fromOutfit: FROM, build: suitTrousers },

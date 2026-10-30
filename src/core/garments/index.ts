@@ -9,6 +9,7 @@ import { flipFlops } from './beach';
 import { setById, setStyles } from './sets';
 
 export { GARMENTS, garmentById } from './catalog';
+export type { GarmentDef } from './kit';
 export { PATTERNS } from './textures';
 export { archFeet } from './heels';
 export { OUTFIT_SETS, setById, setStyles, sharedPieces, type OutfitSet } from './sets';

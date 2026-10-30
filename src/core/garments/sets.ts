@@ -49,6 +49,10 @@ export function setStyles(set: OutfitSet, styles: Styles): Styles {
 
 export const OUTFIT_SETS: OutfitSet[] = [
   {
+    id: 'set_suit_tie', label: 'Elegant suit & tie', top: 'suit_shirt_tie', jacket: 'suit_jacket', bottom: 'suit_trousers', accessories: [], shoes: 'oxfords',
+    patterns: ['suiting', 'solid', 'linen'], color: '#2b2d33', color2: '#3d4048',
+  },
+  {
     id: 'set_clergy', label: 'Clerical shirt & overcoat', top: 'clerical_shirt', jacket: 'overcoat', bottom: 'suit_trousers', accessories: ['silver_cross', 'gloves'], shoes: 'oxfords',
     patterns: ['suiting', 'solid'], color: '#141416', color2: '#26262c',
   },

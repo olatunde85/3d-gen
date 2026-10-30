@@ -1,4 +1,4 @@
-/** Sidebar: hair, tattoos, earrings and the held weapon. */
+/** Sidebar: hair, tattoos, earrings, the held weapon, bags and the ride. */
 import { EARRINGS, EARRING_LABELS, HAIRSTYLES, TATTOOS, TATTOO_LABELS, isProceduralHair, type EarringId, type Metal, type TattooId } from '../../core/looks';
 import { ageToYears } from '../../core/params';
 import { CARRIED, CARRY_LABELS, type CarryId } from '../../core/props/carry';
@@ -6,6 +6,7 @@ import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons'
 import type { Ctx } from './context';
 import { color, NONE, picker, selectRow } from './controls';
 import { el } from './dom';
+import { styleControls } from './sidebar-clothing';
 
 export function hairPanel(ctx: Ctx) {
   const { store } = ctx;
@@ -78,12 +79,17 @@ export function weaponPanel(ctx: Ctx) {
   return el('div', {}, row, note);
 }
 
-/** Vehicle props, shown with their riding clip. */
+/** Bags, with the chosen bag's finish and colours. */
 export function carryPanel(ctx: Ctx) {
   const { store } = ctx;
-  return selectRow(ctx, 'Bag', CARRIED.map((c) => [c, CARRY_LABELS[c]]), () => store.params.carry, (v) => store.set({ carry: v as CarryId }));
+  const row = selectRow(ctx, 'Bag', CARRIED.map((c) => [c, CARRY_LABELS[c]]), () => store.params.carry, (v) => {
+    store.set({ carry: v as CarryId });
+    store.emit('sync');
+  });
+  return el('div', {}, row, styleControls(ctx, () => (store.params.carry === 'none' ? '' : store.params.carry)));
 }
 
+/** Vehicle props, shown with their riding clip. */
 export function vehiclePanel(ctx: Ctx) {
   const { store } = ctx;
   const row = selectRow(ctx, 'Ride', [['none', 'None'], ['bicycle', 'Bicycle']], () => store.params.vehicle, (v) => {

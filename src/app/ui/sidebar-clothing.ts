@@ -1,6 +1,7 @@
 /** Sidebar: separate clothing pieces, garment styles, underwear and accessories. */
-import { GARMENTS, garmentById, OUTFIT_SETS, PATTERNS, setById, setStyles, sharedPieces } from '../../core/garments';
+import { GARMENTS, garmentById, type GarmentDef, OUTFIT_SETS, PATTERNS, setById, setStyles, sharedPieces } from '../../core/garments';
 import { ageToYears, type HumanParams } from '../../core/params';
+import { CARRY_STYLES } from '../../core/props/carry';
 import type { Ctx } from './context';
 import { selectRow } from './controls';
 import { el } from './dom';
@@ -18,9 +19,11 @@ export function styleControls(ctx: Ctx, current: () => string) {
     }
     shown = id;
     box.replaceChildren();
-    // A garment, or a set whose pieces share one style (sets that don't show their pieces' controls).
+    // A garment, a set whose pieces share one style (sets that don't show their pieces' controls),
+    // or a bag carried in the hand.
     const set = setById.get(id);
-    const def = garmentById.get(id) ?? (set?.patterns ? { patterns: set.patterns, color: set.color!, color2: set.color2! } : undefined);
+    const def: { patterns: GarmentDef['patterns']; color: string; color2: string; colorLabels?: [string, string] } | undefined =
+      garmentById.get(id) ?? (set?.patterns ? { patterns: set.patterns, color: set.color!, color2: set.color2! } : CARRY_STYLES[id as keyof typeof CARRY_STYLES]);
     if (!def) return;
     const st = () => store.params.garmentStyles[id] ?? {};
     const put = (patch: Record<string, string>) =>
@@ -34,7 +37,8 @@ export function styleControls(ctx: Ctx, current: () => string) {
       sel.addEventListener('sync', () => (sel.value = st().pattern ?? def.patterns[0]));
       box.append(el('div', { className: 'ctl wide' }, el('span', { textContent: 'Pattern' }), sel));
     }
-    for (const [key, label, fallback] of [['color', 'Colour', def.color], ['color2', 'Accent', def.color2]] as const) {
+    const [l1, l2] = def.colorLabels ?? ['Colour', 'Accent'];
+    for (const [key, label, fallback] of [['color', l1, def.color], ['color2', l2, def.color2]] as const) {
       const input = el('input', { type: 'color', value: st()[key] ?? fallback });
       input.dataset.sync = '1';
       input.addEventListener('input', () => put({ [key]: input.value }));
@@ -50,7 +54,7 @@ export function styleControls(ctx: Ctx, current: () => string) {
 export function piecesPanel(ctx: Ctx) {
   const { store } = ctx;
   const opts = (slot: 'top' | 'jacket' | 'bottom', none: string): [string, string][] =>
-    [['none', none], ...GARMENTS.filter((g) => g.slot === slot && g.id !== 'briefs').map((g) => [g.id, g.label] as [string, string])];
+    [['none', none], ...GARMENTS.filter((g) => g.slot === slot && g.id !== 'briefs' && !g.setOnly).map((g) => [g.id, g.label] as [string, string])];
   // Always available: picking a top or bottom while a full outfit is worn switches to separate pieces
   // (an outfit set's pieces and colours carry over).
   const pick = (patch: Partial<HumanParams>) => {
