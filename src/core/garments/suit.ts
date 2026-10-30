@@ -5,13 +5,13 @@
  * suit's own shirt front, tie, collar and cuffs are left out, so any top shows in the V. The
  * trousers get pressed creases.
  */
-import type { PolyMesh } from '../geometry';
+import { compact, type PolyMesh } from '../geometry';
 import { smoothstep, type Vec3 } from '../math';
 import { cm, REGION } from './body';
-import { crotchY, soleY } from './drape';
+import { crotchY, dressPts, knee, looseSkin, soleY } from './drape';
 import { Caster, OUTWARD } from './project';
-import { cord, merge, v3 } from './ring';
-import { mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { cord, hullRing, loftRings, merge, orientOutward, rayRing, v3 } from './ring';
+import { hplane, mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { keepIslands, outfitCloth, outfitCovers, type Island } from './outfit-cut';
 
 const FROM = 'male_elegantsuit01';
@@ -39,6 +39,100 @@ function suitJacket(g: GCtx, st: GarmentStyle): GPart[] {
   return [
     ...cut(g, st, 'Suit jacket', (i) => !isTrousers(i) && !isShirt(i) && !isButton(i), [REGION.torso, REGION.hips, REGION.upperarm, REGION.lowerarm]),
     { mesh: buttons, material: mat('Suit buttons', null, { color: '#d8c7b8', roughness: 0.35 }) },
+  ];
+}
+
+/**
+ * Overcoat: the suit jacket lengthened to just below the knee. A skirt hangs from the jacket's hem
+ * (open at the front where the jacket opens), falling straight and never closer to the hips and
+ * legs than 2 cm, flaring a little toward its own hem, and skinned loosely so it swings with both
+ * legs.
+ */
+function overcoat(g: GCtx, st: GarmentStyle): GPart[] {
+  const o = g.outfits?.[FROM];
+  if (!o) return [];
+  const b = g.body;
+  const jacket = cut(g, st, 'Overcoat', (i) => !isTrousers(i) && !isShirt(i) && !isButton(i), [REGION.torso, REGION.hips, REGION.upperarm, REGION.lowerarm]);
+  if (!jacket.length) return [];
+  const jm = jacket[0].mesh;
+  // The jacket's outline by angle round the body (0 = front) and height (1 cm): its outermost
+  // point, so the skirt can lie just over it; and its lowest point (the hem) per angle. The open
+  // front has no jacket low down.
+  let hipX = 0;
+  for (const v of b.verts(REGION.hips)) hipX = Math.max(hipX, Math.abs(b.coords[v * 3]));
+  const c: Vec3 = [0, 0, b.L.torsoZ], AB = 96;
+  const angOf = (x: number, z: number) => Math.atan2(x - c[0], z - c[2]);
+  const binOf = (a: number) => ((Math.floor((a / (2 * Math.PI) + 0.5) * AB) % AB) + AB) % AB;
+  const outR = new Map<number, number>(), lowY = new Array<number>(AB).fill(Infinity);
+  const P = jm.positions;
+  for (let i = 0; i < P.length; i += 3) {
+    const [x, y, z] = [P[i], P[i + 1], P[i + 2]];
+    if (Math.abs(x) > hipX + cm(4) || y > b.L.hipY + cm(14)) continue;
+    const k = binOf(angOf(x, z));
+    lowY[k] = Math.min(lowY[k], y);
+    const key = k * 10000 + Math.round(y / cm(1));
+    outR.set(key, Math.max(outR.get(key) ?? 0, Math.hypot(x - c[0], z - c[2])));
+  }
+  const ys = lowY.filter((y) => Number.isFinite(y)).sort((p, q) => p - q);
+  const hemY = ys[Math.floor(ys.length / 2)];
+  const ok = lowY.map((y) => y < hemY + cm(5));
+  // The front edges: walking from the front (bin AB/2) both ways to the first hem bins.
+  let l = AB / 2, r = AB / 2;
+  while (!ok[l % AB] && l < AB - 1) l++;
+  while (!ok[(r + AB) % AB] && r > 1) r--;
+  const aL = -Math.PI + ((l + 0.5) / AB) * 2 * Math.PI, aR = -Math.PI + ((r + AB + 0.5) / AB) * 2 * Math.PI;
+  const jacketR = (a: number, y: number) => {
+    const k = binOf(a), h = Math.round(y / cm(1));
+    let m = 0;
+    for (const dk of [-1, 0, 1]) for (const dh of [-1, 0, 1]) m = Math.max(m, outR.get(((k + dk + AB) % AB) * 10000 + h + dh) ?? 0);
+    return m;
+  };
+  // The skirt: from a clean line 6 cm above the hem (lying just over the jacket's lower edge) down
+  // to just below the knee, falling straight, never closer to the hips and legs than 2 cm.
+  const yTop = hemY + cm(6), yEnd = knee(b) - cm(6), src = dressPts(b);
+  const hulls = new Map<number, Vec3[] | null>();
+  const hullAt = (y: number) => {
+    const k = Math.round(y / cm(1));
+    if (!hulls.has(k)) hulls.set(k, hullRing(src, hplane(b, k * cm(1)), { slab: cm(2), samples: 96, offset: cm(2) }));
+    return hulls.get(k)!;
+  };
+  const M = 72, R = 24, rows: Vec3[][] = [];
+  let prevR: number[] = [];
+  for (let i = 0; i <= R; i++) {
+    const y = yTop + (yEnd - yTop) * (i / R), row: Vec3[] = [], rr: number[] = [];
+    for (let j = 0; j <= M; j++) {
+      const a = aL + ((aR - aL) * j) / M, d: Vec3 = [Math.sin(a), 0, Math.cos(a)];
+      const h = hullAt(y), hr = h ? rayRing(h, [c[0], y, c[2]], d) ?? 0 : 0;
+      const rad = Math.max(prevR[j] ?? 0, hr, jacketR(a, y) + cm(0.25));
+      rr.push(rad);
+      row.push([c[0] + d[0] * rad, y, c[2] + d[2] * rad]);
+    }
+    prevR = rr;
+    rows.push(row);
+  }
+  // Even out the columns round the body (the hull's facets), keeping the front edges.
+  for (const row of rows.slice(1))
+    for (let it = 0; it < 3; it++) {
+      const prev = row.map((q) => [...q] as Vec3);
+      for (let jj = 1; jj < row.length - 1; jj++) row[jj] = v3.scale(v3.add(v3.add(prev[jj - 1], v3.scale(prev[jj], 2)), prev[jj + 1]), 0.25);
+    }
+  // The jacket under the skirt is cut away (it would poke through when walking).
+  const ref = jm.ref;
+  jacket[0] = {
+    ...jacket[0],
+    mesh: compact(jm, (_, cs) => !Array.from(cs).every((v) => P[v * 3 + 1] < yTop - cm(2) && Math.abs(P[v * 3]) < hipX + cm(4) && (!ref || ref[v] < 0 || b.regions[ref[v]] !== REGION.lowerarm))),
+  };
+  // UVs on the cloth's tiling (six tiles across the atlas: 30 cm each).
+  const skirt = orientOutward(loftRings(rows, { closedAround: false, tileU: 0.05, tileV: 0.05 }), [0, (yTop + yEnd) / 2, b.L.torsoZ]);
+  // Edges: a seam along the top, the hem, and down each front.
+  const edges = merge([cord(rows[0], cm(0.18), false, 6), cord(rows[R], cm(0.3), false, 6), cord(rows.map((r) => r[0]), cm(0.25), false, 6), cord(rows.map((r) => r[r.length - 1]), cm(0.25), false, 6)]);
+  const cloth = jacket[0].material;
+  const buttons = keepIslands(o.mesh, isButton);
+  return [
+    ...jacket,
+    { mesh: skirt, material: cloth, skinAt: looseSkin(b, skirt, 0.3, 0.3) },
+    ...(edges ? [{ mesh: edges, material: cloth, skinAt: looseSkin(b, edges, 0.3, 0.3) }] : []),
+    { mesh: buttons, material: mat('Overcoat buttons', null, { color: '#151515', roughness: 0.3 }) },
   ];
 }
 
@@ -102,5 +196,6 @@ function suitTrousers(g: GCtx, st: GarmentStyle): GPart[] {
 
 export const SUIT: GarmentDef[] = [
   { id: 'suit_jacket', label: 'Suit jacket', slot: 'jacket', patterns: ['linen', 'suiting', 'solid'], color: '#e9b7c0', color2: '#f3d6db', fromOutfit: FROM, build: suitJacket },
+  { id: 'overcoat', label: 'Long overcoat', slot: 'jacket', patterns: ['suiting', 'solid', 'linen'], color: '#141416', color2: '#26262c', fromOutfit: FROM, build: overcoat },
   { id: 'suit_trousers', label: 'Suit trousers', slot: 'bottom', patterns: ['linen', 'suiting', 'solid'], color: '#e9b7c0', color2: '#f3d6db', fromOutfit: FROM, build: suitTrousers },
 ];

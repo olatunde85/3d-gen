@@ -7,7 +7,7 @@ import type { Vec3 } from '../math';
 import { cm, REGION } from './body';
 import { hplane, isTrunk, mat, points, Y, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { part } from './drape';
-import { along, cord, ellipsoid, frameOf, hullRing, merge, rayRing, v3 } from './ring';
+import { along, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, rayRing, v3 } from './ring';
 
 /** Front-most crossing (largest z) of a closed ring with the vertical plane at lateral position x. */
 function frontZ(ring: Vec3[], x: number): number | null {
@@ -141,6 +141,16 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
     const ys = ring.map((q) => q[1]);
     for (let i = 0; i < N; i++) ring[i][1] = Math.max(floor[i], (ys[(i + N - 1) % N] + 2 * ys[i] + ys[(i + 1) % N]) / 4);
   }
+  // Under a jacket (its lapels and collar), wherever it lies just in front of the chain.
+  if (g.jacket?.length) {
+    const J = g.jacket;
+    for (let i = 0; i < N; i++) {
+      const p = ring[i];
+      let jz = Infinity;
+      for (const q of J) if (Math.abs(q[0] - p[0]) < cm(1) && Math.abs(q[1] - p[1]) < cm(1) && q[2] > p[2] - cm(0.5) && q[2] < p[2] + cm(2.5)) jz = Math.min(jz, q[2]);
+      if (Number.isFinite(jz) && p[2] > jz - cm(0.5)) ring[i] = [p[0], p[1], jz - cm(0.5)];
+    }
+  }
   return { ring, centre: [c[0], yN - cm(6), c[2]] };
 }
 
@@ -205,6 +215,53 @@ function finePendant(g: GCtx, st: GarmentStyle): GPart[] {
   const drop = ellipsoid(frameOf(v3.madd(v3.madd(front, Y, -cm(0.9)), out, cm(0.15)), out, Y), [cm(0.45), cm(0.7), cm(0.18)], [0.5, 0.5], 12, 6);
   const metal = mat('Gold pendant', null, { color: st.color, roughness: 0.2, metalness: 1 });
   return [{ mesh: merge([cord(s.ring, cm(0.06), true, 5), drop])!, material: metal }];
+}
+
+/**
+ * Silver cross on a long fine chain (under any collar round the neck): a Latin cross (bevelled
+ * bars, a small ring where it hangs) resting on the chest at the bottom of the chain.
+ */
+function silverCross(g: GCtx, st: GarmentStyle): GPart[] {
+  // Snug round the neck under any collar, then out over the top worn below the neckline.
+  const s = strand(g, cm(22), 0, true);
+  if (!s) return [];
+  const b = g.body, worn = g.worn ?? [];
+  s.ring = s.ring.map((p) => {
+    if (p[1] > b.L.neckY - cm(1.5)) return p;
+    let z = -Infinity;
+    for (const q of worn) if (Math.abs(q[0] - p[0]) < cm(0.8) && Math.abs(q[1] - p[1]) < cm(0.8) && q[2] > p[2] - cm(0.5) && q[2] < p[2] + cm(3)) z = Math.max(z, q[2]);
+    return Number.isFinite(z) ? [p[0], p[1], z + cm(0.2)] : p;
+  });
+  // Smooth the line where it comes out from under the collar.
+  for (let it = 0; it < 4; it++) s.ring = s.ring.map((p, i, r) => v3.scale(v3.add(v3.add(r[(i + r.length - 1) % r.length], v3.scale(p, 2)), r[(i + 1) % r.length]), 0.25));
+  let front = s.ring[0];
+  for (const p of s.ring) if (p[2] > front[2]) front = p;
+  const out = v3.norm([front[0] - s.centre[0], 0, front[2] - s.centre[2]]);
+  const top = v3.madd(v3.madd(front, Y, -cm(0.6)), out, cm(0.25));
+  const f = frameOf(v3.madd(top, Y, -cm(2.6)), out, Y);
+  // Upright 5.5 cm, crossbar 3.4 cm, 4 mm thick, crossed a third of the way down: square bars with
+  // bevelled edges, the face standing proud (catching the light).
+  const side = v3.cross(out, Y);
+  const bar = (o: Vec3, axis: Vec3, across: Vec3, half: number, w: number) => {
+    const t = cm(0.2), e = cm(0.08);
+    // A chamfered rectangle in the bar's cross-section, swept along it and capped.
+    const sec = (q: Vec3): Vec3[] => [[-w + e, t], [w - e, t], [w, t - e], [w, -t + e], [w - e, -t], [-w + e, -t], [-w, -t + e], [-w, t - e]]
+      .map(([a, z]) => v3.madd(v3.madd(q, across, a), out, z));
+    const r0 = sec(v3.madd(o, axis, -half)), r1 = sec(v3.madd(o, axis, half));
+    // The ends are bevelled too: they come in to a slightly smaller section.
+    const shrink = (r: Vec3[], q: Vec3, d: number) => r.map((p) => v3.madd(v3.lerp(p, q, 0.25), axis, d));
+    const q0 = v3.madd(o, axis, -half), q1 = v3.madd(o, axis, half);
+    const rings = [shrink(r0, q0, -e), r0, r1, shrink(r1, q1, e)];
+    const capOf = (r: Vec3[], q: Vec3) => r.map(() => q);
+    return orientOutward(loftRings([capOf(rings[0], v3.madd(q0, axis, -e)), ...rings, capOf(rings[3], v3.madd(q1, axis, e))], { closedAround: true, tileU: 0.05 }), o);
+  };
+  const cross = merge([
+    bar(f.o, Y, side, cm(2.75), cm(0.38)),
+    bar(v3.madd(f.o, Y, cm(0.6)), side, Y, cm(1.7), cm(0.38)),
+    cord([0, 1, 2, 3, 4, 5, 6, 7, 8].map((k): Vec3 => v3.madd(v3.madd(top, Y, cm(0.25) * Math.sin((k / 8) * Math.PI * 2)), side, cm(0.25) * Math.cos((k / 8) * Math.PI * 2))), cm(0.06), false, 5),
+  ])!;
+  const silver = mat('Silver cross', null, { color: st.color, roughness: 0.22, metalness: 1 });
+  return [{ mesh: merge([cord(s.ring, cm(0.07), true, 5), cross])!, material: silver }];
 }
 
 /** Pearls: two strands. */
@@ -302,6 +359,10 @@ export const NECKLACES: GarmentDef[] = [
   {
     id: 'fine_pendant', label: 'Fine gold chain & pendant', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000',
     build: finePendant,
+  },
+  {
+    id: 'silver_cross', label: 'Silver cross on a chain', slot: 'acc', patterns: ['solid'], color: '#c9ccd1', color2: '#000000',
+    build: silverCross,
   },
   {
     id: 'pearl_necklace', label: 'Pearl necklace', slot: 'acc', patterns: ['solid'], color: '#f2ece0', color2: '#000000',
