@@ -10,7 +10,7 @@ import { part } from './drape';
 import { clamp, hplane, mat, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { keepIslands, outfitCloth, outfitCovers, SHIRT_REGIONS, type Island } from './outfit-cut';
 import { Caster, OUTWARD } from './project';
-import { cord, ellipsoid, frameOf, hullRing, merge, rayRing, v3 } from './ring';
+import { boundaryChain, cord, ellipsoid, frameOf, hullRing, merge, rayRing, v3 } from './ring';
 
 /** A V neckline: its point's trunk height (tt), and half-width at the base of the neck (fraction of the shoulder width). */
 export interface VOpts {
@@ -142,9 +142,24 @@ function silkBlouse(g: GCtx, st: GarmentStyle): GPart[] {
   // The suit's skirt is the one wide island across the middle of its atlas.
   let mesh = keepIslands({ ...o.mesh, ref: Int32Array.from(o.ref) }, (i) => !(i.u0 < 0.05 && i.u1 > 0.7 && i.v0 > 0.44));
   if (g.layered.bottom && g.worn?.length) mesh = tuckInto(g, mesh);
+  // Worn open: a deep V from the collar down between the breasts, its edges folded back.
+  const b = g.body, sx = b.L.shoulderX, yTop = b.L.neckY + cm(1), yV = torsoY(b, 0.48);
+  const P = mesh.positions;
+  const inV = (x: number, y: number, z: number) => z > b.L.torsoZ && y > yV && y < yTop + cm(4) && Math.abs(x) < 0.26 * sx * clamp((y - yV) / (yTop - yV), 0, 1) ** 0.7;
+  mesh = compact(mesh, (_, c) => {
+    let x = 0, y = 0, z = 0;
+    for (const v of c) [x, y, z] = [x + P[v * 3] / c.length, y + P[v * 3 + 1] / c.length, z + P[v * 3 + 2] / c.length];
+    return !inV(x, y, z);
+  });
+  const vEdge = boundaryChain(mesh, (p) => p[2] > b.L.torsoZ && p[1] > yV - cm(2) && p[1] < yTop && Math.abs(p[0]) < 0.4 * sx);
+  let edgeLine = vEdge;
+  for (let it = 0; it < 5; it++) edgeLine = edgeLine.map((p, i) => (i === 0 || i === edgeLine.length - 1 ? p : v3.scale(v3.add(v3.add(edgeLine[i - 1], v3.scale(p, 2)), edgeLine[i + 1]), 0.25)));
   // Satin: a soft lustre (about 2 m of cloth per unit of the atlas).
   const m = outfitCloth(g, o, 'Silk blouse', st, 6, { roughness: st.pattern === 'satin' ? 0.32 : 0.6 });
-  return [{ mesh, material: m, hides: outfitCovers(g, o, mesh, SHIRT_REGIONS), smooth: true }];
+  return [
+    { mesh, material: { ...m, doubleSided: true }, hides: outfitCovers(g, o, mesh, SHIRT_REGIONS), smooth: true },
+    ...part(edgeLine.length > 4 ? cord(edgeLine, cm(0.25), false, 6) : null, m),
+  ];
 }
 
 export const SHIRTS: GarmentDef[] = [

@@ -162,10 +162,10 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
   // Executive: a cream tailored pantsuit over a champagne silk blouse, pointed nude heels, an ivory
   // top-handle handbag, gold watch and necklace, dark sunglasses.
   'The Female Executive': {
-    gender: 0, age: 0.52, muscle: 0.45, weight: 0.42, height: 0.62, proportions: 0.85, breastSize: 0.55, breastFirmness: 0.7,
+    gender: 0, age: 0.52, muscle: 0.45, weight: 0.42, height: 0.62, proportions: 0.85, breastSize: 0.68, breastFirmness: 0.8,
     african: 0.65, asian: 0.1, caucasian: 0.25, eyes: 'blackbrown', eyebrows: 'eyebrow001', eyelashes: 'eyelashes02',
     hair: 'long01', earrings: 'studs', earringMetal: 'gold', expression: 'determined',
-    outfit: 'set_pantsuit', shoes: 'heels', carry: 'handbag', accessories: ['gold_necklace', 'watch_gold', 'sunglasses'],
+    outfit: 'set_pantsuit', shoes: 'heels', carry: 'handbag', accessories: ['fine_pendant', 'watch_gold', 'sunglasses'],
     garmentStyles: {
       silk_blouse: { pattern: 'satin', color: '#ead8bb', color2: '#fff4df' },
       heels: { pattern: 'patent', color: '#e2c6ab' },

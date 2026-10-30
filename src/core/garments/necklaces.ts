@@ -184,6 +184,21 @@ function goldNecklace(g: GCtx, st: GarmentStyle, drop = cm(7)): GPart[] {
   return [{ mesh: merge([cord(s.ring, cm(0.12), true), pendant])!, material: metal }];
 }
 
+/**
+ * A fine gold chain with a small drop pendant, resting on the skin inside an open neckline (under
+ * the collars of a blouse and jacket).
+ */
+function finePendant(g: GCtx, st: GarmentStyle): GPart[] {
+  const s = strand(g, cm(9), 0.1, true);
+  if (!s) return [];
+  let front = s.ring[0];
+  for (const p of s.ring) if (p[2] > front[2]) front = p;
+  const out = v3.norm([front[0] - s.centre[0], 0, front[2] - s.centre[2]]);
+  const drop = ellipsoid(frameOf(v3.madd(v3.madd(front, Y, -cm(0.9)), out, cm(0.15)), out, Y), [cm(0.45), cm(0.7), cm(0.18)], [0.5, 0.5], 12, 6);
+  const metal = mat('Gold pendant', null, { color: st.color, roughness: 0.2, metalness: 1 });
+  return [{ mesh: merge([cord(s.ring, cm(0.06), true, 5), drop])!, material: metal }];
+}
+
 /** Pearls: two strands. */
 function pearlNecklace(g: GCtx, st: GarmentStyle): GPart[] {
   const rows: PolyMesh[] = [];
@@ -275,6 +290,10 @@ export const NECKLACES: GarmentDef[] = [
   {
     id: 'gold_necklace_long', label: 'Long gold chain & pendant', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000',
     build: (g, st) => goldNecklace(g, st, cm(17)),
+  },
+  {
+    id: 'fine_pendant', label: 'Fine gold chain & pendant', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000',
+    build: finePendant,
   },
   {
     id: 'pearl_necklace', label: 'Pearl necklace', slot: 'acc', patterns: ['solid'], color: '#f2ece0', color2: '#000000',

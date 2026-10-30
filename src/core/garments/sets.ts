@@ -49,7 +49,7 @@ export function setStyles(set: OutfitSet, styles: Styles): Styles {
 
 export const OUTFIT_SETS: OutfitSet[] = [
   {
-    id: 'set_pantsuit', label: 'Pantsuit & silk blouse', top: 'silk_blouse', jacket: 'suit_jacket', bottom: 'suit_trousers', accessories: ['gold_necklace', 'watch_gold'], shoes: 'heels', carry: 'handbag',
+    id: 'set_pantsuit', label: 'Pantsuit & silk blouse', top: 'silk_blouse', jacket: 'suit_jacket', bottom: 'suit_trousers', accessories: ['fine_pendant', 'watch_gold'], shoes: 'heels', carry: 'handbag',
     patterns: ['suiting', 'linen', 'solid'], color: '#c9b597', color2: '#b9a382',
   },
   {
