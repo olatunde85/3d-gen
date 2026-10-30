@@ -384,6 +384,24 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
       reflective_vest: { pattern: 'solid', color: '#c6e82a', color2: '#d9dee4' },
     },
   },
+  // American county sheriff: tan short-sleeve uniform with twin flap pockets and gold star,
+  // dark olive trousers with a gold outer seam, a light felt cowboy hat, sunglasses and duty belt.
+  'The American Sheriff': {
+    gender: 1, age: 0.58, muscle: 0.72, weight: 0.58, height: 0.58, proportions: 0.68,
+    african: 0.2, asian: 0.05, caucasian: 0.75, eyes: 'brown', eyebrows: 'eyebrow001',
+    hair: 'short02', hairTint: '#2a2018', facialHair: 'stubble', beardColor: '#30251d', expression: 'determined',
+    outfit: 'none', top: 'sheriff_shirt', bottom: 'sheriff_trousers', shoes: 'shoes03', hat: 'none',
+    accessories: ['cowboy_hat', 'utility_belt', 'sunglasses', 'watch'],
+    garmentStyles: {
+      sheriff_shirt: { pattern: 'khaki', color: '#b7a487', color2: '#4c3626' },
+      sheriff_trousers: { pattern: 'solid', color: '#34352d', color2: '#d1ae61' },
+      cowboy_hat: { pattern: 'solid', color: '#d3bea0', color2: '#5a3926' },
+      utility_belt: { pattern: 'leather', color: '#241910', color2: '#b58a49' },
+      shoes03: { pattern: 'nappa', color: '#59351f', color2: '#24170f' },
+      sunglasses: { pattern: 'solid', color: '#171311', color2: '#30251d' },
+      watch: { pattern: 'solid', color: '#4a3322', color2: '#c4a25a' },
+    },
+  },
   Detective: {
     gender: 0.95, age: 0.65, muscle: 0.55, weight: 0.5, height: 0.55, african: 0.2, asian: 0.6, caucasian: 0.2, hair: 'short01', outfit: 'male_casualsuit05',
     hat: 'fedora_cocked', shoes: 'shoes06', eyes: 'grey', eyebrows: 'eyebrow007', facialHair: 'stubble', beardColor: '#1a1410',
