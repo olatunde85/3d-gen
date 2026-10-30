@@ -24,6 +24,8 @@ export interface Rig {
   type: RigType;
   restPose: 'A' | 'T';
   bones: RigBone[];
+  /** Hands holding something by a handle (a carried bag): their fingers stay closed in every clip. */
+  holds?: ('Left' | 'Right')[];
 }
 
 export interface RigOptions {

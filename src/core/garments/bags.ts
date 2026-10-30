@@ -145,5 +145,5 @@ function backpack(g: GCtx, st: GarmentStyle): GPart[] {
 }
 
 export const BAGS: GarmentDef[] = [
-  { id: 'backpack', label: 'Canvas backpack', slot: 'acc', patterns: ['workwear', 'solid', 'camo'], color: '#5d5b3e', color2: '#3d3b2a', build: backpack },
+  { id: 'backpack', label: 'Canvas backpack', slot: 'bag', patterns: ['workwear', 'solid', 'camo'], color: '#5d5b3e', color2: '#3d3b2a', build: backpack },
 ];

@@ -130,7 +130,28 @@ function tuckInto(g: GCtx, m: PolyMesh): PolyMesh {
   });
 }
 
+const BLOUSE_FROM = 'female_elegantsuit01';
+
+/**
+ * Silk blouse: the blouse of MakeHuman's female elegant suit 01 (pointed collar, button front, long
+ * sleeves with cuffs), cut from the suit (its skirt left out) and made up in satin, tucked in.
+ */
+function silkBlouse(g: GCtx, st: GarmentStyle): GPart[] {
+  const o = g.outfits?.[BLOUSE_FROM];
+  if (!o) return [];
+  // The suit's skirt is the one wide island across the middle of its atlas.
+  let mesh = keepIslands({ ...o.mesh, ref: Int32Array.from(o.ref) }, (i) => !(i.u0 < 0.05 && i.u1 > 0.7 && i.v0 > 0.44));
+  if (g.layered.bottom && g.worn?.length) mesh = tuckInto(g, mesh);
+  // Satin: a soft lustre (about 2 m of cloth per unit of the atlas).
+  const m = outfitCloth(g, o, 'Silk blouse', st, 6, { roughness: st.pattern === 'satin' ? 0.32 : 0.6 });
+  return [{ mesh, material: m, hides: outfitCovers(g, o, mesh, SHIRT_REGIONS), smooth: true }];
+}
+
 export const SHIRTS: GarmentDef[] = [
+  {
+    id: 'silk_blouse', label: 'Silk blouse', slot: 'top', patterns: ['satin', 'solid'], color: '#efe2cc', color2: '#fff8ec',
+    fromOutfit: BLOUSE_FROM, build: silkBlouse,
+  },
   {
     id: 'camp_shirt', label: 'Resort shirt', slot: 'top', patterns: ['tropical', 'solid', 'linen'], color: '#efe6d4', color2: '#e58aa6',
     fromOutfit: RESORT_FROM, build: resortShirt,

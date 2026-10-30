@@ -159,6 +159,15 @@ export function yearsToAge(y: number): number {
 
 export const PRESETS: Record<string, Partial<HumanParams>> = {
   // Newest characters first.
+  // Executive: a cream tailored pantsuit over a champagne silk blouse, pointed nude heels, an ivory
+  // top-handle handbag, a fine gold pendant, gold watch and studs, and aviators.
+  'The Female Executive': {
+    gender: 0, age: 0.52, muscle: 0.65, weight: 0.38, height: 0.58, proportions: 0.85, breastSize: 0.55,
+    african: 0.24, asian: 0.68, caucasian: 0, eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', hair: 'long01',
+    earrings: 'studs', earringMetal: 'gold',
+    outfit: 'set_pantsuit', shoes: 'heels', carry: 'handbag', accessories: ['fine_pendant', 'watch_gold', 'aviators'],
+    garmentStyles: { heels: { pattern: 'patent', color: '#e2c6ab' } },
+  },
   // Gulf oil tycoon: a white thobe, red-and-white keffiyeh with a black agal, gold chain, gold watch
   // and signet ring, dark sunglasses and black leather slides.
   'The Arabian Oil Tycoon': {
@@ -183,7 +192,7 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     african: 0.05, asian: 0.05, caucasian: 0.9, eyes: 'brown', eyebrows: 'eyebrow001',
     hair: 'short02', facialHair: 'stubble', beardColor: '#2a1e16', expression: 'determined',
     tattoos: ['sleeve_r', 'forearm_l'],
-    outfit: 'set_prison_jumpsuit', shoes: 'sneakers', accessories: ['backpack'],
+    outfit: 'set_prison_jumpsuit', shoes: 'sneakers', accessories: [], carry: 'backpack',
     garmentStyles: { sneakers: { pattern: 'workwear', color: '#8e8a82', color2: '#6f6b64' } },
   },
   'The Gangster': {
@@ -442,6 +451,11 @@ export function sanitizeParams(raw: unknown, base: HumanParams = DEFAULT_PARAMS)
   out.earringMetal = oneOf(src.earringMetal, ['gold', 'silver'] as const, base.earringMetal);
   out.tattoos = Array.isArray(src.tattoos) ? [...new Set(src.tattoos.filter((t): t is TattooId => TATTOOS.includes(t as TattooId)))] : base.tattoos;
   out.accessories = Array.isArray(src.accessories) ? src.accessories.filter((a): a is string => typeof a === 'string' && a.length <= 40).slice(0, 40) : base.accessories;
+  // Older links listed the backpack as an accessory: it's a bag (Props) now.
+  if (out.accessories.includes('backpack')) {
+    out.accessories = out.accessories.filter((a) => a !== 'backpack');
+    if (out.carry === 'none') out.carry = 'backpack';
+  }
   const mods: Record<string, number> = {};
   if (src.modifiers && typeof src.modifiers === 'object')
     for (const [k, v] of Object.entries(src.modifiers as Record<string, unknown>).slice(0, 400)) if (k.length <= 80) mods[k] = num(v, -1, 1, 0);

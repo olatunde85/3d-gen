@@ -48,7 +48,11 @@ export function dressing(p: HumanParams): Dressing {
     jacket,
     bottom,
     underwear,
-    accessories: [...p.accessories.filter((a) => garmentById.get(a)?.slot === 'acc'), ...(garmentById.get(p.hat)?.slot === 'hat' ? [p.hat] : [])],
+    accessories: [
+      ...p.accessories.filter((a) => garmentById.get(a)?.slot === 'acc'),
+      ...(garmentById.get(p.hat)?.slot === 'hat' ? [p.hat] : []),
+      ...(garmentById.get(p.carry)?.slot === 'bag' ? [p.carry] : []),
+    ],
     footwear: p.shoes === 'sandals' ? 'sandals' : p.shoes === 'combat_boots' ? 'boots' : p.shoes === 'flipflops' ? 'flipflops' : garmentById.get(p.shoes)?.slot === 'feet' ? p.shoes : undefined,
     styles,
   };

@@ -67,9 +67,32 @@ interface Frames {
   arm: number;
   /** Aviators: a straight top bar between the lenses and nose pads, as well as the bridge. */
   aviator: boolean;
+  /** Glossy acetate (not metal) frames, with nearly opaque lenses. */
+  acetate?: boolean;
+}
+
+/** Cat-eye lens outline: a slim rounded rectangle whose outer top corner sweeps up and out. */
+function catEye(o: Vec3, x: Vec3, y: Vec3, rx: number, ry: number, s: number, n = 48): Vec3[] {
+  const out: Vec3[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const c = Math.cos(a), sn = Math.sin(a);
+    // (s: +1 for the left lens, whose outer side is +x.)
+    // u: -1 at the inner (nose) side to +1 at the outer side.
+    const u = c * s, outer = Math.max(0, u), top = Math.max(0, sn);
+    const px = Math.sign(c) * Math.abs(c) ** 0.75 * rx;
+    // The whole lens lifts toward its outer side; the top edge sweeps up into a point at the outer
+    // corner, and the bottom edge curves up to meet it.
+    const lift = ry * 0.3 * u;
+    const flick = ry * 0.6 * outer ** 4 * top ** 0.35;
+    const py = sn >= 0 ? sn ** 0.6 * ry * 0.75 + lift + flick : -(Math.abs(sn) ** 0.9) * ry * (1 - 0.35 * outer) + lift * 0.6;
+    out.push(v3.add(o, v3.add(v3.scale(x, px), v3.scale(y, py))));
+  }
+  return out;
 }
 
 const WAYFARER: Frames = { name: 'Sunglasses', rx: cm(2.9), ry: cm(2.3), outline: (o, x, y, rx, ry) => superellipse(o, x, y, rx, ry), rim: cm(0.16), arm: cm(0.18), aviator: false };
+const CAT_EYE: Frames = { name: 'Sleek sunglasses', rx: cm(2.9), ry: cm(1.9), outline: catEye, rim: cm(0.22), arm: cm(0.16), aviator: false, acetate: true };
 const AVIATOR: Frames = { name: 'Aviators', rx: cm(2.95), ry: cm(2.55), outline: teardrop, rim: cm(0.085), arm: cm(0.1), aviator: true };
 
 /** Glasses fitted to the face: lenses over the eyes wrapping a little round it, temples back over the ears. */
@@ -98,8 +121,10 @@ function eyewear(g: GCtx, st: GarmentStyle, f: Frames): GPart[] {
     let ear: Vec3 = [s * 0.5, eyeY, 0];
     for (const p of head) if (p[0] * s > ear[0] * s && Math.abs(p[1] - eyeY) < cm(3)) ear = p;
     const hinge = v3.madd(v3.madd(o, x, s * f.rx), y, f.aviator ? f.ry * 0.45 : 0);
-    const above: Vec3 = [ear[0] + s * cm(0.3), eyeY + cm(0.2), ear[2] + cm(1)];
-    const behind: Vec3 = [ear[0], eyeY - cm(2), ear[2] - cm(2)];
+    // (Close to the head: under the hair once it reaches it.)
+    const above: Vec3 = [ear[0] - s * cm(0.15), eyeY + cm(0.2), ear[2] + cm(1)];
+    // The tip tucks in behind the ear, toward the head (inside the hair).
+    const behind: Vec3 = [ear[0] - s * cm(0.6), eyeY - cm(1.6), ear[2] - cm(1.6)];
     arms.push(cord([hinge, v3.lerp(hinge, above, 0.5), above, behind], f.arm, false, 6));
   }
   // Bridge between the lenses, over the nose; aviators add a straight bar above it and nose pads.
@@ -115,8 +140,8 @@ function eyewear(g: GCtx, st: GarmentStyle, f: Frames): GPart[] {
       extras.push(ellipsoid(frameOf(pad, v3.norm([s * 0.8, 0, 0.6]), [0, 1, 0]), [cm(0.35), cm(0.55), cm(0.12)], [0.5, 0.5], 8, 4));
     }
   }
-  const frame = mat(`${f.name} frame`, null, { color: st.color2, roughness: 0.25, metalness: 0.85 });
-  const lens = mat(`${f.name} lenses`, null, { color: st.color, roughness: 0.04, metalness: 0.3, alpha: 'blend', opacity: 0.88 });
+  const frame = mat(`${f.name} frame`, null, f.acetate ? { color: st.color2, roughness: 0.12, metalness: 0 } : { color: st.color2, roughness: 0.25, metalness: 0.85 });
+  const lens = mat(`${f.name} lenses`, null, { color: st.color, roughness: 0.04, metalness: 0.3, alpha: 'blend', opacity: f.acetate ? 0.96 : 0.88 });
   const skull = b.joint('head____head');
   const at: Vec3 = [0, eyeY, skull[2]];
   const frameMesh = merge([...rims, ...arms, ...extras])!, lensMesh = merge(lenses)!;
@@ -293,5 +318,6 @@ export const SLIDES: GarmentDef = {
 
 export const BEACH: GarmentDef[] = [
   { id: 'sunglasses', label: 'Sunglasses', slot: 'acc', patterns: ['solid'], color: '#1a1410', color2: '#c9963a', build: (g, st) => eyewear(g, st, WAYFARER) },
+  { id: 'sunglasses_sleek', label: 'Sleek sunglasses (cat-eye)', slot: 'acc', patterns: ['solid'], color: '#17110e', color2: '#141414', build: (g, st) => eyewear(g, st, CAT_EYE) },
   { id: 'aviators', label: 'Aviator sunglasses', slot: 'acc', patterns: ['solid'], color: '#3b2a1c', color2: '#d8b25a', build: (g, st) => eyewear(g, st, AVIATOR) },
 ];

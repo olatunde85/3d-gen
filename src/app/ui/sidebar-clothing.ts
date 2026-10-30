@@ -136,6 +136,7 @@ export function outfitSetEntries(ctx: Ctx) {
         accessories: [...p.accessories, ...set.accessories.filter((a) => !p.accessories.includes(a))],
         ...(set.shoes ? { shoes: set.shoes } : {}),
         ...(set.hat ? { hat: set.hat } : {}),
+        ...(set.carry ? { carry: set.carry } : {}),
       });
       store.emit('sync');
     },

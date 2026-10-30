@@ -8,6 +8,7 @@ import type { Vec3 } from '../math';
 import { boneFor } from '../rig/poses';
 import { quatOf, type Rig } from '../rig/rig';
 import { clipById, type Ch, type Clip, type HandTarget, type Sample } from './clips';
+import { fist } from './clips/helpers';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
 
 export interface Frame {
@@ -252,7 +253,7 @@ export class Animator {
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
   frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number } = {}): Frame {
-    const s = this.withEyes(clip.sample(time), clip, time, opts.faceTime);
+    const s = this.holding(this.withEyes(clip.sample(time), clip, time, opts.faceTime));
     const frame = this.frameOf(s, clip, time, opts);
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
@@ -277,6 +278,18 @@ export class Animator {
   }
 
   /** Eye bones follow the clip's gaze, or small automatic glances. */
+  /**
+   * Hands holding a bag's handle: fingers closed round it and the thumb wrapped over them, whatever
+   * the clip does with them.
+   */
+  private holding(s: Sample): Sample {
+    if (!this.rig.holds?.length) return s;
+    const bones = { ...s.bones }, thumbs = { ...s.thumbs };
+    fist(bones, this.rig.holds);
+    for (const side of this.rig.holds) thumbs[side] = 1;
+    return { ...s, bones, thumbs };
+  }
+
   private withEyes(s: Sample, clip: Clip, time: number, faceTime?: number): Sample {
     if (this.idx.get('LeftEye') === undefined) return s;
     const [yaw, pitch] = s.gaze ?? (faceTime !== undefined ? glanceLive(faceTime) : glanceAt(time, clip.duration));
