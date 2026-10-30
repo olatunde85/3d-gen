@@ -37,7 +37,7 @@ Choose a full MakeHuman outfit, an **outfit set**, or **Separate pieces**:
 - **Accessories:**
   - belts and straps: belts, utility belt, waist sash, crossed straps, amulet bandolier
   - armour and vests: leather armor, tactical vest, reflective hi-vis vest
-  - eyewear: sunglasses, aviators
+  - eyewear: sunglasses, sleek cat-eye sunglasses, aviators
   - headwear: keffiyeh with agal (in the Hat picker), baseball cap, gele (pleated head tie with lace flowers and a knotted back; it covers the hair), beret, fur headband with feathers, beaded headband, fila cap, combat helmet, holo visor, goggles
   - jewellery and charms: Cuban link chain, layered gold chains (rope and curb), long gold chain with pendant, fine gold chain with pendant, gold signet ring, coral beads (iyun), gold necklace with pendant, pearl necklace, bangles, gold and silver bracelet watches, wrist beads, beaded collar, bead and cowrie necklaces, protective charms, brass cuffs, beaded and cowrie arm bands
   - wraps and bands: shuka shoulder drape, arm guards, fur bands, arm wraps

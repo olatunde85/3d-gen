@@ -56,7 +56,8 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
   if (!neckRing) return null;
   let c: Vec3 = [0, 0, 0];
   for (const p of neckRing) c = v3.add(c, v3.scale(p, 1 / neckRing.length));
-  const off = cm(0.45);
+  // (Inside the collars: close on the skin, under the cloth round the neck.)
+  const off = inside ? cm(0.12) : cm(0.45);
   const N = 80, ring: Vec3[] = [];
   const cache = new Map<number, Vec3[] | null>();
   const surfAt = (y: number) => {
@@ -191,6 +192,13 @@ function goldNecklace(g: GCtx, st: GarmentStyle, drop = cm(7)): GPart[] {
 function finePendant(g: GCtx, st: GarmentStyle): GPart[] {
   const s = strand(g, cm(9), 0.1, true);
   if (!s) return [];
+  // Under the top's cloth (wherever it lies in front of the chain) the chain sinks out of sight; it
+  // shows only in the neckline's opening.
+  const worn = g.worn ?? [];
+  s.ring = s.ring.map((p) => {
+    const covered = worn.some((q) => Math.abs(q[0] - p[0]) < cm(0.8) && Math.abs(q[1] - p[1]) < cm(0.8) && q[2] > p[2] - cm(0.3) && q[2] < p[2] + cm(2));
+    return covered ? v3.madd(p, v3.norm([p[0] - s.centre[0], 0, p[2] - s.centre[2]]), -cm(0.6)) : p;
+  });
   let front = s.ring[0];
   for (const p of s.ring) if (p[2] > front[2]) front = p;
   const out = v3.norm([front[0] - s.centre[0], 0, front[2] - s.centre[2]]);

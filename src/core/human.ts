@@ -5,7 +5,7 @@
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
 import { compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
 import { archFeet, buildGarments, dressing, genTexture, outfitsUsed } from './garments';
-import { buildCarry } from './props/carry';
+import { buildCarry, WORN_BAGS } from './props/carry';
 import type { Vec3 } from './math';
 import { applyTPose, baseSkin, placeBones, quatOf, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
 import { socketBone, type HandJoints } from './rig/socket';
@@ -465,7 +465,8 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     }
     const sizeK = ((maxBodyY - minY) * DM) / 1.8;
     bones.push(socketBone(hand, handIdx, sizeK));
-    rig = { type: p.rig, restPose: p.restPose, bones };
+    // A bag carried in the hand: that hand's fingers close round its handle.
+    rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
 
     // Carried bag: hangs straight down from the left hand with the arms relaxed at the sides (the
     // animation rest pose), and is bound rigidly to the hand bone.
@@ -474,8 +475,9 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
       const hand = a.relaxedBone('LeftHand'), mid = a.relaxedBone('LeftHandMiddle1');
       const hi = bones.findIndex((b) => b.name === (p.rig === 'full' ? 'wrist.L' : 'LeftHand'));
       if (hand && mid && hi >= 0) {
-        // Grip: just past the knuckles, a little toward the palm (which faces the thigh).
-        const grip: Vec3 = [hand.pos[0] + (mid.pos[0] - hand.pos[0]) * 1.5 - 0.01, hand.pos[1] + (mid.pos[1] - hand.pos[1]) * 1.5, hand.pos[2] + (mid.pos[2] - hand.pos[2]) * 1.5];
+        // Grip: inside the closed fist, just past the knuckles and toward the palm (which faces
+        // the thigh); the fingers close round the handle there (rig.holds).
+        const grip: Vec3 = [hand.pos[0] + (mid.pos[0] - hand.pos[0]) * 1.15 - 0.018, hand.pos[1] + (mid.pos[1] - hand.pos[1]) * 1.15, hand.pos[2] + (mid.pos[2] - hand.pos[2]) * 1.15];
         const toBind = qmul(quatOf(bones[hi].rot), qconj(hand.rot));
         for (const cp of buildCarry(p.carry, (key, make) => genTexture(lib, key, make))) {
           const P = cp.mesh.positions, positions = new Float32Array(P.length);

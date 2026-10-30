@@ -48,7 +48,7 @@ The hands are pinned to the bar, so they hold it firmly while the body pedals. T
 
 ## Weapons
 
-**Bags:** under *Props*, *Bag* picks a straw tote or a structured handbag (carried in the left hand, bound to the hand bone) or a canvas backpack (worn).
+**Bags:** under *Props*, *Bag* picks a straw tote or a structured handbag (carried in the left hand, bound to the hand bone, its fingers closed round the handle in every clip) or a canvas backpack (worn).
 
 Pick an assault rifle, pistol, sword or combat knife under *Props*. It's held in the right hand on the `WeaponR` socket (see [Rigging](rigging.md#weapon-socket)), and the viewer switches to the matching idle.
 
