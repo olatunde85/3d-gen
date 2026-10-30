@@ -30,6 +30,7 @@ import { SWIMWEAR } from './swimwear';
 import { WRIST } from './wrist';
 import { NECKLACES } from './necklaces';
 import { YORUBA } from './yoruba';
+import { SHERIFF } from './sheriff';
 
 export type { GarmentDef, GarmentStyle, GCtx, GPart, Slot } from './kit';
 
@@ -721,6 +722,7 @@ export const GARMENTS: GarmentDef[] = [
     },
   },
   ...YORUBA,
+  ...SHERIFF,
   ...NECKLACES,
   ...WRIST,
   ...SWIMWEAR,

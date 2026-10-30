@@ -208,7 +208,8 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   const skin = p.skin === 'auto' ? autoSkin(p, cat.skins) : find(cat.skins, p.skin) ?? autoSkin(p, cat.skins);
   const low = p.detail === 'low';
   const bodyLod = low ? cat.bodies.find((b) => b.id === (p.gender >= 0.5 ? 'male1591' : 'female1605')) : undefined;
-  // Procedural footwear: combat boots reuse the boots asset plus generated shafts.
+  // Procedural footwear: combat boots reuse the boots asset plus generated shafts; cowboy boots use
+  // their procedural upper together with the same source boot sole/foot base.
   const shoesItem = p.shoes === 'combat_boots' ? find(cat.shoes, 'shoes03') : find(cat.shoes, p.shoes);
   const pieces = dressing(p);
 
