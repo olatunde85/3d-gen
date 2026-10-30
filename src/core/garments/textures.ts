@@ -219,10 +219,10 @@ export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
   | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa' | 'workwear'
-  | 'tropical' | 'linen' | 'suiting' | 'patent' | 'shemagh' | 'satin';
+  | 'tropical' | 'linen' | 'suiting' | 'patent' | 'shemagh' | 'satin' | 'striped';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'linen', 'suiting', 'nappa', 'patent', 'shemagh', 'satin',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'linen', 'suiting', 'nappa', 'patent', 'shemagh', 'satin', 'striped',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -249,6 +249,9 @@ const S = 512;
  * A pattern texture. `repeat`: how many times the pattern tiles across the texture each way (for
  * an atlas whose UVs span a whole garment, such as a MakeHuman outfit's): one 256 px tile, copied.
  */
+/** A hex colour scaled by `k` (below 1 darker). */
+export const shade = (hex: string, k: number) => '#' + [16, 8, 0].map((sh) => Math.min(255, Math.round(((parseInt(hex.slice(1), 16) >> sh) & 255) * k)).toString(16).padStart(2, '0')).join('');
+
 export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat = 1): TexOut {
   const A = rgb(c1), B = rgb(c2);
   const render = (size: number, fn: (u: number, v: number) => { c: RGB; a?: number; h?: number }, alpha: boolean, normal = 0): TexOut =>
@@ -598,6 +601,14 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat
         return { c: mul(c, twill), h: twill * 0.7 + fade * 0.3 };
       }, false, 2);
     }
+    case 'striped': {
+      // Repp stripes: fine diagonal stripes of c2 on a c1 silk twill.
+      return render(S, (u, v) => {
+        const t = frac((u + v) * 14), stripe = t < 0.18;
+        const w = frac((u * 3 - v) * 220) < 0.5 ? 1 : 0.94;
+        return { c: mul(stripe ? B : A, w), h: (stripe ? 0.4 : 0) + w * 0.2 };
+      }, false, 0.8);
+    }
     case 'satin': {
       // Silk satin (c1): a smooth, very fine warp-faced weave with long soft lustre streaks along
       // the warp; c2 tints the sheen.
@@ -795,6 +806,42 @@ export function jeansLegTexture(c1: string, c2: string, seed = 3): TexOut {
  * Stencilled block letters (alpha mask) for print on workwear: `text` in c1, worn through in places.
  * Supports the letters the garments use (D, O, C).
  */
+/**
+ * A shirt-and-tie atlas: the shirt in `shirt` (a fine weave), and inside the polygon `tie` (in
+ * 0..1 texture coordinates, y down) the tie in `tieColor`, plain or with `stripe` repp stripes,
+ * shaded darker toward its edges so it reads rounded.
+ */
+export function shirtTieTexture(size: number, tie: [number, number][], shirt: string, tieColor: string, stripe: string | null): TexOut {
+  const S1 = rgb(shirt), T1 = rgb(tieColor), T2 = stripe ? rgb(stripe) : T1;
+  const n = tie.length;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [x, y] of tie) [x0, x1, y0, y1] = [Math.min(x0, x), Math.max(x1, x), Math.min(y0, y), Math.max(y1, y)];
+  const inside = (x: number, y: number) => {
+    let c = false;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const [xi, yi] = tie[i], [xj, yj] = tie[j];
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  };
+  const edgeDist = (x: number, y: number) => {
+    let d = Infinity;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const [ax, ay] = tie[j], [bx, by] = tie[i], ex = bx - ax, ey = by - ay;
+      const t = Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / (ex * ex + ey * ey || 1)));
+      d = Math.min(d, Math.hypot(x - ax - ex * t, y - ay - ey * t));
+    }
+    return d;
+  };
+  return renderRect(size, size, (u, v) => {
+    const w = 0.97 + 0.03 * Math.sin(u * Math.PI * 2 * 900) * Math.sin(v * Math.PI * 2 * 900);
+    if (u < x0 || u > x1 || v < y0 || v > y1 || !inside(u, v)) return { c: mul(S1, w), h: w * 0.1 };
+    const e = Math.min(1, edgeDist(u, v) / 0.006);
+    const st = stripe && frac((u + v) * 160) < 0.2;
+    return { c: mul(st ? T2 : T1, (0.72 + 0.28 * e) * (0.97 + 0.03 * w)), h: 0.3 * e };
+  }, false, 0.6);
+}
+
 export function stencilText(text: string, c1: string, seed = 5): TexOut {
   const A = rgb(c1), n = text.length, W = 256 * n, H = 256;
   const inLetter = (ch: string, x: number, y: number): boolean => {

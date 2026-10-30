@@ -479,7 +479,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
         // the thigh); the fingers close round the handle there (rig.holds).
         const grip: Vec3 = [hand.pos[0] + (mid.pos[0] - hand.pos[0]) * 1.15 - 0.018, hand.pos[1] + (mid.pos[1] - hand.pos[1]) * 1.15, hand.pos[2] + (mid.pos[2] - hand.pos[2]) * 1.15];
         const toBind = qmul(quatOf(bones[hi].rot), qconj(hand.rot));
-        for (const cp of buildCarry(p.carry, (key, make) => genTexture(lib, key, make))) {
+        for (const cp of buildCarry(p.carry, (key, make) => genTexture(lib, key, make), p.garmentStyles)) {
           const P = cp.mesh.positions, positions = new Float32Array(P.length);
           for (let i = 0; i < P.length; i += 3) {
             const w = qrot(toBind, [P[i] + grip[0] - hand.pos[0], P[i + 1] + grip[1] - hand.pos[1], P[i + 2] + grip[2] - hand.pos[2]]);

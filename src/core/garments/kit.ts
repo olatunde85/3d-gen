@@ -29,6 +29,10 @@ export interface GarmentDef {
   slot: Slot;
   /** Patterns offered in the UI (first = default). */
   patterns: Pattern[];
+  /** What the two colours are called in the UI (default Colour / Accent). */
+  colorLabels?: [string, string];
+  /** Only worn as part of an outfit set (not listed with the separate pieces), e.g. a suit's shirt front. */
+  setOnly?: boolean;
   color: string;
   color2: string;
   /**

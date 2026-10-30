@@ -159,6 +159,39 @@ export function yearsToAge(y: number): number {
 
 export const PRESETS: Record<string, Partial<HumanParams>> = {
   // Newest characters first.
+  // Professional hitman: slim black suit, white shirt and black tie, black leather gloves, polished
+  // oxfords, a steel watch and a discreet earpiece; shaved head, a pistol in hand.
+  'The Professional Hitman': {
+    gender: 1, age: 0.64, muscle: 0.7, weight: 0.45, height: 0.6, proportions: 0.75,
+    african: 0.12, asian: 0.1, caucasian: 0.78, eyes: 'grey', eyebrows: 'eyebrow007',
+    hair: 'none', facialHair: 'none', expression: 'determined',
+    modifiers: { 'chin/chin-prominent': 0.3, 'cheek/cheek-bones': 0.3, 'cheek/cheek-bones:decr|incr': 0.3 },
+    outfit: 'set_suit_tie', shoes: 'oxfords', weapon: 'pistol', accessories: ['gloves', 'watch_silver', 'earpiece'],
+    garmentStyles: { set_suit_tie: { pattern: 'suiting', color: '#141416', color2: '#26262c' }, suit_shirt_tie: { pattern: 'solid', color: '#f4f4f2', color2: '#101012' } },
+  },
+  // Hired bodyguard: a big, heavy-set man in a black suit, white shirt and black tie, earpiece and
+  // dark sunglasses; shaved head.
+  'The Bodyguard': {
+    gender: 1, age: 0.6, muscle: 1, weight: 0.85, height: 0.64, proportions: 0.5,
+    african: 0, asian: 0, caucasian: 1, eyes: 'lightblue', eyebrows: 'eyebrow001',
+    hair: 'none', facialHair: 'stubble', beardColor: '#6a5242', expression: 'determined',
+    modifiers: { 'neck/neck-scale-horiz': 0.5, 'chin/chin-width': 0.3, 'head/head-square': 0.4 },
+    outfit: 'set_suit_tie', shoes: 'oxfords', accessories: ['earpiece', 'sunglasses', 'watch_silver'],
+    garmentStyles: { set_suit_tie: { pattern: 'suiting', color: '#17181b', color2: '#2a2c32' }, suit_shirt_tie: { pattern: 'solid', color: '#f4f4f2', color2: '#121214' }, sunglasses: { pattern: 'solid', color: '#121212', color2: '#151515' } },
+  },
+  // Corporate high-flier: a charcoal suit, pale blue shirt and burgundy repp tie, brown oxfords, a gold
+  // watch and a leather briefcase; neat short hair.
+  'The Corporate High-Flier': {
+    gender: 1, age: 0.62, muscle: 0.5, weight: 0.5, height: 0.6, proportions: 0.7,
+    african: 0.1, asian: 0.1, caucasian: 0.8, eyes: 'brown', eyebrows: 'eyebrow001',
+    hair: 'short04', hairTint: '#4a3a30', facialHair: 'none', expression: 'neutral',
+    outfit: 'set_suit_tie', shoes: 'oxfords', carry: 'briefcase', accessories: ['watch_gold'],
+    garmentStyles: {
+      set_suit_tie: { pattern: 'suiting', color: '#34373e', color2: '#4a4e57' },
+      suit_shirt_tie: { pattern: 'striped', color: '#d6e4f3', color2: '#6e1724' },
+      oxfords: { pattern: 'nappa', color: '#4a2a18', color2: '#2a1a10' },
+    },
+  },
   // Priest with a dark secret: black clerical shirt and tab collar, a long black overcoat, black
   // trousers, a silver cross on a long chain, black leather gloves and polished oxfords.
   'The Priest': {

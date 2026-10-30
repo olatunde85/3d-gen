@@ -63,7 +63,10 @@ export function outfitCovers(g: GCtx, o: FittedOutfit, m: PolyMesh, regions: num
     if (b.regions[v] === REGION.torso || b.regions[v] === REGION.hips) {
       const hit = (z >= b.L.torsoZ ? casts.front : casts.back).hit(x, y);
       if (hit && Math.abs(hit.p[2] - z) < reach + cm(1)) near[v] = 1;
-      continue;
+      // The tops of the shoulders (away from the front's middle) face up: there the piece lies
+      // above the skin, which front and back rays miss; it's hidden where the piece is close.
+      const info = b.info[v];
+      if (near[v] || info.tt < 0.85 || Math.abs(info.tth) < 0.6) continue;
     }
     const [cx, cy, cz] = [Math.floor(x / cell), Math.floor(y / cell), Math.floor(z / cell)];
     search: for (let dx = -1; dx <= 1; dx++)

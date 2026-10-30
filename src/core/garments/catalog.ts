@@ -23,6 +23,7 @@ import { LOAFERS, OXFORDS } from './dress-shoes';
 import { PRISON } from './prison';
 import { SHIRTS } from './shirts';
 import { GULF } from './gulf';
+import { EARPIECE } from './earpiece';
 import { SUIT } from './suit';
 import { STREET } from './street';
 import { SWIMWEAR } from './swimwear';
@@ -726,6 +727,7 @@ export const GARMENTS: GarmentDef[] = [
   ...PRISON,
   ...SHIRTS,
   ...GULF,
+  EARPIECE,
   ...SUIT,
   ...BAGS,
   ...BEACH,
