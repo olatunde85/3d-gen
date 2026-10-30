@@ -5,12 +5,12 @@
 import { compact, type PolyMesh } from '../geometry';
 import { smoothstep, type Vec3 } from '../math';
 import type { Material } from '../mesh';
-import { cm, type Body, type VInfo } from './body';
+import { cm, REGION, type Body, type VInfo } from './body';
 import { part } from './drape';
-import { clamp, hplane, mat, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { clamp, hplane, isTrunk, mat, points, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { keepIslands, outfitCloth, outfitCovers, SHIRT_REGIONS, type Island } from './outfit-cut';
 import { Caster, OUTWARD } from './project';
-import { cord, ellipsoid, frameOf, hullRing, merge, rayRing, v3 } from './ring';
+import { boundaryChain, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, rayRing, v3 } from './ring';
 
 /** A V neckline: its point's trunk height (tt), and half-width at the base of the neck (fraction of the shoulder width). */
 export interface VOpts {
@@ -147,7 +147,108 @@ function silkBlouse(g: GCtx, st: GarmentStyle): GPart[] {
   return [{ mesh, material: m, hides: outfitCovers(g, o, mesh, SHIRT_REGIONS), smooth: true }];
 }
 
+const CLERIC_FROM = 'male_casualsuit02';
+
+/**
+ * Clerical shirt: the long-sleeved top of MakeHuman's casual suit 02 (its jeans left out), closed
+ * round the neck, made up as a shirt: a button placket down the front, a band collar standing round
+ * high on the neck with its rolled top edge, and the white tab at the throat. Tucked in.
+ */
+function clericalShirt(g: GCtx, st: GarmentStyle): GPart[] {
+  const o = g.outfits?.[CLERIC_FROM];
+  if (!o) return [];
+  // Atlas: the jeans legs are the two tall islands in its lower half.
+  let mesh = keepIslands({ ...o.mesh, ref: Int32Array.from(o.ref) }, (i) => !(i.v1 < 0.6 && i.u1 - i.u0 > 0.3));
+  if (g.layered.bottom && g.worn?.length) mesh = tuckInto(g, mesh);
+  const m = outfitCloth(g, o, 'Clerical shirt', st, 6, { roughness: 0.7 });
+  // Band collar: from the shirt's neckline up 3 cm round the neck, its top rolled; open 2.5 cm at
+  // the front, where the white tab fills it.
+  const b = g.body, sx = b.L.shoulderX;
+  const neckV = points(b, (v) => v.region === REGION.neck);
+  // What the band fits round: the neck and the base of the neck where it slopes into the shoulders.
+  const fitPts = points(b, (v) => v.region === REGION.neck || (isTrunk(v) && v.tt > 0.92));
+  let nc: Vec3 = [0, 0, 0];
+  for (const q of neckV) nc = v3.add(nc, v3.scale(q, 1 / neckV.length));
+  const edge = boundaryChain(mesh, (p) => p[1] > b.L.neckY - cm(6) && Math.abs(p[0]) < 0.6 * sx);
+  const parts: GPart[] = [{ mesh, material: m, hides: outfitCovers(g, o, mesh, SHIRT_REGIONS), smooth: true }];
+  if (edge.length > 8) {
+    // The neckline, smoothed and ordered round the neck from the front-left to the front-right
+    // (the gap for the tab at the front).
+    const pts = edge.slice(0, edge.length - (v3.len(v3.sub(edge[0], edge[edge.length - 1])) < 1e-6 ? 1 : 0));
+    const ang = (p: Vec3) => Math.atan2(p[0] - nc[0], p[2] - nc[2]);
+    // The band's gap at the front is a little narrower than the tab, so the two overlap.
+    const N = 72, gap = 0.2, ring0: Vec3[] = [];
+    for (let k = 0; k <= N; k++) {
+      // From +gap round the back to -gap (angles: 0 = front).
+      const a = gap + ((2 * Math.PI - 2 * gap) * k) / N, aa = a > Math.PI ? a - 2 * Math.PI : a;
+      let best = pts[0], bd = Infinity;
+      for (const p of pts) {
+        const d = Math.abs(Math.atan2(Math.sin(ang(p) - aa), Math.cos(ang(p) - aa)));
+        if (d < bd) [bd, best] = [d, p];
+      }
+      ring0.push(best);
+    }
+    let base = ring0;
+    for (let it = 0; it < 4; it++) base = base.map((p, i) => (i === 0 || i === base.length - 1 ? p : v3.scale(v3.add(v3.add(base[i - 1], v3.scale(p, 2)), base[i + 1]), 0.25)));
+    // Each band ring: up from the neckline, drawn in to 4 mm off the neck.
+    const neckAt = (p: Vec3, y: number) => {
+      const d = v3.norm([p[0] - nc[0], 0, p[2] - nc[2]]);
+      // (Snug: 2 mm off the neck, so a jacket's collar lies over it.)
+      const h = hullRing(fitPts, hplane(b, y), { slab: cm(1), samples: 64, offset: cm(0.2) });
+      const r = h && rayRing(h, [nc[0], y, nc[2]], d);
+      return r ? v3.madd([nc[0], y, nc[2]], d, r) : p;
+    };
+    const up = (h: number, k: number) => base.map((p) => v3.lerp(v3.add(p, [0, h, 0]), neckAt(p, p[1] + h), k));
+    // (About 4 cm: a clerical collar stands high on the neck.)
+    // The band's foot flares out 1.5 cm over the shirt's neckline (filling any gap between it and a
+    // jacket's collar), then it rises snug round the neck.
+    const flare = base.map((p) => {
+      const d = v3.norm([p[0] - nc[0], 0, p[2] - nc[2]]);
+      return v3.add(v3.madd(p, d, cm(1.5)), [0, -cm(1), 0]);
+    });
+    const rings = [flare, base.map((p) => v3.add(p, [0, -cm(0.2), 0])), up(cm(0.9), 0.85), up(cm(3), 1), up(cm(4.2), 1)];
+    const band = orientOutward(loftRings(rings, { closedAround: false, tileU: 0.2, tileV: 0.1 }), [nc[0], b.L.neckY - cm(6), nc[2]]);
+    const bandMesh = merge([band, cord(rings[4], cm(0.18), false, 6)]);
+    // (Under a jacket's collar, which lies over it at the back.)
+    if (bandMesh) parts.push({ mesh: bandMesh, material: { ...m, doubleSided: true }, collar: true, collarUnder: true });
+    // Tab: a white insert in the band's gap at the front. Its bottom meets the shirt's front
+    // neckline (which stands a little out from the neck), easing back onto the neck toward its top.
+    // (The tab's edges: 2 samples in from the band's ends, over the band.)
+    const [L0, R0] = [rings[1][2], rings[1][N - 2]], [L1, R1] = [rings[4][2], rings[4][N - 2]];
+    // The shirt's front edge at the centre: its outermost vertex near the top, in front of the neck.
+    const MP = mesh.positions;
+    let edgeP: Vec3 | null = null;
+    for (let i = 0; i < MP.length; i += 3)
+      if (Math.abs(MP[i] - nc[0]) < cm(1.5) && MP[i + 2] > nc[2] && MP[i + 1] < b.L.neckY && MP[i + 1] > (L0[1] + R0[1]) / 2 - cm(4))
+        if (!edgeP || MP[i + 1] + (MP[i + 2] - nc[2]) * 0.05 > edgeP[1] + (edgeP[2] - nc[2]) * 0.05) edgeP = [MP[i], MP[i + 1], MP[i + 2]];
+    const yBot = edgeP ? Math.min((L0[1] + R0[1]) / 2, edgeP[1] - cm(0.4)) : (L0[1] + R0[1]) / 2;
+    const rShirt = edgeP ? Math.hypot(edgeP[0] - nc[0], edgeP[2] - nc[2]) : 0;
+    const yTop = (L1[1] + R1[1]) / 2;
+    const tabRows: Vec3[][] = [];
+    for (let i = 0; i <= 6; i++) {
+      const t = i / 6, y = yBot + (yTop - yBot) * t, row: Vec3[] = [];
+      const l = v3.lerp(L0, L1, t), r = v3.lerp(R0, R1, t);
+      for (let j = 0; j <= 6; j++) {
+        const q = v3.lerp(l, r, j / 6), c = neckAt([q[0], y, q[2]], y), d = v3.norm([c[0] - nc[0], 0, c[2] - nc[2]]);
+        // (Just in front of the band, which it overlaps at its edges.)
+        const rNeck = Math.hypot(c[0] - nc[0], c[2] - nc[2]) + cm(0.12);
+        // Out to the shirt's edge at the bottom, back on the neck by halfway up.
+        const k = 1 - Math.min(1, t * 2), rr = Math.max(rNeck, rNeck + (rShirt - rNeck) * k * k * (3 - 2 * k));
+        row.push([nc[0] + d[0] * rr, y, nc[2] + d[2] * rr]);
+      }
+      tabRows.push(row);
+    }
+    const tab = orientOutward(loftRings(tabRows, { closedAround: false, tileU: 0.05, tileV: 0.05 }), [nc[0], b.L.neckY, nc[2] - cm(5)]);
+    parts.push({ mesh: tab, material: mat('Clerical collar tab', null, { color: '#f6f5f0', roughness: 0.45, doubleSided: true }), collar: true });
+  }
+  return [...parts, ...placket(g, mesh, m, { ttV: 0.97, buttons: 5, spacing: cm(8), placketTo: 0.25, buttonColor: '#1c1c1e' })];
+}
+
 export const SHIRTS: GarmentDef[] = [
+  {
+    id: 'clerical_shirt', label: 'Clerical shirt (tab collar)', slot: 'top', patterns: ['solid', 'linen'], color: '#141416', color2: '#26262a',
+    fromOutfit: CLERIC_FROM, build: clericalShirt,
+  },
   {
     id: 'silk_blouse', label: 'Silk blouse', slot: 'top', patterns: ['satin', 'solid'], color: '#efe2cc', color2: '#fff8ec',
     fromOutfit: BLOUSE_FROM, build: silkBlouse,

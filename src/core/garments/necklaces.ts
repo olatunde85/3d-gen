@@ -5,9 +5,9 @@
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import { cm, REGION } from './body';
-import { hplane, isTrunk, mat, points, Y, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { clamp, hplane, isTrunk, mat, points, Y, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { part } from './drape';
-import { along, cord, ellipsoid, frameOf, hullRing, merge, rayRing, v3 } from './ring';
+import { along, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, rayRing, v3 } from './ring';
 
 /** Front-most crossing (largest z) of a closed ring with the vertical plane at lateral position x. */
 function frontZ(ring: Vec3[], x: number): number | null {
@@ -141,6 +141,30 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
     const ys = ring.map((q) => q[1]);
     for (let i = 0; i < N; i++) ring[i][1] = Math.max(floor[i], (ys[(i + N - 1) % N] + 2 * ys[i] + ys[(i + 1) % N]) / 4);
   }
+  // Under a jacket the front stays in its open V: below the neck, wherever it would pass under a
+  // lapel, it is drawn in to lie on the top just inside the lapel's edge, so it shows unbroken.
+  if (g.jacket?.length) {
+    const open = new Map<number, number>();
+    for (const q of g.jacket) {
+      if (q[2] < c[2] || q[1] > b.L.neckY) continue;
+      const k = Math.round(q[1] / cm(1));
+      open.set(k, Math.min(open.get(k) ?? Infinity, Math.abs(q[0])));
+    }
+    const halfAt = (y: number) => {
+      let m = Infinity;
+      for (const d of [-1, 0, 1]) m = Math.min(m, open.get(Math.round(y / cm(1)) + d) ?? Infinity);
+      return m;
+    };
+    for (let i = 0; i < N; i++) {
+      const p = ring[i];
+      if (p[2] < c[2] || p[1] > b.L.neckY - cm(1)) continue;
+      const w = halfAt(p[1]) - cm(0.7);
+      if (Number.isFinite(w) && Math.abs(p[0]) > w) {
+        const x = Math.sign(p[0]) * Math.max(0, w), h = surfAt(p[1]), z = h ? frontZ(h, x) : null;
+        ring[i] = [x, p[1], z !== null ? Math.max(z, p[2]) : p[2]];
+      }
+    }
+  }
   return { ring, centre: [c[0], yN - cm(6), c[2]] };
 }
 
@@ -205,6 +229,83 @@ function finePendant(g: GCtx, st: GarmentStyle): GPart[] {
   const drop = ellipsoid(frameOf(v3.madd(v3.madd(front, Y, -cm(0.9)), out, cm(0.15)), out, Y), [cm(0.45), cm(0.7), cm(0.18)], [0.5, 0.5], 12, 6);
   const metal = mat('Gold pendant', null, { color: st.color, roughness: 0.2, metalness: 1 });
   return [{ mesh: merge([cord(s.ring, cm(0.06), true, 5), drop])!, material: metal }];
+}
+
+/**
+ * Silver cross on a long fine chain (round a standing collar, over the top, inside a jacket's
+ * V): a Latin cross (bevelled bars, a small ring where it hangs) resting on the chest.
+ */
+function silverCross(g: GCtx, st: GarmentStyle): GPart[] {
+  const s = strand(g, cm(22), 0);
+  if (!s) return [];
+  // Round a collar standing up round the neck (a clerical band) it climbs from the chest up over
+  // the collar's sides and wraps round it just below its top edge (which dips toward the front).
+  const b = g.body, c = s.centre;
+  const nearNeck = (g.worn ?? []).filter((q) => Math.hypot(q[0] - c[0], q[2] - c[2]) < cm(9) && q[1] > b.L.neckY - cm(2));
+  const AB = 48, edgeY = new Float32Array(AB).fill(-Infinity);
+  const binOf = (x: number, z: number) => Math.floor((Math.atan2(x - c[0], z - c[2]) / (2 * Math.PI) + 0.5) * AB) % AB;
+  for (const q of nearNeck) edgeY[binOf(q[0], q[2])] = Math.max(edgeY[binOf(q[0], q[2])], q[1]);
+  if (edgeY.filter((y) => y > b.L.neckY + cm(1.5)).length > AB / 2) {
+    const neckPts = points(b, (v) => v.region === REGION.neck);
+    const hulls = new Map<number, Vec3[] | null>();
+    const hullAt = (y: number) => {
+      const k = Math.round(y / cm(0.5));
+      if (!hulls.has(k)) hulls.set(k, hullRing([...neckPts, ...nearNeck.filter((q) => Math.abs(q[1] - k * cm(0.5)) < cm(0.6))], hplane(b, k * cm(0.5)), { slab: cm(0.6), samples: 96, offset: cm(0.12) }));
+      return hulls.get(k)!;
+    };
+    s.ring = s.ring.map((p) => {
+      const ang = Math.atan2(p[0] - c[0], p[2] - c[2]), a = Math.abs(ang);
+      // On the chest up to 20 degrees from the front; wholly on the collar from 50 degrees round.
+      const w = clamp((a - 0.35) / 0.52, 0, 1), k = w * w * (3 - 2 * w);
+      const t = edgeY[binOf(p[0], p[2])];
+      if (k <= 0 || !Number.isFinite(t)) return p;
+      const y = t - cm(0.7), d: Vec3 = [Math.sin(ang), 0, Math.cos(ang)];
+      const h = hullAt(y), r = h ? rayRing(h, [c[0], y, c[2]], d) : null;
+      return r === null ? p : v3.lerp(p, [c[0] + d[0] * r, y, c[2] + d[2] * r], k);
+    });
+    for (let it = 0; it < 3; it++) s.ring = s.ring.map((p, i, r) => v3.scale(v3.add(v3.add(r[(i + r.length - 1) % r.length], v3.scale(p, 2)), r[(i + 1) % r.length]), 0.25));
+    // Never inside the shirt where it climbs (a straight line cuts across its curve).
+    const surf = [...points(b, (v) => v.region === REGION.neck || isTrunk(v)), ...(g.worn ?? [])];
+    const rings = new Map<number, Vec3[] | null>();
+    const ringAt = (y: number) => {
+      const k = Math.round(y / cm(0.5));
+      if (!rings.has(k)) rings.set(k, hullRing(surf, hplane(b, k * cm(0.5)), { slab: cm(0.8), samples: 128, offset: cm(0.15) }));
+      return rings.get(k)!;
+    };
+    s.ring = s.ring.map((p) => {
+      const d = v3.norm([p[0] - c[0], 0, p[2] - c[2]]), h = ringAt(p[1]), r = h ? rayRing(h, [c[0], p[1], c[2]], d) : null;
+      const rp = Math.hypot(p[0] - c[0], p[2] - c[2]);
+      return r !== null && r > rp && r < rp + cm(3) ? [c[0] + d[0] * r, p[1], c[2] + d[2] * r] : p;
+    });
+  }
+  let front = s.ring[0];
+  for (const p of s.ring) if (p[2] > front[2]) front = p;
+  const out = v3.norm([front[0] - s.centre[0], 0, front[2] - s.centre[2]]);
+  const top = v3.madd(v3.madd(front, Y, -cm(0.6)), out, cm(0.25));
+  const f = frameOf(v3.madd(top, Y, -cm(2.6)), out, Y);
+  // Upright 5.5 cm, crossbar 3.4 cm, 4 mm thick, crossed a third of the way down: square bars with
+  // bevelled edges, the face standing proud (catching the light).
+  const side = v3.cross(out, Y);
+  const bar = (o: Vec3, axis: Vec3, across: Vec3, half: number, w: number) => {
+    const t = cm(0.2), e = cm(0.08);
+    // A chamfered rectangle in the bar's cross-section, swept along it and capped.
+    const sec = (q: Vec3): Vec3[] => [[-w + e, t], [w - e, t], [w, t - e], [w, -t + e], [w - e, -t], [-w + e, -t], [-w, -t + e], [-w, t - e]]
+      .map(([a, z]) => v3.madd(v3.madd(q, across, a), out, z));
+    const r0 = sec(v3.madd(o, axis, -half)), r1 = sec(v3.madd(o, axis, half));
+    // The ends are bevelled too: they come in to a slightly smaller section.
+    const shrink = (r: Vec3[], q: Vec3, d: number) => r.map((p) => v3.madd(v3.lerp(p, q, 0.25), axis, d));
+    const q0 = v3.madd(o, axis, -half), q1 = v3.madd(o, axis, half);
+    const rings = [shrink(r0, q0, -e), r0, r1, shrink(r1, q1, e)];
+    const capOf = (r: Vec3[], q: Vec3) => r.map(() => q);
+    return orientOutward(loftRings([capOf(rings[0], v3.madd(q0, axis, -e)), ...rings, capOf(rings[3], v3.madd(q1, axis, e))], { closedAround: true, tileU: 0.05 }), o);
+  };
+  const cross = merge([
+    bar(f.o, Y, side, cm(2.75), cm(0.38)),
+    bar(v3.madd(f.o, Y, cm(0.6)), side, Y, cm(1.7), cm(0.38)),
+    cord([0, 1, 2, 3, 4, 5, 6, 7, 8].map((k): Vec3 => v3.madd(v3.madd(top, Y, cm(0.25) * Math.sin((k / 8) * Math.PI * 2)), side, cm(0.25) * Math.cos((k / 8) * Math.PI * 2))), cm(0.06), false, 5),
+  ])!;
+  const silver = mat('Silver cross', null, { color: st.color, roughness: 0.22, metalness: 1 });
+  return [{ mesh: merge([cord(s.ring, cm(0.07), true, 5), cross])!, material: silver }];
 }
 
 /** Pearls: two strands. */
@@ -302,6 +403,10 @@ export const NECKLACES: GarmentDef[] = [
   {
     id: 'fine_pendant', label: 'Fine gold chain & pendant', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000',
     build: finePendant,
+  },
+  {
+    id: 'silver_cross', label: 'Silver cross on a chain', slot: 'acc', patterns: ['solid'], color: '#c9ccd1', color2: '#000000',
+    build: silverCross,
   },
   {
     id: 'pearl_necklace', label: 'Pearl necklace', slot: 'acc', patterns: ['solid'], color: '#f2ece0', color2: '#000000',

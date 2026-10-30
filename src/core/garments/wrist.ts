@@ -1,11 +1,11 @@
 /**
- * Wrist and hand accessories: bangles, gold and silver bracelet watches, bead bracelets and a gold
- * signet ring.
+ * Wrist and hand accessories: bangles, gold and silver bracelet watches, bead bracelets, a gold
+ * signet ring and leather gloves.
  */
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import { cm, REGION, type Body } from './body';
-import { limbRing, mat, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { clamp, cloth, limbBand, limbRing, mat, shell, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { along, cord, ellipsoid, frameOf, hullRing, merge, roundedBox, v3 } from './ring';
 
 /** A loop round the wrist (side s), `t` along the forearm, standing `gap` off the skin. */
@@ -113,7 +113,25 @@ function signetRing(g: GCtx, st: GarmentStyle): GPart[] {
   return [{ mesh, material: metal(st.color, 'Gold ring'), skinAt: at }];
 }
 
+/**
+ * Leather gloves: fitted over the hands and up over the wrists, a little fuller at the cuff, with a
+ * seam line along the back of each hand.
+ */
+function gloves(g: GCtx, st: GarmentStyle): GPart[] {
+  const b = g.body;
+  const m = cloth(g, 'Gloves', st, { roughness: 0.38 });
+  const r = shell(g, {
+    covers: (v) => v.region === REGION.hand || (v.region === REGION.lowerarm && v.t > 0.82),
+    offset: (v) => (v.region === REGION.lowerarm ? cm(0.25) + cm(0.25) * clamp((0.92 - v.t) / 0.1, 0, 1) : cm(0.12)),
+    tile: 0.08, relax: 1, hemDepth: cm(0.2),
+  });
+  if (!r) return [];
+  const cuffs = merge([1, -1].map((s) => limbBand(b, REGION.lowerarm, s, 0.83, cm(0.9), cm(0.15), cm(0.45))));
+  return [{ mesh: r.mesh, material: m, hides: r.covered, smooth: true }, ...(cuffs ? [{ mesh: cuffs, material: m }] : [])];
+}
+
 export const WRIST: GarmentDef[] = [
+  { id: 'gloves', label: 'Leather gloves', slot: 'acc', patterns: ['nappa', 'leather'], color: '#121212', color2: '#000000', build: gloves },
   { id: 'gold_ring', label: 'Gold signet ring', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000', build: signetRing },
   { id: 'bangles', label: 'Bangles', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000', build: bangles },
   { id: 'watch_gold', label: 'Gold watch', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#f4efe4', build: (g, st) => braceletWatch(g, st, 'Gold watch') },

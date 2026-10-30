@@ -159,6 +159,15 @@ export function yearsToAge(y: number): number {
 
 export const PRESETS: Record<string, Partial<HumanParams>> = {
   // Newest characters first.
+  // Priest with a dark secret: black clerical shirt and tab collar, a long black overcoat, black
+  // trousers, a silver cross on a long chain, black leather gloves and polished oxfords.
+  'The Priest': {
+    gender: 1, age: 0.6, muscle: 0.62, weight: 0.48, height: 0.62, proportions: 0.7,
+    african: 0.05, asian: 0.05, caucasian: 0.9, eyes: 'brown', eyebrows: 'eyebrow007',
+    hair: 'short04', hairTint: '#3a2e26', facialHair: 'stubble', beardColor: '#2a2018', expression: 'angry',
+    modifiers: { 'chin/chin-prominent': 0.3, 'cheek/cheek-bones': 0.25, 'cheek/cheek-bones:decr|incr': 0.25 },
+    outfit: 'set_clergy', shoes: 'oxfords', accessories: ['silver_cross', 'gloves'],
+  },
   // Executive: a cream tailored pantsuit over a champagne silk blouse, pointed nude heels, an ivory
   // top-handle handbag, a fine gold pendant, gold watch and studs, and aviators.
   'The Female Executive': {

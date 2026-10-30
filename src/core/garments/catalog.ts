@@ -19,7 +19,7 @@ import { BAGS } from './bags';
 import { BEACH, SLIDES } from './beach';
 import { HEELS } from './heels';
 import { SNEAKERS } from './sneakers';
-import { LOAFERS } from './loafers';
+import { LOAFERS, OXFORDS } from './dress-shoes';
 import { PRISON } from './prison';
 import { SHIRTS } from './shirts';
 import { GULF } from './gulf';
@@ -732,6 +732,7 @@ export const GARMENTS: GarmentDef[] = [
   HEELS,
   SNEAKERS,
   LOAFERS,
+  OXFORDS,
   SLIDES,
 ];
 
