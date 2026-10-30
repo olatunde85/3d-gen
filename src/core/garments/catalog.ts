@@ -398,7 +398,8 @@ export const GARMENTS: GarmentDef[] = [
       const b = g.body;
       const m = cloth(g, 'Tactical vest', st, { roughness: 0.8 });
       const vest = shell(g, {
-        covers: (v) => isUpper(v) && v.tt >= 0.2 && (v.tt < 0.76 || Math.abs(v.ax - 0.62 * b.L.shoulderX) < 0.2 * b.L.shoulderX),
+        // Broaden the upper shoulder webbing so it overlaps the chest panel instead of leaving a gap.
+        covers: (v) => isUpper(v) && v.tt >= 0.2 && (v.tt < 0.76 || Math.abs(v.ax - 0.62 * b.L.shoulderX) < 0.3 * b.L.shoulderX),
         offset: cm(2.4), tile: 0.3, relax: 8,
       });
       const pouches: PolyMesh[] = [];
