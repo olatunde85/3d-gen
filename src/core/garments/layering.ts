@@ -1,7 +1,7 @@
 /**
  * Layering a top under a jacket: the top's body keeps only what shows (in the V), so it never
  * pokes through; its collar (a part of its own) is never cut, and round the back and sides it lies
- * over the top half of the jacket's collar.
+ * over the top half of the jacket's collar (or, for a clerical band, tucks inside it).
  */
 import { compact } from '../geometry';
 import { smoothstep } from '../math';
@@ -23,6 +23,21 @@ export function layerUnderJacket(body: Body, parts: GPart[], tops: Set<GPart>, j
   const jacket = merge(parts.filter((p) => jackets.has(p)).map((p) => p.mesh));
   if (!jacket) return;
   const front = new Caster(jacket, null, () => true, 'front'), back = new Caster(jacket, null, () => true, 'back');
+  // Collars that stay under the jacket's: round the back of the neck, wherever the jacket lies just
+  // outside one (seen from behind), it is tucked in 2 mm inside the jacket.
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    if (!tops.has(p) || !p.collarUnder) continue;
+    const Q = new Float32Array(p.mesh.positions);
+    for (let v = 0; v < Q.length; v += 3) {
+      if (Q[v + 2] > L.torsoZ) continue;
+      const hit = back.hit(Q[v], Q[v + 1]);
+      if (hit && Q[v + 2] < hit.p[2] + 0.02 && hit.p[2] - Q[v + 2] < 0.25) Q[v + 2] = hit.p[2] + 0.02;
+    }
+    parts[i] = { ...p, mesh: { ...p.mesh, positions: Q } };
+    tops.delete(p);
+    tops.add(parts[i]);
+  }
   // Each piece knows the body vertex under each of its vertices (`ref`): trunk or arm.
   const onTrunk = (r: number) => r >= 0 && [REGION.torso, REGION.hips, REGION.neck].includes(body.regions[r] as 1);
   const J: [number, number, number][] = [], Jt: [number, number, number][] = [];
@@ -60,6 +75,10 @@ export function layerUnderJacket(body: Body, parts: GPart[], tops: Set<GPart>, j
     for (let v = 0; v < under.length; v++) {
       const [x, y, z] = [P[v * 3], P[v * 3 + 1], P[v * 3 + 2]];
       const fHit = front.hit(x, y), hit = z > L.torsoZ ? fHit : back.hit(x, y);
+      // Round the base of the neck the top stays wherever the jacket is clearly outside it (it
+      // can't poke through there, and it fills the gaps beside a high collar).
+      const inside = hit && (z > L.torsoZ ? hit.p[2] > z + 0.04 : hit.p[2] < z - 0.04);
+      if (inside && y > L.neckY - 1.2 && Math.abs(x) < 0.8 * L.shoulderX) continue;
       if (hit && Math.abs(hit.p[2] - z) < 0.6) { under[v] = 1; continue; }
       const arm = !onTrunk(p.mesh.ref?.[v] ?? -1);
       if (arm && near(x, y, z)) { under[v] = 1; continue; }
@@ -115,7 +134,7 @@ function collarOver(body: Body, parts: GPart[], tops: Set<GPart>, jackets: Set<G
   }
   // The collar's outermost point per angle and height, and how far out it must go to clear the
   // jacket's surface just outside it (within 2.5 cm: the jacket's collar, not its shoulders).
-  const collars = parts.filter((p) => tops.has(p) && p.collar);
+  const collars = parts.filter((p) => tops.has(p) && p.collar && !p.collarUnder);
   const outer = new Map<number, number>();
   for (const p of collars) {
     const P = p.mesh.positions;

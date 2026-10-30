@@ -5,7 +5,7 @@
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import { cm, REGION } from './body';
-import { hplane, isTrunk, mat, points, Y, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { clamp, hplane, isTrunk, mat, points, Y, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { part } from './drape';
 import { along, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, rayRing, v3 } from './ring';
 
@@ -141,14 +141,28 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
     const ys = ring.map((q) => q[1]);
     for (let i = 0; i < N; i++) ring[i][1] = Math.max(floor[i], (ys[(i + N - 1) % N] + 2 * ys[i] + ys[(i + 1) % N]) / 4);
   }
-  // Under a jacket (its lapels and collar), wherever it lies just in front of the chain.
+  // Under a jacket the front stays in its open V: below the neck, wherever it would pass under a
+  // lapel, it is drawn in to lie on the top just inside the lapel's edge, so it shows unbroken.
   if (g.jacket?.length) {
-    const J = g.jacket;
+    const open = new Map<number, number>();
+    for (const q of g.jacket) {
+      if (q[2] < c[2] || q[1] > b.L.neckY) continue;
+      const k = Math.round(q[1] / cm(1));
+      open.set(k, Math.min(open.get(k) ?? Infinity, Math.abs(q[0])));
+    }
+    const halfAt = (y: number) => {
+      let m = Infinity;
+      for (const d of [-1, 0, 1]) m = Math.min(m, open.get(Math.round(y / cm(1)) + d) ?? Infinity);
+      return m;
+    };
     for (let i = 0; i < N; i++) {
       const p = ring[i];
-      let jz = Infinity;
-      for (const q of J) if (Math.abs(q[0] - p[0]) < cm(1) && Math.abs(q[1] - p[1]) < cm(1) && q[2] > p[2] - cm(0.5) && q[2] < p[2] + cm(2.5)) jz = Math.min(jz, q[2]);
-      if (Number.isFinite(jz) && p[2] > jz - cm(0.5)) ring[i] = [p[0], p[1], jz - cm(0.5)];
+      if (p[2] < c[2] || p[1] > b.L.neckY - cm(1)) continue;
+      const w = halfAt(p[1]) - cm(0.7);
+      if (Number.isFinite(w) && Math.abs(p[0]) > w) {
+        const x = Math.sign(p[0]) * Math.max(0, w), h = surfAt(p[1]), z = h ? frontZ(h, x) : null;
+        ring[i] = [x, p[1], z !== null ? Math.max(z, p[2]) : p[2]];
+      }
     }
   }
   return { ring, centre: [c[0], yN - cm(6), c[2]] };
@@ -218,22 +232,52 @@ function finePendant(g: GCtx, st: GarmentStyle): GPart[] {
 }
 
 /**
- * Silver cross on a long fine chain (under any collar round the neck): a Latin cross (bevelled
- * bars, a small ring where it hangs) resting on the chest at the bottom of the chain.
+ * Silver cross on a long fine chain (round a standing collar, over the top, inside a jacket's
+ * V): a Latin cross (bevelled bars, a small ring where it hangs) resting on the chest.
  */
 function silverCross(g: GCtx, st: GarmentStyle): GPart[] {
-  // Snug round the neck under any collar, then out over the top worn below the neckline.
-  const s = strand(g, cm(22), 0, true);
+  const s = strand(g, cm(22), 0);
   if (!s) return [];
-  const b = g.body, worn = g.worn ?? [];
-  s.ring = s.ring.map((p) => {
-    if (p[1] > b.L.neckY - cm(1.5)) return p;
-    let z = -Infinity;
-    for (const q of worn) if (Math.abs(q[0] - p[0]) < cm(0.8) && Math.abs(q[1] - p[1]) < cm(0.8) && q[2] > p[2] - cm(0.5) && q[2] < p[2] + cm(3)) z = Math.max(z, q[2]);
-    return Number.isFinite(z) ? [p[0], p[1], z + cm(0.2)] : p;
-  });
-  // Smooth the line where it comes out from under the collar.
-  for (let it = 0; it < 4; it++) s.ring = s.ring.map((p, i, r) => v3.scale(v3.add(v3.add(r[(i + r.length - 1) % r.length], v3.scale(p, 2)), r[(i + 1) % r.length]), 0.25));
+  // Round a collar standing up round the neck (a clerical band) it climbs from the chest up over
+  // the collar's sides and wraps round it just below its top edge (which dips toward the front).
+  const b = g.body, c = s.centre;
+  const nearNeck = (g.worn ?? []).filter((q) => Math.hypot(q[0] - c[0], q[2] - c[2]) < cm(9) && q[1] > b.L.neckY - cm(2));
+  const AB = 48, edgeY = new Float32Array(AB).fill(-Infinity);
+  const binOf = (x: number, z: number) => Math.floor((Math.atan2(x - c[0], z - c[2]) / (2 * Math.PI) + 0.5) * AB) % AB;
+  for (const q of nearNeck) edgeY[binOf(q[0], q[2])] = Math.max(edgeY[binOf(q[0], q[2])], q[1]);
+  if (edgeY.filter((y) => y > b.L.neckY + cm(1.5)).length > AB / 2) {
+    const neckPts = points(b, (v) => v.region === REGION.neck);
+    const hulls = new Map<number, Vec3[] | null>();
+    const hullAt = (y: number) => {
+      const k = Math.round(y / cm(0.5));
+      if (!hulls.has(k)) hulls.set(k, hullRing([...neckPts, ...nearNeck.filter((q) => Math.abs(q[1] - k * cm(0.5)) < cm(0.6))], hplane(b, k * cm(0.5)), { slab: cm(0.6), samples: 96, offset: cm(0.12) }));
+      return hulls.get(k)!;
+    };
+    s.ring = s.ring.map((p) => {
+      const ang = Math.atan2(p[0] - c[0], p[2] - c[2]), a = Math.abs(ang);
+      // On the chest up to 20 degrees from the front; wholly on the collar from 50 degrees round.
+      const w = clamp((a - 0.35) / 0.52, 0, 1), k = w * w * (3 - 2 * w);
+      const t = edgeY[binOf(p[0], p[2])];
+      if (k <= 0 || !Number.isFinite(t)) return p;
+      const y = t - cm(0.7), d: Vec3 = [Math.sin(ang), 0, Math.cos(ang)];
+      const h = hullAt(y), r = h ? rayRing(h, [c[0], y, c[2]], d) : null;
+      return r === null ? p : v3.lerp(p, [c[0] + d[0] * r, y, c[2] + d[2] * r], k);
+    });
+    for (let it = 0; it < 3; it++) s.ring = s.ring.map((p, i, r) => v3.scale(v3.add(v3.add(r[(i + r.length - 1) % r.length], v3.scale(p, 2)), r[(i + 1) % r.length]), 0.25));
+    // Never inside the shirt where it climbs (a straight line cuts across its curve).
+    const surf = [...points(b, (v) => v.region === REGION.neck || isTrunk(v)), ...(g.worn ?? [])];
+    const rings = new Map<number, Vec3[] | null>();
+    const ringAt = (y: number) => {
+      const k = Math.round(y / cm(0.5));
+      if (!rings.has(k)) rings.set(k, hullRing(surf, hplane(b, k * cm(0.5)), { slab: cm(0.8), samples: 128, offset: cm(0.15) }));
+      return rings.get(k)!;
+    };
+    s.ring = s.ring.map((p) => {
+      const d = v3.norm([p[0] - c[0], 0, p[2] - c[2]]), h = ringAt(p[1]), r = h ? rayRing(h, [c[0], p[1], c[2]], d) : null;
+      const rp = Math.hypot(p[0] - c[0], p[2] - c[2]);
+      return r !== null && r > rp && r < rp + cm(3) ? [c[0] + d[0] * r, p[1], c[2] + d[2] * r] : p;
+    });
+  }
   let front = s.ring[0];
   for (const p of s.ring) if (p[2] > front[2]) front = p;
   const out = v3.norm([front[0] - s.centre[0], 0, front[2] - s.centre[2]]);

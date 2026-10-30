@@ -87,9 +87,11 @@ function overcoat(g: GCtx, st: GarmentStyle): GPart[] {
     for (const dk of [-1, 0, 1]) for (const dh of [-1, 0, 1]) m = Math.max(m, outR.get(((k + dk + AB) % AB) * 10000 + h + dh) ?? 0);
     return m;
   };
-  // The skirt: from a clean line 6 cm above the hem (lying just over the jacket's lower edge) down
-  // to just below the knee, falling straight, never closer to the hips and legs than 2 cm.
-  const yTop = hemY + cm(6), yEnd = knee(b) - cm(6), src = dressPts(b);
+  // The skirt: from 8 cm above the jacket's hem, lying flush on the jacket (it carries on its
+  // surface, no ledge), down to just below the knee, falling straight, never closer to the hips and
+  // legs than 2 cm.
+  // (The jacket is cut at yCut; the skirt starts 2.5 cm above, over the jacket's remaining edge.)
+  const yCut = hemY + cm(6), yTop = yCut + cm(2.5), yEnd = knee(b) - cm(6), src = dressPts(b);
   const hulls = new Map<number, Vec3[] | null>();
   const hullAt = (y: number) => {
     const k = Math.round(y / cm(1));
@@ -103,7 +105,7 @@ function overcoat(g: GCtx, st: GarmentStyle): GPart[] {
     for (let j = 0; j <= M; j++) {
       const a = aL + ((aR - aL) * j) / M, d: Vec3 = [Math.sin(a), 0, Math.cos(a)];
       const h = hullAt(y), hr = h ? rayRing(h, [c[0], y, c[2]], d) ?? 0 : 0;
-      const rad = Math.max(prevR[j] ?? 0, hr, jacketR(a, y) + cm(0.25));
+      const rad = Math.max(prevR[j] ?? 0, hr, jacketR(a, y) + cm(0.15));
       rr.push(rad);
       row.push([c[0] + d[0] * rad, y, c[2] + d[2] * rad]);
     }
@@ -120,13 +122,14 @@ function overcoat(g: GCtx, st: GarmentStyle): GPart[] {
   const ref = jm.ref;
   jacket[0] = {
     ...jacket[0],
-    mesh: compact(jm, (_, cs) => !Array.from(cs).every((v) => P[v * 3 + 1] < yTop - cm(2) && Math.abs(P[v * 3]) < hipX + cm(4) && (!ref || ref[v] < 0 || b.regions[ref[v]] !== REGION.lowerarm))),
+    mesh: compact(jm, (_, cs) => !Array.from(cs).some((v) => P[v * 3 + 1] < yCut && Math.abs(P[v * 3]) < hipX + cm(4) && (!ref || ref[v] < 0 || b.regions[ref[v]] !== REGION.lowerarm))),
   };
-  // UVs on the cloth's tiling (six tiles across the atlas: 30 cm each).
-  const skirt = orientOutward(loftRings(rows, { closedAround: false, tileU: 0.05, tileV: 0.05 }), [0, (yTop + yEnd) / 2, b.L.torsoZ]);
-  // Edges: a seam along the top, the hem, and down each front.
-  const edges = merge([cord(rows[0], cm(0.18), false, 6), cord(rows[R], cm(0.3), false, 6), cord(rows.map((r) => r[0]), cm(0.25), false, 6), cord(rows.map((r) => r[r.length - 1]), cm(0.25), false, 6)]);
-  const cloth = jacket[0].material;
+  // UVs at the jacket's scale: one unit of its atlas is about 1.85 m of cloth.
+  const skirt = orientOutward(loftRings(rows, { closedAround: false, tileU: 1.85, tileV: 1.85 }), [0, (yTop + yEnd) / 2, b.L.torsoZ]);
+  // Edges: the hem and down each front.
+  const edges = merge([cord(rows[R], cm(0.3), false, 6), cord(rows.map((r) => r[0]), cm(0.25), false, 6), cord(rows.map((r) => r[r.length - 1]), cm(0.25), false, 6)]);
+  // The same cloth, without the jacket's fold map (it belongs to the jacket's own UVs).
+  const cloth = { ...jacket[0].material, normalMap: undefined };
   const buttons = keepIslands(o.mesh, isButton);
   return [
     ...jacket,
