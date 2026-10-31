@@ -6,7 +6,7 @@
 
 **▶ Try it online: [ara3dgen.com](https://ara3dgen.com)**, or self-host it (below).
 
-Shape a body, dress it, give it hair, a beard, tattoos and a weapon, pick from 70 animations, and export **GLB, FBX, OBJ or a ZIP bundle**. It runs entirely on your machine, in the browser or headless from the command line, with no accounts, credits or limits.
+Shape a body, dress it, give it hair, a beard, tattoos and a weapon, pick from 76 animations, and export **GLB, FBX, OBJ or a ZIP bundle**. It runs entirely on your machine, in the browser or headless from the command line, with no accounts, credits or limits.
 
 ![Presets: Female Executive, Miami Dealer, Gangster, Priest, Corporate High-Flier, Prison Escapee, Arabian Oil Tycoon, Adventurer](docs/media/presets.jpg)
 
@@ -38,7 +38,7 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 - **Hair and looks:** MakeHuman hairstyles plus buzz cut, punk mohawk, cornrows and box braids. Stubble, mustache, goatee and beards. Tattoos. Earrings.
 - **Faces that come alive:** blinking and glances, 9 expressions with teeth and tongue, a talking clip and lip-sync mouth shapes, exported as blend shapes.
 - **Auto-rigging:** game rig (Mixamo bone names; Unity Humanoid / Unreal / Mixamo compatible), lite or full skeleton, A- or T-pose, optional face bones, a `WeaponR` socket.
-- **70 animations:** a motion-captured walk and run, turns, jumps, sitting and lying, combat, emotes, a full shooter set, melee and vehicles, with optional root motion. What you see in the preview is what you export.
+- **76 animations:** a motion-captured walk and run, turns, jumps, pickup, press, open door, push, carry idle/walk, sitting and lying, combat, emotes, a full shooter set, melee and vehicles, with optional root motion. What you see in the preview is what you export.
 - **Props:** a rifle, pistol, sword and knife on the socket (exported in the hand or as separate props), and a bicycle fitted to every rider.
 - **Exports you can trust:** an export panel that lists every file before you download it: static, rigged, or rigged + animations; one file or one per clip; Unity `model@clip` and Godot loop naming.
 - **Share:** a branded image of your character, a caption and a link that rebuilds the exact character in the app (no server or account needed).

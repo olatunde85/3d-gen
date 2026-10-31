@@ -12,6 +12,8 @@ import { DEFAULT_PARAMS, DETAILS, PRESETS, randomParams, type HumanParams } from
 import { CARRIED } from '../src/core/props/carry';
 import { DEFAULT_EXPORT, exportCharacter, planExport, runExport, type ExportSettings } from '../src/export';
 import { dressing, GARMENTS, OUTFIT_SETS } from '../src/core/garments';
+import { checkInteractionSkin } from './interaction-skin-check';
+import { checkInteractions } from './interaction-check';
 import { Animator } from '../src/core/anim/evaluate';
 import { CLIPS, clipById } from '../src/core/anim/clips';
 import { MOCAP_DATA } from '../src/core/anim/clips/mocap-data';
@@ -381,6 +383,10 @@ for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
           if (gap > 0.005) fail(`${label}: mocap ${id} loop gap ${(gap * 100).toFixed(1)} cm`);
         }
       }
+    if (ch.rig && label.startsWith('rig')) {
+      checkInteractions(ch.rig, label, fail);
+      checkInteractionSkin(ch.rig, ch.mesh, label, fail);
+    }
     // Chained clips meet where they join (largest joint gap under 3 cm).
     if (ch.rig && label.startsWith('rig'))
       for (const [a, b] of [['idle', 'sit_down'], ['stand_up', 'idle'], ['sit_down', 'sit_idle'], ['sit_idle', 'stand_up'], ['lie_down', 'sleep'], ['sleep', 'get_up_face_up']]) {

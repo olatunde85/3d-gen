@@ -10,6 +10,7 @@ import { cheer, laugh, talk, wave } from './emotes';
 import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
 import { VEHICLES } from './vehicles';
+import { INTERACTIONS } from './interaction';
 import { REACTIONS } from './reactions';
 import { withFaces } from './faces';
 import { lieDown, sleep } from './lying';
@@ -53,6 +54,7 @@ export const CLIPS: Clip[] = withFaces(
     mocap('punch_low', 'Low punch', 'Actions'),
     hit,
     ...REACTIONS,
+    ...INTERACTIONS,
     wave,
     cheer,
     laugh,
