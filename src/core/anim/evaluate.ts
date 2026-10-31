@@ -331,7 +331,23 @@ export class Animator {
       const first = this.solve({ ...s, ik: { ...s.ik, Left: undefined } }, clip, time, opts);
       s = { ...s, ik: { ...s.ik, Left: this.supportTarget(left, first.world, first.pos) } };
     }
-    return this.solve(s, clip, time, opts).frame;
+    const solved = this.solve(s, clip, time, opts).frame;
+    if (s.root.ground && !s.root.floor && !s.mocap && Object.values(s.ik ?? {}).some((h) => h?.space === 'floor')) {
+      // Grounding moves the hips after IK. Compensate floor targets by that same offset,
+      // otherwise a crouch drags a planted hand away from the object (or into a leg).
+      const [i, p] = solved.rootPos.entries().next().value!;
+      const b = this.rig.bones[i], r = s.root;
+      const before = b.head[1] + (r.y ?? 0) * this.scale + (r.drop ?? 0) * (LYING_HEIGHT - b.head[1])
+        + (opts.rootMotion && clip.travel ? clip.travel[1] * time * this.scale : 0);
+      const shift = (p[1] - before) / this.scale;
+      const ik = { ...s.ik };
+      for (const side of ['Left', 'Right'] as const) {
+        const h = ik[side];
+        if (h?.space === 'floor') ik[side] = { ...h, pos: [h.pos[0], h.pos[1] - shift, h.pos[2]] };
+      }
+      return this.solve({ ...s, ik }, clip, time, opts).frame;
+    }
+    return solved;
   }
 
   /** Socket-space fit of a weapon to its reference aiming clip (cached): see weaponFit. */
