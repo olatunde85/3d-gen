@@ -80,10 +80,10 @@
           </p>
           <div class="cta">
             <a class="btn btn-primary" href="app/">Launch the app <span aria-hidden="true">→</span></a>
-            <button class="btn btn-ghost" data-video="whats-new" type="button"><span class="play" aria-hidden="true"></span> What's new · 0:31</button>
+            <button class="btn btn-video" data-video="cinematic" type="button"><span class="btn-video-icon" aria-hidden="true"><span class="play"></span></span> Watch it in action</button>
           </div>
           <ul class="facts">
-            <li><b>19</b> presets</li>
+            <li><b>30</b> presets</li>
             <li><b>70</b> animations</li>
             <li><b>219</b> detail sliders</li>
             <li><b>GLB · FBX · OBJ</b></li>
@@ -91,22 +91,26 @@
         </div>
 
         <div class="gallery" aria-label="Presets: open any of them in the app">
-          <a class="card" href="app/#preset=The%20African%20Warrior"><img src="./docs/media/presets/african-warrior.jpg" alt="African warrior preset" loading="eager" /><span>African Warrior</span></a>
-          <a class="card" href="app/#preset=The%20Yoruba%20Warrior"><img src="./docs/media/presets/yoruba-warrior.jpg" alt="Yoruba warrior preset" /><span>Yoruba Warrior</span></a>
-          <a class="card" href="app/#preset=The%20Cyberpunk%20Hacker"><img src="./docs/media/presets/cyberpunk-hacker.jpg" alt="Cyberpunk hacker preset" /><span>Cyberpunk Hacker</span></a>
-          <a class="card" href="app/#preset=The%20Dahomey%20Warrior"><img src="./docs/media/presets/dahomey-warrior.jpg" alt="Dahomey warrior preset" /><span>Dahomey Warrior</span></a>
-          <a class="card" href="app/#preset=The%20FRSC%20Officer%20(Nigeria)"><img src="./docs/media/presets/frsc-officer.jpg" alt="FRSC officer preset" /><span>FRSC Officer</span></a>
-          <a class="card" href="app/#preset=The%20Police%20Officer%20(Nigeria)"><img src="./docs/media/presets/police-officer.jpg" alt="Nigerian police officer preset" /><span>Police Officer</span></a>
-          <a class="card" href="app/#preset=The%20Wasteland%20Survivor"><img src="./docs/media/presets/wasteland-survivor.jpg" alt="Wasteland survivor preset" /><span>Wasteland Survivor</span></a>
-          <a class="card" href="app/#preset=The%20Adventurer"><img src="./docs/media/presets/adventurer.jpg" alt="Adventurer preset" /><span>Adventurer</span></a>
+          <a class="card" href="app/#preset=The%20Female%20Executive"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive preset" loading="eager" /><span>Executive</span></a>
+          <a class="card" href="app/#preset=The%20Miami%20Dealer"><img src="./docs/media/presets/miami-dealer.jpg" alt="The Miami Dealer preset" /><span>Dealer</span></a>
+          <a class="card" href="app/#preset=The%20Gangster"><img src="./docs/media/presets/gangster.jpg" alt="The Gangster preset" /><span>Gangster</span></a>
+          <a class="card" href="app/#preset=The%20Priest"><img src="./docs/media/presets/priest.jpg" alt="The Priest preset" /><span>Priest</span></a>
+          <a class="card" href="app/#preset=The%20Corporate%20High-Flier"><img src="./docs/media/presets/corporate-high-flier.jpg" alt="The Corporate High-Flier preset" /><span>High-Flier</span></a>
+          <a class="card" href="app/#preset=The%20Prison%20Escapee"><img src="./docs/media/presets/prison-escapee.jpg" alt="The Prison Escapee preset" /><span>Prison Escapee</span></a>
+          <a class="card" href="app/#preset=The%20Arabian%20Oil%20Tycoon"><img src="./docs/media/presets/arabian-oil-tycoon.jpg" alt="The Arabian Oil Tycoon preset" /><span>Oil Tycoon</span></a>
+          <a class="card" href="app/#preset=The%20Adventurer"><img src="./docs/media/presets/adventurer.jpg" alt="The Adventurer preset" /><span>Adventurer</span></a>
         </div>
         <p class="gallery-hint">Click any character to open it in the app.</p>
       </section>
 
       <!-- Video -->
       <section class="video-block">
-        <button class="video-poster" data-video type="button" aria-label="Play the 1 minute 45 second demo video">
-          <img src="./docs/media/video-poster.jpg" alt="" loading="lazy" />
+        <button class="video-poster" data-video="cinematic" type="button" aria-label="Play the 30 second cinematic video">
+          <img src="./docs/media/cinematic-poster.jpg" alt="" loading="lazy" />
+          <span class="video-overlay" aria-hidden="true">
+            <span class="video-play"><svg viewBox="0 0 24 24"><path d="m9 5 11 7-11 7z" /></svg></span>
+            <span class="video-caption">Watch it in action <span>30-second cinematic</span></span>
+          </span>
         </button>
       </section>
 
@@ -235,11 +239,12 @@ npm run dev</code></pre>
       <div><b><span class="brand-mark">Ara</span> 3D Gen</b> · <i>Ara</i> is Yoruba for "body".</div>
       <div>Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a> · Your exports are yours.</div>
       <div><a href="docs/">Docs</a> · <a href="https://github.com/olatunde85/3d-gen">GitHub</a> · <a href="app/">Launch app</a></div>
+      <div><a href="mailto:josholatunde@gmail.com">Hire me for a private project</a></div>
     </footer>
 
     <dialog class="video-modal" aria-label="Demo video">
       <button class="close" type="button" aria-label="Close video">✕</button>
-      <video controls playsinline preload="none" poster="./docs/media/video-poster.jpg"></video>
+      <video controls playsinline preload="none" poster="./docs/media/cinematic-poster.jpg"></video>
     </dialog>
 
     <script type="module" src="/src/landing/landing.ts"></script>
