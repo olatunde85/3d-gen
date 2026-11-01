@@ -40,6 +40,7 @@ export const CLIPS: Clip[] = withFaces(
     crouch,
     mocap('walk', 'Walk', 'Locomotion'),
     mocap('walk_slouch', 'Slouch walk', 'Locomotion'),
+    mocap('model_walk', 'Model walk (catwalk)', 'Locomotion'),
     mocap('run', 'Run', 'Locomotion'),
     walkBack,
     mocap('strafe_left', 'Strafe left', 'Locomotion'),

@@ -18,6 +18,7 @@ import { Animator } from '../src/core/anim/evaluate';
 import { CLIPS, clipById } from '../src/core/anim/clips';
 import { MOCAP_DATA } from '../src/core/anim/clips/mocap-data';
 import { nodeLibrary } from './node-assets';
+import { boneFor } from '../src/core/rig/poses';
 import { WEAPONS } from '../src/core/props/weapons';
 import { EARRINGS, FACIAL_HAIR, HAIRSTYLES, TATTOOS } from '../src/core/looks';
 import { decodeCharacter, encodeCharacter } from '../src/app/share';
@@ -83,6 +84,18 @@ function checkMesh(m: MeshData, label: string, height: number) {
 }
 
 /** Minimal binary FBX parser: walks every node record and checks offsets. */
+/** Closest distance between segments p1-q1 and p2-q2. */
+function segmentGap(p1: number[], q1: number[], p2: number[], q2: number[]): number {
+  const sub = (a: number[], b: number[]) => a.map((x, i) => x - b[i]), dot = (a: number[], b: number[]) => a.reduce((s, x, i) => s + x * b[i], 0);
+  const d1 = sub(q1, p1), d2 = sub(q2, p2), r = sub(p1, p2);
+  const a = dot(d1, d1), e = dot(d2, d2), b = dot(d1, d2), c = dot(d1, r), f = dot(d2, r), den = a * e - b * b;
+  const clamp = (x: number) => Math.max(0, Math.min(1, x));
+  let s = den > 1e-12 ? clamp((b * f - c * e) / den) : 0, t = (b * s + f) / e;
+  if (t < 0) [t, s] = [0, clamp(-c / a)];
+  else if (t > 1) [t, s] = [1, clamp((b - c) / a)];
+  return Math.hypot(...sub(p1.map((v, i) => v + d1[i] * s), p2.map((v, i) => v + d2[i] * t)));
+}
+
 function parseFbx(data: Uint8Array, label: string): Map<string, number> {
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
   if (new TextDecoder().decode(data.subarray(0, 18)) !== 'Kaydara FBX Binary') fail(`${label}: bad FBX magic`);
@@ -383,6 +396,26 @@ for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
           if (gap > 0.005) fail(`${label}: mocap ${id} loop gap ${(gap * 100).toFixed(1)} cm`);
         }
       }
+    // Model walk: each foot lands on one line (the planted ankle on average within 4 cm of the hips'
+    // average path; the Walk's are about 10 cm out) and they pass without touching (their heel-to-toe
+    // lines over 8 cm apart, about a shoe's width).
+    if (ch.rig && label.startsWith('rig')) {
+      const c = clipById.get('model_walk')!, A = new Animator(ch.rig), rig = ch.rig;
+      const [hips, fl, fr] = ['Hips', 'LeftFoot', 'RightFoot'].map((n) => rig.bones.findIndex((b) => b.name === boneFor(rig.type, n)));
+      // (The ball of the foot: its toe bones' average, on every rig.)
+      const toes = [fl, fr].map((f) => rig.bones.flatMap((b, i) => (b.parent === f ? [i] : [])));
+      const ball = (p: number[][], s: number) => [0, 1, 2].map((d) => toes[s].reduce((a, i) => a + p[i][d], 0) / toes[s].length);
+      const P = Array.from({ length: 60 }, (_, i) => A.positions(A.frame(c, (i / 60) * c.duration)) as number[][]);
+      const line = P.reduce((s, p) => s + p[hips][0], 0) / P.length, floor = Math.min(...P.flatMap((p) => [p[fl][1], p[fr][1]]));
+      for (const k of [fl, fr]) {
+        const planted = P.filter((p) => p[k][1] < floor + 0.015).map((p) => Math.abs(p[k][0] - line));
+        const off = planted.reduce((s, x) => s + x, 0) / planted.length;
+        if (off > 0.04) fail(`${label}: model walk foot lands ${(off * 100).toFixed(1)} cm off its line`);
+      }
+      const tip = (p: number[][], f: number, s: number) => ball(p, s).map((v, d) => v + (v - p[f][d]) * 0.5);
+      const gap = Math.min(...P.map((p) => segmentGap(p[fl], tip(p, fl, 0), p[fr], tip(p, fr, 1))));
+      if (gap < 0.08) fail(`${label}: model walk feet pass ${(gap * 100).toFixed(1)} cm apart`);
+    }
     if (ch.rig && label.startsWith('rig')) {
       checkInteractions(ch.rig, label, fail);
       checkInteractionSkin(ch.rig, ch.mesh, label, fail);

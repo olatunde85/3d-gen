@@ -1,11 +1,11 @@
 # Animations
 
-There are 76 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 77 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
 | Idle & stance | Idle, Crouch idle (loops) |
-| Locomotion | Walk, Slouch walk, Run, Walk backwards, Strafe left/right (loops; in place, or with root motion) |
+| Locomotion | Walk, Slouch walk, Model walk (catwalk), Run, Walk backwards, Strafe left/right (loops; in place, or with root motion) |
 | Sitting & lying | Sit down, Sit idle, Stand up (on a chair; Idle → Sit down → Sit idle → Stand up → Idle chain without a jump); Lie down, Sleep (on the back; they chain into Get up (from back)) |
 | Actions | Jump, Fall, Punch, Low punch, Hit reaction (one-shots); Jump start, Jump (in air) (loop), Jump land and Running jump, split for engine character controllers; sword idle (guard), sword slash, sword block |
 | Interaction | Pick up (ground), Use / press, Open door, Push (one-shots); Carry idle and Carry walk (loops) |
@@ -20,7 +20,7 @@ Feet are grounded automatically (crouch, landing, steps), and switching clips in
 ## Motion capture
 
 These clips are recorded performances from the [CMU motion capture database](http://mocap.cs.cmu.edu), retargeted onto each character:
-- Walk, Slouch walk, Run and Strafe left/right (Carry walk reuses the recorded Walk with a two-hand IK layer)
+- Walk, Slouch walk, Run and Strafe left/right (Carry walk reuses the recorded Walk with a two-hand IK layer; Model walk is the recorded Walk with the legs closed, so the feet land on one line and the swinging leg passes round the standing one)
 - Jump and Low punch
 - Cry
 - Sit down and Sit idle (Stand up is Sit down in reverse)
