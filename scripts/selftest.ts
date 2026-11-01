@@ -398,7 +398,7 @@ for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
       }
     // Model walk: each foot lands on one line (the planted ankle on average within 4 cm of the hips'
     // average path; the Walk's are about 10 cm out) and they pass without touching (their heel-to-toe
-    // lines over 8 cm apart, about a shoe's width).
+    // lines over 9 cm apart, about a shoe's width).
     if (ch.rig && label.startsWith('rig')) {
       const c = clipById.get('model_walk')!, A = new Animator(ch.rig), rig = ch.rig;
       const [hips, fl, fr] = ['Hips', 'LeftFoot', 'RightFoot'].map((n) => rig.bones.findIndex((b) => b.name === boneFor(rig.type, n)));
@@ -414,7 +414,30 @@ for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
       }
       const tip = (p: number[][], f: number, s: number) => ball(p, s).map((v, d) => v + (v - p[f][d]) * 0.5);
       const gap = Math.min(...P.map((p) => segmentGap(p[fl], tip(p, fl, 0), p[fr], tip(p, fr, 1))));
-      if (gap < 0.08) fail(`${label}: model walk feet pass ${(gap * 100).toFixed(1)} cm apart`);
+      if (gap < 0.09) fail(`${label}: model walk feet pass ${(gap * 100).toFixed(1)} cm apart`);
+    }
+    // The full MakeHuman skeleton moves the legs exactly as the game skeleton does, in every clip
+    // (it splits thighs and shins into two bones and its root lies behind the hips; both once
+    // splayed the legs). Joints are compared from the midpoint of the hip joints.
+    if (ch.rig?.type === 'full' && label.startsWith('rig')) {
+      const game = (await buildHuman(lib, { ...p, rig: 'game' })).rig!;
+      const legs = (rig: typeof game) => {
+        const A = new Animator(rig), at = (n: string) => rig.bones.findIndex((b) => b.name === boneFor(rig.type, n));
+        const J = ['UpLeg', 'Leg', 'Foot'].flatMap((n) => [at(`Left${n}`), at(`Right${n}`)]);
+        return (c: (typeof CLIPS)[number], t: number) => {
+          const P = A.positions(A.frame(c, t));
+          return J.map((j) => P[j].map((v, d) => v - (P[J[0]][d] + P[J[1]][d]) / 2));
+        };
+      };
+      const full = legs(ch.rig), ref = legs(game);
+      for (const c of CLIPS) {
+        let worst = 0;
+        for (let i = 0; i <= 10; i++) {
+          const a = full(c, (i / 10) * c.duration), b = ref(c, (i / 10) * c.duration);
+          a.forEach((q, k) => (worst = Math.max(worst, Math.hypot(q[0] - b[k][0], q[1] - b[k][1], q[2] - b[k][2]))));
+        }
+        if (worst > 0.005) fail(`${label}: ${c.id} legs differ from the game skeleton by ${(worst * 100).toFixed(1)} cm`);
+      }
     }
     if (ch.rig && label.startsWith('rig')) {
       checkInteractions(ch.rig, label, fail);

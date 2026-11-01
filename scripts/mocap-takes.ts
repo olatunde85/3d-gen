@@ -22,7 +22,7 @@ export const MOCAP_TAKES: MocapTake[] = [
   { id: 'walk', take: '07_01', loop: true, cut: { start: 1.0, loopSearch: [0.9, 1.4] } },
   // Model walk (catwalk): the Walk with the legs closed, so the feet land on one line (the swinging
   // leg passes round the standing one).
-  { id: 'model_walk', take: '07_01', loop: true, cut: { start: 1.0, loopSearch: [0.9, 1.4], legSpread: -2, swing: 20 } },
+  { id: 'model_walk', take: '07_01', loop: true, cut: { start: 1.0, loopSearch: [0.9, 1.4], legSpread: -2, swing: 14 } },
   { id: 'walk_slouch', take: '02_01', loop: true, cut: { start: 0.3, loopSearch: [0.8, 1.3] } },
   { id: 'run', take: '09_01', loop: true, cut: { start: 0.2, loopSearch: [0.5, 0.8] } },
   // CMU has sidesteps to the right only; the left one is the mirror image.
