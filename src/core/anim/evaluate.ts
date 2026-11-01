@@ -6,7 +6,7 @@
  */
 import type { Vec3 } from '../math';
 import { boneFor } from '../rig/poses';
-import { quatOf, type Rig } from '../rig/rig';
+import { boneFrame, quatOf, type Rig } from '../rig/rig';
 import { clipById, type Ch, type Clip, type HandTarget, type Sample } from './clips';
 import { fist } from './clips/helpers';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
@@ -112,6 +112,16 @@ export class Animator {
   private restOffset: Vec3[];
   /** Per finger bone: curl axis (toward the palm) in the bone's animation-rest frame. */
   private flexAxis: (Vec3 | null)[];
+  /**
+   * Limb segments split into several bones (the full rig's upperleg01/02, lowerarm01/02...): the
+   * direction (in the first bone's frame) from it to the next animated bone, for aiming the whole
+   * segment rather than its first part.
+   */
+  private segAxis: (Vec3 | null)[];
+  /** Channel frame (in the bone's rest frame) for bones that don't point along their segment. */
+  private chanFrame: (Q | null)[];
+  /** A root bone that starts behind the hips (the full rig's): the hips joint, in its rest frame, which it turns about. */
+  private hipPivot: Vec3 | null = null;
   /** Per side: palm normal in the hand's animation-rest frame. */
   private palmLocal = new Map<string, Vec3>();
   private idx = new Map<string, number>();
@@ -144,14 +154,39 @@ export class Animator {
       if (b) byBone.set(b, g);
     }
     this.names = B.map((b) => byBone.get(b.name) ?? null);
+    const kids = B.map((_, i) => B.flatMap((b, j) => (b.parent === i ? [j] : [])));
+    this.segAxis = B.map((b, i) => {
+      if (!this.names[i]) return null;
+      // Down through unanimated bones only (a split segment's other parts) to the next animated one.
+      let j = i;
+      while (kids[j].length === 1 && !this.names[kids[j][0]]) j = kids[j][0];
+      const next = j !== i && kids[j].length === 1 ? kids[j][0] : -1;
+      if (next < 0 || !this.names[next]) return null;
+      return norm(qrot(qconj(this.restWorld[i]), sub3(B[next].head, b.head)));
+    });
+
+    // Channels (X flex, Y twist, Z side) are about each bone's own axes, which follow its direction.
+    // Where a bone doesn't point along its segment (a split segment's first part; the full rig's
+    // root, which lies flat instead of pointing up the spine as the game rig's Hips does), they're
+    // about the axes the segment would have, so a hip twist turns the legs rather than tipping them.
+    // That root runs from the back of the pelvis to the hips joint (its tail): the hips' frame
+    // points from there up the spine, and they turn about it.
+    const spine = this.names.indexOf('Spine');
+    this.chanFrame = B.map((b, i) => {
+      const flat = this.names[i] === 'Hips' && b.parent < 0 && spine >= 0 && B[spine].parent !== i;
+      if (flat) this.hipPivot = qrot(qconj(this.restWorld[i]), sub3(b.tail, b.head));
+      const seg = this.segAxis[i] ? qrot(this.restWorld[i], this.segAxis[i]!) : flat ? sub3(B[spine].head, b.tail) : null;
+      return seg ? qmul(qconj(this.restWorld[i]), quatOf(boneFrame(seg))) : null;
+    });
 
     // Animation rest: arms lowered to a relaxed hang and elbows nearly straight
     // (MakeHuman's bind pose bends the elbows forward). Works from A- or T-pose binds.
     this.animRest = [...this.restWorld];
     const delta: (Q | null)[] = B.map(() => null);
+    // (A split segment's direction is the whole segment's.)
     const dirOf = (i: number): Vec3 => {
-      const b = B[i];
-      return [b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]];
+      const b = B[i], seg = this.segAxis[i];
+      return seg ? qrot(this.restWorld[i], seg) : [b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]];
     };
     const armDir = new Map<string, Vec3>();
     B.forEach((b, i) => {
@@ -439,7 +474,7 @@ export class Animator {
     let r = this.mocapRests.get(key);
     if (!r) {
       const t = this.animRest[i];
-      const d = qrot(t, [0, 1, 0]);
+      const d = qrot(t, this.segAxis[i] ?? [0, 1, 0]);
       r = qmul(m.bias[g] ?? QI, qmul(qfromTo(d, m.dir[g] ?? d), t));
       this.mocapRests.set(key, r);
     }
@@ -455,6 +490,13 @@ export class Animator {
     const nOff = neck !== undefined ? qrot(qconj(this.restWorld[chest]), sub3(B[neck].head, B[chest].head)) : [0, 0, 0] as Vec3;
     const no = qrot(world[chest], nOff);
     return { cd, origin: [pos[chest][0] + no[0], pos[chest][1] + no[1], pos[chest][2] + no[2]] };
+  }
+
+  /** Root position `p` (its head unturned) moved so the root turns about the hips joint (see hipPivot). */
+  private pivot(i: number, world: Q, p: Vec3): Vec3 {
+    if (!this.hipPivot) return p;
+    const b = this.rig.bones[i], o = qrot(world, this.hipPivot);
+    return [p[0] + b.tail[0] - b.head[0] - o[0], p[1] + b.tail[1] - b.head[1] - o[1], p[2] + b.tail[2] - b.head[2] - o[2]];
   }
 
   private solve(s: Sample, clip: Clip, time: number, opts: { rootMotion?: boolean }): { frame: Frame; world: Q[]; pos: Vec3[] } {
@@ -478,6 +520,8 @@ export class Animator {
       if (ch) {
         const flex = this.flexAxis[i] ? qaxis(this.flexAxis[i]!, ch[0]) : qaxis([1, 0, 0], ch[0]);
         chq = qmul(qmul(qaxis([0, 0, 1], ch[2]), qaxis([0, 1, 0], ch[1])), flex);
+        const F = this.chanFrame[i];
+        if (F) chq = qmul(qmul(F, chq), qconj(F));
       }
       const base = qmul(this.animRest[i], chq);
       const mc = s.mocap && g ? s.mocap.rot[g] : undefined;
@@ -488,7 +532,7 @@ export class Animator {
           const H = b.head[1];
           const h = s.mocap!.hips;
           const tr = opts.rootMotion && clip.travel ? clip.travel.map((v) => v * time * k) : [0, 0, 0];
-          pos[i] = [b.head[0] + h[0] * H + tr[0], h[1] * H, b.head[2] + h[2] * H + tr[2]];
+          pos[i] = this.pivot(i, world[i], [b.head[0] + h[0] * H + tr[0], h[1] * H, b.head[2] + h[2] * H + tr[2]]);
           rootPos.set(i, pos[i]);
         } else {
           const o = qrot(world[b.parent], this.restOffset[i]);
@@ -499,7 +543,7 @@ export class Animator {
         world[i] = qmul(rootRot, base);
         const drop = (r.drop ?? 0) * (LYING_HEIGHT - b.head[1]);
         const tr = opts.rootMotion && clip.travel ? clip.travel.map((v) => v * time * k) : [0, 0, 0];
-        pos[i] = [b.head[0] + (r.x ?? 0) * k + tr[0], b.head[1] + (r.y ?? 0) * k + drop + tr[1], b.head[2] + (r.z ?? 0) * k + tr[2]];
+        pos[i] = this.pivot(i, world[i], [b.head[0] + (r.x ?? 0) * k + tr[0], b.head[1] + (r.y ?? 0) * k + drop + tr[1], b.head[2] + (r.z ?? 0) * k + tr[2]]);
         rootPos.set(i, pos[i]);
       } else {
         world[i] = qmul(qmul(world[b.parent], qconj(this.animRest[b.parent])), base);
