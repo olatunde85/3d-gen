@@ -171,6 +171,13 @@ export interface MocapOptions {
   origin?: number;
   /** Name of the take (groups chained cuts that share `ref`). */
   take?: string;
+  /**
+   * Degrees each leg is turned out at the hip and again at the knee (default 4: keeps the knees of
+   * our wider bodies apart). Less closes the legs, so the feet land on one line.
+   */
+  legSpread?: number;
+  /** Degrees the swinging leg turns out at the hip as it passes the other (closed legs' feet clear each other). */
+  swing?: number;
 }
 
 export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
@@ -278,6 +285,19 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
   // Floor and foot calibration come from the cut, or the whole take for chained cuts.
   const [c0, c1] = fr >= 0 ? [0, poses.length - 1] : [f0, f1];
   const floor = Math.min(...footLow.slice(c0, c1 + 1));
+  // Closed legs: the swinging leg turns out at the hip as its foot lifts (most at its highest, as
+  // it passes the other), so the feet clear each other and still land on the line.
+  if (o.swing) {
+    for (const [s, side] of [[0, 'Left'], [1, 'Right']] as const) {
+      const chain = ['UpLeg', 'Leg', 'Foot', 'ToeBase'].map((n) => bvh.joints.findIndex((j) => j.name === `${side}${n}`)).filter((k) => k >= 0);
+      const ys = ankleY[s].slice(c0, c1 + 1), lo = Math.min(...ys), hi = Math.max(...ys);
+      poses.forEach((P, f) => {
+        const x = Math.max(0, Math.min(1, (ankleY[s][f] - lo) / (hi - lo || 1)));
+        const out = qaxis([0, 0, 1], (s ? -1 : 1) * o.swing! * x * x * (3 - 2 * x));
+        for (const k of chain) P.world[k] = qmul(out, P.world[k]);
+      });
+    }
+  }
   // Travel in m/s at 1.8 m height (hips about 0.95 m up).
   const travel: [number, number, number] = [(vel[0] / leg) * 0.95, 0, (vel[2] / leg) * 0.95];
   const dir: Record<string, Vec3> = {};
@@ -302,11 +322,12 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
   // a little raised and the feet close together, which presses the arms into the torso, bunches
   // the shoulders and knocks the knees.
   const bias: Record<string, Q> = {};
+  const legSpread = o.legSpread ?? 4;
   for (const [side, s] of [['Left', 1], ['Right', -1]] as const) {
     bias[`${side}Arm`] = qaxis([0, 0, 1], s * 8);
     bias[`${side}Shoulder`] = qaxis([0, 0, 1], -s * 4);
-    bias[`${side}UpLeg`] = qaxis([0, 0, 1], s * 4);
-    bias[`${side}Leg`] = qaxis([0, 0, 1], s * 4);
+    bias[`${side}UpLeg`] = qaxis([0, 0, 1], s * legSpread);
+    bias[`${side}Leg`] = qaxis([0, 0, 1], s * legSpread);
     // Feet: CMU's rest foot isn't flat once its splayed rest legs come in (planted feet would roll
     // ~20 degrees onto their outer edge). Level the foot over the frames where it is planted (ankle
     // near its lowest), keeping the source's rest toe-out.
