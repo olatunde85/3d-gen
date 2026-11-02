@@ -4,7 +4,10 @@ import type { HumanParams } from '../../core/params';
 import type { Ctx } from './context';
 import { el } from './dom';
 
-export const NONE = [{ id: 'none', name: 'None' }];
+/** A picture shipped with the app (public/), for picker entries that have no catalog thumbnail. */
+export const thumb = (file: string) => `${import.meta.env.BASE_URL}${file}`;
+/** A "None" entry pictured by `file`. */
+export const none = (file: string, name = 'None') => [{ id: 'none', name, src: thumb(file) }];
 
 export function section(title: string, open: boolean, ...kids: Node[]) {
   const d = el('details', { open });

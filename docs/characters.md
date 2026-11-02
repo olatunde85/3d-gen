@@ -1,5 +1,33 @@
 # Bodies, clothing and looks
 
+## Quick build and Detailed
+
+The sidebar has two modes, switched at its top. The app remembers which one you use.
+
+**Quick build** is the guided mode, and where new visitors start. You build a character by tapping options, and it updates as you go.
+
+- **Summary:** a sentence at the top describes the character in plain words: *"An athletic 35-year-old African man in a business suit, with cornrows and a short beard."* Each highlighted word jumps to the step that changes it.
+- **Steps:**
+  1. **Body:** gender, age, build and height.
+  2. **Heritage:** African, Asian, Caucasian or mixed. This also sets the skin, face and eye colour.
+  3. **Outfit:** 28 styles, from everyday wear and suits to uniforms, traditional dress, warriors and beachwear. Each has a picture.
+  4. **Colours:** fabric and colours for whatever the outfit lets you change, plus a custom colour.
+  5. **Hair & face:** hairstyle, hair colour, facial hair, eyes and expression.
+  6. **Extras:** glasses, hats, jewellery, earrings, tattoos, a bag and something to hold.
+  7. **Action:** play an animation, including moves for what's in hand.
+- **Ready-made characters:** start from any preset, then change anything.
+- **Never stuck:**
+  - **Undo and Redo** cover every change, in both modes (also Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z).
+  - **Surprise me** randomises everything you haven't picked yourself.
+  - **Start over** goes back to a plain character.
+  - **Unavailable options** are dimmed and say why when tapped. For example: tattoos and swimwear are for adults; a women's outfit needs a woman; a hair colour lighter than the hairstyle can take.
+  - **Automatic changes are explained:** switching gender swaps the outfit for its counterpart (a pantsuit for a business suit) and says so.
+- **Fine-tune:** each step links to its full controls in Detailed.
+
+Quick build always reflects the current character, however it was made: in Detailed, from a preset or from a shared link. An outfit it doesn't offer shows as the character's own.
+
+**Detailed** has every slider and setting, described in the rest of this page.
+
 ## The data behind the bodies
 
 Realism comes from data, not hand-built shapes. The generator uses the MakeHuman anatomy dataset, which has been CC0 (public domain) since 2020:

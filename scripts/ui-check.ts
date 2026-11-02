@@ -1,7 +1,7 @@
 /**
  * UI smoke test: builds the app, opens it in headless Chrome and drives it through the main
- * flows (load, slider, preset, animation browser, export panel, export), failing on any page
- * error. Catches UI wiring mistakes that the core tests can't see.
+ * flows (load, Quick build, slider, preset, animation browser, export panel, export), failing on
+ * any page error. Catches UI wiring mistakes that the core tests can't see.
  *   npm run test:ui          (set CHROME=/path/to/chrome if not on macOS default)
  */
 import { spawn } from 'node:child_process';
@@ -48,10 +48,13 @@ const chrome = spawn(CHROME, [
   `--user-data-dir=${profile}`, '--remote-debugging-pipe', '--window-size=1400,900', 'about:blank',
 ], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
 const toChrome = chrome.stdio[3] as Writable, fromChrome = chrome.stdio[4] as Readable;
-const cleanup = () => {
+// Chrome keeps writing to its profile until it has exited, so wait for that before removing it.
+const cleanup = async () => {
+  const exited = chrome.exitCode !== null ? Promise.resolve() : new Promise<void>((r) => chrome.once('exit', () => r()));
   chrome.kill();
   server.close();
-  rmSync(profile, { recursive: true, force: true });
+  await exited;
+  rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 };
 
 let nextId = 0, session: string | undefined, buf = '';
@@ -114,6 +117,61 @@ try {
   await step('loads and builds a character', async () => {
     await waitFor("document.querySelector('#loading')?.hidden === true && !!document.querySelector('#stats').textContent", 'the first character');
   });
+  // Quick build: new visitors start there.
+  const quick = (k: string) => `document.querySelector('#quick [data-k="${k}"]')`;
+  const tap = async (k: string) => evaluate(`${quick(k)}.click()`);
+  const sentence = () => evaluate<string>("document.querySelector('.qb-sentence').textContent");
+  await step('new visitors start in Quick build', async () => {
+    await waitFor(`document.body.dataset.mode === 'quick' && !!document.querySelector('.qb-sentence') && getComputedStyle(document.querySelector('#controls')).display === 'none'`, 'Quick build', 5000);
+  });
+  await step('Quick build options rebuild and read back', async () => {
+    for (const [k, word] of [['gender:woman', 'woman'], ['heritage:african', 'African'], ['style:business', 'business suit'], ['hair:cornrows', 'cornrows']]) {
+      const before = await statsNow();
+      await tap(k);
+      await builtAfter(before, `the rebuild after ${k}`);
+      // (The panel redraws on the next frame.)
+      await waitFor(`document.querySelector('.qb-sentence').textContent.includes(${JSON.stringify(word)})`, `the summary to say "${word}" after ${k}`, 3000).catch(async () => {
+        throw new Error(`summary "${await sentence()}" lacks "${word}" after ${k}`);
+      });
+      if ((await evaluate<string>(`${quick(k)}.ariaPressed`)) !== 'true') throw new Error(`${k} isn't shown as picked`);
+    }
+    if ((await evaluate<string>("JSON.parse(localStorage.getItem('3dgen.human')).outfit")) !== 'set_pantsuit') throw new Error("a woman's business suit isn't the pantsuit");
+  });
+  await step('fast taps each see the latest character', async () => {
+    // Two taps before the panel redraws: the outfit must be judged for a woman, not the man drawn.
+    let before = await statsNow();
+    await tap('gender:man');
+    await builtAfter(before, 'the man');
+    before = await statsNow();
+    await evaluate(`(() => { ${quick('gender:woman')}.click(); ${quick('style:aso_ebi')}.click(); })()`);
+    await builtAfter(before, 'the woman in aso-ebi');
+    const outfit = await evaluate<string>("JSON.parse(localStorage.getItem('3dgen.human')).outfit");
+    if (outfit !== 'set_aso_ebi') throw new Error(`outfit is ${outfit}`);
+  });
+  await step('unavailable options say why', async () => {
+    const before = await statsNow();
+    await tap('age:teen');
+    await builtAfter(before, 'the teen build');
+    await tap('tattoos:chest');
+    await waitFor("document.querySelector('.qb-toast').classList.contains('show') && /adult/.test(document.querySelector('.qb-toast').textContent)", 'the reason a teen has no tattoos', 3000);
+    if ((await evaluate<string>(`${quick('style:beach')}.ariaDisabled`)) !== 'true') throw new Error("beachwear isn't adults-only");
+  });
+  await step('undo goes back a step', async () => {
+    await new Promise((r) => setTimeout(r, 600)); // the change settles into the history
+    const before = await statsNow();
+    await evaluate("[...document.querySelectorAll('.qb-act')].find((b) => b.textContent.includes('Undo')).click()");
+    await builtAfter(before, 'the undo');
+    if (/\b1[0-7]-year-old/.test(await sentence())) throw new Error(`still a teen after undo: ${await sentence()}`);
+  });
+  await step('Surprise me builds a character', async () => {
+    const before = await statsNow();
+    await tap('act:surprise');
+    await builtAfter(before, 'the surprise build');
+  });
+  await step('switching to Detailed shows every control', async () => {
+    await evaluate("[...document.querySelectorAll('.mode-switch button')].find((b) => b.textContent.includes('Detailed')).click()");
+    await waitFor("document.body.dataset.mode === 'detailed' && getComputedStyle(document.querySelector('#controls')).display !== 'none' && getComputedStyle(document.querySelector('#quick')).display === 'none'", 'Detailed', 3000);
+  });
   await step('slider rebuilds the character', async () => {
     const before = await statsNow();
     await evaluate(`(() => { const s = [...document.querySelectorAll('#controls .ctl')].find((c) => c.querySelector('span')?.textContent === 'Muscle').querySelector('input'); s.value = '0.9'; s.dispatchEvent(new Event('input')); })()`);
@@ -155,7 +213,7 @@ try {
     if (!/\.(glb|fbx|zip|obj)$/.test(d.name) || d.size < 100000) throw new Error(`downloaded ${d.name} (${d.size} bytes)`);
   });
 } finally {
-  cleanup();
+  await cleanup();
 }
 
 let failed = 0;

@@ -4,7 +4,7 @@ import { ageToYears } from '../../core/params';
 import { CARRIED, CARRY_LABELS, type CarryId } from '../../core/props/carry';
 import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons';
 import type { Ctx } from './context';
-import { color, NONE, picker, selectRow } from './controls';
+import { color, none, picker, selectRow, thumb } from './controls';
 import { el } from './dom';
 import { styleControls } from './sidebar-clothing';
 
@@ -19,7 +19,7 @@ export function hairPanel(ctx: Ctx) {
   };
   store.on('sync', show);
   show();
-  const grid = picker(ctx, ctx.cat.hair, 'hair', [...NONE, ...HAIRSTYLES]);
+  const grid = picker(ctx, ctx.cat.hair, 'hair', [...none('quick-thumbs/hair-none.png'), ...HAIRSTYLES.map((h) => ({ ...h, src: thumb(`quick-thumbs/hair-${h.id}.png`) }))]);
   grid.addEventListener('click', () => requestAnimationFrame(show));
   return el('div', {}, grid, tint, own);
 }

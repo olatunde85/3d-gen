@@ -13,6 +13,8 @@ import { $ } from './ui/dom';
 import { exportPanel } from './ui/export-panel';
 import { generation } from './ui/generation';
 import { header } from './ui/header';
+import { history } from './ui/history';
+import { quickBuild } from './ui/quick-build';
 import { shareDialog } from './ui/share-dialog';
 import { sidebar } from './ui/sidebar';
 import { Store } from './ui/store';
@@ -46,6 +48,8 @@ if (fromLink) store.params = fromLink;
 else if (presetName && PRESETS[presetName]) store.params = { ...DEFAULT_PARAMS, ...PRESETS[presetName], name: presetName, detail: store.params.detail };
 store.emit('sync');
 gen.regenerate();
+// Undo history starts from the character the app opened with; Quick build mounts above the sidebar.
+quickBuild(ctx, history(store));
 const clipName = hash.get('clip');
 if (clipName && clipById.has(clipName)) anim.setActive(clipName);
 if (hash.has('skeleton')) {
