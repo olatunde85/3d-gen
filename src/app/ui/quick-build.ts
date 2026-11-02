@@ -115,8 +115,12 @@ export function quickBuild(ctx: Ctx, hist: History): void {
 
   // --- Building blocks ---------------------------------------------------------------------
   type Pick = Q.Option & { on: boolean };
-  /** A row of options (any number can be on). Blocked ones explain themselves when tapped. */
-  function row(key: string, label: string, opts: Pick[], pick: (id: string) => void, kind: 'pills' | 'swatches' | 'thumbs' = 'pills', note?: string) {
+  /**
+   * A row of options (any number can be on). Blocked ones explain themselves when tapped.
+   * `blockedNow` judges a tap on the character as it is at that moment (taps can come faster than
+   * the panel redraws), for rows whose options depend on other choices.
+   */
+  function row(key: string, label: string, opts: Pick[], pick: (id: string) => void, kind: 'pills' | 'swatches' | 'thumbs' = 'pills', note?: string, blockedNow?: (id: string) => string | undefined) {
     const list = el('div', { className: `qb-opts qb-${kind}`, role: 'group', ariaLabel: label });
     for (const o of opts) {
       const b = el('button', { className: 'qb-opt', title: o.blocked ?? o.label, ariaPressed: String(o.on) });
@@ -135,7 +139,11 @@ export function quickBuild(ctx: Ctx, hist: History): void {
         if (o.thumb) b.append(el('img', { src: ROOT + o.thumb, alt: '', loading: 'lazy' }));
         b.append(el('span', { textContent: o.label }));
       }
-      b.addEventListener('click', () => (o.blocked ? toast(o.blocked, 'why') : pick(o.id)));
+      b.addEventListener('click', () => {
+        const why = blockedNow ? blockedNow(o.id) : o.blocked;
+        if (why) toast(why, 'why');
+        else pick(o.id);
+      });
       list.append(b);
     }
     return el('div', { className: 'qb-row' }, el('div', { className: 'qb-label', textContent: label }), list, ...(note ? [el('div', { className: 'qb-note', textContent: note })] : []));
@@ -175,23 +183,23 @@ export function quickBuild(ctx: Ctx, hist: History): void {
     const g = Q.genderOf(q);
     return [
       row('gender', 'Gender', Q.GENDERS.map((o) => ({ ...o, on: o.id === g })), (id) => {
-        if (id === g) return;
-        const { patch, notes } = Q.genderPatch(q, id as Q.Gender, chosen);
+        if (id === Q.genderOf(p())) return;
+        const { patch, notes } = Q.genderPatch(p(), id as Q.Gender, chosen);
         apply('gender', patch, notes);
       }),
       row('age', 'Age', Q.AGES.map((a) => ({ id: a.id, label: `${a.label} · ${a.years}`, on: a.id === Q.ageOf(q) })), (id) => {
-        const a = Q.AGES.find((x) => x.id === id)!;
+        const a = Q.AGES.find((x) => x.id === id)!, now = p();
         const patch: Q.Patch = { age: yearsToAge(a.years) };
         const notes: string[] = [];
         // Adult-only things go when the character becomes a teen.
         if (a.years < 18) {
-          if (q.tattoos.length) {
+          if (now.tattoos.length) {
             patch.tattoos = [];
             notes.push('Tattoos are only for adult characters, so they were removed (Undo brings them back).');
           }
-          const st = Q.styleById.get(Q.styleOf(q) ?? '');
+          const st = Q.styleById.get(Q.styleOf(now) ?? '');
           if (st?.adult) {
-            Object.assign(patch, Q.applyStyle(q, Q.styleById.get('casual')!));
+            Object.assign(patch, Q.applyStyle(now, Q.styleById.get('casual')!));
             notes.push(`${st.label} is only for adults, so the outfit is now Casual.`);
           }
         }
@@ -220,7 +228,7 @@ export function quickBuild(ctx: Ctx, hist: History): void {
       return row('style', group, styles.map((s) => ({
         id: s.id, label: s.label, on: s.id === now, blocked: Q.styleBlocked(s, q, cat),
         thumb: `quick-thumbs/${s.id}-${s[g] ? g : g === 'man' ? 'woman' : 'man'}.png`,
-      })), (id) => apply('style', Q.applyStyle(q, Q.styleById.get(id)!)), 'thumbs');
+      })), (id) => apply('style', Q.applyStyle(p(), Q.styleById.get(id)!)), 'thumbs', undefined, (id) => Q.styleBlocked(Q.styleById.get(id)!, p(), cat));
     });
     if (!now) rows.unshift(el('div', { className: 'qb-note qb-own', textContent: 'Wearing an outfit of their own (from Detailed or a ready-made character). Pick a style to replace it.' }));
     return rows;
@@ -235,7 +243,7 @@ export function quickBuild(ctx: Ctx, hist: History): void {
         return [colourRow('colours', `${title}Tint`, Q.TINTS, t.color, (c) => apply('colours', { outfitTint: c })),
           el('div', { className: 'qb-note', textContent: "A tint shades this outfit's own colours. For any colour you like, pick an outfit such as Business suit, Streetwear, Soldier or Buba & sokoto." })];
       const set = (patch: { pattern?: string; color?: string; color2?: string }) =>
-        apply('colours', { garmentStyles: { ...q.garmentStyles, [t.key]: { ...q.garmentStyles[t.key], pattern: t.pattern, color: t.color, color2: t.color2, ...patch } } });
+        apply('colours', { garmentStyles: { ...p().garmentStyles, [t.key]: { pattern: t.pattern, color: t.color, color2: t.color2, ...p().garmentStyles[t.key], ...patch } } });
       return [
         ...(t.patterns.length > 1 ? [row('colours', `${title}Fabric`, t.patterns.map((id) => ({ id, label: Q.patternName(id), on: id === t.pattern })), (id) => set({ pattern: id }))] : []),
         colourRow('colours', `${title}${t.names[0]}`, Q.PALETTE, t.color, (c) => set({ color: c })),
@@ -250,15 +258,15 @@ export function quickBuild(ctx: Ctx, hist: History): void {
     return [
       row('hair', 'Hairstyle', Q.HAIRS.map((h) => ({ ...h, thumb: `quick-thumbs/hair-${h.id}.png`, on: h.id === q.hair })), (id) => {
         // A colour the new hairstyle can't take goes back to natural.
-        const next = { ...q, hair: id };
-        const colour = Q.hairColourOf(q);
+        const next = { ...p(), hair: id };
+        const colour = Q.hairColourOf(p());
         const keep = colour && !Q.hairColours(next).find((c) => c.id === colour)?.blocked;
         apply('hair', { hair: id, ...(keep ? Q.applyHairColour(next, colour) : Q.applyHairColour(next, 'natural')) },
           colour && colour !== 'natural' && !keep ? [`${Q.HAIRS.find((h) => h.id === id)!.label} can't be made ${Q.HAIR_COLOURS.find((c) => c.id === colour)!.label.toLowerCase()}, so it has its natural colour.`] : []);
       }, 'thumbs'),
       // Bald: the colour row colours the beard, if there is one.
       ...(q.hair !== 'none'
-        ? [row('hairColour', 'Hair colour', Q.hairColours(q).map((c) => ({ ...c, on: c.id === hc })), (id) => apply('hairColour', Q.applyHairColour(q, id)), 'swatches')]
+        ? [row('hairColour', 'Hair colour', Q.hairColours(q).map((c) => ({ ...c, on: c.id === hc })), (id) => apply('hairColour', Q.applyHairColour(p(), id)), 'swatches', undefined, (id) => Q.hairColours(p()).find((c) => c.id === id)?.blocked)]
         : man && q.facialHair !== 'none'
           ? [row('hairColour', 'Beard colour', Q.HAIR_COLOURS.map((c) => ({ ...c, on: c.id === Q.beardColourOf(q) })), (id) => apply('hairColour', Q.applyBeardColour(id)), 'swatches')]
           : []),
@@ -271,16 +279,16 @@ export function quickBuild(ctx: Ctx, hist: History): void {
   function extrasStep(q: HumanParams) {
     const headwear = Q.outfitHeadwear(q), hat = Q.hatOf(q);
     return [
-      row('glasses', 'Glasses', Q.GLASSES.map((o) => ({ ...o, on: o.id === Q.glassesOf(q) })), (id) => apply('glasses', Q.applyGlasses(q, id))),
-      row('hat', 'Hat', Q.HATS.map((o) => ({ ...o, on: o.id === hat })), (id) => apply('hat', Q.applyHat(q, id), headwear && id !== 'outfit' ? [`The outfit's ${headwear.toLowerCase()} was taken off.`] : []),
+      row('glasses', 'Glasses', Q.GLASSES.map((o) => ({ ...o, on: o.id === Q.glassesOf(q) })), (id) => apply('glasses', Q.applyGlasses(p(), id))),
+      row('hat', 'Hat', Q.HATS.map((o) => ({ ...o, on: o.id === hat })), (id) => apply('hat', Q.applyHat(p(), id), headwear && id !== 'outfit' ? [`The outfit's ${headwear.toLowerCase()} was taken off.`] : []),
         'pills', headwear ? `Wearing the outfit's ${headwear.toLowerCase()}. Pick None to take it off.` : undefined),
-      row('jewellery', 'Jewellery & more', Q.JEWELLERY.map((o) => ({ ...o, on: q.accessories.includes(o.id) })), (id) => apply('jewellery', Q.toggleAccessory(q, id)), 'pills', 'Tap to add or remove; pick as many as you like.'),
+      row('jewellery', 'Jewellery & more', Q.JEWELLERY.map((o) => ({ ...o, on: q.accessories.includes(o.id) })), (id) => apply('jewellery', Q.toggleAccessory(p(), id)), 'pills', 'Tap to add or remove; pick as many as you like.'),
       row('earrings', 'Earrings', Q.EARRING_OPTIONS.map((o) => ({ ...o, on: o.id === q.earrings })), (id) => apply('earrings', { earrings: id as HumanParams['earrings'] })),
       ...(q.earrings !== 'none' ? [row('earrings', 'Metal', Q.METALS.map((o) => ({ ...o, on: o.id === q.earringMetal })), (id) => apply('earrings', { earringMetal: id as HumanParams['earringMetal'] }), 'swatches')] : []),
       row('tattoos', 'Tattoos', Q.tattooOptions(q).map((o) => ({ ...o, on: q.tattoos.includes(o.id as HumanParams['tattoos'][number]) })), (id) => {
-        const t = id as HumanParams['tattoos'][number];
-        apply('tattoos', { tattoos: q.tattoos.includes(t) ? q.tattoos.filter((x) => x !== t) : [...q.tattoos, t] });
-      }),
+        const t = id as HumanParams['tattoos'][number], now = p().tattoos;
+        apply('tattoos', { tattoos: now.includes(t) ? now.filter((x) => x !== t) : [...now, t] });
+      }, 'pills', undefined, (id) => Q.tattooOptions(p()).find((o) => o.id === id)?.blocked),
       row('bag', 'Bag', Q.BAGS.map((o) => ({ ...o, on: o.id === q.carry })), (id) => apply('bag', { carry: id as HumanParams['carry'] })),
       row('held', 'In hand', Q.HELD.map((o) => ({ ...o, on: o.id === q.weapon })), (id) => {
         apply('held', { weapon: id as HumanParams['weapon'] }, id !== 'none' && id !== 'knife' ? ['New moves for it are in Action below.'] : []);

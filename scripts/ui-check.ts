@@ -129,10 +129,24 @@ try {
       const before = await statsNow();
       await tap(k);
       await builtAfter(before, `the rebuild after ${k}`);
-      if (!(await sentence()).includes(word)) throw new Error(`summary "${await sentence()}" lacks "${word}" after ${k}`);
+      // (The panel redraws on the next frame.)
+      await waitFor(`document.querySelector('.qb-sentence').textContent.includes(${JSON.stringify(word)})`, `the summary to say "${word}" after ${k}`, 3000).catch(async () => {
+        throw new Error(`summary "${await sentence()}" lacks "${word}" after ${k}`);
+      });
       if ((await evaluate<string>(`${quick(k)}.ariaPressed`)) !== 'true') throw new Error(`${k} isn't shown as picked`);
     }
     if ((await evaluate<string>("JSON.parse(localStorage.getItem('3dgen.human')).outfit")) !== 'set_pantsuit') throw new Error("a woman's business suit isn't the pantsuit");
+  });
+  await step('fast taps each see the latest character', async () => {
+    // Two taps before the panel redraws: the outfit must be judged for a woman, not the man drawn.
+    let before = await statsNow();
+    await tap('gender:man');
+    await builtAfter(before, 'the man');
+    before = await statsNow();
+    await evaluate(`(() => { ${quick('gender:woman')}.click(); ${quick('style:aso_ebi')}.click(); })()`);
+    await builtAfter(before, 'the woman in aso-ebi');
+    const outfit = await evaluate<string>("JSON.parse(localStorage.getItem('3dgen.human')).outfit");
+    if (outfit !== 'set_aso_ebi') throw new Error(`outfit is ${outfit}`);
   });
   await step('unavailable options say why', async () => {
     const before = await statsNow();
