@@ -33,6 +33,7 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 ## Features
 
 - **Realistic humans:** built on the CC0 MakeHuman dataset: 900+ morph targets, 219 detail sliders, 20 photo-based skins across age, ethnicity and sex, three detail levels (≈5k to 120k triangles).
+- **Quick build:** a guided mode where you tap options (body, heritage, 28 outfit styles, colours, hair, extras, an action) and watch the character update. Plain-words summary, undo, *Surprise me*, and every unavailable option explains why. *Detailed* has every slider.
 - **30 presets:** including the Female Executive, Miami Dealer, Gangster, Priest, Corporate High-Flier, Prison Escapee, Arabian Oil Tycoon and Adventurer. Plus one-click, reproducible random characters.
 - **Clothing:** MakeHuman outfits, or mix-and-match tops, bottoms, wrappers, uniforms and 30+ accessories. Generated fabrics (kente, aso-oke, ankara, adire, camo, leather…), all recolourable.
 - **Hair and looks:** MakeHuman hairstyles plus buzz cut, punk mohawk, cornrows and box braids. Stubble, mustache, goatee and beards. Tattoos. Earrings.

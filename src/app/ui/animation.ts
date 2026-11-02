@@ -25,6 +25,7 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
     browseBtn.classList.toggle('on', other);
     browseLabel.textContent = other ? clipById.get(id)!.name : 'All animations';
     browser.sync();
+    store.emit('clip', id);
   };
 
   for (const id of QUICK) {

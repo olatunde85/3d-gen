@@ -3,7 +3,7 @@ import { EXPRESSIONS, EXPRESSION_LABELS, type ExpressionId } from '../../core/fa
 import { FACIAL_HAIR, FACIAL_HAIR_LABELS, type FacialHairId } from '../../core/looks';
 import { ageToYears, DETAILS, yearsToAge, type HumanParams } from '../../core/params';
 import type { Ctx } from './context';
-import { color, macro, NONE, picker, section, selectRow, slider } from './controls';
+import { color, macro, none, picker, section, selectRow, slider, thumb } from './controls';
 import { $, el } from './dom';
 import { accessoriesPanel, HAT_ENTRIES, hatStyle, shoeStyle, outfitSetEntries, outfitSetStyle, piecesPanel } from './sidebar-clothing';
 import { carryPanel, earringPanel, hairPanel, tattooPanel, vehiclePanel, weaponPanel } from './sidebar-looks';
@@ -24,10 +24,10 @@ export function sidebar(ctx: Ctx): void {
       macro(ctx, 'African', 'african'), macro(ctx, 'Asian', 'asian'), macro(ctx, 'Caucasian', 'caucasian'),
     ),
     section('Skin & eyes', true,
-      picker(ctx, cat.skins, 'skin', [{ id: 'auto', name: 'Auto' }]), color(ctx, 'Skin tint', 'skinTint'),
+      picker(ctx, cat.skins, 'skin', [{ id: 'auto', name: 'Auto', src: thumb('picker-thumbs/skin-auto.png') }]), color(ctx, 'Skin tint', 'skinTint'),
       el('div', { className: 'sub', textContent: 'Eyes' }), picker(ctx, cat.eyes, 'eyes'),
-      el('div', { className: 'sub', textContent: 'Eyebrows' }), picker(ctx, cat.eyebrows, 'eyebrows', NONE),
-      el('div', { className: 'sub', textContent: 'Eyelashes' }), picker(ctx, cat.eyelashes, 'eyelashes', NONE),
+      el('div', { className: 'sub', textContent: 'Eyebrows' }), picker(ctx, cat.eyebrows, 'eyebrows', none('picker-thumbs/eyebrows-none.png')),
+      el('div', { className: 'sub', textContent: 'Eyelashes' }), picker(ctx, cat.eyelashes, 'eyelashes', none('picker-thumbs/eyelashes-none.png')),
     ),
     section('Hair', true, hairPanel(ctx)),
     section('Expression', true,
@@ -42,12 +42,13 @@ export function sidebar(ctx: Ctx): void {
     section('Tattoos', false, tattooPanel(ctx)),
     section('Clothing', true,
       el('div', { className: 'hint', textContent: 'Pick a full outfit, or "Separate pieces" to combine tops, bottoms, wrappers and accessories.' }),
-      picker(ctx, cat.outfits, 'outfit', [{ id: 'none', name: 'Separate pieces' }], outfitSetEntries(ctx)), outfitSetStyle(ctx), color(ctx, 'Outfit tint', 'outfitTint'),
+      picker(ctx, cat.outfits, 'outfit', [{ id: 'none', name: 'Separate pieces', src: thumb('picker-thumbs/separate-pieces.png') }], outfitSetEntries(ctx)), outfitSetStyle(ctx), color(ctx, 'Outfit tint', 'outfitTint'),
       piecesPanel(ctx),
       el('div', { className: 'sub', textContent: 'Footwear' }),
-      picker(ctx, cat.shoes, 'shoes', [{ id: 'none', name: 'Barefoot' }, { id: 'sandals', name: 'Sandals' }, { id: 'combat_boots', name: 'Combat boots' }, { id: 'heels', name: 'High heels' }, { id: 'flipflops', name: 'Flip-flops' }, { id: 'sneakers', name: 'Sneakers' }, { id: 'loafers', name: 'Loafers' }, { id: 'oxfords', name: 'Oxfords' }, { id: 'slides', name: 'Slides' }]),
+      picker(ctx, cat.shoes, 'shoes', ([['none', 'Barefoot'], ['sandals', 'Sandals'], ['combat_boots', 'Combat boots'], ['heels', 'High heels'], ['flipflops', 'Flip-flops'], ['sneakers', 'Sneakers'], ['loafers', 'Loafers'], ['oxfords', 'Oxfords'], ['slides', 'Slides']] as const)
+        .map(([id, name]) => ({ id, name, src: thumb(`picker-thumbs/shoes-${id}.png`) }))),
       shoeStyle(ctx),
-      el('div', { className: 'sub', textContent: 'Hat' }), picker(ctx, cat.hats, 'hat', [...NONE, ...HAT_ENTRIES]), hatStyle(ctx),
+      el('div', { className: 'sub', textContent: 'Hat' }), picker(ctx, cat.hats, 'hat', [...none('picker-thumbs/hat-none.png'), ...HAT_ENTRIES]), hatStyle(ctx),
     ),
     section('Accessories', true, accessoriesPanel(ctx), earringPanel(ctx)),
     section('Props', false, weaponPanel(ctx), carryPanel(ctx), vehiclePanel(ctx)),

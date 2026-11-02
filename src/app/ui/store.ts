@@ -4,19 +4,20 @@
  *  - 'sync': parameters were replaced (preset, randomize, link), so controls refresh;
  *  - 'params': any parameter change (a new build is needed);
  *  - 'export': export settings changed;
- *  - 'character': a new character was built.
+ *  - 'character': a new character was built;
+ *  - 'clip': a clip started playing in the viewer ('bind' for the bind pose).
  */
 import type { Character } from '../../core/human';
 import { DEFAULT_PARAMS, type HumanParams } from '../../core/params';
 import { DEFAULT_EXPORT, type ExportSettings } from '../../export';
 
-type Events = { sync: []; params: []; export: []; character: [Character, HumanParams, number] };
+type Events = { sync: []; params: []; export: []; character: [Character, HumanParams, number]; clip: [string] };
 
 export class Store {
   params: HumanParams = loadSaved() ?? { ...DEFAULT_PARAMS, name: 'Athletic man' };
   current: Character | undefined;
   readonly exportSettings: ExportSettings = loadExportSettings();
-  private listeners: { [K in keyof Events]: ((...a: Events[K]) => void)[] } = { sync: [], params: [], export: [], character: [] };
+  private listeners: { [K in keyof Events]: ((...a: Events[K]) => void)[] } = { sync: [], params: [], export: [], character: [], clip: [] };
 
   on<K extends keyof Events>(event: K, fn: (...a: Events[K]) => void): void {
     this.listeners[event].push(fn);

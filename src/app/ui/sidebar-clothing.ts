@@ -3,7 +3,7 @@ import { GARMENTS, garmentById, type GarmentDef, OUTFIT_SETS, PATTERNS, setById,
 import { ageToYears, type HumanParams } from '../../core/params';
 import { CARRY_STYLES } from '../../core/props/carry';
 import type { Ctx } from './context';
-import { selectRow } from './controls';
+import { selectRow, thumb } from './controls';
 import { el } from './dom';
 
 /** Pattern + colour controls for whichever garment currently fills a slot. */
@@ -132,7 +132,7 @@ export function outfitSetEntries(ctx: Ctx) {
   return OUTFIT_SETS.map((set) => ({
     id: set.id,
     name: set.label,
-    src: `${import.meta.env.BASE_URL}outfit-thumbs/${set.id}.png`,
+    src: thumb(`outfit-thumbs/${set.id}.png`),
     pick: () => {
       const p = store.params;
       store.set({
@@ -165,7 +165,7 @@ export function hatStyle(ctx: Ctx) {
 }
 
 /** Generated hats, as extra entries in the Hat picker. */
-export const HAT_ENTRIES = GARMENTS.filter((g) => g.slot === 'hat').map((g) => ({ id: g.id, name: g.label }));
+export const HAT_ENTRIES = GARMENTS.filter((g) => g.slot === 'hat').map((g) => ({ id: g.id, name: g.label, src: thumb(`picker-thumbs/hat-${g.id}.png`) }));
 
 /** Colour (and finish) of generated shoes, when worn: high heels, sneakers, loafers. */
 export function shoeStyle(ctx: Ctx) {
