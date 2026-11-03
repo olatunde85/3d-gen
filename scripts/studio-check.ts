@@ -96,7 +96,8 @@ async function waitFor(js: string, what: string, ms = 120000): Promise<void> {
 process.on('SIGINT',()=>{cleanup();process.exit(130)});
 const folder='out/studio-expansion';mkdirSync(folder,{recursive:true});
 const passed:string[]=[];
-async function step(name:string,fn:()=>Promise<void>){await fn();passed.push(name);console.log('OK',name)}
+const interactionsOnly=process.argv.includes('--interactions');
+async function step(name:string,fn:()=>Promise<void>){if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -161,15 +162,67 @@ try{
   if(!result)throw Error('Scene state depends on seek order');
  });
  await step('Mouse orbit, wheel zoom and keyboard rotation are saved',async()=>{
-  const r=await evaluate<{x:number;y:number}>('(()=>{const r=document.querySelector("#film").getBoundingClientRect();return{x:r.x+r.width*.5,y:r.y+r.height*.5}})()');
+  const r=await evaluate<{x:number;y:number}>('(()=>{const r=document.querySelector("#film").getBoundingClientRect();return{x:r.x+r.width*.85,y:r.y+r.height*.12}})()');
   await send('Input.dispatchMouseEvent',{type:'mousePressed',x:r.x,y:r.y,button:'left',buttons:1,clickCount:1});
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:r.x+95,y:r.y+25,button:'left',buttons:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:r.x+95,y:r.y+25,button:'left',buttons:0,clickCount:1});
   await send('Input.dispatchMouseEvent',{type:'mouseWheel',x:r.x,y:r.y,deltaX:0,deltaY:130});await pause(300);
-  if(!await evaluate('Math.abs(window.studio.project.view.azimuth)>5 && window.studio.project.view.zoom>1'))throw Error('Orbit/zoom did not persist');
+  if(!await evaluate('window.studio.project.view.azimuth < -5 && window.studio.project.view.zoom>1'))throw Error('Orbit/zoom did not persist');
   await evaluate("document.querySelector('#film').focus()");const old=await evaluate<number>('window.studio.project.view.azimuth');await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowLeft',code:'ArrowLeft'});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowLeft',code:'ArrowLeft'});
-  if(await evaluate<number>('window.studio.project.view.azimuth')===old)throw Error('Keyboard orbit');await shot('orbit-view');
+  if(await evaluate<number>('window.studio.project.view.azimuth')<=old)throw Error('Keyboard orbit direction');await shot('orbit-view');
   await evaluate("document.querySelector('#view-reset').click()");
   if(!await evaluate('(()=>{const p=structuredClone(window.studio.project);p.view.elevation=-35;window.studio.scene.render(p,1);return window.studio.scene.camera.position.y>=0.12})()'))throw Error('Camera went below floor');
+ });
+ await step('The top-bar title edits, saves and undoes without a duplicate field',async()=>{
+  if(!await evaluate("!!document.querySelector('header #title') && !document.querySelector('.inspector #title')"))throw Error('Title is not in the header');
+  const original=await evaluate<string>('window.studio.project.title');
+  await evaluate("(()=>{const t=document.querySelector('#title');t.focus();t.value='A new working title';t.dispatchEvent(new Event('input'));t.value='A finished title';t.dispatchEvent(new Event('input'));t.blur()})()");
+  if(!await evaluate("window.studio.project.title==='A finished title' && JSON.parse(localStorage.getItem('ara.studio.project.v2')).title==='A finished title'"))throw Error('Title did not save');
+  await evaluate("document.querySelector('#undo').click()");if(await evaluate<string>('window.studio.project.title')!==original)throw Error('Title editing did not undo as one change');
+ });
+ await step('Supported equipment attaches to one actor and preserves the other cast member',async()=>{
+  await evaluate("document.querySelectorAll('.cast-member')[0].click()");
+  const other=await evaluate<string>('window.studio.scene.actors.get(window.studio.project.actors[1].id).mesh.uuid');
+  const direction=await evaluate<string>('JSON.stringify({beats:window.studio.project.actors[0].beats,shots:window.studio.project.shots})');
+  await change('actor-carry','none');await ready();await change('actor-weapon','pistol');await ready();await change('actor-carry','briefcase');await ready();
+  if(!await evaluate("window.studio.scene.actor.character.params.weapon==='pistol' && window.studio.scene.actor.character.params.carry==='briefcase' && window.studio.scene.actor.character.rig.holds.includes('Left') && window.studio.scene.actor.character.mesh.materials.some(m=>m.name==='Gunmetal')"))throw Error('Equipment was not fitted into the character');
+  if(await evaluate<string>('window.studio.scene.actors.get(window.studio.project.actors[1].id).mesh.uuid')!==other)throw Error('Equipment rebuilt the other actor');
+  if(await evaluate<string>('JSON.stringify({beats:window.studio.project.actors[0].beats,shots:window.studio.project.shots})')!==direction)throw Error('Equipment changed direction');
+  await evaluate('window.studio.seek(1)');await pause();await shot('equipment');
+  await evaluate("document.querySelector('#undo').click()");await ready();if(!await evaluate("window.studio.scene.actor.character.params.carry==='none' && window.studio.scene.actor.character.params.weapon==='pistol'"))throw Error('Equipment undo');
+ });
+ await step('Actors can be picked and dragged while placement settings remain usable',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)');
+  await evaluate("document.querySelectorAll('.cast-member')[0].click()");await change('action','walk');
+  await evaluate("(()=>{const e=document.querySelector('#movement');e.checked=true;e.dispatchEvent(new Event('change'))})()");await evaluate('window.studio.seek(1.2)');await pause();
+  const actorPoint=()=>evaluate<{x:number;y:number}>(`(()=>{const s=window.studio.scene,a=s.actors.get(window.studio.project.actors[0].id),b=a.mesh.skeleton.bones.find(b=>b.name==='Spine2'),p=a.group.position.clone();if(b)p.setFromMatrixPosition(b.matrixWorld);else p.y+=a.height*.65;p.project(s.camera);const r=s.canvas.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2}})()`);
+  let point=await actorPoint();await evaluate("document.querySelectorAll('.cast-member')[1].click()");
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});await pause();
+  if(!await evaluate("document.querySelectorAll('.cast-member')[0].ariaPressed==='true' && window.studio.scene.selectionId===window.studio.project.actors[0].id"))throw Error('Character click did not select its controls');
+  const initial=await evaluate<{x:number;z:number;other:string;view:string}>('({x:window.studio.project.actors[0].x,z:window.studio.project.actors[0].z,other:JSON.stringify(window.studio.project.actors[1]),view:JSON.stringify(window.studio.project.view)})');
+  point=await actorPoint();await send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+65,y:point.y+15,button:'left',buttons:1});
+  if(!await evaluate("window.studio.scene.freezeCamera && document.querySelector('#open-export').disabled"))throw Error('Placement camera or controls did not hold still');
+  await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+65,y:point.y+15,button:'left',buttons:0,clickCount:1});await pause();
+  const moved=await evaluate<{x:number;z:number;other:string;view:string;travel:boolean}>('({x:window.studio.project.actors[0].x,z:window.studio.project.actors[0].z,other:JSON.stringify(window.studio.project.actors[1]),view:JSON.stringify(window.studio.project.view),travel:window.studio.project.actors[0].beats[0].move})');
+  if(Math.hypot(moved.x-initial.x,moved.z-initial.z)<.1||Math.hypot(moved.x-initial.x,moved.z-initial.z)>2.5||moved.other!==initial.other||moved.view!==initial.view||!moved.travel)throw Error('Dragging moved the wrong state');await shot('selected-character');
+  await evaluate("document.querySelector('#undo').click()");if(!await evaluate(`Math.abs(window.studio.project.actors[0].x-(${initial.x}))<.001 && Math.abs(window.studio.project.actors[0].z-(${initial.z}))<.001 && window.studio.project.actors[0].beats[0].move`))throw Error('Drag undo lost the travel setting');
+  await pause();point=await actorPoint();
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1,modifiers:1});await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+55,y:point.y,button:'left',buttons:1,modifiers:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+55,y:point.y,button:'left',buttons:0,clickCount:1,modifiers:1});
+  if(!await evaluate(`window.studio.project.view.azimuth< -5 && Math.abs(window.studio.project.actors[0].x-(${initial.x}))<.001`))throw Error('Alt-drag did not orbit over the character');await evaluate("document.querySelector('#view-reset').click()");
+  await pause();point=await actorPoint();await send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+45,y:point.y-10,button:'left',buttons:1});await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+45,y:point.y-10,button:'left',buttons:0,clickCount:1});
+  if(!await evaluate(`Math.abs(window.studio.project.actors[0].x-(${initial.x}))<.001 && Math.abs(window.studio.project.actors[0].z-(${initial.z}))<.001 && !window.studio.scene.freezeCamera`))throw Error('Escape did not cancel placement');
+  await pause();
+  const target=await evaluate<{x:number;y:number;worldX:number;worldZ:number}>(`(()=>{const s=window.studio.scene,a=s.actor,p=a.group.position.clone();p.x-=.85;p.z+=.6;const worldX=p.x,worldZ=p.z;p.project(s.camera);const r=s.canvas.getBoundingClientRect();return{x:r.x+(p.x+1)*r.width/2,y:r.y+(1-p.y)*r.height/2,worldX,worldZ}})()`);
+  await evaluate("document.querySelector('#place-actor').click()");await send('Input.dispatchMouseEvent',{type:'mousePressed',x:target.x,y:target.y,button:'left',buttons:1,clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:target.x,y:target.y,button:'left',buttons:0,clickCount:1});await pause();
+  if(!await evaluate(`Math.abs(window.studio.scene.actor.group.position.x-(${target.worldX}))<.025 && Math.abs(window.studio.scene.actor.group.position.z-(${target.worldZ}))<.025`))throw Error('Click placement did not put the actor at the ground point: '+JSON.stringify({target,actual:await evaluate('({selected:window.studio.scene.selectionId,actors:window.studio.project.actors.map(a=>({id:a.id,x:a.x,z:a.z})),world:window.studio.scene.actor.group.position.toArray(),mode:document.querySelector("#place-actor").ariaPressed})')}));
+  await evaluate("document.querySelector('#place-actor').click()");await change('actor-x','0.4');if(!await evaluate('window.studio.project.actors[0].x===0.4'))throw Error('Numeric placement stopped working');
+  await upload(original);await ready();await evaluate('window.studio.seek(1.5)');await pause();
+ });
+ await step('Selection marks stay out of the film output and saved frame',async()=>{
+  const data=await evaluate<{clean:string;selected:string;preview:string}>(`(()=>{const s=window.studio.scene,p=window.studio.project;s.selectionId=undefined;s.render(p,1.5);const clean=s.output.toDataURL();s.selectionId=p.actors[0].id;s.render(p,1.5);return{clean,selected:s.output.toDataURL(),preview:s.canvas.toDataURL()}})()`);
+  const buffers=await Promise.all([data.clean,data.selected,data.preview].map(url=>sharp(Buffer.from(url.split(',')[1],'base64')).raw().toBuffer()));let filmDiff=0,markerDiff=0;
+  for(let i=0;i<buffers[0].length;i++){filmDiff+=Math.abs(buffers[0][i]-buffers[1][i]);if(Math.abs(buffers[1][i]-buffers[2][i])>10)markerDiff++;}
+  if(filmDiff/buffers[0].length>.005||markerDiff<100)throw Error(`Selection overlay is missing or embedded in output: ${filmDiff}, ${markerDiff}`);
+  writeFileSync(`${folder}/selection-preview.png`,Buffer.from(data.preview.split(',')[1],'base64'));writeFileSync(`${folder}/selection-clean-frame.png`,Buffer.from(data.selected.split(',')[1],'base64'));
  });
  await step('Two-character framing and controls fit a narrow screen',async()=>{
   await evaluate("document.querySelector('#portrait').click();window.studio.seek(1)");await pause();
@@ -178,10 +231,13 @@ try{
   await send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
   const touch=await evaluate<{x:number;y:number}>('(()=>{const r=document.querySelector("#film").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
   const oldZoom=await evaluate<number>('window.studio.project.view.zoom');
+  const positions=await evaluate<string>('JSON.stringify(window.studio.project.actors.map(a=>[a.x,a.y,a.z]))');
   await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:touch.x-25,y:touch.y,id:1},{x:touch.x+25,y:touch.y,id:2}]});
   await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:touch.x-50,y:touch.y,id:1},{x:touch.x+50,y:touch.y,id:2}]});
   await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await pause();
   if(await evaluate<number>('window.studio.project.view.zoom')>=oldZoom)throw Error('Touch pinch did not zoom');
+  if(await evaluate<string>('JSON.stringify(window.studio.project.actors.map(a=>[a.x,a.y,a.z]))')!==positions)throw Error('Pinch moved a character');
+  if(!await evaluate("document.querySelector('header #title').getBoundingClientRect().width>0"))throw Error('Mobile title is hidden');
   await send('Emulation.setTouchEmulationEnabled',{enabled:false});
   await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});await evaluate("document.querySelector('#view-reset').click();document.querySelector('#landscape').click()");
  });
@@ -229,4 +285,4 @@ try{
   if(b.actors[1].detail!=='high')throw Error('Character detail lost on return');await shot('mixed-rig-cast');
  });
  if(errors.length)throw Error(errors.join('\n'));console.log('Studio expansion browser checks passed:',passed.length);
-}catch(error){await shot('failure').catch(()=>{});console.log('Failure page:',await evaluate('({url:location.href,body:document.body.innerText.slice(-3000)})').catch(()=>null));if(errors.length)console.log('Browser errors:',errors);throw error;}finally{await cleanup()}
+}catch(error){await shot('failure').catch(()=>{});console.log('Failure page:',await evaluate('({url:location.href,notice:document.querySelector("#notice")?.textContent,loading:document.querySelector("#loading-label")?.textContent,active:document.activeElement?.id})').catch(()=>null));if(errors.length)console.log('Browser errors:',errors);throw error;}finally{await cleanup()}

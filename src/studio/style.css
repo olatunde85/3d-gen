@@ -1402,3 +1402,28 @@ progress {
 @media(max-width:950px) {
   .selection-tools { grid-column: 1 / -1; }
 }
+/* Direct manipulation and the editable film name live beside the preview. */
+.project-heading { flex: 1; max-width: 350px; }
+.project-heading #title { width: 100%; min-height: 27px; padding: 2px 4px; border: 1px solid transparent; border-radius: 4px; background: transparent; font-size: 13px; text-overflow: ellipsis; }
+.project-heading #title:hover { border-color: #555c66; }
+.project-heading #title:focus { border-color: var(--gold); background: #14171c; outline-offset: 2px; }
+.project-heading #save-status { color: #858d99; font-size: 10px; margin-left: 4px; }
+.viewer-actions { display: flex; align-items: center; gap: 18px; }
+#place-actor[aria-pressed=true] { color: var(--gold); }
+#film.placing { cursor: grabbing; }
+#film.click-placement { cursor: crosshair; }
+#film.click-placement.orbiting { cursor: grabbing; }
+.caption-setting { margin-top: 20px; }
+@media(max-width:950px) {
+  .topbar { height: auto; min-height: 65px; flex-wrap: wrap; gap: 8px 15px; padding-top: 10px; padding-bottom: 7px; }
+  .topbar .project-heading { display: flex; order: 3; flex: 0 0 100%; max-width: none; border-left: 0; padding: 0; }
+  .project-heading #title { font-size: 14px; min-height: 30px; }
+  .project-heading #save-status { display: none; }
+  .topbar .file-tools { margin-left: auto; }
+}
+@media(max-width:650px) {
+  .topbar { min-height: 62px; gap: 4px 8px; }
+  .project-heading #title { font-size: 16px; }
+  .viewer-actions { gap: 12px; }
+  .viewer-actions .text-button { font-size: 9px; }
+}

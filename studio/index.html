@@ -12,7 +12,7 @@
   <header class="topbar">
     <a class="brand" href="../"><span class="brand-symbol">a</span><span>ARA<span class="brand-studio">STUDIO</span></span></a>
     <span class="prototype">EARLY PREVIEW</span>
-    <div class="project-heading"><span id="project-name">Untitled film</span><span id="save-status">Saved on this device</span></div>
+    <div id="project-name" class="project-heading"><label class="sr-only" for="title">Film title</label><input id="title" maxlength="60" type="text" placeholder="Untitled film" title="Edit film title" autocomplete="off" /><span id="save-status">Saved on this device</span></div>
     <nav class="file-tools" aria-label="Project">
       <button id="undo" title="Undo last edit (Ctrl/Cmd+Z)" aria-label="Undo last edit" disabled>↶</button><button id="load-project" title="Open an Ara Studio project">Open</button><button id="save-project" title="Save an editable project file">Save project</button>
       <button class="export-button" id="open-export"><span aria-hidden="true">↗</span> Export film</button>
@@ -34,9 +34,9 @@
       <a class="help-link" href="../docs/studio/">A short guide to Studio <span>↗</span></a>
     </aside>
     <main class="director">
-      <div class="viewer-heading"><div><span class="live-dot"></span><span id="scene-name">The portrait</span><span class="viewer-subtitle">DIRECTOR’S VIEW</span></div><button id="snapshot" class="text-button" title="Save this exact frame as a PNG">Save frame <span aria-hidden="true">↘</span></button></div>
+      <div class="viewer-heading"><div><span class="live-dot"></span><span id="scene-name">The portrait</span><span class="viewer-subtitle">DIRECTOR’S VIEW</span></div><div class="viewer-actions"><button id="place-actor" class="text-button" aria-pressed="false" title="Click the ground to place the selected character">Click to place</button><button id="snapshot" class="text-button" title="Save this exact frame as a PNG">Save frame <span aria-hidden="true">↘</span></button></div></div>
       <div class="stage" id="stage" data-aspect="landscape">
-        <div class="film-frame"><canvas tabindex="0" id="film" aria-label="Your animated short film. Drag to orbit, scroll or pinch to zoom, arrow keys to rotate"></canvas><div class="load-overlay" id="loading"><span class="loader"></span><strong id="loading-label">Preparing your set…</strong><span>Building your Ara character</span></div></div>
+        <div class="film-frame"><canvas tabindex="0" id="film" aria-label="Your animated short film. Click a character to select it, drag it to move, drag the background to orbit, scroll or pinch to zoom"></canvas><div class="load-overlay" id="loading"><span class="loader"></span><strong id="loading-label">Preparing your set…</strong><span>Building your Ara character</span></div></div>
         <span class="frame-corner top-left"></span><span class="frame-corner bottom-right"></span>
       </div>
       <div class="transport">
@@ -79,16 +79,18 @@
         <div class="form-row"><div><label for="actor-yaw">Facing (degrees)</label><input id="actor-yaw" type="number" min="-180" max="180" step="5" /></div><div><label for="actor-y">Elevation</label><input id="actor-y" type="number" min="0" max="3" step="0.05" /></div></div>
         <label for="blocking">Stage the cast</label><select id="blocking"><option value="">Choose placement…</option><option value="side">Side by side</option><option value="conversation">Conversation</option><option value="opposed">Facing each other</option></select>
       </section>
+      <section class="inspector-section" id="equipment-settings">
+        <h2 id="equipment-title">Character equipment</h2><p class="setting-hint">Fitted to the selected character and saved with the film.</p>
+        <label for="actor-weapon">Weapon</label><select id="actor-weapon"></select>
+        <label for="actor-carry">Bag</label><select id="actor-carry"></select>
+      </section>
       <section class="inspector-section">
         <h2>Camera</h2><p class="setting-hint">A little movement goes a long way.</p>
         <label class="sr-only" for="camera">Camera movement</label><select id="camera"><option value="locked">Locked-off</option><option value="dolly">Slow push-in</option><option value="orbit">Gentle orbit</option></select>
-        <p class="orbit-hint">Drag the picture to orbit. Scroll or pinch to zoom. Your angle is saved in the film.</p><button id="view-reset" class="text-button">Reset viewing angle</button><output id="view-readout"></output>
+        <p class="orbit-hint">Drag a character to move it. Drag the background, or Alt-drag, to orbit. Scroll or pinch to zoom. Shift-click the ground to place the selected character.</p><button id="view-reset" class="text-button">Reset viewing angle</button><output id="view-readout"></output>
         <span class="field-label">Frame</span><div class="aspect-options" role="group" aria-label="Aspect ratio"><button id="landscape" aria-pressed="true"><span class="aspect-icon landscape-icon"></span>16:9</button><button id="portrait" aria-pressed="false"><span class="aspect-icon portrait-icon"></span>9:16</button></div>
       </section>
-      <section class="inspector-section title-section">
-        <h2>Title</h2><label class="sr-only" for="title">Film title</label><input id="title" maxlength="60" type="text" placeholder="Give your film a name…" />
-        <label class="check-label"><input type="checkbox" id="caption" checked /><span>Show title in the film</span></label>
-      </section>
+      <label class="check-label caption-setting"><input type="checkbox" id="caption" checked /><span>Show title in the film</span></label>
       <div class="director-note"><span>MAKE A MOMENT.</span><p>Small gestures. Thoughtful framing. Two performances. One shared story.</p></div>
     </aside>
   </div>

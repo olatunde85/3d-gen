@@ -10,6 +10,7 @@ import { CAST, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, durationOf, n
 import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
 import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations';
 import { orbitControls } from './orbit';
+import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => $<HTMLInputElement>(id), select = (id: string) => $<HTMLSelectElement>(id), button = (id: string) => $<HTMLButtonElement>(id);
@@ -29,6 +30,7 @@ let playing = false, repeat = true, loading = true, exporting = false, dirty = t
 let engine: Engine, lib: AssetLibrary;
 let movieUrl = '', renderedRecipe = '', movieInfo = '', noticeTimer = 0, capabilityToken = 0;
 let controller: AbortController | undefined;
+let clickToPlace=false,importing=false,placementBefore:string|undefined;
 const history: string[] = [], builtRecipes = new Map<string, string>();
 const actorTrack = () => project.actors.find(a => a.id === selectedActor) ?? project.actors[0];
 const actorName = (a: ActorTrack) => decodeCharacter(a.character, a.detail)?.name || 'Your character';
@@ -38,11 +40,11 @@ function download(blob: Blob, name: string) { const url = URL.createObjectURL(bl
 const codeTime = (t: number) => `${Math.floor(t / 60).toString().padStart(2, '0')}:${Math.floor(t % 60).toString().padStart(2, '0')}:${Math.min(29, Math.floor((t % 1) * 30 + 0.001)).toString().padStart(2, '0')}`;
 function remember() { history.push(JSON.stringify(project)); if (history.length > 30) history.shift(); }
 function save() { try { localStorage.setItem(STORAGE, JSON.stringify(project)); $('save-status').textContent = 'Saved on this device'; } catch { $('save-status').textContent = 'Use Save project to keep a copy'; } }
-function setPlaying(on: boolean) { playing = on && !loading && !exporting; if (playing && time >= durationOf(project) - 0.001) time = 0;
+function setPlaying(on: boolean) { playing = on && !loading && !exporting && !importing && !placementBefore; if (playing && time >= durationOf(project) - 0.001) time = 0;
   button('play').textContent = playing ? 'Ⅱ' : '▶'; button('play').setAttribute('aria-label', playing ? 'Pause film' : 'Play film'); dirty = true; }
 function lock() {
-  for (const e of document.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('.workspace button,.workspace input,.workspace select,.file-tools button')) e.disabled = loading || exporting;
-  if (!loading && !exporting) {
+  for (const e of document.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('.workspace button,.workspace input,.workspace select,.file-tools button')) e.disabled = loading || exporting || importing || !!placementBefore;
+  if (!loading && !exporting && !importing && !placementBefore) {
     const items = cameraSelection ? project.shots : actorTrack().beats;
     button('undo').disabled = !history.length; button('remove-beat').disabled = items.length === 1;
     button('earlier').disabled = selected === 0; button('later').disabled = selected === items.length - 1;
@@ -52,6 +54,7 @@ function lock() {
     input('movement').disabled = !clipById.get(actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)].clip)?.travel;
     select('blocking').disabled = project.actors.length < 2;
   }
+  input('title').disabled=loading||exporting||importing||!!placementBefore;
   $('loading').hidden = !loading;
 }
 function dimensions(size = 720) { return project.aspect === 'landscape' ? { width: Math.round(size * 16 / 9), height: size } : { width: size, height: Math.round(size * 16 / 9) }; }
@@ -84,7 +87,7 @@ function renderAnimations() {
   const picker = select('action'); picker.replaceChildren();
   if(!clips.some(c=>c.id===b.clip))picker.append(new Option(`${clipById.get(b.clip)!.name} · current`,b.clip));
   for(const category of ANIMATION_CATEGORIES){const group=document.createElement('optgroup');group.label=category;for(const c of clips.filter(c=>c.category===category))group.append(new Option(c.name,c.id));if(group.children.length)picker.append(group);}
-  picker.value=b.clip;$('animation-count').textContent=`${clips.length} / ${CLIPS.length}`;$('action-note').textContent=actionNote(b.clip);
+  picker.value=b.clip;$('animation-count').textContent=`${clips.length} / ${CLIPS.length}`;$('action-note').textContent=actionNote(b.clip,decodeCharacter(actorTrack().character,actorTrack().detail)?.weapon);
 }
 function renderTracks() {
   const total=durationOf(project);$('tracks').replaceChildren();
@@ -109,7 +112,7 @@ function renderUI() {
   if(!project.actors.some(a=>a.id===selectedActor))selectedActor=project.actors[0].id;
   const a=actorTrack(), ai=project.actors.indexOf(a), items=cameraSelection?project.shots:a.beats;
   selected=Math.max(0,Math.min(selected,items.length-1));
-  $('project-name').textContent=project.title||'Untitled film';$('scene-name').textContent=sceneById.get(project.template)!.name;renderScenes();
+  scene.selectionId=selectedActor;$('scene-name').textContent=sceneById.get(project.template)!.name;renderScenes();
   $('cast-roster').replaceChildren();for(const [i,actor]of project.actors.entries()){
     const b=document.createElement('button');b.className='cast-member';b.setAttribute('aria-pressed',String(actor.id===selectedActor));b.textContent=`${i+1} · ${actorName(actor)}`;
     b.addEventListener('click',()=>{selectedActor=actor.id;cameraSelection=false;selected=0;renderUI();});$('cast-roster').append(b);
@@ -133,6 +136,7 @@ function renderUI() {
   if(cameraSelection){const s=project.shots[selected];select('shot').value=s.shot;input('shot-duration').value=String(s.duration);select('shot-target').replaceChildren(new Option('Entire cast','all'));for(const [i,actor]of project.actors.entries())select('shot-target').append(new Option(`Character ${i+1} · ${actorName(actor)}`,actor.id));select('shot-target').value=s.target;}
   else{const b=a.beats[selected];renderAnimations();input('beat-duration').value=String(b.duration);input('movement').checked=b.move;}
   $('blocking-title').textContent=`Character ${ai+1} placement`;for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).value=String(a[key]);select('blocking').value='';
+  $('equipment-title').textContent=`Character ${ai+1} equipment`;select('actor-weapon').value=params.weapon;select('actor-carry').value=params.carry;
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
   $('view-readout').textContent=`${Math.round(project.view.azimuth)}° · ${project.view.zoom.toFixed(1)}×`;
   for(const aspect of ['landscape','portrait'])button(aspect).setAttribute('aria-pressed',String(project.aspect===aspect));
@@ -160,7 +164,7 @@ async function apply(next: StudioProject, keepHistory=true) {
   const {width,height}=dimensions();scene.resize(width,height);renderUI();save();
 }
 function edit(fn:(p:StudioProject)=>void){const next=structuredClone(project);fn(next);return apply(next);}
-function undo(){if(loading||exporting||!history.length)return;void apply(parseProject(history.pop()!),false);}
+function undo(){if(loading||exporting||importing||!history.length)return;void apply(parseProject(history.pop()!),false);}
 input('scene-search').placeholder=`Search ${SETS.length} scenes…`;input('animation-search').placeholder=`Search ${CLIPS.length} animations…`;
 for(const c of SCENE_CATEGORIES)select('scene-category').append(new Option(c,c));
 input('scene-search').addEventListener('input',renderScenes);select('scene-category').addEventListener('change',renderScenes);
@@ -185,16 +189,40 @@ select('shot-target').addEventListener('change',()=>void edit(p=>p.shots[selecte
 input('shot-duration').addEventListener('change',()=>void edit(p=>p.shots[selected].duration=Number(input('shot-duration').value)));
 select('camera').addEventListener('change',()=>void edit(p=>p.camera=select('camera').value as typeof p.camera));
 for(const aspect of ['landscape','portrait']as const)button(aspect).addEventListener('click',()=>void edit(p=>p.aspect=aspect));
-input('title').addEventListener('blur',()=>titleEditing=false);input('title').addEventListener('input',()=>{if(loading||exporting)return;if(!titleEditing){remember();titleEditing=true;}project.title=input('title').value.slice(0,60);$('project-name').textContent=project.title||'Untitled film';save();lock();dirty=true;});
+input('title').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();input('title').blur();}});
+input('title').addEventListener('blur',()=>titleEditing=false);input('title').addEventListener('input',()=>{if(loading||exporting)return;if(!titleEditing){remember();titleEditing=true;}project.title=input('title').value.slice(0,60);save();lock();dirty=true;});
 input('caption').addEventListener('change',()=>void edit(p=>p.caption=input('caption').checked));
 button('view-reset').addEventListener('click',()=>void edit(p=>p.view={azimuth:0,elevation:0,zoom:1}));
-orbitControls($<HTMLCanvasElement>('film'),()=>project.view,()=>!loading&&!exporting,()=>{remember();setPlaying(false);},v=>{project.view=v;dirty=true;$('view-readout').textContent=`${Math.round(v.azimuth)}° · ${v.zoom.toFixed(1)}×`;},()=>{lock();save();});
+button('place-actor').addEventListener('click',()=>{clickToPlace=!clickToPlace;button('place-actor').setAttribute('aria-pressed',String(clickToPlace));button('place-actor').textContent=clickToPlace?'Click a spot…':'Click to place';$('film').classList.toggle('click-placement',clickToPlace);});
+for(const id of WEAPONS)select('actor-weapon').append(new Option(WEAPON_LABELS[id],id));
+for(const id of CARRIED)select('actor-carry').append(new Option(CARRY_LABELS[id],id));
+for(const [id,slot]of [['actor-weapon','weapon'],['actor-carry','carry']]as const)select(id).addEventListener('change',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!;a.character=equipActor(a,slot,select(id).value);}));
+orbitControls($<HTMLCanvasElement>('film'),()=>project.view,()=>!loading&&!exporting&&!importing,()=>{remember();setPlaying(false);},v=>{project.view=v;dirty=true;$('view-readout').textContent=`${Math.round(v.azimuth)}° · ${v.zoom.toFixed(1)}×`;},()=>{lock();save();},{
+  pick:(x,y)=>{setPlaying(false);scene.render(project,time);return scene.pickActor(x,y);},
+  select:id=>{selectedActor=id;cameraSelection=false;selected=timelineAt(project,time,actorTrack()).index;setPlaying(false);renderUI();},
+  selected:()=>{const a=actorTrack(),rendered=scene.actors.get(a.id);if(!rendered)return;const p=rendered.group.position.clone().project(scene.camera),r=scene.canvas.getBoundingClientRect();return{id:a.id,x:a.x,y:a.y,z:a.z,worldX:rendered.group.position.x,worldZ:rendered.group.position.z,screenX:r.left+(p.x+1)*r.width/2,screenY:r.top+(1-p.y)*r.height/2};},
+  point:(x,y,elevation)=>scene.groundPoint(x,y,elevation),clickToPlace:()=>clickToPlace,
+  begin:()=>{placementBefore=JSON.stringify(project);scene.freezeCamera=true;setPlaying(false);lock();},
+  move:(x,z)=>{const a=actorTrack();a.x=Math.max(-12,Math.min(12,x));a.z=Math.max(-12,Math.min(12,z));input('actor-x').value=String(Number(a.x.toFixed(2)));input('actor-z').value=String(Number(a.z.toFixed(2)));dirty=true;},
+  end:cancelled=>{const before=placementBefore;placementBefore=undefined;scene.freezeCamera=false;if(!before)return;
+    if(cancelled)project=JSON.parse(before) as StudioProject;
+    else if(JSON.stringify(project)!==before){history.push(before);if(history.length>30)history.shift();const a=actorTrack();a.x=Number(a.x.toFixed(3));a.z=Number(a.z.toFixed(3));save();}
+    renderUI();scene.render(project,time);dirty=false;
+  },
+});
 button('add-beat').addEventListener('click',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!;const d=Math.min(3,MAX_DURATION-trackDuration(a));if(d<0.1||a.beats.length>=MAX_ACTIONS)return;a.beats.push(beat('idle',d));cameraSelection=false;selected=a.beats.length-1;}));
 button('add-shot').addEventListener('click',()=>void edit(p=>{const d=Math.min(3,MAX_DURATION-p.shots.reduce((s,b)=>s+b.duration,0));if(d<0.1||p.shots.length>=MAX_SHOTS)return;p.shots.push({id:beatId(),duration:d,shot:'wide',target:'all'});cameraSelection=true;selected=p.shots.length-1;}));
 button('remove-beat').addEventListener('click',()=>void edit(p=>{const items=cameraSelection?p.shots:p.actors.find(a=>a.id===selectedActor)!.beats;if(items.length>1)items.splice(selected,1);selected=Math.max(0,selected-1);}));
 for(const [id,offset]of [['earlier',-1],['later',1]]as const)button(id).addEventListener('click',()=>void edit(p=>{const items=cameraSelection?p.shots:p.actors.find(a=>a.id===selectedActor)!.beats,to=selected+offset;if(to<0||to>=items.length)return;[items[selected],items[to]]=[items[to],items[selected]];selected=to;}));
 button('save-project').addEventListener('click',()=>{save();download(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),`${filename()}.ara-studio.json`);notify('Editable project saved.');});
-button('load-project').addEventListener('click',()=>input('project-file').click());input('project-file').addEventListener('change',async()=>{const file=input('project-file').files?.[0];if(!file)return;try{if(file.size>100_000)throw Error('Choose a project smaller than 100 KB.');const p=parseProject(await file.text());selected=0;cameraSelection=false;await apply(p);}catch(e){notify((e as Error).message);}finally{input('project-file').value='';}});
+button('load-project').addEventListener('click',()=>input('project-file').click());
+input('project-file').addEventListener('change',async()=>{
+  const file=input('project-file').files?.[0];if(!file||loading||exporting||importing||placementBefore)return;
+  importing=true;input('project-file').setAttribute('aria-busy','true');setPlaying(false);lock();
+  try{if(file.size>100_000)throw Error('Choose a project smaller than 100 KB.');const p=parseProject(await file.text());selected=0;cameraSelection=false;await apply(p);}
+  catch(e){notify((e as Error).message);}
+  finally{importing=false;input('project-file').value='';input('project-file').setAttribute('aria-busy','false');lock();}
+});
 button('snapshot').addEventListener('click',()=>{scene.render(project,time);scene.output.toBlob(b=>{if(b)download(b,`${filename()}-frame.png`);},'image/png');});
 $('edit-character').addEventListener('click',e=>{if(loading||exporting){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});
 document.addEventListener('keydown',e=>{if((e.target as HTMLElement).closest('input,select,textarea,button')||$<HTMLDialogElement>('export-dialog').open)return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing);}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}});
@@ -265,4 +293,4 @@ async function start() {
   catch(e){$('loading-label').textContent='The cast could not load.';$('loading').querySelector('span:last-child')!.textContent='Reload to try again.';notify((e as Error).message);}
 }
 void start();
-if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&scene.actors.size===project.actors.length;},exportMovie,supportsMp4,setProject:apply,sets:SETS}});
+if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&!importing&&scene.actors.size===project.actors.length;},exportMovie,supportsMp4,setProject:apply,sets:SETS}});

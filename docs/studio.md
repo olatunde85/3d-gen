@@ -12,9 +12,13 @@ Selecting another set keeps your cast, performances, camera shots and title. Sce
 
 Bring your exact character from the builder, or select an Ara preset. **Second character** adds another actor. Select a name in the cast roster to edit that character. Each actor has a separate performance track, character recipe and detail level. Adding an actor keeps the existing performance, placement and camera plan, and gives the new track the film’s current duration. Changing one character reuses the other character's loaded model.
 
-Position each character in metres along the horizontal axes, set their facing angle, or adjust elevation for a raised surface. **Side by side**, **Conversation** and **Facing each other** provide starting arrangements. Removing a character also repairs camera shots that targeted them.
+Click a character in the picture to select it; a subtle selection ring identifies the active character. Drag it to move it across the staging plane. Escape cancels a drag, and Undo reverses a completed move. Choose **Click to place** and click the ground, or Shift-click the ground, to place the selected character at that point. These moves preserve the action sequence and travel setting.
 
-The **Character builder** link opens the selected actor for editing. Returning with the builder's **Studio** button restores the film and updates only that actor. This uses session storage in the same browser tab. If session storage is unavailable, ordinary character links still work, but cannot restore the film automatically; save your project first.
+The existing placement fields still position each character in metres along the horizontal axes, set their facing angle, or adjust elevation for a raised surface. **Side by side**, **Conversation** and **Facing each other** provide starting arrangements. Removing a character also repairs camera shots that targeted them.
+
+Under **Character equipment**, choose a weapon (rifle, pistol, sword or knife) and a bag (straw tote, handbag, briefcase or backpack), including **None** to remove them. These use Ara’s fitted, rigged props and update only the selected character. Equipment is saved in the character recipe, supports Undo, and follows the character through animation and dragging.
+
+The **Character builder** link opens the selected actor for further editing. Returning with the builder's **Studio** button restores the film and updates only that actor. This uses session storage in the same browser tab. If session storage is unavailable, ordinary character links still work, but cannot restore the film automatically; save your project first.
 
 ## Sequence performances and camera shots
 
@@ -22,7 +26,7 @@ The timeline has one **camera lane** and one **performance lane per actor**, all
 
 - Select an actor's action to choose from **77 animations**, searchable by name and category. Change its duration or use **original clip length**. Non-looping actions play once and hold; looping actions repeat. Consecutive shots of a looping performance continue its phase.
 - Enable **Move through the set** for clips with travel, including forward/backward walking, strafing and running. Travel follows the clip's native direction and speed, rotated by the actor's facing angle. Stage long travelling actions carefully: props and walls do not have collision or contact solving.
-- A chair is fitted for seated clips and a bicycle for the cycling clip. Weapon performances use equipment chosen in the builder. Other vehicle poses do not create their vehicles. Interaction poses still need appropriate staging; hands do not automatically attach to set props or another actor.
+- A chair is fitted for seated clips and a bicycle for the cycling clip. Weapon performances use equipment chosen in Studio or the builder. Other vehicle poses do not create their vehicles. Interaction poses still need appropriate staging; hands do not automatically attach to set props or another actor.
 - Select a camera shot to choose full-body, medium or close framing and target **the entire cast** or **one character**. Cast framing accounts for both characters and the selected aspect ratio.
 - Add, remove or reorder actions and shots independently. Up to **16 actions per actor**, **12 camera shots** and **60 seconds** per film. Each item can last 0.1–12 seconds. Shorter performance lanes hold their final pose; the last camera shot holds when another lane runs longer.
 
@@ -30,11 +34,13 @@ Use the top-bar **Undo** to restore edits, including placement, camera gestures 
 
 ## Move the camera
 
-Drag the picture to orbit around the set. Scroll to zoom; on touch screens, drag with one finger and pinch with two. Focus the picture and use the arrow keys to rotate, plus/minus to zoom or Home to reset. **Reset viewing angle** is also available in the camera settings.
+Drag the background to orbit around the set; Alt-drag or right-drag also orbits when the pointer is over a character. Scroll to zoom; on touch screens, drag with one finger and pinch with two. Focus the picture and use the arrow keys to rotate, plus/minus to zoom or Home to reset. **Reset viewing angle** is also available in the camera settings.
+
+The camera holds still during a character drag, then resumes the current shot’s automatic framing.
 
 The angle and zoom are part of the saved film, so preview, still images and exported video use the same view. Room walls use a cutaway treatment when seen from outside. The camera stays above the floor.
 
-Choose a locked camera, slow push-in or gentle orbit on top of the chosen viewing angle. Landscape (16:9), portrait (9:16) and an optional title are supported.
+Choose a locked camera, slow push-in or gentle orbit on top of the chosen viewing angle. Landscape (16:9), portrait (9:16) and an optional title are supported. Edit the film name directly in the top bar; **Show title in the film** controls its caption. The editor’s selection markers never appear in saved PNGs or MP4s.
 
 ## Save and export
 
