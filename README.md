@@ -43,6 +43,7 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 - **Props:** a rifle, pistol, sword and knife on the socket (exported in the hand or as separate props), and a bicycle fitted to every rider.
 - **Exports you can trust:** an export panel that lists every file before you download it: static, rigged, or rigged + animations; one file or one per clip; Unity `model@clip` and Godot loop naming.
 - **Share:** a branded image of your character, a caption and a link that rebuilds the exact character in the app (no server or account needed).
+- **Ara Studio (early preview):** open your character in `/studio/`, choose from three sets, direct a short performance and export a silent 720p or 1080p MP4. [Studio guide](docs/studio.md).
 - **Tested:** `npm test` builds 259 characters and validates every format; `npm run test:gltf` checks every bone of every clip in three.js; `npm run test:ui` drives the app in headless Chrome.
 
 ## Quick start
@@ -73,6 +74,7 @@ Questions and showcases: [Discussions](https://github.com/olatunde85/3d-gen/disc
 ## Licensing
 
 - **Code:** [MIT](LICENSE).
+- **Studio video tools:** Mediabunny is MPL 2.0. Static builds include its licence and original source in `third-party/mediabunny/`; see the [Studio guide](docs/studio.md).
 - **Character data:** MakeHuman assets, CC0 1.0 (public domain); see [scripts/ASSETS_LICENSE.txt](scripts/ASSETS_LICENSE.txt). They are downloaded by `setup-assets`, not stored in this repository.
 - **Motion capture:** the captured clips come from the [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu): free to use, including in commercial products, but the data may not be resold on its own. The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217. The retargeted clips are baked into `src/core/anim/clips/mocap-data.ts` by `npm run build-mocap` (takes are listed in `scripts/mocap-takes.ts`).
 - **Your exports:** yours. Use them in commercial and non-commercial projects without attribution.

@@ -20,3 +20,5 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 - [Architecture](architecture.md): how the code is organised and how a character is built
 
 Questions and showcases go in [GitHub Discussions](https://github.com/olatunde85/3d-gen/discussions); bugs and feature requests go in [Issues](https://github.com/olatunde85/3d-gen/issues). To contribute garments, hairstyles, animations or docs, see [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+- [Ara Studio](studio.md): create a short, silent film from an Ara character (prototype).

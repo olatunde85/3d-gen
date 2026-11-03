@@ -22,6 +22,7 @@ src/export/    glb.ts, fbx.ts (binary writer), obj.ts, plan.ts, index.ts (bundli
 src/app/       three.js viewer, bicycle prop, generation worker
   ui/          the app's UI, one module per part (sidebar, animation bar, export panel, share dialog,
                header), wired together in main.ts through the store's events (ui/store.ts)
+src/studio/    scene recipes, fixed-time direction, procedural sets, video encoding and Studio UI
 src/landing/   the landing page
 ```
 

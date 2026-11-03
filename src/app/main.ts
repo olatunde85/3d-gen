@@ -6,7 +6,7 @@ import { AssetLibrary, fetchSource } from '../core/assets';
 import { clipById } from '../core/anim/clips';
 import { DEFAULT_PARAMS, PRESETS } from '../core/params';
 import { Engine } from './engine';
-import { decodeCharacter } from './share';
+import { decodeCharacter, encodeCharacter } from './share';
 import { animationBar } from './ui/animation';
 import type { Ctx } from './ui/context';
 import { $ } from './ui/dom';
@@ -36,13 +36,21 @@ const anim = animationBar(ctx);
 header(ctx);
 const xp = exportPanel(ctx);
 shareDialog(ctx);
+$('#studio-btn').addEventListener('click', async () => {
+  await ctx.whenIdle();
+  const url = new URL(`${import.meta.env.BASE_URL}studio/`, location.href);
+  url.hash = new URLSearchParams({ c: encodeCharacter(store.params), detail: store.params.detail }).toString();
+  location.assign(url.href);
+});
 viewer.rootMotion = store.exportSettings.rootMotion;
 store.on('export', () => (viewer.rootMotion = store.exportSettings.rootMotion));
 
 // URL options: #c=<shared character> | #preset=<name> | &clip=<id> &skeleton &export &face
 const hash = new URLSearchParams(location.hash.slice(1));
 const shared = hash.get('c');
-const fromLink = shared ? decodeCharacter(shared, store.params.detail) : null;
+const linkedDetail = hash.get('detail');
+const detail = linkedDetail === 'low' || linkedDetail === 'medium' || linkedDetail === 'high' ? linkedDetail : store.params.detail;
+const fromLink = shared ? decodeCharacter(shared, detail) : null;
 const presetName = hash.get('preset');
 if (fromLink) store.params = fromLink;
 else if (presetName && PRESETS[presetName]) store.params = { ...DEFAULT_PARAMS, ...PRESETS[presetName], name: presetName, detail: store.params.detail };

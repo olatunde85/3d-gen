@@ -28,7 +28,7 @@ Re-run `setup-assets` after every update. New versions can add or change generat
 ## Build and deploy
 
 ```bash
-npm run build          # -> dist/: landing page at /, the app at /app/, these docs at /docs/, videos at /media/
+npm run build          # -> dist/: landing page at /, the app at /app/, Studio at /studio/, these docs at /docs/, videos at /media/
 ```
 
 Set `BASE_PATH=/sub/path/` when hosting under a sub-path, such as GitHub Pages.
@@ -53,10 +53,12 @@ Every exported zip includes the character's `params.json`, so any character can 
 ```bash
 npm test            # builds 259 characters and validates every export format
 npm run test:gltf   # exports GLBs, loads them with three.js in headless Chrome, checks every bone of every clip
+npm run test:studio:model # validates Studio recipes and timeline continuity
+npm run test:studio # Studio browser flows and real MP4 encoding
 npm run test:ui     # drives the app in headless Chrome: build, slider, preset, animation browser, export
 ```
 
-`test:gltf` and `test:ui` need Chrome, Chromium or Edge (set `CHROME=/path/to/browser` if it isn't found). The `scripts/blender_*.py` scripts import exports into Blender and render previews; Blender is optional.
+`test:gltf`, `test:ui` and `test:studio` need Chrome, Chromium or Edge (set `CHROME=/path/to/browser` if it isn't found). The `scripts/blender_*.py` scripts import exports into Blender and render previews; Blender is optional.
 
 ## Motion capture data
 
