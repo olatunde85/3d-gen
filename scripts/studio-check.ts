@@ -190,6 +190,50 @@ try{
   await evaluate('window.studio.seek(1)');await pause();await shot('equipment');
   await evaluate("document.querySelector('#undo').click()");await ready();if(!await evaluate("window.studio.scene.actor.character.params.carry==='none' && window.studio.scene.actor.character.params.weapon==='pistol'"))throw Error('Equipment undo');
  });
+ await step('Selection determines whether arrows edit the actor or orbit the scene',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)');
+  await evaluate("document.querySelectorAll('.cast-member')[0].click();document.querySelector('#film').focus()");
+  const before=await evaluate<{x:number;y:number;z:number;yaw:number;view:string;other:string}>('({...window.studio.project.actors[0],view:JSON.stringify(window.studio.project.view),other:JSON.stringify(window.studio.project.actors[1])})');
+  const key=async(key:string,modifiers=0)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code:key,modifiers});await send('Input.dispatchKeyEvent',{type:'keyUp',key,code:key,modifiers});};
+  await key('ArrowRight');
+  const moved=await evaluate<{x:number;z:number;view:string;other:string}>('({...window.studio.project.actors[0],view:JSON.stringify(window.studio.project.view),other:JSON.stringify(window.studio.project.actors[1])})');
+  if(Math.abs(Math.hypot(moved.x-before.x,moved.z-before.z)-.1)>.002||moved.view!==before.view||moved.other!==before.other)throw Error('Plain arrows did not move only the selected actor');
+  const sceneNavigation=await evaluate<string>('JSON.stringify({actors:window.studio.project.actors,view:window.studio.project.view})');
+  await evaluate("document.querySelector('[data-set]').focus()");await key('ArrowDown');
+  if(await evaluate<string>('JSON.stringify({actors:window.studio.project.actors,view:window.studio.project.view})')!==sceneNavigation||!await evaluate("document.activeElement===document.querySelectorAll('[data-set]')[1]"))throw Error('Scene list navigation also transformed the scene');
+  await evaluate("document.querySelector('#film').focus()");
+  const keyboardState=await evaluate<string>('JSON.stringify(window.studio.project.actors)');
+  for(let i=0;i<3;i++)await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowUp',code:'ArrowUp'});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowUp',code:'ArrowUp'});
+  await evaluate("document.querySelector('#undo').click()");await ready();
+  if(await evaluate<string>('JSON.stringify(window.studio.project.actors)')!==keyboardState)throw Error('Held arrows did not undo as one move');
+  await evaluate("document.querySelector('#film').focus()");
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight'});await key('Escape');await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight'});
+  if(await evaluate<string>('JSON.stringify(window.studio.project.actors)')!==keyboardState||!await evaluate('!!window.studio.scene.selectionId'))throw Error('Escape did not cancel the active keyboard move');
+  await key('ArrowRight',8);await key('ArrowUp',8);
+  if(!await evaluate(`Math.abs(window.studio.project.actors[0].yaw-(${before.yaw+5}))<.001 && Math.abs(window.studio.project.actors[0].y-(${before.y+.05}))<.001`))throw Error('Shift arrows did not rotate/elevate');
+  await key('ArrowLeft',2);await key('ArrowDown',2);
+  if(!await evaluate(`Math.abs(window.studio.project.actors[0].yaw-(${before.yaw}))<.001 && Math.abs(window.studio.project.actors[0].y-(${before.y}))<.001`))throw Error('Ctrl arrows did not rotate/elevate');
+  const actorState=await evaluate<string>('JSON.stringify(window.studio.project.actors)');await evaluate("document.querySelector('#title').focus()");await key('ArrowLeft');
+  if(await evaluate<string>('JSON.stringify(window.studio.project.actors)')!==actorState)throw Error('Text editing moved an actor');await evaluate("document.querySelector('#title').blur()");
+  const r=await evaluate<{x:number;y:number}>('(()=>{const r=document.querySelector("#film").getBoundingClientRect();return{x:r.x+r.width*.92,y:r.y+r.height*.08}})()');
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',...r,button:'left',buttons:1,clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',...r,button:'left',buttons:0,clickCount:1});await pause();
+  if(!await evaluate("!window.studio.scene.selectionId && [...document.querySelectorAll('.cast-member')].every(b=>b.ariaPressed==='false') && document.querySelector('#actor-weapon').disabled"))throw Error('Background click did not deselect');
+  const oldView=await evaluate<number>('window.studio.project.view.azimuth');await key('ArrowLeft');
+  if(!await evaluate(`window.studio.project.view.azimuth>(${oldView})`)||await evaluate<string>('JSON.stringify(window.studio.project.actors)')!==actorState)throw Error('Unselected arrows did not orbit the scene');
+  await evaluate("document.querySelectorAll('.cast-member')[1].click();document.querySelector('#film').focus()");await key('Escape');
+  if(!await evaluate('!window.studio.scene.selectionId'))throw Error('Escape did not deselect');
+  await upload(original);await ready();
+ });
+ await step('Desktop controls, equipment and timeline fit the viewport together',async()=>{
+  await evaluate("document.querySelectorAll('.cast-member')[0].click()");
+  for(const [width,height]of [[1366,768],[1280,720]]){
+   await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pause(300);
+   const clipped=await evaluate<string[]>(`(()=>{const ids=['open-assist','load-project','save-project','open-export','title','scene-search','scene-category','character','actor-weapon','actor-carry','timeline-selection','action','beat-duration','actor-x','actor-y','actor-z','actor-yaw','blocking','camera','landscape','portrait','caption','scrub','play'];return ids.filter(id=>{const r=document.getElementById(id).getBoundingClientRect();return r.width<=0||r.height<=0||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth})})()`);
+   if(clipped.length)throw Error(`${width}×${height} clipped: ${clipped.join(', ')}`);await shot(`compact-${width}`);
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});await pause();
+ });
  await step('Actors can be picked and dragged while placement settings remain usable',async()=>{
   const original=await evaluate<string>('JSON.stringify(window.studio.project)');
   await evaluate("document.querySelectorAll('.cast-member')[0].click()");await change('action','walk');
@@ -249,6 +293,46 @@ try{
   const before=await evaluate<string>('JSON.stringify(window.studio.project)');await upload('{broken json');await pause();if(before!==await evaluate<string>('JSON.stringify(window.studio.project)'))throw Error('Invalid file changed project');
   await evaluate('window.__beforeReload=true');await send('Page.reload');await waitFor('!window.__beforeReload && window.studio?.ready','saved cast after reload',120000);
   if(!await evaluate('window.studio.project.actors.length===2'))throw Error('Autosave lost cast');
+ });
+ await step('LLM Assist exports a live guide and validates pasted projects before building',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)');
+  await evaluate("document.querySelector('#open-assist').click()");
+  await search('assist-brief','Two colleagues meet at the resort pool.');
+  await evaluate("(()=>{const e=document.querySelector('#assist-context');e.checked=true;e.dispatchEvent(new Event('change'))})()");
+  if(!await evaluate("document.querySelector('#assist-guide').value.includes('Two colleagues meet at the resort pool.') && document.querySelector('#assist-guide').value.includes('CURRENT FILM —') && document.querySelector('#assist-guide').value.includes('JSON SCHEMA') && document.querySelector('#assist-guide').value.includes('pick_up')"))throw Error('LLM guide missing brief, schema or live capabilities');
+  await evaluate("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__copiedGuide=text}}});document.querySelector('#assist-copy').click()");
+  await waitFor("window.__copiedGuide===document.querySelector('#assist-guide').value && document.querySelector('#assist-copy-status').textContent.includes('Guide copied')",'copied LLM guide');
+  await evaluate('delete navigator.clipboard');
+  const guideFile=join(process.cwd(),folder,'ara-studio-llm-guide.txt');if(existsSync(guideFile))rmSync(guideFile);
+  await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:join(process.cwd(),folder)},false);
+  await evaluate("document.querySelector('#assist-download').click()");
+  for(let i=0;i<30&&!existsSync(guideFile);i++)await pause(100);
+  if(!existsSync(guideFile)||!readFileSync(guideFile,'utf8').includes('Two colleagues meet at the resort pool.'))throw Error('Guide text file did not download');
+  await search('assist-json','{"kind":"ara-studio",broken}');
+  if(!await evaluate("document.querySelector('#assist-create').disabled && document.querySelector('#assist-json').getAttribute('aria-invalid')==='true'"))throw Error('Invalid pasted JSON was accepted');
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Validation changed the film');
+  await evaluate("document.querySelector('#assist-example').click()");
+  if(!await evaluate("!document.querySelector('#assist-create').disabled && document.querySelector('#assist-status').textContent.includes('Resort pool')"))throw Error('Example did not validate');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await pause();
+  if(!await evaluate("document.querySelector('#assist-dialog').scrollWidth<=document.querySelector('#assist-dialog').clientWidth && document.documentElement.scrollWidth<=innerWidth"))throw Error('LLM dialog overflows mobile');
+  await shot('llm-assist-mobile');await send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await pause();await shot('llm-assist');
+  await evaluate("document.querySelector('#assist-create').click()");await ready();await waitFor("!document.querySelector('#assist-dialog').open",'assisted film');
+  if(!await evaluate("window.studio.project.template==='resort-pool' && window.studio.project.actors.length===2 && document.querySelector('#actor-carry').value==='briefcase' && window.studio.project.actors[0].beats[0].clip==='wave'"))throw Error('Pasted project did not create its scene, actors, equipment and actions');
+  await shot('llm-assisted-film');await evaluate("document.querySelector('#undo').click()");await ready();
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Undo did not restore the film replaced by LLM Assist');
+  await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});
+ });
+ await step('LLM-friendly JSON files open both in Assist and in the ordinary project importer',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)');
+  await evaluate("document.querySelector('#open-assist').click();document.querySelector('#assist-example').click()");
+  const fileJSON=await evaluate<string>("(()=>{const p=JSON.parse(document.querySelector('#assist-json').value);p.template='beach';p.title='An assisted beach film';return JSON.stringify(p)})()");
+  await evaluate(`(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(fileJSON)}],'llm-film.json',{type:'application/json'}));const e=document.querySelector('#assist-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);
+  await waitFor("document.querySelector('#assist-json').value.includes('An assisted beach film') && !document.querySelector('#assist-create').disabled",'assisted file validation');
+  await evaluate("document.querySelector('#assist-create').click()");await ready();await waitFor("!document.querySelector('#assist-dialog').open",'assisted file build');
+  if(!await evaluate("window.studio.project.template==='beach' && window.studio.project.title==='An assisted beach film'"))throw Error('Assisted JSON file did not load');
+  await upload(original);await ready();await upload(fileJSON);await ready();
+  if(!await evaluate("window.studio.project.template==='beach' && window.studio.project.actors.length===2"))throw Error('Ordinary Open did not accept the LLM JSON');
+  await upload(original);await ready();
  });
  await step('Two-character MP4 exports, decodes and keeps camera/actor timing',async()=>{
   const p=await evaluate<Record<string,any>>('structuredClone(window.studio.project)');p.title='A meeting by the pool';p.template='resort-pool';p.view={azimuth:0,elevation:0,zoom:1};p.camera='locked';p.aspect='landscape';

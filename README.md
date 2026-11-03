@@ -44,6 +44,7 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 - **Exports you can trust:** an export panel that lists every file before you download it: static, rigged, or rigged + animations; one file or one per clip; Unity `model@clip` and Godot loop naming.
 - **Share:** a branded image of your character, a caption and a link that rebuilds the exact character in the app (no server or account needed).
 - **Ara Studio (early preview):** open your character in `/studio/`, search 50 categorized sets, direct two characters with 77 animations, orbit the scene and export a silent 720p or 1080p MP4. [Studio guide](docs/studio.md).
+- **LLM Assist:** copy Studio’s complete capability guide into your preferred AI assistant, then paste or open its JSON to build an editable film. No API key or integrated AI service needed.
 - **Tested:** `npm test` builds 259 characters and validates every format; `npm run test:gltf` checks every bone of every clip in three.js; `npm run test:ui` drives the app in headless Chrome.
 
 ## Quick start

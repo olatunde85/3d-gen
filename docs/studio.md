@@ -10,13 +10,15 @@ Selecting another set keeps your cast, performances, camera shots and title. Sce
 
 ## Direct the cast
 
-Bring your exact character from the builder, or select an Ara preset. **Second character** adds another actor. Select a name in the cast roster to edit that character. Each actor has a separate performance track, character recipe and detail level. Adding an actor keeps the existing performance, placement and camera plan, and gives the new track the film’s current duration. Changing one character reuses the other character's loaded model.
+Bring your exact character from the builder, or select an Ara preset. **Second character** adds another actor. Select a name in the cast roster to edit that character. The compact desktop layout keeps the cast and equipment on the left, the film and timeline in the centre, and action, placement and camera controls on the right. Each actor has a separate performance track, character recipe and detail level. Adding an actor keeps the existing performance, placement and camera plan, and gives the new track the film’s current duration. Changing one character reuses the other character's loaded model.
 
-Click a character in the picture to select it; a subtle selection ring identifies the active character. Drag it to move it across the staging plane. Escape cancels a drag, and Undo reverses a completed move. Choose **Click to place** and click the ground, or Shift-click the ground, to place the selected character at that point. These moves preserve the action sequence and travel setting.
+Click a character in the picture to select it; a subtle selection ring identifies the active character. Drag it to move it across the staging plane. Click the background, press Escape or use **Deselect** to clear selection. Escape cancels an active drag or keyboard move; Undo reverses a completed move. Choose **Click to place** and click the ground, or Shift-click the ground, to place the selected character at that point. These moves preserve the action sequence and travel setting.
+
+With a character selected, **arrow keys move it across the staging plane**, relative to your viewing angle. Hold **Shift or Ctrl** (Cmd also works) with **Left/Right to turn**, or **Up/Down to raise/lower**. Each step moves 0.1 m, turns 5° or changes height by 0.05 m; a held arrow is one undoable move. Shortcuts leave text and number inputs alone.
 
 The existing placement fields still position each character in metres along the horizontal axes, set their facing angle, or adjust elevation for a raised surface. **Side by side**, **Conversation** and **Facing each other** provide starting arrangements. Removing a character also repairs camera shots that targeted them.
 
-Under **Character equipment**, choose a weapon (rifle, pistol, sword or knife) and a bag (straw tote, handbag, briefcase or backpack), including **None** to remove them. These use Ara’s fitted, rigged props and update only the selected character. Equipment is saved in the character recipe, supports Undo, and follows the character through animation and dragging.
+Under **Equipment** in the left panel, choose a weapon (rifle, pistol, sword or knife) and a bag (straw tote, handbag, briefcase or backpack), including **None** to remove them. These use Ara’s fitted, rigged props and update only the selected character. Equipment is saved in the character recipe, supports Undo, and follows the character through animation and dragging.
 
 The **Character builder** link opens the selected actor for further editing. Returning with the builder's **Studio** button restores the film and updates only that actor. This uses session storage in the same browser tab. If session storage is unavailable, ordinary character links still work, but cannot restore the film automatically; save your project first.
 
@@ -34,13 +36,27 @@ Use the top-bar **Undo** to restore edits, including placement, camera gestures 
 
 ## Move the camera
 
-Drag the background to orbit around the set; Alt-drag or right-drag also orbits when the pointer is over a character. Scroll to zoom; on touch screens, drag with one finger and pinch with two. Focus the picture and use the arrow keys to rotate, plus/minus to zoom or Home to reset. **Reset viewing angle** is also available in the camera settings.
+Drag the background to orbit around the set; Alt-drag or right-drag also orbits when the pointer is over a character. Scroll to zoom; on touch screens, drag with one finger and pinch with two. With no character selected, use the arrow keys to rotate the scene. Focus the picture for plus/minus to zoom or Home to reset. **Reset viewing angle** is also available in the camera settings.
 
-The camera holds still during a character drag, then resumes the current shot’s automatic framing.
+The camera holds still during a character drag or keyboard move, then resumes the current shot’s automatic framing.
 
 The angle and zoom are part of the saved film, so preview, still images and exported video use the same view. Room walls use a cutaway treatment when seen from outside. The camera stays above the floor.
 
 Choose a locked camera, slow push-in or gentle orbit on top of the chosen viewing angle. Landscape (16:9), portrait (9:16) and an optional title are supported. Edit the film name directly in the top bar; **Show title in the film** controls its caption. The editor’s selection markers never appear in saved PNGs or MP4s.
+
+## LLM Assist
+
+Choose **LLM Assist** in the top bar to create a film with your preferred AI assistant:
+
+1. Describe your film. Optionally include your current film as the starting point for revisions.
+2. **Copy guide** or **Save guide .txt**, then give that text to your AI assistant. It includes your brief, all locations, character presets, animation IDs and timings, equipment, the JSON schema, a valid example and the editor’s actual limits.
+3. Paste the returned JSON into **Bring back the JSON**, or choose **Open JSON**. Studio validates it and shows the location, cast, duration and track counts before **Build film** replaces your project. Undo restores the previous film.
+
+The guide is generated from the editor’s live registries, so newly added sets, presets, animations and equipment appear automatically. Studio makes no LLM API calls and sends nothing automatically. You choose where to use the guide.
+
+LLM input uses the same version 2 project structure as saved films, with a readable shortcut for characters: use `"preset": "The Female Executive"` instead of an encoded `character` recipe, and optional `"weapon": "pistol"` or `"carry": "briefcase"` overrides. Each actor must use either `preset` or `character`, with an explicit `detail` level. Existing custom character recipes can be copied unchanged from the current film. Saving the result produces an ordinary project with exact character recipes.
+
+Both the normal **Open** button and LLM Assist accept this JSON. Pasted JSON can also be enclosed in a single Markdown JSON code fence. Invalid JSON, unknown presets, unsupported fields, invalid camera targets and out-of-range timing are rejected before character construction. The editor’s existing limits still apply: one location, two independent actors, a silent film of at most 60 seconds, and no automatic physical interaction or lip-sync. Review staging in the viewport after importing.
 
 ## Save and export
 
@@ -65,5 +81,5 @@ Video encoding/muxing uses [Mediabunny](https://mediabunny.dev/) under MPL 2.0. 
 ## Development checks
 
 - `npm run test:studio:model`: catalogue search, project migration, validation and independent timeline contracts.
-- `npm run test:studio`: all 50 set renders with GPU resource budgets, animation search/poses, fitted props, two actors, pointer/keyboard camera controls, mobile framing, project recovery, real MP4 encoding and the builder round trip. Review images and video are saved under `out/studio-expansion/`.
+- `npm run test:studio`: all 50 set renders with GPU resource budgets, animation search/poses, fitted props, two actors, selection-aware pointer/keyboard controls, compact desktop and mobile layouts, LLM guide/paste/file workflows, project recovery, real MP4 encoding and the builder round trip. Review images and video are saved under `out/studio-expansion/`.
 - `npm run test:ui` and `npm run test:gltf`: character builder and engine-export regression checks.

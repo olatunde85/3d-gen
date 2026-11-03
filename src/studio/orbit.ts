@@ -4,6 +4,8 @@ export interface PlacementActor { id: string; x: number; y: number; z: number; w
 export interface PlacementControls {
   pick(x: number, y: number): string | undefined;
   select(id: string): void;
+  deselect(): boolean;
+  nudge(key: string, modified: boolean): boolean;
   selected(): PlacementActor | undefined;
   point(x: number, y: number, elevation: number): { x: number; z: number } | undefined;
   clickToPlace(): boolean;
@@ -16,6 +18,9 @@ export function orbitControls(canvas: HTMLCanvasElement, state: () => View, enab
   const pointers = new Map<number, { x: number; y: number }>();
   type Gesture = { kind: 'orbit' | 'actor' | 'place' | 'pinch'; downX: number; downY: number; started: boolean; actor?: PlacementActor; anchor?: { x: number; z: number } };
   let gesture: Gesture | undefined, wheelTimer = 0;
+  const actorKeys=new Set<string>();
+  const arrows=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
+  function finishKeys(cancelled=false){if(!actorKeys.size)return;actorKeys.clear();placement?.end(cancelled);}
   const rotate = (dx: number, dy: number) => { const v = state(); change({ ...v, azimuth: ((v.azimuth + dx + 540) % 360) - 180, elevation: clamp(v.elevation + dy, -35, 65) }); };
   const zoom = (factor: number) => change({ ...state(), zoom: clamp(state().zoom * factor, 0.5, 3) });
   function startOrbit() { if (!gesture || gesture.started) return; gesture.started = true; begin(); canvas.classList.add('orbiting'); }
@@ -29,6 +34,7 @@ export function orbitControls(canvas: HTMLCanvasElement, state: () => View, enab
   }
   canvas.addEventListener('pointerdown', e => {
     if (!enabled() || e.pointerType === 'mouse' && ![0, 2].includes(e.button)) return;
+    finishKeys();
     if (wheelTimer) { clearTimeout(wheelTimer); wheelTimer=0; end(); }
     if (pointers.size) {
       // A second finger changes to camera control; it never leaves an accidental actor move.
@@ -41,7 +47,9 @@ export function orbitControls(canvas: HTMLCanvasElement, state: () => View, enab
       const hit = orbitOnly ? undefined : placement?.pick(e.clientX, e.clientY);
       if (hit) placement?.select(hit);
       const actor = placement?.selected();
-      const kind = hit ? 'actor' : !orbitOnly && actor && (e.shiftKey || placement?.clickToPlace()) ? 'place' : 'orbit';
+      const placing=!orbitOnly&&!!actor&&(e.shiftKey||placement?.clickToPlace());
+      if(!hit&&!orbitOnly&&!placing)placement?.deselect();
+      const kind = hit ? 'actor' : placing ? 'place' : 'orbit';
       gesture = { kind, downX: e.clientX, downY: e.clientY, started: false, actor,
         anchor: actor ? placement?.point(kind === 'actor' ? actor.screenX : e.clientX, kind === 'actor' ? actor.screenY : e.clientY, actor.y) : undefined };
     }
@@ -72,26 +80,36 @@ export function orbitControls(canvas: HTMLCanvasElement, state: () => View, enab
   };
   canvas.addEventListener('pointerup', stop); canvas.addEventListener('pointercancel', stop); canvas.addEventListener('lostpointercapture', stop);
   function cancel() {
-    const ids = [...pointers.keys()]; pointers.clear(); finish(true, 0, 0);
+    finishKeys(true);const ids = [...pointers.keys()]; pointers.clear(); finish(true, 0, 0);
     for (const id of ids) if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
   }
   window.addEventListener('blur', cancel);
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('wheel', e => {
-    if (!enabled()) return; e.preventDefault(); if (pointers.size) return;
+    if (!enabled()) return; e.preventDefault(); if (pointers.size||actorKeys.size) return;
     if (!wheelTimer) begin(); zoom(Math.exp(clamp(e.deltaY, -200, 200) * 0.0015));
     clearTimeout(wheelTimer); wheelTimer = window.setTimeout(() => { wheelTimer = 0; end(); }, 220);
   }, { passive: false });
-  canvas.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && pointers.size) { e.preventDefault(); e.stopPropagation(); cancel(); return; }
-    if(pointers.size){if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','=','-','Home',' '].includes(e.key)){e.preventDefault();e.stopPropagation();}return;}
-    if (!enabled() || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-', 'Home'].includes(e.key)) return;
-    e.preventDefault(); e.stopPropagation(); begin();
-    if (e.key === 'Home') change({ azimuth: 0, elevation: 0, zoom: 1 });
-    else if (e.key === '+' || e.key === '=') zoom(0.9);
-    else if (e.key === '-') zoom(1.1);
-    else rotate(e.key === 'ArrowLeft' ? 10 : e.key === 'ArrowRight' ? -10 : 0, e.key === 'ArrowUp' ? 5 : e.key === 'ArrowDown' ? -5 : 0);
+  document.addEventListener('keydown', e => {
+    if(e.defaultPrevented)return; // Respect controls such as the scene list's arrow navigation.
+    const target=e.target as HTMLElement;
+    if(target.closest('input,select,textarea,[contenteditable="true"],dialog[open]'))return;
+    if (e.key === 'Escape' && (pointers.size||actorKeys.size)) { e.preventDefault(); e.stopPropagation(); cancel(); return; }
+    if(pointers.size){if([...arrows,'+','=','-','Home',' '].includes(e.key)){e.preventDefault();e.stopPropagation();}return;}
+    if(!enabled()||e.altKey)return;
+    if(e.key==='Escape'&&placement?.deselect()){e.preventDefault();e.stopPropagation();return;}
+    if(arrows.includes(e.key)&&placement?.nudge(e.key,e.shiftKey||e.ctrlKey||e.metaKey)){
+      actorKeys.add(e.key);e.preventDefault();e.stopPropagation();return;
+    }
+    if(actorKeys.size||e.ctrlKey||e.metaKey)return;
+    if(target!==canvas&&!arrows.includes(e.key))return;
+    if (![...arrows,'+','=','-','Home'].includes(e.key))return;
+    e.preventDefault();e.stopPropagation();begin();
+    if(e.key==='Home')change({azimuth:0,elevation:0,zoom:1});
+    else if(e.key==='+'||e.key==='=')zoom(.9);
+    else if(e.key==='-')zoom(1.1);
+    else rotate(e.key==='ArrowLeft'?10:e.key==='ArrowRight'?-10:0,e.key==='ArrowUp'?5:e.key==='ArrowDown'?-5:0);
     end();
   });
+  document.addEventListener('keyup',e=>{if(actorKeys.delete(e.key)&&!actorKeys.size)placement?.end(false);});
 }

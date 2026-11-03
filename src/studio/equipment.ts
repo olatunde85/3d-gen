@@ -4,7 +4,7 @@ import { CARRIED, CARRY_LABELS, type CarryId } from '../core/props/carry';
 import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../core/props/weapons';
 import type { ActorTrack } from './project';
 export { CARRIED, CARRY_LABELS, WEAPONS, WEAPON_LABELS };
-export function equipActor(actor: ActorTrack, slot: 'weapon' | 'carry', value: string): string {
+export function equipActor(actor: Pick<ActorTrack, 'character' | 'detail'>, slot: 'weapon' | 'carry', value: string): string {
   const params = decodeCharacter(actor.character, actor.detail);
   if (!params) throw new Error('This character recipe could not be opened.');
   if (slot === 'weapon') {

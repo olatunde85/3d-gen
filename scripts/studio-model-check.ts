@@ -5,6 +5,8 @@ import { SETS, searchScenes, SCENE_CATEGORIES } from '../src/studio/catalog';
 import { searchAnimations } from '../src/studio/animations';
 import { equipActor, WEAPONS, CARRIED } from '../src/studio/equipment';
 import { decodeCharacter } from '../src/app/share';
+import { assistExample, assistSchema, generateAssistGuide, parseStudioInput } from '../src/studio/assist';
+import { PRESETS } from '../src/core/params';
 import { CLIPS } from '../src/core/anim/clips';
 assert.equal(SETS.length,50);assert.equal(new Set(SETS.map(s=>s.id)).size,50);assert.equal(SCENE_CATEGORIES.length,6);
 for(const set of SETS){const p=newProject(set.id);const copy=parseProject(JSON.stringify(p));assert.equal(copy.template,set.id);assert.equal(copy.actors[0].character,p.actors[0].character);assert.equal(durationOf(p),durationOf(copy));}
@@ -29,4 +31,21 @@ const valid=newProject();
 const invalid=[{version:3},{template:'missing'},{actors:[]},{actors:[{...valid.actors[0],id:'all'}]},{actors:[{...valid.actors[0],id:'camera'}]},{actors:[...valid.actors,...valid.actors]},{shots:[]},{shots:[{...valid.shots[0],target:'missing'}]},{view:{azimuth:0,elevation:90,zoom:1}},{actors:[{...valid.actors[0],x:Infinity}]},{actors:[{...valid.actors[0],beats:[{...valid.actors[0].beats[0],clip:'missing'}]}]},{actors:[{...valid.actors[0],beats:[{...valid.actors[0].beats[0],duration:-1}]}]},{actors:[{...valid.actors[0],beats:Array.from({length:6},()=>beat('idle',12))}]}];
 for(const patch of invalid)assert.throws(()=>parseProject(JSON.stringify({...valid,...patch})));
 for(const text of ['null','[]','{bad',' '.repeat(100001)])assert.throws(()=>parseProject(text));
+const assisted=assistExample(),generated=parseStudioInput(JSON.stringify(assisted));
+assert.equal(generated.template,'resort-pool');assert.equal(generated.actors.length,2);assert.equal(durationOf(generated),9);
+assert.equal(decodeCharacter(generated.actors[0].character,'medium')!.carry,'briefcase');assert.equal(decodeCharacter(generated.actors[1].character,'medium')!.carry,'backpack');
+assert.deepEqual(parseStudioInput(JSON.stringify(generated)),generated);assert.deepEqual(parseStudioInput('```json\n'+JSON.stringify(assisted)+'\n```'),generated);assert.deepEqual(parseStudioInput(JSON.stringify(legacy)),migrated);
+for(const name of Object.keys(PRESETS)){const input=structuredClone(assisted);input.actors[0].preset=name;const film=parseStudioInput(JSON.stringify(input));assert.equal(decodeCharacter(film.actors[0].character,'medium')!.name,name);}
+const guide=generateAssistGuide('Keep two actors talking.',generated),schema=assistSchema();
+for(const scene of SETS)assert.ok(guide.includes('"'+scene.id+'"'));for(const clip of CLIPS)assert.ok(guide.includes('"'+clip.id+'"'));
+for(const preset of Object.keys(PRESETS))assert.ok(guide.includes(preset));assert.ok(guide.includes(JSON.stringify(generated,null,2)));assert.ok(guide.includes('Keep two actors talking.'));
+assert.equal(schema.properties.actors.maxItems,2);assert.deepEqual(schema.properties.template.enum,SETS.map(s=>s.id));assert.ok(guide.length<100_000);
+assert.ok(!generateAssistGuide().includes('CURRENT FILM —'));
+const badAssist=[{...assisted,audio:'voice.mp3'},{...assisted,actors:[{...assisted.actors[0],preset:'Someone invented'}]},{...assisted,actors:[{...assisted.actors[0],preset:'toString'}]},
+ {...assisted,actors:[{...assisted.actors[0],character:generated.actors[0].character}]},{...assisted,actors:[{...assisted.actors[0],weapon:'laser'}]},
+ {...assisted,actors:[{...assisted.actors[0],carry:'suitcase'}]},{...assisted,actors:[{...assisted.actors[0],beats:[{clip:'teleport',duration:3,move:false}]}]},
+ {...assisted,shots:[{...assisted.shots[0],target:'absent'}]},{...assisted,view:{...assisted.view,fov:20}}];
+for(const input of badAssist)assert.throws(()=>parseStudioInput(JSON.stringify(input)));
+for(const input of ['Here is your JSON: '+JSON.stringify(assisted),'null','{bad',' '.repeat(100001)])assert.throws(()=>parseStudioInput(input));
+console.log(`LLM Assist: full live catalogues, ${Object.keys(PRESETS).length} presets, equipment, canonical/v1/fenced import, schema and invalid responses passed (${guide.length} guide characters).`);
 console.log('Studio model: 50 locations, 77 animations, v1 migration, independent tracks, held ends, camera subjects and invalid files passed.');
