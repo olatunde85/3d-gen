@@ -60,7 +60,9 @@ Both the normal **Open** button and LLM Assist accept this JSON. Pasted JSON can
 
 ## Save and export
 
-Studio automatically saves on this device. **Save project** downloads an editable `.ara-studio.json` recipe, including both actors, their tracks and placement, camera shots, view, set and title. **Open** restores it. Existing version 1 single-character projects migrate to version 2 automatically. Invalid projects are rejected before allocating models.
+Studio automatically saves on this device. Reloading restores the film, viewing angle, selected character and timeline item, playhead position, repeat and placement modes, search filters, export resolution and Undo history. Unfinished LLM Assist briefs and JSON drafts are recovered, including an open Assist window. Playback resumes paused. Character links from the builder are consumed once, so refreshing keeps your subsequent film edits.
+
+**Save project** downloads an editable `.ara-studio.json` recipe, including both actors, their tracks and placement, camera shots, view, set and title. **Open** restores it. Existing version 1 single-character projects migrate to version 2 automatically. Invalid projects are rejected before allocating models.
 
 Recipes reference Ara's asset library rather than embedding models and textures. Keep the corresponding Ara version for long-term reproducibility; a recipe is not an archival video file.
 

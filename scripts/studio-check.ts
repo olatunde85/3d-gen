@@ -97,7 +97,8 @@ process.on('SIGINT',()=>{cleanup();process.exit(130)});
 const folder='out/studio-expansion';mkdirSync(folder,{recursive:true});
 const passed:string[]=[];
 const interactionsOnly=process.argv.includes('--interactions');
-async function step(name:string,fn:()=>Promise<void>){if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+const reloadsOnly=process.argv.includes('--reloads');
+async function step(name:string,fn:()=>Promise<void>){if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -332,6 +333,46 @@ try{
   if(!await evaluate("window.studio.project.template==='beach' && window.studio.project.title==='An assisted beach film'"))throw Error('Assisted JSON file did not load');
   await upload(original);await ready();await upload(fileJSON);await ready();
   if(!await evaluate("window.studio.project.template==='beach' && window.studio.project.actors.length===2"))throw Error('Ordinary Open did not accept the LLM JSON');
+  await upload(original);await ready();
+ });
+ await step('Reload restores selection, playhead, filters, Undo and unfinished LLM Assist drafts',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)');
+  const actorId=await evaluate<string>('window.studio.project.actors[1].id');
+  await change('timeline-selection',`${actorId}:1`);
+  const beforeEdit=await evaluate<string>('JSON.stringify(window.studio.project)');await change('actor-x','2.2');
+  await search('scene-search','bedroom');await change('scene-category','Homes');await search('animation-search','talk');await change('animation-category','Emotes');
+  await search('scrub','4.25');await evaluate("if(document.querySelector('#repeat').ariaPressed==='true')document.querySelector('#repeat').click();document.querySelector('#place-actor').click()");
+  await change('resolution','720');await evaluate("document.querySelector('#open-assist').click()");await search('assist-brief','Keep this unfinished film idea');await search('assist-json','{"kind":"ara-studio",');
+  await evaluate("const c=document.querySelector('#assist-context');c.checked=true;c.dispatchEvent(new Event('change'));document.querySelector('#assist-guide-details').open=true;window.__reloadingEditor=true");
+  const edited=await evaluate<string>('JSON.stringify(window.studio.project)');const playhead=await evaluate<number>("Number(document.querySelector('#scrub').value)");
+  await send('Page.reload');await waitFor('!window.__reloadingEditor && window.studio?.ready','recovered editor',120000);
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==edited)throw Error('Reload changed the edited film');
+  const restored=await evaluate<boolean>(`document.querySelector('#timeline-selection').value===${JSON.stringify(actorId+':1')} && Math.abs(Number(document.querySelector('#scrub').value)-(${playhead}))<.001 && document.querySelector('#repeat').ariaPressed==='false' && document.querySelector('#place-actor').ariaPressed==='true' && document.querySelector('#scene-search').value==='bedroom' && document.querySelector('#scene-category').value==='Homes' && document.querySelector('#animation-search').value==='talk' && document.querySelector('#animation-category').value==='Emotes' && document.querySelector('#resolution').value==='720' && !document.querySelector('#undo').disabled && document.querySelector('#assist-dialog').open && document.querySelector('#assist-brief').value==='Keep this unfinished film idea' && document.querySelector('#assist-json').value==='{"kind":"ara-studio",' && document.querySelector('#assist-context').checked && document.querySelector('#assist-create').disabled && document.querySelector('#assist-guide-details').open`);
+  if(!restored)throw Error('Editor session state was not fully recovered: '+await evaluate("JSON.stringify({editor:JSON.parse(localStorage.getItem('ara.studio.editor.v1')).editor,selection:document.querySelector('#timeline-selection').value,playhead:document.querySelector('#scrub').value,placement:document.querySelector('#place-actor').ariaPressed})"));
+  await shot('recovered-llm-draft');await evaluate("document.querySelector('#close-assist').click();document.querySelector('#undo').click()");await ready();
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==beforeEdit)throw Error('Recovered Undo did not restore the last edit');
+  await search('scene-search','');await change('scene-category','');await search('animation-search','');await change('animation-category','');
+  await evaluate("if(document.querySelector('#place-actor').ariaPressed==='true')document.querySelector('#place-actor').click();if(document.querySelector('#repeat').ariaPressed==='false')document.querySelector('#repeat').click();document.querySelector('#deselect-actor').click();window.__reloadingEditor=true");
+  await send('Page.reload');await waitFor('!window.__reloadingEditor && window.studio?.ready','unselected editor',120000);
+  if(!await evaluate('!window.studio.scene.selectionId'))throw Error('Reload silently selected an unselected character');
+  await upload(original);await ready();
+ });
+ await step('Reload after a builder character link preserves subsequent film edits',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)');const code=await evaluate<string>('window.studio.project.actors[0].character');
+  await evaluate('window.__incomingLink=true');await send('Page.navigate',{url:'http://localhost:4422/studio/?review=character-link#'+new URLSearchParams({c:code,detail:'medium',demo:''})});
+  await waitFor("!window.__incomingLink && window.studio?.ready && !new URLSearchParams(location.hash.slice(1)).has('c')",'consumed character link',120000);
+  await evaluate("document.querySelector('[data-set=office]').click();document.querySelector('#add-actor').click()");await ready();
+  await search('title','Keep edits after opening a character link');await change('actor-x','1.75');await change('actor-carry','briefcase');await ready();await change('camera','orbit');
+  const edited=await evaluate<string>('JSON.stringify(window.studio.project)');await evaluate('window.__incomingLink=true');await send('Page.reload');
+  await waitFor('!window.__incomingLink && window.studio?.ready','edited imported film',120000);
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==edited||!await evaluate("window.studio.project.actors.length===2 && window.studio.project.template==='office'"))throw Error('Reload replayed the character import and erased edits');
+  const {identifier}=await send<{identifier:string}>('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('ara.studio.editor.v1','{damaged')"});
+  await evaluate('window.__incomingLink=true');await send('Page.reload');await waitFor('!window.__incomingLink && window.studio?.ready','fallback recovery',120000);await send('Page.removeScriptToEvaluateOnNewDocument',{identifier});
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==edited)throw Error('A damaged editor snapshot prevented film recovery');
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.removeItem('ara.studio.editor.v1')"}).then(async({identifier})=>{
+   await evaluate(`location.hash=${JSON.stringify(new URLSearchParams({c:code,detail:'medium',demo:''}).toString())};window.__legacyReload=true`);await send('Page.reload');await waitFor('!window.__legacyReload && window.studio?.ready','legacy character-link recovery',120000);await send('Page.removeScriptToEvaluateOnNewDocument',{identifier});
+  });
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==edited)throw Error('Reloading a pre-existing character URL lost the saved film');
   await upload(original);await ready();
  });
  await step('Two-character MP4 exports, decodes and keeps camera/actor timing',async()=>{

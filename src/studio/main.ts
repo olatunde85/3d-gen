@@ -12,6 +12,7 @@ import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations
 import { orbitControls } from './orbit';
 import { parseStudioInput } from './assist';
 import { setupAssist } from './assist-ui';
+import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -34,7 +35,43 @@ function notify(text: string) { $('notice').textContent = text; $('notice').clas
 function download(blob: Blob, name: string) { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 60_000); }
 const codeTime = (t: number) => `${Math.floor(t / 60).toString().padStart(2, '0')}:${Math.floor(t % 60).toString().padStart(2, '0')}:${Math.min(29, Math.floor((t % 1) * 30 + 0.001)).toString().padStart(2, '0')}`;
 function remember() { history.push(JSON.stringify(project)); if (history.length > 30) history.shift(); }
-function save() { try { localStorage.setItem(STORAGE, JSON.stringify(project)); $('save-status').textContent = 'Saved on this device'; } catch { $('save-status').textContent = 'Use Save project to keep a copy'; } }
+let sessionTimer=0,lastSessionSave=0;
+function editorState(): EditorState {
+  return {selectedActor,selected,characterSelected,cameraSelection,time,repeat,clickToPlace,
+    sceneSearch:input('scene-search').value,sceneCategory:select('scene-category').value,
+    animationSearch:input('animation-search').value,animationCategory:select('animation-category').value,resolution:select('resolution').value as '720'|'1080',
+    assist:{brief:$<HTMLTextAreaElement>('assist-brief').value,json:$<HTMLTextAreaElement>('assist-json').value,context:input('assist-context').checked,
+      open:$<HTMLDialogElement>('assist-dialog').open,guideOpen:$<HTMLDetailsElement>('assist-guide-details').open},
+    scroll:{library:document.querySelector('.library')!.scrollTop,inspector:document.querySelector('.inspector')!.scrollTop,sets:$('set-list').scrollTop,page:window.scrollY}};
+}
+function saveSession():boolean {
+  clearTimeout(sessionTimer);sessionTimer=0;
+  if(loading||importing)return false; // Never replace the last complete film with a model build in progress.
+  try {
+    const savedProject=placementBefore?JSON.parse(placementBefore) as StudioProject:project;
+    localStorage.setItem(SESSION_KEY,JSON.stringify({version:1,project:savedProject,editor:editorState(),history}));
+    localStorage.setItem(STORAGE,JSON.stringify(savedProject));
+    lastSessionSave=performance.now();$('save-status').textContent='Saved on this device';return true;
+  } catch { $('save-status').textContent='Use Save project to keep a copy';return false; }
+}
+function scheduleSessionSave(){clearTimeout(sessionTimer);sessionTimer=window.setTimeout(saveSession,250);}
+function save(){return saveSession();}
+function restoreEditor(state:EditorState,undoHistory:string[]){
+  selectedActor=state.selectedActor;selected=state.selected;characterSelected=state.characterSelected;cameraSelection=state.cameraSelection;
+  time=state.time;repeat=state.repeat;clickToPlace=state.clickToPlace;history.splice(0,history.length,...undoHistory);
+  input('scene-search').value=state.sceneSearch;select('scene-category').value=state.sceneCategory;
+  input('animation-search').value=state.animationSearch;select('animation-category').value=state.animationCategory;select('resolution').value=state.resolution;
+  $<HTMLTextAreaElement>('assist-brief').value=state.assist.brief;$<HTMLTextAreaElement>('assist-json').value=state.assist.json;input('assist-context').checked=state.assist.context;
+  $<HTMLDetailsElement>('assist-guide-details').open=state.assist.guideOpen;
+  button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));
+  button('place-actor').setAttribute('aria-pressed',String(clickToPlace));button('place-actor').textContent=clickToPlace?'Click a spot…':'Click to place';$('film').classList.toggle('click-placement',clickToPlace);
+}
+for(const event of ['input','change','click','keyup','pointerup'])document.addEventListener(event,scheduleSessionSave);
+for(const element of document.querySelectorAll('dialog,details'))for(const event of ['close','toggle'])element.addEventListener(event,scheduleSessionSave);
+for(const element of document.querySelectorAll('.library,.inspector,#set-list'))element.addEventListener('scroll',scheduleSessionSave,{passive:true});
+window.addEventListener('scroll',scheduleSessionSave,{passive:true});
+window.addEventListener('pagehide',saveSession);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveSession();});
 function setPlaying(on: boolean) { playing = on && !loading && !exporting && !importing && !placementBefore; if (playing && time >= durationOf(project) - 0.001) time = 0;
   button('play').textContent = playing ? 'Ⅱ' : '▶'; button('play').setAttribute('aria-label', playing ? 'Pause film' : 'Play film'); dirty = true; }
 function lock() {
@@ -140,7 +177,7 @@ function renderUI() {
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
   $('view-readout').textContent=`${Math.round(project.view.azimuth)}° · ${project.view.zoom.toFixed(1)}×`;
   for(const aspect of ['landscape','portrait'])button(aspect).setAttribute('aria-pressed',String(project.aspect===aspect));
-  lock();renderPosition();fitFilm();dirty=true;
+  lock();renderPosition();fitFilm();dirty=true;scheduleSessionSave();
 }
 async function syncActors() {
   const next=new Map<string,StudioActor>(),made:StudioActor[]=[];
@@ -245,14 +282,14 @@ button('save-project').addEventListener('click',()=>{save();download(new Blob([J
 button('load-project').addEventListener('click',()=>input('project-file').click());
 async function importStudioProject(source: string | File): Promise<boolean> {
   if(loading||exporting||importing||placementBefore)return false;
-  importing=true;setPlaying(false);lock();
+  saveSession();importing=true;setPlaying(false);lock();
   try {
     if(typeof source!=='string'&&source.size>100_000)throw Error('Use JSON smaller than 100 KB.');
     const next=parseStudioInput(typeof source==='string'?source:await source.text());
     if(!await apply(next))return false;
     selectedActor=project.actors[0].id;characterSelected=true;cameraSelection=false;selected=0;time=0;
     renderUI();return true;
-  } finally {importing=false;lock();}
+  } finally {importing=false;lock();saveSession();}
 }
 input('project-file').addEventListener('change',async()=>{
   const file=input('project-file').files?.[0];if(!file)return;
@@ -266,7 +303,7 @@ button('snapshot').addEventListener('click',()=>{scene.render(project,time);scen
 $('edit-character').addEventListener('click',e=>{if(!characterSelected||loading||exporting||importing||placementBefore){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});
 document.addEventListener('keydown',e=>{if((e.target as HTMLElement).closest('input,select,textarea,button')||document.querySelector('dialog[open]'))return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing);}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}});
 let lastTime=performance.now();
-function tick(now:number){const elapsed=Math.min(0.1,Math.max(0,(now-lastTime)/1000));lastTime=now;if(!exporting&&!loading&&scene.actors.size){if(playing){time+=elapsed;const total=durationOf(project);if(time>=total){if(repeat)time%=total;else{time=total;setPlaying(false);}}dirty=true;}if(dirty){scene.render(project,time);renderPosition();dirty=false;}}requestAnimationFrame(tick);}
+function tick(now:number){const elapsed=Math.min(0.1,Math.max(0,(now-lastTime)/1000));lastTime=now;if(!exporting&&!loading&&scene.actors.size){if(playing){time+=elapsed;const total=durationOf(project);if(time>=total){if(repeat)time%=total;else{time=total;setPlaying(false);}}dirty=true;if(now-lastSessionSave>1000)saveSession();}if(dirty){scene.render(project,time);renderPosition();dirty=false;}}requestAnimationFrame(tick);}
 requestAnimationFrame(tick);
 const dialog = $<HTMLDialogElement>('export-dialog');
 async function updateCapability() {
@@ -316,20 +353,50 @@ button('start-export').addEventListener('click', async () => {
     if (!button('start-export').hidden) button('start-export').disabled = false;
   }
 });
-window.addEventListener('beforeunload', (e) => { if (exporting) { e.preventDefault(); } });
+window.addEventListener('beforeunload', (e) => { saveSession();if (exporting) { e.preventDefault(); } });
 
 async function start() {
   const hash=new URLSearchParams(location.hash.slice(1)),code=hash.get('c');
+  let recovered:ReturnType<typeof readEditorSession>,resume:EditorState|undefined,acceptedLink=false,returned=false;
+  try{recovered=readEditorSession(localStorage.getItem(SESSION_KEY));}catch{ /* Storage may be unavailable. */ }
+  function recover(){
+    if(recovered){project=recovered.project;restoreEditor(recovered.editor,recovered.history);resume=recovered.editor;}
+    else{const saved=localStorage.getItem(STORAGE)||localStorage.getItem('ara.studio.project.v1');if(saved)project=parseProject(saved);}
+  }
   try{
-    if(code){if(!decodeCharacter(code,'medium'))throw Error('The character link is invalid.');const d=hash.get('detail'),detail=d==='low'||d==='high'?d:'medium';
+    if(code){
+      if(!decodeCharacter(code,'medium'))throw Error('The character link is invalid.');
+      const d=hash.get('detail'),detail=d==='low'||d==='high'?d:'medium';
       const pending=hash.get('studioReturn')?JSON.parse(sessionStorage.getItem(HANDOFF)||'null'):null;
-      if(pending&&pending.token===hash.get('studioReturn')){project=parseProject(JSON.stringify(pending.project));const a=project.actors.find(a=>a.id===pending.actorId);if(!a)throw Error('The selected character is missing.');a.character=code;a.detail=detail;selectedActor=a.id;project=parseProject(JSON.stringify(project));sessionStorage.removeItem(HANDOFF);}
-      else project=newProject('portrait',code,detail);
-    }else{const saved=localStorage.getItem(STORAGE)||localStorage.getItem('ara.studio.project.v1');if(saved)project=parseProject(saved);}
-  }catch(e){notify((e as Error).message);}
+      if(pending&&pending.token===hash.get('studioReturn')){
+        project=parseProject(JSON.stringify(pending.project));
+        if(recovered){restoreEditor(recovered.editor,recovered.history);resume=recovered.editor;}
+        const a=project.actors.find(a=>a.id===pending.actorId);if(!a)throw Error('The selected character is missing.');
+        remember();a.character=code;a.detail=detail;selectedActor=a.id;characterSelected=true;cameraSelection=false;
+        project=parseProject(JSON.stringify(project));returned=true;
+      }else if(!recovered&&(performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming|undefined)?.type==='reload'&&(localStorage.getItem(STORAGE)||localStorage.getItem('ara.studio.project.v1'))){
+        // Recover edits made by older versions that left the original character recipe in the URL.
+        recover();
+      }else project=newProject('portrait',code,detail);
+      acceptedLink=true;
+    }else recover();
+  }catch(e){notify((e as Error).message);try{recover();}catch{ /* Keep the default project if saved data is invalid. */ }}
   renderUI();
-  try{const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();loading=false;renderUI();save();}
-  catch(e){$('loading-label').textContent='The cast could not load.';$('loading').querySelector('span:last-child')!.textContent='Reload to try again.';notify((e as Error).message);}
+  try{
+    const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();loading=false;renderUI();
+    if(resume){
+      document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
+      if(resume.assist.open)button('open-assist').click();
+    }
+    const saved=save();
+    if(acceptedLink&&saved){
+      // Consume an import once; reloading must reopen the edited film rather than recreate the incoming character.
+      for(const key of ['c','detail','studioReturn'])hash.delete(key);
+      historyReplaceHash(hash.toString());if(returned)sessionStorage.removeItem(HANDOFF);
+    }
+  }catch(e){$('loading-label').textContent='The cast could not load.';$('loading').querySelector('span:last-child')!.textContent='Reload to try again.';notify((e as Error).message);}
 }
+function historyReplaceHash(hash:string){const url=new URL(location.href);url.hash=hash;window.history.replaceState(window.history.state,'',url);}
+
 void start();
 if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&!importing&&scene.actors.size===project.actors.length;},exportMovie,supportsMp4,setProject:apply,sets:SETS}});
