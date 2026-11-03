@@ -38,3 +38,13 @@ src/landing/   the landing page
 6. Assemble one multi-material mesh.
 
 The same parameters always give the same character, so `params.json` (and share links) regenerate it exactly.
+
+## Studio scenes and direction
+
+Studio's version 2 project separates camera shots from actor performance tracks. Both actors are evaluated at the same explicit timestamp, while each keeps its own actions, character recipe, placement and detail. Version 1 projects migrate to the new schema on import.
+
+`src/studio/catalog.ts` holds searchable location metadata. `sets.ts` dispatches to reusable scene-family builders; `sets/builder.ts` shares primitive geometry and materials within a set. Only the active set is instantiated. Set changes dispose owned geometries, materials and textures. Character changes rebuild only the affected actor, and replacement models are warmed before previous resources are released.
+
+The scene renderer fits the selected camera subject (one actor or the cast), then applies saved orbit/zoom offsets and camera motion. Preview, snapshots and video use this same evaluation. The video exporter waits for every actor's textures and prevents the preview loop from drawing during encoding.
+
+To add a location, add metadata to `catalog.ts` and use an existing family, or add a family builder and register it in `sets.ts`. Keep the performance area clear of props. Animation search reads the shared `CLIPS` registry directly; Studio has no separate animation whitelist. The browser suite visits every location and checks resource cleanup as well as saved-project migration and two-character movie playback.

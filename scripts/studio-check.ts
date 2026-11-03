@@ -94,151 +94,139 @@ async function waitFor(js: string, what: string, ms = 120000): Promise<void> {
 
 
 process.on('SIGINT',()=>{cleanup();process.exit(130)});
-const folder='out/studio-review';mkdirSync(folder,{recursive:true});
+const folder='out/studio-expansion';mkdirSync(folder,{recursive:true});
 const passed:string[]=[];
 async function step(name:string,fn:()=>Promise<void>){await fn();passed.push(name);console.log('OK',name)}
-const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(folder+'/'+name+'.png',Buffer.from(data,'base64'))};
+const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
+const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
+const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+const search=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+const ready=()=>waitFor('window.studio?.ready','cast to finish building',120000);
+const upload=async(text:string)=>evaluate(`(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(text)}],'review.ara-studio.json',{type:'application/json'}));const e=document.querySelector('#project-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);
+const saveData=async(expression:string,name:string)=>{const url=await evaluate<string>(expression);writeFileSync(`${folder}/${name}.png`,Buffer.from(url.split(',')[1],'base64'))};
 try{
  const {targetId}=await send<{targetId:string}>('Target.createTarget',{url:'about:blank'},false);
  ({sessionId:session}=await send<{sessionId:string}>('Target.attachToTarget',{targetId,flatten:true},false));
- await send('Runtime.enable');await send('Page.enable');
- await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1050,deviceScaleFactor:1,mobile:false});
+ await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});
  await send('Page.navigate',{url:'http://localhost:4422/studio/#demo'});
- await step('Studio loads a textured, rigged character',async()=>{
-  await waitFor('window.studio?.ready','Studio character',120000);
-  const info=await evaluate<{width:number;height:number;name:string}>(`({width:window.studio.scene.canvas.width,height:window.studio.scene.canvas.height,name:window.studio.scene.actor.character.params.name})`);
-  if(info.width!==1280||info.height!==720||!info.name)throw Error(JSON.stringify(info));
+ await step('Studio loads a textured character and 50 searchable scenes',async()=>{
+  await ready();if(!await evaluate('window.studio.sets.length===50 && document.querySelectorAll("[data-set]").length===50'))throw Error('Missing scene catalogue');
+  await search('scene-search','resort pool');if(!await evaluate('document.querySelectorAll("[data-set]").length===1 && !!document.querySelector("[data-set=resort-pool]")'))throw Error('Scene search');
+  await change('scene-category','Homes');if(!await evaluate('!document.querySelector("#scene-empty").hidden'))throw Error('Category filter');await search('scene-search','');await change('scene-category','');
+  await evaluate('window.studio.seek(1.5)');await pause();await shot('editor');
  });
- await evaluate('window.studio.seek(1.5)');await new Promise(r=>setTimeout(r,300));await shot('portrait-editor');
- await step('Scrubbing reproduces the same pose and picture',async()=>{
-  const state = 'JSON.stringify({bones:window.studio.scene.actor.mesh.skeleton.bones.map(b=>b.matrixWorld.elements),morph:window.studio.scene.actor.mesh.morphTargetInfluences,camera:window.studio.scene.camera.matrixWorld.elements})';
-  await evaluate('window.studio.seek(1.5)');await new Promise(r=>setTimeout(r,200));
-  const a=await evaluate<string>('window.studio.scene.render(window.studio.project,1.5);window.studio.scene.output.toDataURL()');
-  const stateA=await evaluate<string>(state);
-  await evaluate('window.studio.seek(7)');await new Promise(r=>setTimeout(r,200));
-  await evaluate('window.studio.seek(1.5)');await new Promise(r=>setTimeout(r,200));
-  const b=await evaluate<string>('window.studio.scene.render(window.studio.project,1.5);window.studio.scene.output.toDataURL()');
-  if(stateA!==await evaluate<string>(state))throw Error('Revisiting a timestamp changed bones, face or camera');
-  // Check evaluated state exactly; allow tightly bounded rasterization rounding in software GL.
-  const [first,second]=await Promise.all([a,b].map(url=>sharp(Buffer.from(url.split(',')[1],'base64')).raw().toBuffer()));
-  let changed=0,max=0,total=0;
-  for(let i=0;i<first.length;i++){const d=Math.abs(first[i]-second[i]);if(d)changed++;max=Math.max(max,d);total+=d;}
-  console.log('Repeat-render pixel difference:',{changed,max,mean:total/first.length});
-  if(changed>first.length*0.0005||max>32||total/first.length>0.005)throw Error('Same timestamp rendered a visibly different picture');
+ await step('Every scene renders within bounded GPU resources',async()=>{
+  const metrics=await evaluate<{maxGeometries:number;maxTextures:number;maxCalls:number;finalGeometries:number;initialTextures:number;finalTextures:number}>(`(()=>{const s=window.studio.scene,p=structuredClone(window.studio.project);const initialTextures=s.renderer.info.memory.textures;s.resize(640,360);p.caption=false;p.view.zoom=1.25;let maxGeometries=0,maxTextures=0,maxCalls=0;window.__sceneFrames={};
+  for(const location of window.studio.sets){p.template=location.id;s.render(p,1.5);maxGeometries=Math.max(maxGeometries,s.renderer.info.memory.geometries);maxTextures=Math.max(maxTextures,s.renderer.info.memory.textures);maxCalls=Math.max(maxCalls,s.renderer.info.render.calls);window.__sceneFrames[location.id]=s.output.toDataURL();}
+  p.template='portrait';s.render(p,1.5);const finalGeometries=s.renderer.info.memory.geometries;s.resize(1280,720);s.render(window.studio.project,1.5);return{maxGeometries,maxTextures,maxCalls,finalGeometries,initialTextures,finalTextures:s.renderer.info.memory.textures}})()`);
+  console.log('Scene resource budget:',metrics);if(metrics.maxGeometries>180||metrics.finalGeometries>35||metrics.maxTextures>80||metrics.maxCalls>350||metrics.finalTextures>metrics.initialTextures+1)throw Error('Scene resources grew without bounds');
+  const frames=await evaluate<Record<string,string>>('window.__sceneFrames');for(const [id,url]of Object.entries(frames))writeFileSync(`${folder}/set-${id}.png`,Buffer.from(url.split(',')[1],'base64'));
+  const tiles=await Promise.all(Object.entries(frames).map(async([id,url],i)=>({input:await sharp(Buffer.from(url.split(',')[1],'base64')).resize(320,180).extend({bottom:24,background:'#1b2027'}).composite([{input:Buffer.from(`<svg width="320" height="204"><text x="10" y="197" font-size="12" fill="#e0c5a3">${id}</text></svg>`)}]).png().toBuffer(),left:i%5*320,top:Math.floor(i/5)*204})));
+  await sharp({create:{width:1600,height:2040,channels:3,background:'#1b2027'}}).composite(tiles).png().toFile(`${folder}/all-50-scenes.png`);
  });
- await step('All three templates render',async()=>{
-  for(const name of ['portrait','runway','courtyard']){
-   await evaluate(`document.querySelector('[data-set="${name}"]').click();window.studio.seek(1.5)`);
-   await new Promise(r=>setTimeout(r,400));
-   const url=await evaluate<string>('window.studio.scene.output.toDataURL()');
-   writeFileSync(folder+'/'+name+'-frame.png',Buffer.from(url.split(',')[1],'base64'));
-   await shot(name+'-editor');
+ await step('Animation search exposes all 77 original performances',async()=>{
+  if(!await evaluate('document.querySelector("#animation-count").textContent.includes("77 / 77")'))throw Error('Missing animations');
+  await search('animation-search','laugh');await change('action','laugh');if(!await evaluate("window.studio.project.actors[0].beats[0].clip==='laugh'"))throw Error('Action search selection');
+  await evaluate("document.querySelector('#clip-length').click()");if(!await evaluate('window.studio.project.actors[0].beats[0].duration===2.4'))throw Error('Clip timing');
+  await evaluate("document.querySelector('#undo').click();document.querySelector('#undo').click()");await search('animation-search','');
+  const invalid=await evaluate<string[]>(`(()=>{const p=structuredClone(window.studio.project),a=window.studio.scene.actor,fail=[];for(const option of document.querySelectorAll('#action option')){p.actors[0].beats=[{id:'test',clip:option.value,duration:3,move:false}];for(const t of [0,0.2,0.8]){const f=a.frame(p,t,p.actors[0]);if(f.rot.some(q=>q.some(v=>!Number.isFinite(v))||Math.abs(Math.hypot(...q)-1)>0.001)||[...f.rootPos.values()].some(p=>p.some(v=>!Number.isFinite(v))))fail.push(option.value);}}return fail})()`);
+  if(invalid.length)throw Error('Invalid poses: '+invalid.join(','));
+ });
+ await step('Seated and cycling props scrub deterministically',async()=>{
+  for(const clip of ['sit_idle','ride_bicycle']){
+   await change('action',clip);await evaluate('window.studio.seek(1.1)');await pause();await saveData('window.studio.scene.output.toDataURL()',clip);
+   const state=()=>evaluate<string>('JSON.stringify(window.studio.scene.actor.group.children.map(o=>({visible:o.visible,children:o.children.map(c=>({p:c.position.toArray(),r:c.rotation.toArray(),children:c.children.map(g=>g.rotation.toArray())}))})))');
+   const a=await state();await evaluate('window.studio.seek(2.6)');await pause();await evaluate('window.studio.seek(1.1)');await pause();if(a!==await state())throw Error('Stateful prop on '+clip);
   }
+  await change('action','idle');
  });
- await step('Shot editing and undo preserve the project',async()=>{
-  const before=await evaluate<string>('JSON.stringify(window.studio.project)');
-  await evaluate(`(()=>{const s=document.querySelector('#shot');s.value='close';s.dispatchEvent(new Event('change'));})()`);
-  if(!await evaluate("window.studio.project.beats[0].shot === 'close'"))throw Error('Shot did not change');
-  await evaluate("document.querySelector('#undo').click()");
-  const after=await evaluate<string>('JSON.stringify(window.studio.project)');
-  // Imported recipes normalise internal IDs; the editable scene must match.
-  if(JSON.parse(before).beats[0].shot!==JSON.parse(after).beats[0].shot)throw Error('Undo failed');
-  await evaluate("document.querySelector('#add-beat').click()");
-  if(!await evaluate('window.studio.project.beats.length === 4'))throw Error('Add action failed');
-  await evaluate("document.querySelector('#remove-beat').click()");
-  if(!await evaluate('window.studio.project.beats.length === 3'))throw Error('Remove action failed');
-  const title=await evaluate<string>('window.studio.project.title');
-  await evaluate("(()=>{const i=document.querySelector('#title');i.focus();i.value='First title';i.dispatchEvent(new Event('input'));i.value='A revised title';i.dispatchEvent(new Event('input'));i.blur();document.querySelector('#undo').click()})()");
-  if(await evaluate<string>('window.studio.project.title')!==title)throw Error('Title typing should undo in one step');
+ await step('Two characters reuse existing geometry and have independent tracks',async()=>{
+  const initial=await evaluate<string>('JSON.stringify({actor:window.studio.project.actors[0],shots:window.studio.project.shots})');
+  const first=await evaluate<string>('window.studio.scene.actor.mesh.uuid');await evaluate("document.querySelector('#add-actor').click()");await ready();
+  if(!await evaluate('window.studio.project.actors.length===2 && window.studio.scene.actors.size===2'))throw Error('Second character');
+  if(await evaluate<string>('window.studio.scene.actor.mesh.uuid')!==first)throw Error('First character rebuilt unnecessarily');
+  const preserved=await evaluate<string>('JSON.stringify({actor:window.studio.project.actors[0],shots:window.studio.project.shots})');if(JSON.stringify({...JSON.parse(initial).actor,beats:JSON.parse(initial).actor.beats.map((b:any)=>({...b,id:''}))})!==JSON.stringify({...JSON.parse(preserved).actor,beats:JSON.parse(preserved).actor.beats.map((b:any)=>({...b,id:''}))})||JSON.stringify(JSON.parse(initial).shots.map((s:any)=>({...s,id:''})))!==JSON.stringify(JSON.parse(preserved).shots.map((s:any)=>({...s,id:''}))))throw Error('Adding cast changed existing direction');
+  await change('timeline-selection','actor-b:1');if(!await evaluate("document.querySelector('#action').value==='talk'"))throw Error('Timeline navigation');await change('timeline-selection','actor-b:0');
+  await change('action','laugh');if(!await evaluate("window.studio.project.actors[1].beats[0].clip==='laugh' && window.studio.project.actors[0].beats[0].clip==='idle'"))throw Error('Tracks are coupled');
+  await change('blocking','conversation');await evaluate('window.studio.seek(1.5)');await pause();await shot('two-characters');
+  await evaluate("document.querySelector('.track-lane:first-child .beat').click()");await change('shot-target','actor-b');await change('shot','close');await pause();await shot('second-character-close');
+  if(!await evaluate("window.studio.project.shots[0].target==='actor-b'"))throw Error('Camera subject');
+  await evaluate("document.querySelectorAll('.cast-member')[1].click();document.querySelector('#remove-actor').click()");await ready();
+  if(!await evaluate("window.studio.project.actors.length===1 && window.studio.project.shots[0].target==='all'"))throw Error('Removing actor left a missing camera subject');
+  await evaluate("document.querySelector('#undo').click()");await ready();if(!await evaluate('window.studio.project.actors.length===2'))throw Error('Undo lost the removed actor');
+  await change('timeline-selection','camera:0');await change('shot-target','all');await change('shot','wide');
  });
- await step('Portrait layout and narrow mobile layout fit',async()=>{
-  await evaluate("document.querySelector('#portrait').click()");await new Promise(r=>setTimeout(r,200));
-  if(!await evaluate('window.studio.scene.output.height > window.studio.scene.output.width'))throw Error('Portrait render dimensions');
-  await shot('vertical-editor');
-  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await new Promise(r=>setTimeout(r,300));
-  if(!await evaluate('document.documentElement.scrollWidth <= innerWidth && document.querySelector(".director").getBoundingClientRect().width >= innerWidth - 2'))throw Error('Mobile overflow');await shot('mobile-editor');
-  await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1050,deviceScaleFactor:1,mobile:false});
-  await evaluate("document.querySelector('#landscape').click();document.querySelector('[data-set=portrait]').click()");
+ await step('Both actors, props and camera evaluate identically after seeking',async()=>{
+  const result=await evaluate<boolean>(`(()=>{const s=window.studio.scene,p=window.studio.project;const capture=()=>JSON.stringify({camera:s.camera.matrixWorld.elements,actors:[...s.actors].map(([id,a])=>({id,world:a.group.matrixWorld.elements,bones:a.mesh.skeleton.bones.map(b=>b.matrixWorld.elements),face:a.mesh.morphTargetInfluences}))});s.render(p,1.5);const first=capture();s.render(p,7.2);s.render(p,1.5);return first===capture()})()`);
+  if(!result)throw Error('Scene state depends on seek order');
  });
- console.log('Encoder availability:',await evaluate('window.studio.supportsMp4(1280,720)'));
- await step('Actual MP4 exports, decodes and has the correct length',async()=>{
-  await evaluate("document.querySelector('#open-export').click();const r=document.querySelector('#resolution');r.value='720';r.dispatchEvent(new Event('change'))");
-  await waitFor("!document.querySelector('#start-export').disabled",'MP4 support',15000);
-  await evaluate("document.querySelector('#start-export').click()");
-  await waitFor("!document.querySelector('#download-film').hidden || (!document.querySelector('#start-export').hidden && document.querySelector('#export-message').textContent)",'MP4 generation',240000);
-  const status=await evaluate<string>("document.querySelector('#export-message').textContent");console.log(status);
-  if(!await evaluate("!document.querySelector('#download-film').hidden"))throw Error(status);
-  await waitFor("document.querySelector('#export-preview').readyState >= 1",'video metadata',20000);
-  const metadata=await evaluate<{duration:number;width:number;height:number}>("(()=>{const v=document.querySelector('#export-preview');return {duration:v.duration,width:v.videoWidth,height:v.videoHeight}})()");
-  if(Math.abs(metadata.duration-9)>0.04||metadata.width!==1280||metadata.height!==720)throw Error(JSON.stringify(metadata));
-  const encoded=await evaluate<string>(`(async()=>{const b=await(await fetch(document.querySelector('#download-film').href)).arrayBuffer();const bytes=new Uint8Array(b);let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(s)})()`);
-  writeFileSync(folder+'/ara-studio-portrait-720p.mp4',Buffer.from(encoded,'base64'));await shot('export-ready');
-  await evaluate("document.querySelector('#close-export').click();document.querySelector('#open-export').click()");
-  if(!await evaluate("!document.querySelector('#download-film').hidden"))throw Error('Closing the dialog lost access to the completed film');
-  await evaluate("document.querySelector('#close-export').click()");
+ await step('Mouse orbit, wheel zoom and keyboard rotation are saved',async()=>{
+  const r=await evaluate<{x:number;y:number}>('(()=>{const r=document.querySelector("#film").getBoundingClientRect();return{x:r.x+r.width*.5,y:r.y+r.height*.5}})()');
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',x:r.x,y:r.y,button:'left',buttons:1,clickCount:1});
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:r.x+95,y:r.y+25,button:'left',buttons:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:r.x+95,y:r.y+25,button:'left',buttons:0,clickCount:1});
+  await send('Input.dispatchMouseEvent',{type:'mouseWheel',x:r.x,y:r.y,deltaX:0,deltaY:130});await pause(300);
+  if(!await evaluate('Math.abs(window.studio.project.view.azimuth)>5 && window.studio.project.view.zoom>1'))throw Error('Orbit/zoom did not persist');
+  await evaluate("document.querySelector('#film').focus()");const old=await evaluate<number>('window.studio.project.view.azimuth');await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowLeft',code:'ArrowLeft'});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowLeft',code:'ArrowLeft'});
+  if(await evaluate<number>('window.studio.project.view.azimuth')===old)throw Error('Keyboard orbit');await shot('orbit-view');
+  await evaluate("document.querySelector('#view-reset').click()");
+  if(!await evaluate('(()=>{const p=structuredClone(window.studio.project);p.view.elevation=-35;window.studio.scene.render(p,1);return window.studio.scene.camera.position.y>=0.12})()'))throw Error('Camera went below floor');
  });
- await step('Export cancellation restores the preview',async()=>{
-  await evaluate("document.querySelector('#open-export').click(); if(!document.querySelector('#render-again').hidden)document.querySelector('#render-again').click()");await waitFor("!document.querySelector('#start-export').disabled",'encoder',10000);
-  await evaluate("document.querySelector('#start-export').click()");await new Promise(r=>setTimeout(r,100));await evaluate("document.querySelector('#cancel-export').click()");
-  await waitFor("document.querySelector('#export-message').textContent.includes('cancelled')",'cancellation',20000);
-  if(!await evaluate('window.studio.scene.canvas.width === 1280 && window.studio.scene.canvas.height === 720'))throw Error('Preview dimensions not restored');
-  await evaluate("document.querySelector('#close-export').click()");
+ await step('Two-character framing and controls fit a narrow screen',async()=>{
+  await evaluate("document.querySelector('#portrait').click();window.studio.seek(1)");await pause();
+  if(!await evaluate(`(()=>{const s=window.studio.scene;return[...s.actors.values()].every(a=>[0,a.height].every(y=>{const p=a.group.position.clone();p.y+=y;p.project(s.camera);return Math.abs(p.x)<1&&Math.abs(p.y)<1}))})()`))throw Error('Cast clipped by portrait framing');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await pause();if(!await evaluate('document.documentElement.scrollWidth<=innerWidth'))throw Error('Mobile overflow');await shot('mobile');
+  await send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
+  const touch=await evaluate<{x:number;y:number}>('(()=>{const r=document.querySelector("#film").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  const oldZoom=await evaluate<number>('window.studio.project.view.zoom');
+  await send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:touch.x-25,y:touch.y,id:1},{x:touch.x+25,y:touch.y,id:2}]});
+  await send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:touch.x-50,y:touch.y,id:1},{x:touch.x+50,y:touch.y,id:2}]});
+  await send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await pause();
+  if(await evaluate<number>('window.studio.project.view.zoom')>=oldZoom)throw Error('Touch pinch did not zoom');
+  await send('Emulation.setTouchEmulationEnabled',{enabled:false});
+  await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});await evaluate("document.querySelector('#view-reset').click();document.querySelector('#landscape').click()");
  });
- await step('Full HD portrait MP4 encodes and plays',async()=>{
-  await evaluate('window.studio.seek(0)');await new Promise(r=>setTimeout(r,200));
-  const result=await evaluate<{encoded:string;width:number;height:number;duration:number}>(`(async()=>{
-   const p=structuredClone(window.studio.project);p.aspect='portrait';p.beats=[{...p.beats[0],duration:1}];
-   const blob=await window.studio.exportMovie(window.studio.scene,p,{width:1080,height:1920,signal:new AbortController().signal,progress:()=>{}});
-   const video=document.createElement('video'),url=URL.createObjectURL(blob);video.src=url;await new Promise((resolve,reject)=>{video.onloadedmetadata=resolve;video.onerror=()=>reject(Error('Full HD film failed to decode'))});
-   const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
-   const result={encoded:btoa(binary),width:video.videoWidth,height:video.videoHeight,duration:video.duration};URL.revokeObjectURL(url);window.studio.seek(0);return result;
-  })()`);
-  if(result.width!==1080||result.height!==1920||Math.abs(result.duration-1)>0.04)throw Error('Incorrect Full HD movie '+JSON.stringify({...result,encoded:undefined}));
-  writeFileSync(folder+'/ara-studio-portrait-1080p.mp4',Buffer.from(result.encoded,'base64'));
- });
- await step('Project files round-trip and reject invalid content safely',async()=>{
+ await step('Saved v1 films migrate and v2 files preserve the full cast',async()=>{
   const original=await evaluate<string>('JSON.stringify(window.studio.project)');
-  await evaluate(`(()=>{window.__saved=null;const click=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download?.endsWith('.json'))fetch(this.href).then(r=>r.text()).then(text=>window.__saved={name:this.download,text});else click.call(this)};document.querySelector('#save-project').click()})()`);
-  await waitFor('!!window.__saved','saved project file',5000);
-  const saved=await evaluate<{name:string;text:string}>('window.__saved');
-  if(JSON.parse(saved.text).character!==JSON.parse(original).character)throw Error('Saved character changed');
-  const imported={...JSON.parse(saved.text),title:'A restored story',camera:'orbit',aspect:'portrait'};
-  const upload=async(text:string)=>evaluate(`(()=>{let dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(text)}],'review.ara-studio.json',{type:'application/json'}));let i=document.querySelector('#project-file');i.files=dt.files;i.dispatchEvent(new Event('change'));})()`);
-  await upload(JSON.stringify(imported));
-  await waitFor("window.studio.project.title === 'A restored story'",'opened project',5000);
-  if(!await evaluate("window.studio.project.aspect==='portrait' && window.studio.project.camera==='orbit'"))throw Error('Settings did not restore');
-  const valid=await evaluate<string>('JSON.stringify(window.studio.project)');
-  await upload('{broken json');await new Promise(r=>setTimeout(r,300));
-  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==valid)throw Error('Invalid file changed the scene');
-  await evaluate('window.__beforeReload=true');
-  await send('Page.reload');await waitFor('!window.__beforeReload && window.studio?.ready','restored project after reload',120000);
-  if(!await evaluate("window.studio.project.title === 'A restored story' && window.studio.project.aspect === 'portrait'"))throw Error('Autosave did not restore');
-  await shot('restored-project');
+  const p=JSON.parse(original),a=p.actors[0];await upload(JSON.stringify({kind:'ara-studio',version:1,title:'An older film',detail:a.detail,character:a.character,template:'portrait',camera:'locked',aspect:'landscape',caption:true,beats:[{id:'old',clip:'wave',duration:3,shot:'medium',move:false}]}));await ready();
+  if(!await evaluate("window.studio.project.version===2 && window.studio.project.actors.length===1 && window.studio.project.title==='An older film'"))throw Error('v1 migration');
+  await upload(original);await ready();if(!await evaluate('window.studio.project.actors.length===2'))throw Error('v2 cast lost');
+  const before=await evaluate<string>('JSON.stringify(window.studio.project)');await upload('{broken json');await pause();if(before!==await evaluate<string>('JSON.stringify(window.studio.project)'))throw Error('Invalid file changed project');
+  await evaluate('window.__beforeReload=true');await send('Page.reload');await waitFor('!window.__beforeReload && window.studio?.ready','saved cast after reload',120000);
+  if(!await evaluate('window.studio.project.actors.length===2'))throw Error('Autosave lost cast');
  });
- await step('Character builder hands its exact recipe and detail to Studio',async()=>{
-  await send('Page.navigate',{url:'http://localhost:4422/app/#demo&preset=The%20Priest'});
-  await waitFor("window.ara?.viewer.mesh && document.querySelector('#loading').hidden && document.querySelector('#stats').textContent",'builder character',120000);
-  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await new Promise(r=>setTimeout(r,200));
-  if(!await evaluate("(()=>{const r=document.querySelector('#export').getBoundingClientRect();return r.left>=0 && r.right<=innerWidth})()"))throw Error('Builder toolbar overflows on mobile');
-  await shot('builder-mobile');await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1050,deviceScaleFactor:1,mobile:false});
-  await evaluate("window.ara.store.set({detail:'high',rig:'full',restPose:'T',height:0.8,name:'Studio handoff review'})");
-  const expected=await evaluate<string>('JSON.stringify(window.ara.store.params)');
-  await evaluate("document.querySelector('#studio-btn').click()");
-  // Navigation intentionally omits demo capabilities; reload with the same handoff and test flag.
-  await waitFor("location.pathname === '/studio/' && document.querySelector('#loading')?.hidden",'handed over character',120000);
-  const hash=await evaluate<string>('location.hash');
-  await send('Page.navigate',{url:'http://localhost:4422/studio/?review=handoff'+hash+'&demo'});
-  await waitFor('window.studio?.ready','handoff inspection',120000);
-  const actual=await evaluate<string>('JSON.stringify(window.studio.scene.actor.character.params)');
-  const a=JSON.parse(actual),b=JSON.parse(expected);for(const key of Object.keys(b)){if(key==='animations'||key==='rig'&&b.rig==='none')continue;if(JSON.stringify(a[key])!==JSON.stringify(b[key]))throw Error('Handoff changed '+key)}
-  if(!await evaluate("window.studio.project.detail==='high' && window.studio.scene.actor.mesh.skeleton.bones.length>150"))throw Error('Full rig or high detail lost');
-  await evaluate('window.studio.seek(1.5)');await new Promise(r=>setTimeout(r,200));await shot('builder-handoff');
-  await evaluate('window.studio.seek(7.5)');await new Promise(r=>setTimeout(r,200));await shot('builder-handoff-close');
-  await evaluate("document.querySelector('#edit-character').click()");
-  await waitFor("location.pathname==='/app/' && document.querySelector('#loading')?.hidden && document.querySelector('#stats')?.textContent",'return to builder',120000);
-  const returned=await evaluate<string>("localStorage.getItem('3dgen.human')");
-  const back=JSON.parse(returned);for(const key of Object.keys(b))if(JSON.stringify(back[key])!==JSON.stringify(b[key]))throw Error('Returning to builder changed '+key);
+ await step('Two-character MP4 exports, decodes and keeps camera/actor timing',async()=>{
+  const p=await evaluate<Record<string,any>>('structuredClone(window.studio.project)');p.title='A meeting by the pool';p.template='resort-pool';p.view={azimuth:0,elevation:0,zoom:1};p.camera='locked';p.aspect='landscape';
+  p.actors[0].beats=[{id:'a',clip:'wave',duration:2,move:false},{id:'b',clip:'idle',duration:2,move:false}];p.actors[1].beats=[{id:'a',clip:'idle',duration:2,move:false},{id:'b',clip:'talk',duration:2,move:false}];
+  p.shots=[{id:'a',duration:2,shot:'wide',target:'all'},{id:'b',duration:1,shot:'medium',target:p.actors[0].id},{id:'c',duration:1,shot:'medium',target:p.actors[1].id}];
+  await upload(JSON.stringify(p));await ready();await evaluate('window.studio.seek(1)');await pause();await shot('pool-duet-editor');
+  await evaluate("document.querySelector('#open-export').click()");await change('resolution','720');await waitFor("!document.querySelector('#start-export').disabled",'encoder',15000);await evaluate("document.querySelector('#start-export').click()");
+  await waitFor("!document.querySelector('#download-film').hidden || (!document.querySelector('#start-export').hidden && document.querySelector('#export-message').textContent)",'two-character movie',360000);
+  if(!await evaluate("!document.querySelector('#download-film').hidden"))throw Error(await evaluate<string>("document.querySelector('#export-message').textContent"));
+  await waitFor("document.querySelector('#export-preview').readyState>=1",'video decode',20000);
+  const metadata=await evaluate<{duration:number;width:number;height:number}>("(()=>{const v=document.querySelector('#export-preview');return{duration:v.duration,width:v.videoWidth,height:v.videoHeight}})()");
+  if(Math.abs(metadata.duration-4)>0.04||metadata.width!==1280||metadata.height!==720)throw Error(JSON.stringify(metadata));
+  const encoded=await evaluate<string>(`(async()=>{const bytes=new Uint8Array(await(await fetch(document.querySelector('#download-film').href)).arrayBuffer());let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(s)})()`);writeFileSync(`${folder}/ara-studio-duet-720p.mp4`,Buffer.from(encoded,'base64'));await shot('export-ready');await evaluate("document.querySelector('#close-export').click()");
  });
- if(errors.length)throw Error(errors.join('\n'));
- console.log('Studio browser checks passed:',passed.length);
-}catch(error){await shot('failure').catch(()=>{});console.log('Failure page:',await evaluate('({url:location.href,body:document.body.innerText.slice(-2500)})').catch(()=>null));if(errors.length)console.log('Browser errors:',errors);throw error;}finally{await cleanup()}
+ await step('Full HD portrait film includes both characters',async()=>{
+  await evaluate('window.studio.seek(1)');await pause();
+  const result=await evaluate<{encoded:string;width:number;height:number;duration:number}>(`(async()=>{const p=structuredClone(window.studio.project);p.aspect='portrait';for(const a of p.actors)a.beats=[{...a.beats[0],duration:1}];p.shots=[{...p.shots[0],duration:1,shot:'wide',target:'all'}];
+  const blob=await window.studio.exportMovie(window.studio.scene,p,{width:1080,height:1920,signal:new AbortController().signal,progress:()=>{}});const video=document.createElement('video'),url=URL.createObjectURL(blob);video.src=url;
+  await new Promise((resolve,reject)=>{video.onloadedmetadata=resolve;video.onerror=()=>reject(Error('Portrait film did not decode'))});const bytes=new Uint8Array(await blob.arrayBuffer());let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));
+  const result={encoded:btoa(s),width:video.videoWidth,height:video.videoHeight,duration:video.duration};URL.revokeObjectURL(url);window.studio.seek(1);return result})()`);
+  if(result.width!==1080||result.height!==1920||Math.abs(result.duration-1)>0.04)throw Error('Incorrect Full HD portrait output');writeFileSync(`${folder}/ara-studio-duet-1080p.mp4`,Buffer.from(result.encoded,'base64'));
+ });
+ await step('Export cancellation restores both actors and the preview',async()=>{
+  await evaluate("document.querySelector('#open-export').click();document.querySelector('#render-again').click()");await waitFor("!document.querySelector('#start-export').disabled",'encoder',15000);await evaluate("document.querySelector('#start-export').click()");await pause(100);await evaluate("document.querySelector('#cancel-export').click()");await waitFor("document.querySelector('#export-message').textContent.includes('cancelled')",'cancel',20000);
+  if(!await evaluate('window.studio.scene.actors.size===2 && window.studio.scene.canvas.width===1280'))throw Error('Export changed preview');await evaluate("document.querySelector('#close-export').click()");
+ });
+ await step('Editing one character in the builder preserves the other actor and film',async()=>{
+  await evaluate("document.querySelectorAll('.cast-member')[1].click()");const before=await evaluate<string>('JSON.stringify(window.studio.project)');
+  await evaluate("document.querySelector('#edit-character').click()");await waitFor("location.pathname==='/app/' && document.querySelector('#stats')?.textContent && document.querySelector('#loading')?.hidden",'builder',120000);
+  const hash=await evaluate<string>('location.hash');await send('Page.navigate',{url:'http://localhost:4422/app/?review=duet'+hash+'&demo'});await waitFor("window.ara?.store.current && document.querySelector('#loading').hidden",'builder inspection',120000);
+  await evaluate("window.ara.store.set({name:'Second actor, revised',height:0.8,rig:'full',restPose:'T',detail:'high'})");await evaluate("document.querySelector('#studio-btn').click()");await waitFor("location.pathname==='/studio/' && document.querySelector('#project-name') && document.querySelector('#loading')?.hidden",'return to film',120000);
+  const returned=await evaluate<string>("localStorage.getItem('ara.studio.project.v2')"),a=JSON.parse(before),b=JSON.parse(returned);
+  if(b.actors.length!==2||b.actors[0].character!==a.actors[0].character||b.template!==a.template||b.title!==a.title||JSON.stringify(b.shots)!==JSON.stringify(a.shots)||JSON.stringify(b.actors[1].beats)!==JSON.stringify(a.actors[1].beats)||b.actors[1].character===a.actors[1].character)throw Error('Builder round trip changed another part of the film');
+  if(b.actors[1].detail!=='high')throw Error('Character detail lost on return');await shot('mixed-rig-cast');
+ });
+ if(errors.length)throw Error(errors.join('\n'));console.log('Studio expansion browser checks passed:',passed.length);
+}catch(error){await shot('failure').catch(()=>{});console.log('Failure page:',await evaluate('({url:location.href,body:document.body.innerText.slice(-3000)})').catch(()=>null));if(errors.length)console.log('Browser errors:',errors);throw error;}finally{await cleanup()}

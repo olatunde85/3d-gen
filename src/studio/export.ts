@@ -17,7 +17,7 @@ export async function exportMovie(scene: StudioScene, project: StudioProject, op
   output.addVideoTrack(source, { frameRate: 30 });
   const old = { width: scene.output.width, height: scene.output.height };
   try {
-    scene.resize(width, height); await scene.actor?.ready(); await scene.warmup(project);
+    scene.resize(width, height); await scene.ready(); await scene.warmup(project);
     signal.throwIfAborted(); await output.start();
     const total = Math.round(durationOf(project) * 30);
     for (let frame = 0; frame < total; frame++) {

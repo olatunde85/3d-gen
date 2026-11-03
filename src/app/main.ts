@@ -39,7 +39,10 @@ shareDialog(ctx);
 $('#studio-btn').addEventListener('click', async () => {
   await ctx.whenIdle();
   const url = new URL(`${import.meta.env.BASE_URL}studio/`, location.href);
-  url.hash = new URLSearchParams({ c: encodeCharacter(store.params), detail: store.params.detail }).toString();
+  const params = new URLSearchParams({ c: encodeCharacter(store.params), detail: store.params.detail });
+  const studioReturn = new URLSearchParams(location.hash.slice(1)).get('studioReturn');
+  if (studioReturn) params.set('studioReturn', studioReturn);
+  url.hash = params.toString();
   location.assign(url.href);
 });
 viewer.rootMotion = store.exportSettings.rootMotion;

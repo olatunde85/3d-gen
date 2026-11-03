@@ -4,7 +4,11 @@ import type { Character } from '../core/human';
 import { Animator, type Frame } from '../core/anim/evaluate';
 import { clipById } from '../core/anim/clips';
 import { localTransform, quatOf } from '../core/rig/rig';
-import type { StudioProject } from './project';
+import type { ActorTrack, StudioProject } from './project';
+import { Bicycle, BICYCLE_CLIP } from '../app/bicycle';
+import { boneFor } from '../core/rig/poses';
+import { SetBuilder } from './sets/builder';
+import { disposeSet } from './sets';
 import { timelineAt } from './project';
 
 export class StudioActor {
@@ -13,7 +17,10 @@ export class StudioActor {
   readonly animator: Animator;
   readonly scale: number;
   readonly height: number;
+  framingPadding = 0;
   private bones: THREE.Bone[];
+  private chair?: THREE.Group;
+  private bike?: Bicycle;
   private textures: THREE.Texture[] = [];
   constructor(readonly character: Character, texture: (file: string) => string) {
     const { mesh: m, rig } = character;
@@ -77,16 +84,17 @@ export class StudioActor {
       const timeout = setTimeout(() => { clearInterval(poll); reject(new Error('A character texture could not load. Please try again.')); }, 25_000);
     })));
   }
-  frame(project: StudioProject, time: number): Frame {
-    const at = timelineAt(project, time), b = project.beats[at.index], clip = clipById.get(b.clip)!;
+  frame(project: StudioProject, time: number, track = project.actors[0]): Frame {
+    const at = timelineAt(project, time, track), b = track.beats[at.index], clip = clipById.get(b.clip)!;
+    const faceTime = time + Math.max(0, project.actors.indexOf(track)) * 0.83;
     const local = clip.loop ? at.phase % clip.duration : Math.min(at.phase, clip.duration);
-    let frame = this.animator.frame(clip, local, { faceTime: time });
-    if (at.index && at.local < 0.3 && project.beats[at.index - 1].clip !== b.clip) {
-      const previous = project.beats[at.index - 1], fromClip = clipById.get(previous.clip)!;
-      const prior = timelineAt(project, Math.max(0, at.start - 0.000001));
+    let frame = this.animator.frame(clip, local, { faceTime });
+    if (at.index && at.local < 0.3 && (track.beats[at.index - 1].clip !== b.clip || !clip.loop)) {
+      const previous = track.beats[at.index - 1], fromClip = clipById.get(previous.clip)!;
+      const prior = timelineAt(project, Math.max(0, at.start - 0.000001), track);
       const priorPhase = prior.phase + 0.000001;
       const fromTime = fromClip.loop ? priorPhase % fromClip.duration : Math.min(priorPhase, fromClip.duration);
-      const from = this.animator.frame(fromClip, fromTime, { faceTime: time });
+      const from = this.animator.frame(fromClip, fromTime, { faceTime });
       const w = at.local / 0.3, ease = w * w * (3 - 2 * w);
       const rootPos = new Map(frame.rootPos);
       for (const [i, p] of rootPos) { const q = from.rootPos.get(i)!; rootPos.set(i, p.map((v, d) => q[d] + (v - q[d]) * ease) as [number, number, number]); }
@@ -95,14 +103,33 @@ export class StudioActor {
     }
     return frame;
   }
-  pose(project: StudioProject, time: number) {
-    const frame = this.frame(project, time);
+  pose(project: StudioProject, time: number, track: ActorTrack = project.actors[0]) {
+    const frame = this.frame(project, time, track);
     frame.rot.forEach((q, i) => this.bones[i].quaternion.set(...q));
     for (const [i, p] of frame.rootPos) this.bones[i].position.set(...p);
     frame.morph?.forEach((w, i) => { if (this.mesh.morphTargetInfluences) this.mesh.morphTargetInfluences[i] = w; });
-    this.group.position.z = timelineAt(project, time).z * this.scale;
+    const at = timelineAt(project, time, track), yaw = track.yaw * Math.PI / 180;
+    this.group.rotation.y = yaw;
+    this.group.position.set(track.x + (at.x * Math.cos(yaw) + at.z * Math.sin(yaw)) * this.scale, track.y, track.z + (-at.x * Math.sin(yaw) + at.z * Math.cos(yaw)) * this.scale);
+    this.framingPadding=track.beats[at.index].clip===BICYCLE_CLIP?0.9*this.scale:0;
+    this.props(track.beats[at.index].clip, frame, at.phase);
     this.group.updateMatrixWorld(true);
   }
-  dispose() { this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
+  private props(clip: string, frame: Frame, phase: number) {
+    const seated = ['sit_down', 'sit_idle', 'stand_up'].includes(clip);
+    if (seated && !this.chair) {
+      const rig = this.character.rig!, hips = rig.bones.findIndex(b => b.name === boneFor(rig.type, 'Hips'));
+      const p = this.animator.positions(this.animator.frame(clipById.get('sit_idle')!, 0))[Math.max(0, hips)];
+      const b = new SetBuilder(), s = this.scale, y = Math.max(0.25, p[1] - 0.12 * s);
+      b.box([0.52*s,0.08*s,0.5*s],[p[0],y,p[2]],'#81715d');
+      b.box([0.52*s,0.55*s,0.07*s],[p[0],y+0.27*s,p[2]-0.23*s],'#81715d');
+      for(const x of [-0.21,0.21])for(const z of [-0.2,0.2])b.box([0.035*s,y,0.035*s],[p[0]+x*s,y/2,p[2]+z*s],'#4d5556');
+      this.chair = b.group; this.group.add(this.chair);
+    }
+    if(this.chair)this.chair.visible=seated;
+    if(clip===BICYCLE_CLIP&&!this.bike){this.bike=new Bicycle(this.character.rig!,this.animator,clipById.get(BICYCLE_CLIP)!);this.group.add(this.bike.group);}
+    if(this.bike){this.bike.group.visible=clip===BICYCLE_CLIP;if(clip===BICYCLE_CLIP)this.bike.update(this.animator.positions(frame), phase / clipById.get(BICYCLE_CLIP)!.duration * Math.PI * 5);}
+  }
+  dispose() { if(this.chair)disposeSet(this.chair);this.bike?.dispose();this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
     this.mesh.skeleton.dispose(); this.textures.forEach((t) => t.dispose()); this.group.removeFromParent(); }
 }

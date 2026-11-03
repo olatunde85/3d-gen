@@ -20,11 +20,14 @@
   </header>
   <div class="workspace">
     <aside class="library" aria-label="Scene library">
-      <div class="section-heading"><span>01 / THE SET</span><span class="small-label">3 scenes</span></div>
+      <div class="section-heading"><span>01 / THE SET</span><span class="small-label" id="scene-count">50 scenes</span></div>
       <h1>A little world.<br>A story of your own.</h1>
       <p class="intro">Choose a setting. Make it yours.</p>
-      <div id="set-list" class="set-list"></div>
-      <div class="section-heading cast-heading"><span>02 / THE CHARACTER</span><a id="edit-character" href="../app/" title="Edit this character in Ara 3D Gen">Character builder ↗</a></div>
+      <label class="sr-only" for="scene-search">Search scenes</label><input id="scene-search" type="search" placeholder="Search 50 scenes…" />
+      <label class="sr-only" for="scene-category">Scene category</label><select id="scene-category"><option value="">All locations</option></select>
+      <div id="set-list" class="set-list" aria-label="Scene results"></div><p id="scene-empty" hidden>No matching scenes. Try another search.</p>
+      <div class="section-heading cast-heading"><span>02 / THE CAST</span><a id="edit-character" href="../app/" title="Edit this character in Ara 3D Gen">Character builder ↗</a></div>
+      <div id="cast-roster" class="cast-roster" aria-label="Characters"></div><div class="cast-actions"><button id="add-actor">+ Second character</button><button id="remove-actor" hidden>Remove</button></div>
       <label class="sr-only" for="character">Choose a character</label><select id="character"></select>
       <div id="cast-card" class="cast-card"></div>
       <p class="local-note"><span class="status-dot"></span> Your characters stay on your device.</p>
@@ -33,7 +36,7 @@
     <main class="director">
       <div class="viewer-heading"><div><span class="live-dot"></span><span id="scene-name">The portrait</span><span class="viewer-subtitle">DIRECTOR’S VIEW</span></div><button id="snapshot" class="text-button" title="Save this exact frame as a PNG">Save frame <span aria-hidden="true">↘</span></button></div>
       <div class="stage" id="stage" data-aspect="landscape">
-        <div class="film-frame"><canvas id="film" aria-label="Your animated short film"></canvas><div class="load-overlay" id="loading"><span class="loader"></span><strong id="loading-label">Preparing your set…</strong><span>Building your Ara character</span></div></div>
+        <div class="film-frame"><canvas tabindex="0" id="film" aria-label="Your animated short film. Drag to orbit, scroll or pinch to zoom, arrow keys to rotate"></canvas><div class="load-overlay" id="loading"><span class="loader"></span><strong id="loading-label">Preparing your set…</strong><span>Building your Ara character</span></div></div>
         <span class="frame-corner top-left"></span><span class="frame-corner bottom-right"></span>
       </div>
       <div class="transport">
@@ -42,32 +45,51 @@
         <div class="frame-spec"><span>PREVIEW</span> <b>30 FPS</b><span class="sound-off">Silent film</span></div>
       </div>
       <section class="timeline" aria-label="Film timeline">
-        <div class="timeline-heading"><span>THE PERFORMANCE</span><div><span id="duration-label">9 seconds</span><button id="add-beat">+ Add action</button></div></div>
+        <div class="timeline-heading"><span>THE TIMELINE</span><div><span id="duration-label">9 seconds</span><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
         <div class="ruler" id="ruler"></div>
-        <div class="timeline-track"><div id="beats" class="beats"></div><div id="playhead" class="playhead"><span></span></div></div>
+        <div class="timeline-track multi-track"><div id="tracks"></div><div id="playhead" class="playhead"><span></span></div></div>
         <label class="sr-only" for="scrub">Film position in seconds</label><input id="scrub" class="scrubber" type="range" min="0" max="9" step="0.0333333333" value="0" />
-        <div class="timeline-footer"><span>Select an action to direct its shot.</span><span><kbd>Space</kbd> play / pause</span></div>
+        <div class="timeline-footer"><span>Select a camera shot or character action.</span><span><kbd>Space</kbd> play / pause</span></div>
       </section>
     </main>
     <aside class="inspector" aria-label="Film settings">
       <div class="section-heading"><span>03 / THE DIRECTION</span></div>
+      <div class="selection-tools"><label for="timeline-selection">Select a shot or action</label><select id="timeline-selection"></select></div>
       <section class="inspector-section">
         <div class="inspector-title"><h2 id="beat-title">Shot 01</h2><span id="shot-count">1 of 3</span></div>
-        <label for="action">Performance</label><select id="action"></select>
-        <div class="form-row"><div><label for="beat-duration">Duration</label><select id="beat-duration"></select></div><div><label for="shot">Framing</label><select id="shot"><option value="wide">Full body</option><option value="medium">Medium</option><option value="close">Close-up</option></select></div></div>
-        <label class="check-label" id="movement-label"><input id="movement" type="checkbox" /><span>Move through the set</span></label>
+        <div id="action-settings">
+          <label for="animation-search">Find a performance</label><input id="animation-search" type="search" placeholder="Search 77 animations…" />
+          <label class="sr-only" for="animation-category">Animation category</label><select id="animation-category"><option value="">All performances</option></select>
+          <label for="action">Performance <span id="animation-count"></span></label><select id="action"></select>
+          <p id="action-note" class="setting-hint"></p>
+          <label for="beat-duration">Action duration (seconds)</label><input id="beat-duration" type="number" min="0.1" max="12" step="0.1" />
+          <button id="clip-length" class="text-button">Use original clip length</button>
+          <label class="check-label"><input id="movement" type="checkbox" /><span>Move through the set</span></label>
+        </div>
+        <div id="shot-settings" hidden>
+          <label for="shot">Framing</label><select id="shot"><option value="wide">Full body</option><option value="medium">Medium</option><option value="close">Close-up</option></select>
+          <label for="shot-target">Camera subject</label><select id="shot-target"></select>
+          <label for="shot-duration">Shot duration (seconds)</label><input id="shot-duration" type="number" min="0.1" max="12" step="0.1" />
+        </div>
         <div class="beat-tools"><button id="earlier" title="Move this action earlier">← Earlier</button><button id="later" title="Move this action later">Later →</button><button id="remove-beat" class="remove-button">Remove</button></div>
+      </section>
+      <section class="inspector-section" id="blocking-settings">
+        <h2 id="blocking-title">Character placement</h2><p class="setting-hint">Metres from the centre of the set.</p>
+        <div class="form-row"><div><label for="actor-x">Left / right</label><input id="actor-x" type="number" min="-12" max="12" step="0.1" /></div><div><label for="actor-z">Back / front</label><input id="actor-z" type="number" min="-12" max="12" step="0.1" /></div></div>
+        <div class="form-row"><div><label for="actor-yaw">Facing (degrees)</label><input id="actor-yaw" type="number" min="-180" max="180" step="5" /></div><div><label for="actor-y">Elevation</label><input id="actor-y" type="number" min="0" max="3" step="0.05" /></div></div>
+        <label for="blocking">Stage the cast</label><select id="blocking"><option value="">Choose placement…</option><option value="side">Side by side</option><option value="conversation">Conversation</option><option value="opposed">Facing each other</option></select>
       </section>
       <section class="inspector-section">
         <h2>Camera</h2><p class="setting-hint">A little movement goes a long way.</p>
         <label class="sr-only" for="camera">Camera movement</label><select id="camera"><option value="locked">Locked-off</option><option value="dolly">Slow push-in</option><option value="orbit">Gentle orbit</option></select>
+        <p class="orbit-hint">Drag the picture to orbit. Scroll or pinch to zoom. Your angle is saved in the film.</p><button id="view-reset" class="text-button">Reset viewing angle</button><output id="view-readout"></output>
         <span class="field-label">Frame</span><div class="aspect-options" role="group" aria-label="Aspect ratio"><button id="landscape" aria-pressed="true"><span class="aspect-icon landscape-icon"></span>16:9</button><button id="portrait" aria-pressed="false"><span class="aspect-icon portrait-icon"></span>9:16</button></div>
       </section>
       <section class="inspector-section title-section">
         <h2>Title</h2><label class="sr-only" for="title">Film title</label><input id="title" maxlength="60" type="text" placeholder="Give your film a name…" />
         <label class="check-label"><input type="checkbox" id="caption" checked /><span>Show title in the film</span></label>
       </section>
-      <div class="director-note"><span>MAKE A MOMENT.</span><p>Small gestures. Thoughtful framing. A character worth watching.</p></div>
+      <div class="director-note"><span>MAKE A MOMENT.</span><p>Small gestures. Thoughtful framing. Two performances. One shared story.</p></div>
     </aside>
   </div>
   <div id="notice" class="notice" role="status" aria-live="polite"></div>
