@@ -2,6 +2,7 @@
 import { CLIPS, clipById } from '../core/anim/clips';
 import { DEFAULT_PARAMS, PRESETS, type Detail } from '../core/params';
 import { decodeCharacter, encodeCharacter } from '../app/share';
+import { parseTextCues, type TextCue } from './text';
 import { sceneById, type SetId } from './catalog';
 export { SETS, type SetId } from './catalog';
 export const ACTIONS = CLIPS.map(c => c.id);
@@ -14,7 +15,7 @@ export interface CameraShot { id: string; duration: number; shot: Shot; target: 
 export interface View { azimuth: number; elevation: number; zoom: number }
 export interface StudioProject {
   kind: 'ara-studio'; version: 2; title: string; template: SetId; actors: ActorTrack[]; shots: CameraShot[];
-  camera: CameraMove; view: View; aspect: 'landscape' | 'portrait'; caption: boolean;
+  camera: CameraMove; view: View; aspect: 'landscape' | 'portrait'; caption: boolean; texts: TextCue[];
 }
 export const CAST = ['The Female Executive', 'The Adventurer', 'The Priest', 'The Miami Dealer', 'The Corporate High-Flier', 'The Gangster'];
 export const MAX_DURATION = 60, MAX_ACTIONS = 16, MAX_SHOTS = 12, MAX_ACTORS = 2;
@@ -34,9 +35,9 @@ export function newProject(template: SetId = 'portrait', character?: string, det
   actor.beats = template === 'runway' ? [beat('model_walk', 2.4, true), beat('model_walk', 2.4, true), beat('idle', 3.2)] : template === 'courtyard' ? [beat('walk', 2.5, true), beat('idle', 3), beat('wave', 3)] : [beat('idle', 3), beat('wave', 3), beat('idle', 3)];
   return { kind: 'ara-studio', version: 2, template, title: template === 'portrait' ? 'A character, a story.' : sceneById.get(template)!.name,
     actors: [actor], shots: actor.beats.map((b, i) => ({ id: beatId(), duration: b.duration, shot: (['wide', 'medium', 'close'] as const)[i], target: 'all' })),
-    camera: template === 'courtyard' ? 'orbit' : template === 'runway' ? 'locked' : 'dolly', view: { azimuth: 0, elevation: 0, zoom: 1 }, aspect: 'landscape', caption: true };
+    camera: template === 'courtyard' ? 'orbit' : template === 'runway' ? 'locked' : 'dolly', view: { azimuth: 0, elevation: 0, zoom: 1 }, aspect: 'landscape', caption: true, texts: [] };
 }
-export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration)) * 30 - 1e-7) / 30;
+export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration)) * 30 - 1e-7) / 30;
 const member = <T extends string>(v: unknown, values: readonly T[]): v is T => typeof v === 'string' && values.includes(v as T);
 function number(v: unknown, min: number, max: number, name: string) {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) throw new Error(`Invalid ${name}.`);
@@ -74,7 +75,7 @@ export function parseProject(text: string): StudioProject {
   });
   const v = record(p.view);
   const result: StudioProject = { kind: 'ara-studio', version: 2, template: p.template as SetId, title: typeof p.title === 'string' ? p.title.trim().slice(0, 60) : '', actors, shots,
-    camera: p.camera, aspect: p.aspect, caption: p.caption === true, view: { azimuth: number(v.azimuth, -180, 180, 'camera rotation'), elevation: number(v.elevation, -35, 65, 'camera elevation'), zoom: number(v.zoom, 0.5, 3, 'camera zoom') } };
+    camera: p.camera, aspect: p.aspect, caption: p.caption === true, texts:parseTextCues(p.texts,ids), view: { azimuth: number(v.azimuth, -180, 180, 'camera rotation'), elevation: number(v.elevation, -35, 65, 'camera elevation'), zoom: number(v.zoom, 0.5, 3, 'camera zoom') } };
   if (durationOf(result) > MAX_DURATION) throw new Error(`Keep films under ${MAX_DURATION} seconds.`);
   return result;
 }

@@ -28,6 +28,14 @@ Quick build always reflects the current character, however it was made: in Detai
 
 **Detailed** has every slider and setting, described in the rest of this page.
 
+## Character LLM Assist
+
+**LLM Assist** in the builder header creates a single character from JSON supplied by your preferred AI assistant. Describe the character, optionally include the current character, then **Copy guide** or **Save guide .txt**. Give that text to the assistant and paste or **Open JSON** with its response. The guide includes the installed asset IDs, all body/face controls, clothing and fabric options, equipment, presets, rig/detail settings, a JSON schema and a valid example. No API key is required, and the builder sends nothing automatically.
+
+Character input uses `{"kind":"ara-character","version":1,"preset":"The Adventurer","params":{"name":"Desert explorer","ageYears":34,"hair":"cornrows","carry":"backpack"}}`. A preset is optional; omitted parameters keep preset values or the builder defaults. Supplied arrays and maps replace their base values. Use `ageYears` (12–90) or normalized `age`, not both. Full `.params.json` exports can also be opened. Invalid fields, asset IDs, ranges and garment patterns are rejected before building.
+
+**Build character** updates the normal builder controls and mesh. Undo restores the previous character, and the normal Studio button can return an edited actor to its film. Draft briefs and pasted JSON survive reloads. This mode accepts character settings only; film JSON, subtitles, text and camera shots belong in [Ara Studio](studio.md).
+
 ## The data behind the bodies
 
 Realism comes from data, not hand-built shapes. The generator uses the MakeHuman anatomy dataset, which has been CC0 (public domain) since 2020:

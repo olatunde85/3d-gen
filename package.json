@@ -38,7 +38,8 @@
     "build-mocap": "tsx scripts/build-mocap.ts",
     "test:ui": "tsx scripts/ui-check.ts",
     "test:studio:model": "tsx scripts/studio-model-check.ts",
-    "test:studio": "tsx scripts/studio-check.ts"
+    "test:studio": "tsx scripts/studio-check.ts",
+    "test:character-assist": "tsx scripts/character-assist-check.ts"
   },
   "dependencies": {
     "fflate": "^0.8.3",

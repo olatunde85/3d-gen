@@ -44,12 +44,20 @@ The angle and zoom are part of the saved film, so preview, still images and expo
 
 Choose a locked camera, slow push-in or gentle orbit on top of the chosen viewing angle. Landscape (16:9), portrait (9:16) and an optional title are supported. Edit the film name directly in the top bar; **Show title in the film** controls its caption. The editor’s selection markers never appear in saved PNGs or MP4s.
 
+## Subtitles, text and comic bubbles
+
+Choose **Text & subtitles** above the timeline. Add a **Subtitle**, **Text**, or **Bubble**, then set its text, start time, duration, size and colours. Up to 64 cues can overlap independently of camera shots and performances; a later cue extends the film, within the 60-second limit. Click a cue in the text timeline lane to edit it. **Preview in scene** jumps to that cue’s start.
+
+Five styles are available: readable subtitle plates, plain outlined text, speech bubbles, thought bubbles and comic bursts. Choose **Fixed in the frame** for subtitles/titles, or **Follow character 1/2** for text that travels with the animated character. Frame positions are percentages; character-relative offsets are percentages from the animated head (negative Y is above it). Position and size remain consistent between landscape/portrait previews, PNGs and MP4s. Text wraps, stays inside the picture and scales with export resolution; review longer bubbles in the chosen shot. Simultaneous comic bubbles are separated when space allows. Removing a character also removes its attached cues; Undo restores them together.
+
+**Import SRT** appends timed subtitles. **Save SRT** exports subtitle text and timings; SRT does not preserve comic styles or placements. Styling and attachments are kept in saved project JSON instead. Text edits, selection and an open text editor survive reloads. These are visual captions only; they do not generate audio or lip-sync.
+
 ## LLM Assist
 
 Choose **LLM Assist** in the top bar to create a film with your preferred AI assistant:
 
 1. Describe your film. Optionally include your current film as the starting point for revisions.
-2. **Copy guide** or **Save guide .txt**, then give that text to your AI assistant. It includes your brief, all locations, character presets, animation IDs and timings, equipment, the JSON schema, a valid example and the editor’s actual limits.
+2. **Copy guide** or **Save guide .txt**, then give that text to your AI assistant. It includes your brief, all locations, character presets, animation IDs and timings, equipment, timed text/comic bubbles, the JSON schema, a valid example and the editor’s actual limits.
 3. Paste the returned JSON into **Bring back the JSON**, or choose **Open JSON**. Studio validates it and shows the location, cast, duration and track counts before **Build film** replaces your project. Undo restores the previous film.
 
 The guide is generated from the editor’s live registries, so newly added sets, presets, animations and equipment appear automatically. Studio makes no LLM API calls and sends nothing automatically. You choose where to use the guide.
@@ -60,9 +68,9 @@ Both the normal **Open** button and LLM Assist accept this JSON. Pasted JSON can
 
 ## Save and export
 
-Studio automatically saves on this device. Reloading restores the film, viewing angle, selected character and timeline item, playhead position, repeat and placement modes, search filters, export resolution and Undo history. Unfinished LLM Assist briefs and JSON drafts are recovered, including an open Assist window. Playback resumes paused. Character links from the builder are consumed once, so refreshing keeps your subsequent film edits.
+Studio automatically saves on this device. Reloading restores the film, viewing angle, selected character and timeline item, text-cue selection, playhead position, repeat and placement modes, search filters, export resolution and Undo history. Unfinished LLM Assist briefs and JSON drafts are recovered, including an open Assist window. Playback resumes paused. Character links from the builder are consumed once, so refreshing keeps your subsequent film edits.
 
-**Save project** downloads an editable `.ara-studio.json` recipe, including both actors, their tracks and placement, camera shots, view, set and title. **Open** restores it. Existing version 1 single-character projects migrate to version 2 automatically. Invalid projects are rejected before allocating models.
+**Save project** downloads an editable `.ara-studio.json` recipe, including both actors, their tracks and placement, timed text and attachments, camera shots, view, set and title. **Open** restores it. Existing version 1 single-character projects migrate to version 2 automatically. Invalid projects are rejected before allocating models.
 
 Recipes reference Ara's asset library rather than embedding models and textures. Keep the corresponding Ara version for long-term reproducibility; a recipe is not an archival video file.
 
@@ -83,5 +91,5 @@ Video encoding/muxing uses [Mediabunny](https://mediabunny.dev/) under MPL 2.0. 
 ## Development checks
 
 - `npm run test:studio:model`: catalogue search, project migration, validation and independent timeline contracts.
-- `npm run test:studio`: all 50 set renders with GPU resource budgets, animation search/poses, fitted props, two actors, selection-aware pointer/keyboard controls, compact desktop and mobile layouts, LLM guide/paste/file workflows, project recovery, real MP4 encoding and the builder round trip. Review images and video are saved under `out/studio-expansion/`.
+- `npm run test:studio`: all 50 set renders with GPU resource budgets, animation search/poses, fitted props, two actors, selection-aware pointer/keyboard controls, compact desktop and mobile layouts, timed text/SRT editing and tracking, LLM guide/paste/file workflows, project recovery, real MP4 encoding and the builder round trip. Review images and video are saved under `out/studio-expansion/`.
 - `npm run test:ui` and `npm run test:gltf`: character builder and engine-export regression checks.

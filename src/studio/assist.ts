@@ -3,6 +3,7 @@ import { PRESETS } from '../core/params';
 import { CLIPS } from '../core/anim/clips';
 import { decodeCharacter } from '../app/share';
 import { SETS, sceneById } from './catalog';
+import { MAX_TEXT_CUES, TEXT_STYLES } from './text';
 import { actionNote } from './animations';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 import { MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, parseProject, presetCode, durationOf, type StudioProject } from './project';
@@ -21,7 +22,7 @@ export function parseStudioInput(text: string): StudioProject {
   try { value = JSON.parse(source); }
   catch { throw Error('This is not valid JSON. Paste the complete JSON object, without surrounding explanation.'); }
   if (!object(value) || value.version !== 2) return parseProject(source);
-  fields(value, ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption'], 'Film');
+  fields(value, ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption', 'texts'], 'Film');
   if (object(value.view)) fields(value.view, ['azimuth', 'elevation', 'zoom'], 'View');
   if (Array.isArray(value.shots)) value.shots.forEach((shot, i) => {
     if (object(shot)) fields(shot, ['id', 'duration', 'shot', 'target'], `Shot ${i + 1}`);
@@ -62,6 +63,8 @@ export function assistExample() {
         beats: [{ clip: 'idle', duration: 3, move: false }, { clip: 'talk', duration: 3, move: false }, { clip: 'wave', duration: 3, move: false }] },
     ],
     shots: [{ duration: 3, shot: 'wide', target: 'all' }, { duration: 3, shot: 'medium', target: 'host' }, { duration: 3, shot: 'wide', target: 'all' }],
+    texts: [{id:'greeting',text:'Welcome to the pool!',start:0,duration:3,style:'speech',anchor:'host',x:0,y:-.12,size:28,color:'#141414',background:'#ffffff'},
+      {id:'subtitle',text:'An unexpected meeting.',start:3,duration:3,style:'subtitle',anchor:'screen',x:.5,y:.9,size:26,color:'#ffffff',background:'#151820'}],
     camera: 'dolly', view: { azimuth: 0, elevation: 0, zoom: 1 }, aspect: 'landscape', caption: false,
   };
 }
@@ -89,6 +92,10 @@ export function assistSchema() {
       shots: { type: 'array', minItems: 1, maxItems: MAX_SHOTS, items: { type: 'object', additionalProperties: false, required: ['duration', 'shot', 'target'], properties: {
         id: { type: 'string' }, duration: num(0.1, 12), shot: enumeration(['wide', 'medium', 'close']), target: { type: 'string', description: 'all, or an actor id in this project' },
       } } }, camera: enumeration(['locked', 'dolly', 'orbit']), aspect: enumeration(['landscape', 'portrait']), caption: { type: 'boolean' },
+      texts: {type:'array',maxItems:MAX_TEXT_CUES,items:{type:'object',additionalProperties:false,required:['text','start','duration','style','anchor'],properties:{
+        id:{type:'string',pattern:'^[a-zA-Z0-9_-]{1,50}$'},text:{type:'string',maxLength:500},start:num(0,59.9),duration:num(.1,60),style:enumeration(TEXT_STYLES),
+        anchor:{type:'string',description:'screen, or an actor id to follow their animated head'},x:num(-1,1),y:num(-1,1),size:num(14,72),
+        color:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},background:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'}}}},
       view: { type: 'object', additionalProperties: false, required: ['azimuth', 'elevation', 'zoom'], properties: { azimuth: num(-180, 180), elevation: num(-35, 65), zoom: num(0.5, 3) } },
     },
   };
@@ -111,6 +118,7 @@ CAPABILITIES AND STAGING
 - A chair is fitted automatically for seated clips; a bicycle for ride_bicycle. Other vehicle clips are poses only. Set furniture is fixed. Elevation can stage a lying character on a raised surface, but contact must be reviewed visually.
 - Camera shot: wide=full body, medium=waist-up, close=close-up; target=all or an actor id. Studio auto-frames the subject, including two actors. Global camera motion is locked, dolly (slow push-in) or orbit (gentle orbit), applied to every shot. view.azimuth/elevation are degree offsets from the default shot; zoom smaller than 1 is closer, larger than 1 is farther. No per-shot paths, camera coordinates or keyframes.
 - landscape=16:9; portrait=9:16. title up to 60 characters; caption toggles its overlay. The editor supports timeline edits, dragging and keyboard placement, actor selection, equipment, orbit/zoom, Undo, project save/open and still-image export. Movies are silent H.264 MP4 at 30 fps, manually exported at 720p or 1080p. Export resolution and editor selection are not project fields.
+- Timed text: optional texts array, up to ${MAX_TEXT_CUES} cues. Each cue has text (up to 500 characters, 12 lines), start in seconds (0–59.9), duration (0.1–60; start+duration <=60), style (subtitle, text, speech, thought or shout), and anchor (screen or an actor id). Text cues may overlap and can extend the film to their end time. Subtitle = a readable dark caption plate; text = plain outlined lettering; speech/thought = comic bubbles; shout = a comic burst. Text is included in PNG/MP4 exports. For an actor literally named screen, use anchor actor:screen to distinguish it from a fixed screen cue. Actor-attached text follows the animated head through movement and camera shots. Its x/y are offsets in frame fractions (-1..1) from the head, default (0,-0.12). Screen x/y are frame positions (0..1), default (0.5,0.9). size is 14–72 reference pixels at 720p, scaled by the output’s shorter dimension; default 28. Optional color/background are #RRGGBB; comic defaults are dark text on white, subtitles white on dark. Keep simultaneous subtitles at different y positions or schedule them sequentially. No audio is synthesized from this text.
 - No audio, dialogue/lip-sync, text-to-speech, imported GLBs, paired handshakes/hugs/fights, automatic hand-to-object contact, collisions, prop handover, free prop placement, lighting overrides, custom backgrounds or location changes during a film. Talk is a silent performance. Do not invent fields for unsupported features.
 - Actor ids must be unique, 1–50 letters/numbers/underscores/hyphens, excluding all and camera. Shot targets must exist. Beat/shot ids are optional and regenerated on import. Keep the JSON under 100 KB. Review the result in Studio and refine after import; staging is not physically solved.
 
@@ -128,7 +136,7 @@ ${json(CLIPS.map(c => ({ id: c.id, name: c.name, category: c.category, duration:
 
 JSON SCHEMA
 ${json(assistSchema())}
-Additional constraints: actor ids are unique; shot targets must be all or an actor id; each track's total duration must be <= ${MAX_DURATION}s. Use move:true only for clips whose catalogue travel is non-null. Unknown fields are rejected.
+Additional constraints: actor ids are unique; shot targets must be all or an actor id; each track and text cue must finish within ${MAX_DURATION}s. Screen text x/y must be 0..1; actor-relative x/y may be -1..1. Text IDs must be unique. Use move:true only for clips whose catalogue travel is non-null. Unknown fields are rejected.
 
 VALID EXAMPLE (replace it with the requested film)
 ${json(assistExample())}${current ? `\n\nCURRENT FILM — use this as the starting point and preserve details not changed by the brief\n${json(current)}` : ''}
@@ -138,5 +146,5 @@ Now create the complete importable JSON for the user's brief using only these ca
 
 export function summarizeAssistProject(project: StudioProject): string {
   const names = project.actors.map(a => decodeCharacter(a.character, a.detail)?.name || a.id).join(' + ');
-  return `${sceneById.get(project.template)!.name} · ${names} · ${durationOf(project)}s · ${project.shots.length} shots · ${project.actors.reduce((sum, a) => sum + a.beats.length, 0)} actions`;
+  return `${sceneById.get(project.template)!.name} · ${names} · ${durationOf(project)}s · ${project.shots.length} shots · ${project.actors.reduce((sum, a) => sum + a.beats.length, 0)} actions · ${project.texts.length} text cues`;
 }

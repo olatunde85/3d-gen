@@ -4,6 +4,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import type { StudioActor } from './actor';
 import { createSet, disposeSet, type StudioSet } from './sets';
 import { durationOf, shotAt, type StudioProject } from './project';
+import { drawTextCues, resolveTextActor, type TextLayout } from './text';
 import { sceneById } from './catalog';
 
 export class StudioScene {
@@ -13,6 +14,7 @@ export class StudioScene {
   readonly scene = new THREE.Scene();
   readonly actors = new Map<string, StudioActor>();
   selectionId?: string;
+  textLayouts: TextLayout[] = [];
   freezeCamera = false;
   private readonly raycaster = new THREE.Raycaster();
   get actor() { return this.actors.values().next().value as StudioActor | undefined; }
@@ -97,19 +99,27 @@ export class StudioScene {
     const ctx = this.output.getContext('2d')!, W = this.output.width, H = this.output.height;
     ctx.drawImage(this.renderer.domElement, 0, 0);
     if (project.caption && project.title) {
-      const duration = durationOf(project);
+      const duration = durationOf(project),titleLift=(project.texts??[]).some(c=>c.style==='subtitle'&&c.anchor==='screen'&&c.y>.7&&time>=c.start&&time<c.start+c.duration)?.11:0;
       const opacity = Math.min(1, time / 0.65, (duration - time) / 0.4);
       ctx.save(); ctx.globalAlpha = Math.max(0, opacity);
       const gradient = ctx.createLinearGradient(0, H * 0.6, 0, H); gradient.addColorStop(0, 'rgba(0,0,0,0)'); gradient.addColorStop(1, 'rgba(0,0,0,.48)');
       ctx.fillStyle = gradient; ctx.fillRect(0, H * 0.6, W, H * 0.4);
       const pad = W * 0.05;
       ctx.fillStyle = '#e4b77e'; ctx.font = `600 ${Math.round(H * 0.016)}px system-ui, sans-serif`;
-      ctx.fillText('A R A   S T U D I O', pad, H * 0.84);
+      ctx.fillText('A R A   S T U D I O', pad, H * (0.84-titleLift));
       let font = Math.round(H * (project.aspect === 'portrait' ? 0.033 : 0.042));
       do { ctx.font = `500 ${font--}px Georgia, serif`; } while (ctx.measureText(project.title).width > W - pad * 2 && font > 12);
-      ctx.fillStyle = '#fff'; ctx.fillText(project.title, pad, H * 0.91);
+      ctx.fillStyle = '#fff'; ctx.fillText(project.title, pad, H * (0.91-titleLift));
       ctx.restore();
     }
+    this.textLayouts=drawTextCues(ctx,project.texts??[],time,W,H,id=>{
+      const actor=this.actors.get(resolveTextActor(id));if(!actor)return;
+      const bone=actor.mesh.skeleton.bones.find(b=>b.name==='HeadTop_End')??actor.mesh.skeleton.bones.find(b=>b.name==='Head'||b.name==='head');
+      const point=bone?new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld):actor.group.position.clone().add(new THREE.Vector3(0,actor.height,0));
+      if(bone?.name!=='HeadTop_End')point.y+=actor.height*.12;
+      point.project(this.camera);if(point.z< -1||point.z>1||Math.abs(point.x)>1.1||Math.abs(point.y)>1.3)return;
+      return{x:(point.x+1)/2,y:(1-point.y)/2};
+    });
     const visible = this.canvas.getContext('2d')!; visible.clearRect(0, 0, W, H); visible.drawImage(this.output, 0, 0);
     this.drawSelection(visible);
   }

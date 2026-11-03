@@ -11,6 +11,8 @@ import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
 import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations';
 import { orbitControls } from './orbit';
 import { parseStudioInput } from './assist';
+import { resolveTextActor } from './text';
+import { setupTextEditor } from './text-ui';
 import { setupAssist } from './assist-ui';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
@@ -40,6 +42,7 @@ function editorState(): EditorState {
   return {selectedActor,selected,characterSelected,cameraSelection,time,repeat,clickToPlace,
     sceneSearch:input('scene-search').value,sceneCategory:select('scene-category').value,
     animationSearch:input('animation-search').value,animationCategory:select('animation-category').value,resolution:select('resolution').value as '720'|'1080',
+    text:{open:$<HTMLDialogElement>('text-dialog').open,selected:select('text-cue').value},
     assist:{brief:$<HTMLTextAreaElement>('assist-brief').value,json:$<HTMLTextAreaElement>('assist-json').value,context:input('assist-context').checked,
       open:$<HTMLDialogElement>('assist-dialog').open,guideOpen:$<HTMLDetailsElement>('assist-guide-details').open},
     scroll:{library:document.querySelector('.library')!.scrollTop,inspector:document.querySelector('.inspector')!.scrollTop,sets:$('set-list').scrollTop,page:window.scrollY}};
@@ -62,7 +65,7 @@ function restoreEditor(state:EditorState,undoHistory:string[]){
   input('scene-search').value=state.sceneSearch;select('scene-category').value=state.sceneCategory;
   input('animation-search').value=state.animationSearch;select('animation-category').value=state.animationCategory;select('resolution').value=state.resolution;
   $<HTMLTextAreaElement>('assist-brief').value=state.assist.brief;$<HTMLTextAreaElement>('assist-json').value=state.assist.json;input('assist-context').checked=state.assist.context;
-  $<HTMLDetailsElement>('assist-guide-details').open=state.assist.guideOpen;
+  $<HTMLDetailsElement>('assist-guide-details').open=state.assist.guideOpen;textEditor.select(state.text.selected);
   button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));
   button('place-actor').setAttribute('aria-pressed',String(clickToPlace));button('place-actor').textContent=clickToPlace?'Click a spot…':'Click to place';$('film').classList.toggle('click-placement',clickToPlace);
 }
@@ -143,6 +146,11 @@ function renderTracks() {
     lane.append(blocks);$('tracks').append(lane);
   };
   row('CAMERA',undefined,project.shots);for(const [i,a]of project.actors.entries())row(`${i+1} · ${actorName(a)}`,a.id,a.beats);
+  if(project.texts.length){const lane=document.createElement('div');lane.className='track-lane text-track';const label=document.createElement('div');label.className='track-name';label.textContent='TEXT & SUBTITLES';const blocks=document.createElement('div');blocks.className='text-track-blocks';
+    const ends:number[]=[];for(const cue of [...project.texts].sort((a,b)=>a.start-b.start)){let level=ends.findIndex(end=>end<=cue.start);if(level<0)level=ends.length;ends[level]=cue.start+cue.duration;
+      const b=document.createElement('button');b.className='text-beat';b.textContent=cue.text||'Text';b.title=`${cue.style}: ${cue.text} (${cue.start}s–${cue.start+cue.duration}s)`;b.style.left=`${cue.start/total*100}%`;b.style.width=`${cue.duration/total*100}%`;b.style.top=`${Math.min(level,3)*23}px`;b.addEventListener('click',()=>{time=cue.start+.01;setPlaying(false);textEditor.open(cue.id);});blocks.append(b);}
+    blocks.style.height=`${Math.min(4,ends.length)*23}px`;lane.append(label,blocks);$('tracks').append(lane);}
+
 }
 function renderUI() {
   if(!project.actors.some(a=>a.id===selectedActor)){selectedActor=project.actors[0].id;characterSelected=false;}
@@ -177,7 +185,7 @@ function renderUI() {
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
   $('view-readout').textContent=`${Math.round(project.view.azimuth)}° · ${project.view.zoom.toFixed(1)}×`;
   for(const aspect of ['landscape','portrait'])button(aspect).setAttribute('aria-pressed',String(project.aspect===aspect));
-  lock();renderPosition();fitFilm();dirty=true;scheduleSessionSave();
+  textEditor.render();lock();renderPosition();fitFilm();dirty=true;scheduleSessionSave();
 }
 async function syncActors() {
   const next=new Map<string,StudioActor>(),made:StudioActor[]=[];
@@ -212,7 +220,7 @@ for(const c of ANIMATION_CATEGORIES)select('animation-category').append(new Opti
 input('animation-search').addEventListener('input',renderAnimations);select('animation-category').addEventListener('change',renderAnimations);
 select('character').addEventListener('change',()=>{const value=select('character').value;if(value!=='__custom')void edit(p=>p.actors.find(a=>a.id===selectedActor)!.character=presetCode(value));});
 button('add-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length>=2)return;const first=p.actors[0],duration=durationOf(p);const a=newActor(presetCode('The Adventurer'),'medium',p.actors.some(a=>a.id==='actor-b')?'actor-a':'actor-b');a.x=first.x+1.9<=12?first.x+1.9:first.x-1.9;a.y=first.y;a.z=first.z;a.yaw=first.yaw;if(duration>=0.3&&duration<=36)a.beats=a.beats.map(b=>({...b,duration:duration/3}));else{a.beats=[];for(let left=duration;left>0.001;left-=12)a.beats.push(beat('idle',Math.min(12,left)));}p.actors.push(a);characterSelected=true;selectedActor=a.id;selected=0;cameraSelection=false;}));
-button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
+button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';p.texts=p.texts.filter(c=>c.anchor==='screen'||resolveTextActor(c.anchor)!==removed);selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
 for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)![key]=Number(input(`actor-${key}`).value)));
 select('blocking').addEventListener('change',()=>{const value=select('blocking').value;if(!value)return;void edit(p=>{if(p.actors.length<2)return;for(const [i,a]of p.actors.entries()){a.x=i?0.95:-0.95;a.z=0;a.y=0;a.yaw=value==='side'?0:(i?-1:1)*(value==='opposed'?90:35);}});});
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;dirty=true;renderPosition();});
@@ -297,6 +305,9 @@ input('project-file').addEventListener('change',async()=>{
   try{await importStudioProject(file);}catch(e){notify((e as Error).message);}
   finally{input('project-file').value='';input('project-file').setAttribute('aria-busy','false');}
 });
+const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
+  canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
+  seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
 setupAssist({project:()=>project,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,
   load:next=>importStudioProject(JSON.stringify(next)),download});
 button('snapshot').addEventListener('click',()=>{scene.render(project,time);scene.output.toBlob(b=>{if(b)download(b,`${filename()}-frame.png`);},'image/png');});
@@ -386,7 +397,7 @@ async function start() {
     const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();loading=false;renderUI();
     if(resume){
       document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
-      if(resume.assist.open)button('open-assist').click();
+      if(resume.assist.open)button('open-assist').click();else if(resume.text.open)textEditor.open(resume.text.selected);
     }
     const saved=save();
     if(acceptedLink&&saved){

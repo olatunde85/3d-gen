@@ -8,6 +8,7 @@ import { decodeCharacter } from '../src/app/share';
 import { assistExample, assistSchema, generateAssistGuide, parseStudioInput } from '../src/studio/assist';
 import { readEditorSession } from '../src/studio/session';
 import { PRESETS } from '../src/core/params';
+import { parseTextCues, parseSubtitles, subtitlesToSrt, MAX_TEXT_CUES } from '../src/studio/text';
 import { CLIPS } from '../src/core/anim/clips';
 assert.equal(SETS.length,50);assert.equal(new Set(SETS.map(s=>s.id)).size,50);assert.equal(SCENE_CATEGORIES.length,6);
 for(const set of SETS){const p=newProject(set.id);const copy=parseProject(JSON.stringify(p));assert.equal(copy.template,set.id);assert.equal(copy.actors[0].character,p.actors[0].character);assert.equal(durationOf(p),durationOf(copy));}
@@ -53,6 +54,17 @@ assert.ok(recovered);assert.equal(recovered.editor.selectedActor,generated.actor
 const staleSelection=readEditorSession(JSON.stringify({version:1,project:generated,editor:{selectedActor:'removed',characterSelected:true},history:[]}));
 assert.ok(staleSelection);assert.equal(staleSelection.editor.characterSelected,false);assert.equal(staleSelection.editor.cameraSelection,true);
 for(const input of [null,'{bad',JSON.stringify({version:9,project:generated}),JSON.stringify({version:1,project:{}})])assert.equal(readEditorSession(input),undefined);
+const captions=parseSubtitles('1\n00:00:00,000 --> 00:00:01,500\nHello, world.\n\n2\n00:00:01,500 --> 00:00:03,000\nA second line.');
+assert.equal(captions.length,2);assert.equal(captions[0].duration,1.5);assert.deepEqual(parseSubtitles(subtitlesToSrt(captions)),captions);
+assert.equal(parseSubtitles('1\n00:00:01,100 --> 00:00:01,200\nShort cue')[0].duration,.1);
+const timed=parseProject(JSON.stringify({...valid,texts:[{text:'A later caption',style:'subtitle',anchor:'screen',start:12,duration:3}]}));
+assert.equal(durationOf(timed),15);assert.equal(timed.texts[0].x,.5);assert.equal(timed.texts[0].color,'#ffffff');
+assert.equal(parseProject(JSON.stringify({...valid,texts:undefined})).texts.length,0);
+assert.equal(parseTextCues([{text:'Hello!',style:'speech',anchor:valid.actors[0].id,start:0,duration:3}],new Set([valid.actors[0].id]))[0].y,-.12);
+for(const cue of [{text:'bad',style:'subtitle',anchor:'missing',start:0,duration:3},{text:'bad',style:'html',anchor:'screen',start:0,duration:3},{text:'bad',style:'text',anchor:'screen',start:59,duration:2},{text:'bad',style:'text',anchor:'screen',start:0,duration:3,x:-.1},{text:'bad',style:'text',anchor:'screen',start:0,duration:3,color:'red'},{text:'x'.repeat(501),style:'text',anchor:'screen',start:0,duration:3}])assert.throws(()=>parseTextCues([cue],new Set()));
+assert.throws(()=>parseTextCues(Array.from({length:MAX_TEXT_CUES+1},()=>timed.texts[0]),new Set()));assert.throws(()=>parseSubtitles('1\n00:00:59,000 --> 00:01:02,000\nToo long'));assert.throws(()=>parseSubtitles('not SRT'));
+const screenActor=parseProject(JSON.stringify({...valid,actors:[{...valid.actors[0],id:'screen'}],texts:[{text:'Legacy actor',style:'speech',anchor:'actor:screen',start:0,duration:3}]}));assert.equal(screenActor.texts[0].anchor,'actor:screen');
+console.log('Timed text: legacy migration, actor/screen anchors, duration, colours, SRT round trip and invalid cues passed.');
 console.log('Editor recovery: valid film, bounded selection/time, unfinished Assist drafts, stale actor ids and damaged Undo entries passed.');
 console.log(`LLM Assist: full live catalogues, ${Object.keys(PRESETS).length} presets, equipment, canonical/v1/fenced import, schema and invalid responses passed (${guide.length} guide characters).`);
 console.log('Studio model: 50 locations, 77 animations, v1 migration, independent tracks, held ends, camera subjects and invalid files passed.');

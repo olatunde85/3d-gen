@@ -54,7 +54,7 @@ export function history(store: Store): History {
   };
   window.addEventListener('keydown', (e) => {
     const t = e.target as HTMLElement;
-    if (t.closest('input[type=text], input[type=number], textarea, select, [contenteditable]')) return;
+    if (t.closest('dialog, input[type=text], input[type=number], textarea, select, [contenteditable]')) return;
     const mod = e.metaKey || e.ctrlKey, key = e.key.toLowerCase();
     if (mod && key === 'z') {
       e.preventDefault();

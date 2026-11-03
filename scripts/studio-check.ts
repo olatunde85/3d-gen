@@ -98,7 +98,8 @@ const folder='out/studio-expansion';mkdirSync(folder,{recursive:true});
 const passed:string[]=[];
 const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
-async function step(name:string,fn:()=>Promise<void>){if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+const textOnly=process.argv.includes('--text');
+async function step(name:string,fn:()=>Promise<void>){if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -230,7 +231,7 @@ try{
   await evaluate("document.querySelectorAll('.cast-member')[0].click()");
   for(const [width,height]of [[1366,768],[1280,720]]){
    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pause(300);
-   const clipped=await evaluate<string[]>(`(()=>{const ids=['open-assist','load-project','save-project','open-export','title','scene-search','scene-category','character','actor-weapon','actor-carry','timeline-selection','action','beat-duration','actor-x','actor-y','actor-z','actor-yaw','blocking','camera','landscape','portrait','caption','scrub','play'];return ids.filter(id=>{const r=document.getElementById(id).getBoundingClientRect();return r.width<=0||r.height<=0||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth})})()`);
+   const clipped=await evaluate<string[]>(`(()=>{const ids=['open-text','open-assist','load-project','save-project','open-export','title','scene-search','scene-category','character','actor-weapon','actor-carry','timeline-selection','action','beat-duration','actor-x','actor-y','actor-z','actor-yaw','blocking','camera','landscape','portrait','caption','scrub','play'];return ids.filter(id=>{const r=document.getElementById(id).getBoundingClientRect();return r.width<=0||r.height<=0||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth})})()`);
    if(clipped.length)throw Error(`${width}×${height} clipped: ${clipped.join(', ')}`);await shot(`compact-${width}`);
   }
   await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});await pause();
@@ -375,10 +376,38 @@ try{
   if(await evaluate<string>('JSON.stringify(window.studio.project)')!==edited)throw Error('Reloading a pre-existing character URL lost the saved film');
   await upload(original);await ready();
  });
+ await step('Text editor creates timed subtitles and comic bubbles, imports SRT and recovers on reload',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)');await evaluate("document.querySelectorAll('.cast-member')[1].click();window.studio.seek(0);document.querySelector('#open-text').click();document.querySelector('#text-add-bubble').click()");
+  await search('text-body','Hello from Ara!');await change('text-style','thought');await change('text-size','32');await change('text-x','5');
+  if(!await evaluate("window.studio.project.texts.length===1 && window.studio.project.texts[0].style==='thought' && window.studio.project.texts[0].anchor===window.studio.project.actors[1].id && window.studio.project.texts[0].x===.05"))throw Error('Comic text editing/attachment failed');
+  await evaluate("document.querySelector('#text-preview').click()");await pause();await shot('comic-thought');
+  await evaluate("document.querySelector('#open-text').click();document.querySelector('#text-add-subtitle').click()");await search('text-body','An unexpected meeting.');await change('text-start','1');await change('text-duration','2');
+  const srt='1\n00:00:03,000 --> 00:00:04,500\nImported subtitles.\n\n2\n00:00:04,500 --> 00:00:06,000\nA second caption.';
+  await evaluate(`(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(srt)}],'captions.srt',{type:'text/plain'}));const e=document.querySelector('#text-srt-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);
+  await waitFor('window.studio.project.texts.length===4','SRT import');await search('text-body','Keep this subtitle after reload');await evaluate('window.__textReload=true');await send('Page.reload');await waitFor('!window.__textReload && window.studio?.ready','text recovery');
+  if(!await evaluate("document.querySelector('#text-dialog').open && document.querySelector('#text-body').value==='Keep this subtitle after reload' && window.studio.project.texts.length===4"))throw Error('Text edit state was not recovered');
+  await shot('text-editor');await evaluate("document.querySelector('#close-text').click();document.querySelectorAll('.cast-member')[1].click();document.querySelector('#remove-actor').click()");await ready();
+  if(!await evaluate("window.studio.project.actors.length===1 && window.studio.project.texts.length===3 && window.studio.project.texts.every(c=>c.anchor==='screen')"))throw Error('Deleting an actor left invalid attached text');
+  await evaluate("document.querySelector('#undo').click()");await ready();if(!await evaluate('window.studio.project.texts.length===4 && window.studio.project.actors.length===2'))throw Error('Undo lost actor-attached text');
+  await upload(original);await ready();
+ });
+ await step('Text wraps, follows animated characters, respects timing and renders every comic style',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)');
+  const frames=await evaluate<Record<string,string>>(`(()=>{const s=window.studio.scene,p=structuredClone(window.studio.project),frames={};p.caption=false;p.camera='locked';p.shots=[{id:'all',duration:6,shot:'wide',target:'all'}];p.actors[0].beats=[{id:'walk',clip:'walk',duration:6,move:true}];
+    p.texts=[{id:'bubble',text:'Hello, world!\\nA story begins.',start:0,duration:5,style:'speech',anchor:p.actors[0].id,x:0,y:-.12,size:28,color:'#141414',background:'#ffffff'}];
+    s.resize(1280,720);s.render(p,.5);s.freezeCamera=true;s.render(p,.5);const first=s.textLayouts[0]?.anchor;s.render(p,2);const second=s.textLayouts[0]?.anchor;s.freezeCamera=false;
+    if(!first||!second||Math.hypot(first.x-second.x,first.y-second.y)<.005)throw Error('Bubble did not follow the animated head');
+    for(const style of ['subtitle','text','speech','thought','shout']){p.texts[0].style=style;p.texts[0].background=style==='shout'?'#ffe584':style==='subtitle'?'#151820':'#ffffff';p.texts[0].color=style==='subtitle'||style==='text'?'#ffffff':'#141414';p.texts[0].anchor=style==='subtitle'?'screen':p.actors[0].id;p.texts[0].x=style==='subtitle'?.5:0;p.texts[0].y=style==='subtitle'?.9:-.12;s.render(p,1);const b=s.textLayouts[0];if(!b||b.x<0||b.y<0||b.x+b.width>1280||b.y+b.height>720)throw Error('Clipped '+style);frames[style]=s.output.toDataURL();}
+    s.render(p,5);if(s.textLayouts.length)throw Error('Text remained after its end');p.texts[0].start=2;s.render(p,1);if(s.textLayouts.length)throw Error('Text appeared before its start');
+    p.aspect='portrait';p.texts[0].start=0;p.texts[0].style='speech';p.texts[0].text='A longer comic bubble wraps clearly in a portrait film, too.';s.resize(1080,1920);s.render(p,1);const b=s.textLayouts[0];if(!b||b.x<0||b.y<0||b.x+b.width>1080||b.y+b.height>1920)throw Error('Portrait text clipped');frames.portrait=s.output.toDataURL();s.resize(1280,720);s.render(window.studio.project,0);return frames;})()`);
+  for(const [style,url]of Object.entries(frames))writeFileSync(`${folder}/text-${style}.png`,Buffer.from(url.split(',')[1],'base64'));
+  await upload(original);await ready();
+ });
  await step('Two-character MP4 exports, decodes and keeps camera/actor timing',async()=>{
   const p=await evaluate<Record<string,any>>('structuredClone(window.studio.project)');p.title='A meeting by the pool';p.template='resort-pool';p.view={azimuth:0,elevation:0,zoom:1};p.camera='locked';p.aspect='landscape';
   p.actors[0].beats=[{id:'a',clip:'wave',duration:2,move:false},{id:'b',clip:'idle',duration:2,move:false}];p.actors[1].beats=[{id:'a',clip:'idle',duration:2,move:false},{id:'b',clip:'talk',duration:2,move:false}];
   p.shots=[{id:'a',duration:2,shot:'wide',target:'all'},{id:'b',duration:1,shot:'medium',target:p.actors[0].id},{id:'c',duration:1,shot:'medium',target:p.actors[1].id}];
+  p.texts=[{id:'video-subtitle',text:'An Ara Studio film',style:'subtitle',anchor:'screen',start:0,duration:4,x:.5,y:.9,size:30,color:'#ffffff',background:'#151820'},{id:'video-bubble',text:'Welcome!',style:'speech',anchor:p.actors[0].id,start:0,duration:2,x:0,y:-.12,size:28,color:'#141414',background:'#ffffff'}];
   await upload(JSON.stringify(p));await ready();await evaluate('window.studio.seek(1)');await pause();await shot('pool-duet-editor');
   await evaluate("document.querySelector('#open-export').click()");await change('resolution','720');await waitFor("!document.querySelector('#start-export').disabled",'encoder',15000);await evaluate("document.querySelector('#start-export').click()");
   await waitFor("!document.querySelector('#download-film').hidden || (!document.querySelector('#start-export').hidden && document.querySelector('#export-message').textContent)",'two-character movie',360000);
@@ -386,11 +415,15 @@ try{
   await waitFor("document.querySelector('#export-preview').readyState>=1",'video decode',20000);
   const metadata=await evaluate<{duration:number;width:number;height:number}>("(()=>{const v=document.querySelector('#export-preview');return{duration:v.duration,width:v.videoWidth,height:v.videoHeight}})()");
   if(Math.abs(metadata.duration-4)>0.04||metadata.width!==1280||metadata.height!==720)throw Error(JSON.stringify(metadata));
+  const pictures=await evaluate<{withText:string;withoutText:string;decoded:string}>(`(async()=>{const s=window.studio.scene,p=window.studio.project;s.render(p,1);const withText=s.output.toDataURL();s.render({...p,texts:[]},1);const withoutText=s.output.toDataURL();s.render(p,1);const v=document.querySelector('#export-preview');await new Promise(resolve=>{v.onseeked=resolve;v.currentTime=1});const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);return{withText,withoutText,decoded:c.toDataURL()}})()`);
+  const pixels=await Promise.all([pictures.withText,pictures.withoutText,pictures.decoded].map(url=>sharp(Buffer.from(url.split(',')[1],'base64')).removeAlpha().raw().toBuffer()));let withError=0,withoutError=0,count=0;
+  for(let i=0;i<pixels[0].length;i++)if(Math.abs(pixels[0][i]-pixels[1][i])>40){withError+=Math.abs(pixels[0][i]-pixels[2][i]);withoutError+=Math.abs(pixels[1][i]-pixels[2][i]);count++;}
+  if(count<1000||withError>withoutError*.55)throw Error('Decoded MP4 did not preserve the subtitles/comic text');
   const encoded=await evaluate<string>(`(async()=>{const bytes=new Uint8Array(await(await fetch(document.querySelector('#download-film').href)).arrayBuffer());let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(s)})()`);writeFileSync(`${folder}/ara-studio-duet-720p.mp4`,Buffer.from(encoded,'base64'));await shot('export-ready');await evaluate("document.querySelector('#close-export').click()");
  });
  await step('Full HD portrait film includes both characters',async()=>{
   await evaluate('window.studio.seek(1)');await pause();
-  const result=await evaluate<{encoded:string;width:number;height:number;duration:number}>(`(async()=>{const p=structuredClone(window.studio.project);p.aspect='portrait';for(const a of p.actors)a.beats=[{...a.beats[0],duration:1}];p.shots=[{...p.shots[0],duration:1,shot:'wide',target:'all'}];
+  const result=await evaluate<{encoded:string;width:number;height:number;duration:number}>(`(async()=>{const p=structuredClone(window.studio.project);p.aspect='portrait';for(const a of p.actors)a.beats=[{...a.beats[0],duration:1}];p.shots=[{...p.shots[0],duration:1,shot:'wide',target:'all'}];p.texts=p.texts.map(c=>({...c,start:0,duration:1}));
   const blob=await window.studio.exportMovie(window.studio.scene,p,{width:1080,height:1920,signal:new AbortController().signal,progress:()=>{}});const video=document.createElement('video'),url=URL.createObjectURL(blob);video.src=url;
   await new Promise((resolve,reject)=>{video.onloadedmetadata=resolve;video.onerror=()=>reject(Error('Portrait film did not decode'))});const bytes=new Uint8Array(await blob.arrayBuffer());let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));
   const result={encoded:btoa(s),width:video.videoWidth,height:video.videoHeight,duration:video.duration};URL.revokeObjectURL(url);window.studio.seek(1);return result})()`);
@@ -404,7 +437,10 @@ try{
   await evaluate("document.querySelectorAll('.cast-member')[1].click()");const before=await evaluate<string>('JSON.stringify(window.studio.project)');
   await evaluate("document.querySelector('#edit-character').click()");await waitFor("location.pathname==='/app/' && document.querySelector('#stats')?.textContent && document.querySelector('#loading')?.hidden",'builder',120000);
   const hash=await evaluate<string>('location.hash');await send('Page.navigate',{url:'http://localhost:4422/app/?review=duet'+hash+'&demo'});await waitFor("window.ara?.store.current && document.querySelector('#loading').hidden",'builder inspection',120000);
-  await evaluate("window.ara.store.set({name:'Second actor, revised',height:0.8,rig:'full',restPose:'T',detail:'high'})");await evaluate("document.querySelector('#studio-btn').click()");await waitFor("location.pathname==='/studio/' && document.querySelector('#project-name') && document.querySelector('#loading')?.hidden",'return to film',120000);
+  await evaluate("document.querySelector('#character-assist-btn').click()");await waitFor("document.querySelector('#character-assist-dialog').open",'builder LLM Assist');
+  await evaluate("(()=>{const e=document.querySelector('#ca-json');e.value=JSON.stringify({kind:'ara-character',version:1,params:{...window.ara.store.params,name:'Second actor, revised',height:.8,rig:'full',restPose:'T',detail:'high'}});e.dispatchEvent(new Event('input'));document.querySelector('#ca-build').click()})()");
+  await waitFor("!document.querySelector('#character-assist-dialog').open && window.ara.store.current.params.name==='Second actor, revised'",'LLM character build',120000);
+  await shot('character-llm-builder');await evaluate("document.querySelector('#studio-btn').click()");await waitFor("location.pathname==='/studio/' && document.querySelector('#project-name') && document.querySelector('#loading')?.hidden",'return to film',120000);
   const returned=await evaluate<string>("localStorage.getItem('ara.studio.project.v2')"),a=JSON.parse(before),b=JSON.parse(returned);
   if(b.actors.length!==2||b.actors[0].character!==a.actors[0].character||b.template!==a.template||b.title!==a.title||JSON.stringify(b.shots)!==JSON.stringify(a.shots)||JSON.stringify(b.actors[1].beats)!==JSON.stringify(a.actors[1].beats)||b.actors[1].character===a.actors[1].character)throw Error('Builder round trip changed another part of the film');
   if(b.actors[1].detail!=='high')throw Error('Character detail lost on return');await shot('mixed-rig-cast');

@@ -12,6 +12,7 @@ import type { Ctx } from './ui/context';
 import { $ } from './ui/dom';
 import { exportPanel } from './ui/export-panel';
 import { generation } from './ui/generation';
+import { characterAssist } from './ui/character-assist';
 import { header } from './ui/header';
 import { history } from './ui/history';
 import { quickBuild } from './ui/quick-build';
@@ -61,6 +62,7 @@ store.emit('sync');
 gen.regenerate();
 // Undo history starts from the character the app opened with; Quick build mounts above the sidebar.
 quickBuild(ctx, history(store));
+characterAssist(ctx);
 const clipName = hash.get('clip');
 if (clipName && clipById.has(clipName)) anim.setActive(clipName);
 if (hash.has('skeleton')) {
