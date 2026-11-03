@@ -44,10 +44,10 @@
       <div class="transport">
         <div class="transport-left"><button id="restart" class="icon-button" title="Back to the beginning" aria-label="Back to the beginning">↤</button><button id="play" class="play-button" title="Play / pause (Space)" aria-label="Play film">▶</button><button id="repeat" class="icon-button on" title="Repeat preview" aria-label="Repeat preview" aria-pressed="true">↻</button></div>
         <output id="timecode">00:00:00 <span>/ 00:09:00</span></output>
-        <div class="frame-spec"><span>PREVIEW</span> <b>30 FPS</b><span class="sound-off">Silent film</span></div>
+        <div class="frame-spec"><span>PREVIEW</span> <b>30 FPS</b><span class="sound-off" id="sound-readout">Silent film</span></div>
       </div>
       <section class="timeline" aria-label="Film timeline">
-        <div class="timeline-heading"><span>THE TIMELINE</span><div><span id="duration-label">9 seconds</span><button id="open-text">Text &amp; subtitles</button><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
+        <div class="timeline-heading"><span>THE TIMELINE</span><div><span id="duration-label">9 seconds</span><button id="open-sound">Sound</button><button id="open-text">Text &amp; subtitles</button><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
         <div class="ruler" id="ruler"></div>
         <div class="timeline-track multi-track"><div id="tracks"></div><div id="playhead" class="playhead"><span></span></div></div>
         <label class="sr-only" for="scrub">Film position in seconds</label><input id="scrub" class="scrubber" type="range" min="0" max="9" step="0.0333333333" value="0" />
@@ -88,7 +88,43 @@
     </aside>
   </div>
   <div id="notice" class="notice" role="status" aria-live="polite"></div>
-  <input id="project-file" type="file" accept=".json,application/json" hidden />
+  <input id="project-file" type="file" accept=".json,.zip,application/json,application/zip" hidden />
+  <dialog id="sound-dialog" aria-labelledby="sound-title">
+    <div class="dialog-top"><span class="eyebrow">THE SOUNDTRACK</span><button id="sound-close" class="icon-button" aria-label="Close sound editor">✕</button></div>
+    <h2 id="sound-title">Speech &amp; music</h2><p class="export-description">Direct the dialogue, shape the voice, and choose a music bed. The mix is included in your film.</p>
+    <div class="sound-columns">
+      <section class="sound-library"><div class="sound-actions"><button id="sound-add">+ Dialogue</button><button id="sound-upload">Upload speech</button><button id="sound-record">Record speech</button></div>
+        <label for="sound-cue">Speech clips <span id="sound-count"></span></label><select id="sound-cue" size="6"></select>
+        <h3>Background music</h3><label class="sr-only" for="sound-music">Music track</label><select id="sound-music"></select>
+        <label for="sound-music-volume">Music volume %</label><input id="sound-music-volume" type="number" min="0" max="100" step="1" />
+        <div class="form-row"><div><label for="sound-fade-in">Fade in (s)</label><input id="sound-fade-in" type="number" min="0" max="10" step="0.1" /></div><div><label for="sound-fade-out">Fade out (s)</label><input id="sound-fade-out" type="number" min="0" max="10" step="0.1" /></div></div>
+        <label class="check-label"><input id="sound-ducking" type="checkbox" checked /><span>Lower music while someone speaks</span></label>
+        <div class="sound-actions"><button id="sound-music-preview">Preview music</button><button id="sound-stop">Stop</button></div>
+        <label class="check-label"><input id="sound-muted" type="checkbox" /><span>Mute film audio</span></label>
+        <div class="sound-actions"><button id="sound-wav">Save soundtrack WAV</button><button id="sound-bundle">Save project + audio</button><button id="sound-generate-all">Generate missing speech</button></div><p class="setting-hint">Local generation is optional: about 265 MB on first use. <a href="../third-party/speech/MODEL-LICENSE.txt" target="_blank" rel="noopener">OpenRAIL-M model terms</a>.</p>
+      </section>
+      <p id="sound-empty" class="setting-hint">Add dialogue, upload a voice clip, or record yourself. Music works without any voice download.</p>
+      <section id="sound-fields" hidden>
+        <div class="form-row"><div><label for="sound-name">Clip name</label><input id="sound-name" type="text" maxlength="80" /></div><div><label for="sound-actor">Speaker</label><select id="sound-actor"></select></div></div>
+        <label for="sound-script">Dialogue / transcript</label><textarea id="sound-script" rows="3" maxlength="600" placeholder="What does this person say?"></textarea>
+        <canvas id="sound-waveform" width="600" height="58" aria-label="Speech waveform"></canvas><p id="sound-asset-status" class="setting-hint"></p>
+        <div class="form-row"><div><label for="sound-effect">Voice effect</label><select id="sound-effect"></select></div><div><label for="sound-volume">Voice volume %</label><input id="sound-volume" type="number" min="0" max="150" step="5" /></div></div>
+        <div class="form-row"><div><label for="sound-start">Start (seconds)</label><input id="sound-start" type="number" min="0" max="59.9" step="0.1" /></div><div><label for="sound-duration">Duration (seconds)</label><input id="sound-duration" type="number" min="0.1" max="60" step="0.1" /></div><div><label for="sound-offset">Trim start (seconds)</label><input id="sound-offset" type="number" min="0" max="59.9" step="0.1" /></div></div>
+        <div class="form-row"><div><label for="sound-speed">Playback speed ×</label><input id="sound-speed" type="number" min="0.5" max="1.5" step="0.05" /></div><div><label for="sound-pan">Pan −100 L / +100 R</label><input id="sound-pan" type="number" min="-100" max="100" step="5" /></div></div>
+        <div class="sound-actions"><button id="sound-preview">Preview selected clip</button><button id="sound-fit">Fit duration to audio</button><button id="sound-attach">Attach recording</button><button id="sound-delete">Delete clip</button></div>
+        <details class="sound-device"><summary>Quick read-through with a device voice · no download</summary><label for="sound-device-voice">Device voice</label><select id="sound-device-voice"></select>
+          <div class="form-row"><div><label for="sound-device-rate">Native rate</label><input id="sound-device-rate" type="number" min="0.1" max="10" step="0.1" value="1" /></div><div><label for="sound-device-pitch">Native pitch</label><input id="sound-device-pitch" type="number" min="0" max="2" step="0.1" value="1" /></div></div>
+          <div class="sound-actions"><button id="sound-device-read">Read with device voice</button><button id="sound-device-stop">Stop read-through</button></div><p class="setting-hint">Device voices use your browser’s voice service. Read-throughs cannot use these audio effects or be exported; generate or attach audio for the film.</p>
+        </details>
+        <details class="sound-tts"><summary>Generate an exportable voice · optional local engine</summary><label for="sound-voice">Local voice (English)</label><select id="sound-voice"></select>
+          <label class="check-label"><input id="sound-fit-generated" type="checkbox" checked /><span>Fit clip duration to the generated take</span></label><button id="sound-generate" class="export-button">Generate speech locally</button>
+          <p class="setting-hint">First use downloads the voice model (about 265 MB). Your text stays on this device. Later generations use the cached model. Supertonic 2 uses the <a href="../third-party/speech/MODEL-LICENSE.txt" target="_blank" rel="noopener">OpenRAIL-M licence (use restrictions)</a>. <a href="../third-party/speech/NOTICE.txt" target="_blank" rel="noopener">Voice engine and model licences</a>.</p>
+        </details>
+      </section>
+    </div>
+    <div class="sound-status"><p id="sound-message" role="status" aria-live="polite"></p><button id="sound-cancel" hidden>Cancel generation</button></div>
+    <input id="sound-file" type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" hidden />
+  </dialog>
   <dialog id="text-dialog" aria-labelledby="text-title">
     <div class="dialog-top"><span class="eyebrow">WORDS ON SCREEN</span><button id="close-text" class="icon-button" aria-label="Close text editor">✕</button></div>
     <h2 id="text-title">Text &amp; subtitles</h2>
@@ -142,7 +178,7 @@
   <dialog id="export-dialog" aria-labelledby="export-title">
     <div class="dialog-top"><span class="eyebrow">THE FINAL CUT</span><button id="close-export" class="icon-button" aria-label="Close export">✕</button></div>
     <h2 id="export-title">Take your film with you.</h2><p class="export-description">A clean MP4, rendered frame by frame on your device.</p>
-    <div class="export-options" id="export-options"><label for="resolution">Picture quality</label><select id="resolution"><option value="1080">Full HD · 1080p</option><option value="720">HD · 720p</option></select><div class="export-facts"><span id="export-length">9 seconds</span><span>30 fps</span><span>Silent MP4</span></div></div>
+    <div class="export-options" id="export-options"><label for="resolution">Picture quality</label><select id="resolution"><option value="1080">Full HD · 1080p</option><option value="720">HD · 720p</option></select><div class="export-facts"><span id="export-length">9 seconds</span><span>30 fps</span><span id="export-audio-label">Silent MP4</span></div></div>
     <div id="export-progress" hidden><progress id="render-progress" value="0" max="100"></progress><p id="render-status" role="status">Preparing frames…</p></div>
     <p id="export-message" role="status"></p><video id="export-preview" controls playsinline hidden></video>
     <div class="export-actions"><button id="render-again" hidden>Render another version</button><button id="cancel-export" hidden>Cancel export</button><a id="download-film" class="export-button" hidden>Download MP4 ↘</a><button id="start-export" class="export-button">Render film <span>↗</span></button></div>

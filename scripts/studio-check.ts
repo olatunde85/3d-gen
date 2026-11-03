@@ -11,6 +11,7 @@ import { extname, join, normalize } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 import { build } from 'vite';
 import sharp from 'sharp';
+import { checkStudioAudio } from './studio-audio-check';
 
 const winDirs = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter((d): d is string => !!d);
 const CHROME = process.env.CHROME ?? [
@@ -22,13 +23,17 @@ const CHROME = process.env.CHROME ?? [
 ].find(existsSync);
 if (!CHROME) throw new Error('No Chrome, Chromium or Edge found: set CHROME=/path/to/browser');
 
+const audioOnly=process.argv.includes('--audio');
+if(audioOnly&&!existsSync(join(process.env.STUDIO_TTS_FIXTURE??'out/studio-speech-model','onnx/vocoder.onnx')))throw Error('Run npm run setup:studio-speech first, or set STUDIO_TTS_FIXTURE to the pinned model directory.');
+if(audioOnly){process.env.STUDIO_AUDIO_CHECK='1';process.env.VITE_STUDIO_TTS_MODEL_URL='/__tts-model';}
 const DIST = join(import.meta.dirname, '../dist');
 await build({ logLevel: 'error' });
 const TYPES: Record<string, string> = {
-  '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml',
+  '.wasm':'application/wasm','.mjs':'text/javascript','.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.pack': 'application/octet-stream', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json',
 };
 const server = createServer((req, res) => {
+  if(audioOnly&&req.url?.startsWith('/__tts-model/')){const name=req.url.slice('/__tts-model/'.length).split('?')[0];if(!/^(?:onnx\/(?:duration_predictor|text_encoder|vector_estimator|vocoder)\.onnx|onnx\/(?:tts|unicode_indexer)\.json|voice_styles\/[FM][12]\.json)$/.test(name)){res.writeHead(404).end();return;}const file=join(process.env.STUDIO_TTS_FIXTURE??join(import.meta.dirname,'../out/studio-speech-model'),name);if(!existsSync(file)){res.writeHead(404).end();return;}const data=readFileSync(file);res.setHeader('Content-Length',data.length);res.setHeader('Content-Type','application/octet-stream');res.end(data);return;}
   let path = normalize(join(DIST, decodeURIComponent((req.url ?? '/').split('?')[0])));
   if (existsSync(path) && statSync(path).isDirectory()) path = join(path, 'index.html');
   if (!path.startsWith(DIST) || !existsSync(path)) {
@@ -44,7 +49,7 @@ await new Promise<void>((r) => server.listen(4422, r));
 // --- Chrome over the DevTools pipe (fds 3 and 4) ---------------------------------------------
 const profile = mkdtempSync(join(tmpdir(), 'ui-check-'));
 const chrome = spawn(CHROME, [
-  '--headless=new', '--autoplay-policy=no-user-gesture-required', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-first-run',
+  '--headless=new', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-first-run',
   `--user-data-dir=${profile}`, '--remote-debugging-pipe', '--window-size=1400,900', 'about:blank',
 ], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
 const toChrome = chrome.stdio[3] as Writable, fromChrome = chrome.stdio[4] as Readable;
@@ -100,7 +105,7 @@ const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
 const assistOnly=process.argv.includes('--assist');
-async function step(name:string,fn:()=>Promise<void>){if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+async function step(name:string,fn:()=>Promise<void>){if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -466,5 +471,6 @@ try{
   if(b.actors.length!==2||b.actors[0].character!==a.actors[0].character||b.template!==a.template||b.title!==a.title||JSON.stringify(b.shots)!==JSON.stringify(a.shots)||JSON.stringify(b.actors[1].beats)!==JSON.stringify(a.actors[1].beats)||b.actors[1].character===a.actors[1].character)throw Error('Builder round trip changed another part of the film');
   if(b.actors[1].detail!=='high')throw Error('Character detail lost on return');await shot('mixed-rig-cast');
  });
+ await checkStudioAudio({enabled:audioOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
  if(errors.length)throw Error(errors.join('\n'));console.log('Studio expansion browser checks passed:',passed.length);
 }catch(error){await shot('failure').catch(()=>{});console.log('Failure page:',await evaluate('({url:location.href,notice:document.querySelector("#notice")?.textContent,loading:document.querySelector("#loading-label")?.textContent,active:document.activeElement?.id})').catch(()=>null));if(errors.length)console.log('Browser errors:',errors);throw error;}finally{await cleanup()}

@@ -12,6 +12,7 @@ import { readEditorSession } from '../src/studio/session';
 import { characterExample, parseCharacterInput } from '../src/app/character-assist';
 import { PRESETS, ageToYears } from '../src/core/params';
 import { parseTextCues, parseSubtitles, subtitlesToSrt, MAX_TEXT_CUES } from '../src/studio/text';
+import { defaultAudio, parseAudio, speechActor, MAX_SPEECH, MUSIC_TRACKS, VOICE_EFFECTS } from '../src/studio/audio/schema';
 import { CLIPS } from '../src/core/anim/clips';
 const catalog=JSON.parse(readFileSync(new URL('../public/assets/catalog.json',import.meta.url),'utf8'))as Catalog;
 const parseStudioInput=(text:string)=>parseInput(text,catalog);
@@ -93,3 +94,22 @@ console.log('Timed text: legacy migration, actor/screen anchors, duration, colou
 console.log('Editor recovery: valid film, bounded selection/time, unfinished Assist drafts, stale actor ids and damaged Undo entries passed.');
 console.log(`LLM Assist: full live catalogues, ${Object.keys(PRESETS).length} presets, equipment, canonical/v1/fenced import, schema and invalid responses passed (${guide.length} guide characters).`);
 console.log('Studio model: 50 locations, 77 animations, v1 migration, independent tracks, held ends, camera subjects and invalid files passed.');
+
+const actors=new Set(['host','narrator']);
+assert.deepEqual(parseAudio(undefined,actors),defaultAudio());assert.deepEqual(migrated.audio,defaultAudio());
+const dialogue={id:'take',text:'Hello',actor:'host',start:42,duration:3,effect:'dramatic'};
+const audioFilm=parseStudioInput(JSON.stringify({...valid,audio:{speech:[{...dialogue,actor:valid.actors[0].id}],music:{track:'cinematic'}}}));
+assert.equal(durationOf(audioFilm),45);assert.equal(audioFilm.audio.speech[0].voice,'F1');assert.equal(audioFilm.audio.speech[0].source,'tts');assert.equal(audioFilm.audio.music.ducking,true);
+assert.deepEqual(parseStudioInput(JSON.stringify(projectForAssist(audioFilm))),audioFilm);
+assert.equal(parseAudio({speech:[{...dialogue,actor:speechActor('narrator')}]},actors).speech[0].actor,'actor:narrator');
+for(const patch of [{effect:'alien'},{voice:'F99'},{actor:'missing'},{start:59,duration:2},{speed:0},{offset:60},{volume:2},{pan:2},{asset:'invented'},{source:'url'},{text:'x'.repeat(601)},{script:'unsupported'},{text:'',source:'file'}]){
+ assert.throws(()=>parseAudio({speech:[{...dialogue,...patch}]},actors));
+}
+for(const music of [{track:'invented'},{volume:-1},{fadeIn:11},{ducking:'yes'},{url:'music.mp3'}])assert.throws(()=>parseAudio({music},actors));
+assert.throws(()=>parseAudio({speech:[dialogue,dialogue]},actors));assert.throws(()=>parseAudio({speech:Array.from({length:MAX_SPEECH+1},()=>dialogue)},actors));
+assert.throws(()=>parseAudio({muted:'yes'},actors));assert.equal(parseAudio({speech:[{text:'',source:'tts'}]},actors).speech.length,1);
+assert.deepEqual(schema.properties.audio.properties.music.properties.track.enum,MUSIC_TRACKS.map(t=>t.id));assert.deepEqual(schema.properties.audio.properties.speech.items.properties.effect.enum,VOICE_EFFECTS);
+assert.ok(guide.includes('Generate missing speech'));assert.ok(guide.includes('Never invent asset hashes'));assert.ok(guide.includes('MUSIC LIBRARY'));
+const audioRecovery=readEditorSession(JSON.stringify({version:1,project:audioFilm,editor:{sound:{open:true,selected:'take',rate:1.3,pitch:.7,deviceVoice:'test',fit:false}}}));
+assert.equal(audioRecovery?.editor.sound.selected,'take');assert.equal(audioRecovery?.editor.sound.rate,1.3);assert.equal(audioRecovery?.editor.sound.fit,false);
+console.log('Audio: defaults/legacy migration, actor aliases, timing, limits, validation, live LLM contract and editor recovery passed.');

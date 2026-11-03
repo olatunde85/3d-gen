@@ -5,7 +5,7 @@ import { Engine } from '../app/engine';
 import { decodeCharacter } from '../app/share';
 import { StudioActor } from './actor';
 import { StudioScene } from './scene';
-import { exportMovie, supportsMp4 } from './export';
+import { exportMovie, supportsMp4, audioCodec } from './export';
 import { CAST, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, durationOf, newActor, newProject, parseProject, presetCode, shotAt, timelineAt, trackDuration, type ActorTrack, type StudioProject } from './project';
 import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
 import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations';
@@ -13,6 +13,10 @@ import { orbitControls } from './orbit';
 import { parseStudioInput } from './assist';
 import { resolveTextActor } from './text';
 import { setupTextEditor } from './text-ui';
+import { setupSoundEditor } from './audio/ui';
+import { AudioPlayback } from './audio/mix';
+import { hasAudio, resolveSpeechActor } from './audio/schema';
+import { audioProjectBundle, openAudioBundle } from './audio/bundle';
 import { setupAssist } from './assist-ui';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
@@ -21,6 +25,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const input = (id: string) => $<HTMLInputElement>(id), select = (id: string) => $<HTMLSelectElement>(id), button = (id: string) => $<HTMLButtonElement>(id);
 const BASE = import.meta.env.BASE_URL, STORAGE = 'ara.studio.project.v2', HANDOFF = 'ara.studio.handoff';
 if (import.meta.env.DEV) $<HTMLAnchorElement>('video-licence').href = 'https://github.com/Vanilagy/mediabunny/blob/main/LICENSE';
+const soundtrack=new AudioPlayback();let playToken=0,preparingSound=false;
 const scene = new StudioScene($<HTMLCanvasElement>('film'));
 let project = newProject(), time = 0, selectedActor = project.actors[0].id, selected = 0, cameraSelection = false;
 let characterSelected=true;
@@ -43,6 +48,7 @@ function editorState(): EditorState {
     sceneSearch:input('scene-search').value,sceneCategory:select('scene-category').value,
     animationSearch:input('animation-search').value,animationCategory:select('animation-category').value,resolution:select('resolution').value as '720'|'1080',
     text:{open:$<HTMLDialogElement>('text-dialog').open,selected:select('text-cue').value},
+    sound:{open:$<HTMLDialogElement>('sound-dialog').open,selected:select('sound-cue').value,deviceVoice:soundEditor.deviceVoice(),rate:Number(input('sound-device-rate').value),pitch:Number(input('sound-device-pitch').value),fit:input('sound-fit-generated').checked},
     assist:{brief:$<HTMLTextAreaElement>('assist-brief').value,json:$<HTMLTextAreaElement>('assist-json').value,context:input('assist-context').checked,
       open:$<HTMLDialogElement>('assist-dialog').open,guideOpen:$<HTMLDetailsElement>('assist-guide-details').open},
     scroll:{library:document.querySelector('.library')!.scrollTop,inspector:document.querySelector('.inspector')!.scrollTop,sets:$('set-list').scrollTop,page:window.scrollY}};
@@ -65,7 +71,8 @@ function restoreEditor(state:EditorState,undoHistory:string[]){
   input('scene-search').value=state.sceneSearch;select('scene-category').value=state.sceneCategory;
   input('animation-search').value=state.animationSearch;select('animation-category').value=state.animationCategory;select('resolution').value=state.resolution;
   $<HTMLTextAreaElement>('assist-brief').value=state.assist.brief;$<HTMLTextAreaElement>('assist-json').value=state.assist.json;input('assist-context').checked=state.assist.context;
-  $<HTMLDetailsElement>('assist-guide-details').open=state.assist.guideOpen;textEditor.select(state.text.selected);
+  $<HTMLDetailsElement>('assist-guide-details').open=state.assist.guideOpen;textEditor.select(state.text.selected);soundEditor.select(state.sound.selected);
+  soundEditor.restore(state.sound);
   button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));
   button('place-actor').setAttribute('aria-pressed',String(clickToPlace));button('place-actor').textContent=clickToPlace?'Click a spot…':'Click to place';$('film').classList.toggle('click-placement',clickToPlace);
 }
@@ -73,10 +80,20 @@ for(const event of ['input','change','click','keyup','pointerup'])document.addEv
 for(const element of document.querySelectorAll('dialog,details'))for(const event of ['close','toggle'])element.addEventListener(event,scheduleSessionSave);
 for(const element of document.querySelectorAll('.library,.inspector,#set-list'))element.addEventListener('scroll',scheduleSessionSave,{passive:true});
 window.addEventListener('scroll',scheduleSessionSave,{passive:true});
-window.addEventListener('pagehide',saveSession);
+window.addEventListener('pagehide',()=>{saveSession();setPlaying(false);});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveSession();});
-function setPlaying(on: boolean) { playing = on && !loading && !exporting && !importing && !placementBefore; if (playing && time >= durationOf(project) - 0.001) time = 0;
-  button('play').textContent = playing ? 'Ⅱ' : '▶'; button('play').setAttribute('aria-label', playing ? 'Pause film' : 'Play film'); dirty = true; }
+function setPlaying(on: boolean) {
+  const token=++playToken;soundtrack.stop();soundEditor.stop();preparingSound=false;
+  playing=on&&!loading&&!exporting&&!importing&&!placementBefore;
+  if(playing&&time>=durationOf(project)-.001)time=0;
+  if(playing&&hasAudio(project.audio)){
+    preparingSound=true;
+    void soundtrack.play(project,time,()=>{if(token!==playToken)return;time=durationOf(project);if(repeat){time=0;setPlaying(true);}else setPlaying(false);}).then(started=>{
+      if(token!==playToken)return;preparingSound=false;if(!started)setPlaying(false);
+    }).catch(error=>{if(token===playToken){setPlaying(false);notify((error as Error).message);}});
+  }
+  button('play').textContent=playing?'Ⅱ':'▶';button('play').setAttribute('aria-label',playing?'Pause film':'Play film');dirty=true;
+}
 function lock() {
   for (const e of document.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('.workspace button,.workspace input,.workspace select,.file-tools button')) e.disabled = loading || exporting || importing || !!placementBefore;
   if (!loading && !exporting && !importing && !placementBefore) {
@@ -151,6 +168,15 @@ function renderTracks() {
       const b=document.createElement('button');b.className='text-beat';b.textContent=cue.text||'Text';b.title=`${cue.style}: ${cue.text} (${cue.start}s–${cue.start+cue.duration}s)`;b.style.left=`${cue.start/total*100}%`;b.style.width=`${cue.duration/total*100}%`;b.style.top=`${Math.min(level,3)*23}px`;b.addEventListener('click',()=>{time=cue.start+.01;setPlaying(false);textEditor.open(cue.id);});blocks.append(b);}
     blocks.style.height=`${Math.min(4,ends.length)*23}px`;lane.append(label,blocks);$('tracks').append(lane);}
 
+  if(project.audio.speech.length||project.audio.music.track!=='none'){
+    const lane=document.createElement('div');lane.className='track-lane text-track';const label=document.createElement('div');label.className='track-name';label.textContent=project.audio.muted?'SOUND · MUTED':'SOUND';
+    const blocks=document.createElement('div');blocks.className='text-track-blocks';let rows=0;
+    if(project.audio.music.track!=='none'){const music=document.createElement('button');music.className='text-beat music-beat';music.style.width='100%';music.textContent=`Music · ${project.audio.music.track}`;music.onclick=()=>soundEditor.open();blocks.append(music);rows++;}
+    const ends:number[]=[];for(const cue of [...project.audio.speech].sort((a,b)=>a.start-b.start)){let level=ends.findIndex(t=>t<=cue.start);if(level<0)level=ends.length;ends[level]=cue.start+cue.duration;
+      const clip=document.createElement('button');clip.className='text-beat audio-beat';clip.style.left=`${cue.start/total*100}%`;clip.style.width=`${cue.duration/total*100}%`;clip.style.top=`${(rows+Math.min(level,2))*23}px`;clip.textContent=`${cue.asset?'':'○ '}${cue.name}`;clip.title=`${cue.name} · ${cue.effect} · ${cue.start.toFixed(1)}s`;clip.onclick=()=>{time=cue.start;setPlaying(false);soundEditor.open(cue.id);};blocks.append(clip);}
+    blocks.style.height=`${(rows+Math.min(3,ends.length))*23}px`;lane.append(label,blocks);$('tracks').append(lane);
+  }
+
 }
 function renderUI() {
   if(!project.actors.some(a=>a.id===selectedActor)){selectedActor=project.actors[0].id;characterSelected=false;}
@@ -185,7 +211,7 @@ function renderUI() {
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
   $('view-readout').textContent=`${Math.round(project.view.azimuth)}° · ${project.view.zoom.toFixed(1)}×`;
   for(const aspect of ['landscape','portrait'])button(aspect).setAttribute('aria-pressed',String(project.aspect===aspect));
-  textEditor.render();lock();renderPosition();fitFilm();dirty=true;scheduleSessionSave();
+  textEditor.render();soundEditor.render();$('sound-readout').textContent=project.audio.muted?'Sound muted':hasAudio(project.audio)?'Sound on':'Silent film';lock();renderPosition();fitFilm();dirty=true;scheduleSessionSave();
 }
 async function syncActors() {
   const next=new Map<string,StudioActor>(),made:StudioActor[]=[];
@@ -204,7 +230,7 @@ async function apply(next: StudioProject, keepHistory=true) {
   if(loading||exporting)return false;
   let valid:StudioProject;try{valid=parseProject(JSON.stringify(next));}catch(e){notify((e as Error).message);renderUI();return false;}
   let applied=true;
-  const previous=project;if(keepHistory)remember();project=valid;time=Math.min(time,durationOf(project));setPlaying(false);
+  const previous=project;if(keepHistory)remember();project=valid;soundtrack.invalidate();time=Math.min(time,durationOf(project));setPlaying(false);
   const needsBuild=project.actors.length!==scene.actors.size||project.actors.some(a=>builtRecipes.get(a.id)!==`${a.detail}:${a.character}`);
   if(needsBuild){loading=true;renderUI();try{await syncActors();}catch(e){applied=false;project=previous;if(keepHistory)history.pop();notify(`Character unchanged: ${(e as Error).message}`);}finally{loading=false;}}
   const {width,height}=dimensions();scene.resize(width,height);renderUI();save();return applied;
@@ -220,10 +246,10 @@ for(const c of ANIMATION_CATEGORIES)select('animation-category').append(new Opti
 input('animation-search').addEventListener('input',renderAnimations);select('animation-category').addEventListener('change',renderAnimations);
 select('character').addEventListener('change',()=>{const value=select('character').value;if(value!=='__custom')void edit(p=>p.actors.find(a=>a.id===selectedActor)!.character=presetCode(value));});
 button('add-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length>=2)return;const first=p.actors[0],duration=durationOf(p);const a=newActor(presetCode('The Adventurer'),'medium',p.actors.some(a=>a.id==='actor-b')?'actor-a':'actor-b');a.x=first.x+1.9<=12?first.x+1.9:first.x-1.9;a.y=first.y;a.z=first.z;a.yaw=first.yaw;if(duration>=0.3&&duration<=36)a.beats=a.beats.map(b=>({...b,duration:duration/3}));else{a.beats=[];for(let left=duration;left>0.001;left-=12)a.beats.push(beat('idle',Math.min(12,left)));}p.actors.push(a);characterSelected=true;selectedActor=a.id;selected=0;cameraSelection=false;}));
-button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';p.texts=p.texts.filter(c=>c.anchor==='screen'||resolveTextActor(c.anchor)!==removed);selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
+button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';p.texts=p.texts.filter(c=>c.anchor==='screen'||resolveTextActor(c.anchor)!==removed);for(const c of p.audio.speech)if(c.actor!=='narrator'&&resolveSpeechActor(c.actor)===removed)c.actor='narrator';selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
 for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)![key]=Number(input(`actor-${key}`).value)));
 select('blocking').addEventListener('change',()=>{const value=select('blocking').value;if(!value)return;void edit(p=>{if(p.actors.length<2)return;for(const [i,a]of p.actors.entries()){a.x=i?0.95:-0.95;a.z=0;a.y=0;a.yaw=value==='side'?0:(i?-1:1)*(value==='opposed'?90:35);}});});
-button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;dirty=true;renderPosition();});
+button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});
 select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.clip=select('action').value;b.move=false;}));
@@ -286,14 +312,19 @@ button('add-beat').addEventListener('click',()=>void edit(p=>{const a=p.actors.f
 button('add-shot').addEventListener('click',()=>void edit(p=>{const d=Math.min(3,MAX_DURATION-p.shots.reduce((s,b)=>s+b.duration,0));if(d<0.1||p.shots.length>=MAX_SHOTS)return;p.shots.push({id:beatId(),duration:d,shot:'wide',target:'all'});cameraSelection=true;selected=p.shots.length-1;}));
 button('remove-beat').addEventListener('click',()=>void edit(p=>{const items=cameraSelection?p.shots:p.actors.find(a=>a.id===selectedActor)!.beats;if(items.length>1)items.splice(selected,1);selected=Math.max(0,selected-1);}));
 for(const [id,offset]of [['earlier',-1],['later',1]]as const)button(id).addEventListener('click',()=>void edit(p=>{const items=cameraSelection?p.shots:p.actors.find(a=>a.id===selectedActor)!.beats,to=selected+offset;if(to<0||to>=items.length)return;[items[selected],items[to]]=[items[to],items[selected]];selected=to;}));
-button('save-project').addEventListener('click',()=>{save();download(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),`${filename()}.ara-studio.json`);notify('Editable project saved.');});
+button('save-project').addEventListener('click',async()=>{save();button('save-project').disabled=true;try{
+  if(project.audio.speech.some(c=>c.asset))download(await audioProjectBundle(project),`${filename()}.ara-studio.zip`);
+  else download(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),`${filename()}.ara-studio.json`);
+  notify('Editable project saved, including attached audio.');
+}catch(error){notify((error as Error).message);}finally{lock();}});
 button('load-project').addEventListener('click',()=>input('project-file').click());
 async function importStudioProject(source: string | File): Promise<boolean> {
   if(loading||exporting||importing||placementBefore)return false;
   saveSession();importing=true;setPlaying(false);lock();
   try {
-    if(typeof source!=='string'&&source.size>100_000)throw Error('Use JSON smaller than 100 KB.');
-    const next=parseStudioInput(typeof source==='string'?source:await source.text(),lib.catalog);
+    const bundle=typeof source!=='string'&&(/\.zip$/i.test(source.name)||source.type==='application/zip');
+    if(!bundle&&typeof source!=='string'&&source.size>100_000)throw Error('Use JSON smaller than 100 KB.');
+    const next=bundle?await openAudioBundle(source as File,lib.catalog):parseStudioInput(typeof source==='string'?source:await source.text(),lib.catalog);
     if(!await apply(next))return false;
     selectedActor=project.actors[0].id;characterSelected=true;cameraSelection=false;selected=0;time=0;
     renderUI();return true;
@@ -305,6 +336,8 @@ input('project-file').addEventListener('change',async()=>{
   try{await importStudioProject(file);}catch(e){notify((e as Error).message);}
   finally{input('project-file').value='';input('project-file').setAttribute('aria-busy','false');}
 });
+const soundEditor=setupSoundEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,pause:()=>setPlaying(false),
+  canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,edit:(fn,remember=true)=>{const next=structuredClone(project);fn(next);return apply(next,remember);},download,changed:()=>soundtrack.invalidate()});
 const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
@@ -314,16 +347,21 @@ button('snapshot').addEventListener('click',()=>{scene.render(project,time);scen
 $('edit-character').addEventListener('click',e=>{if(!characterSelected||loading||exporting||importing||placementBefore){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});
 document.addEventListener('keydown',e=>{if((e.target as HTMLElement).closest('input,select,textarea,button')||document.querySelector('dialog[open]'))return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing);}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}});
 let lastTime=performance.now();
-function tick(now:number){const elapsed=Math.min(0.1,Math.max(0,(now-lastTime)/1000));lastTime=now;if(!exporting&&!loading&&scene.actors.size){if(playing){time+=elapsed;const total=durationOf(project);if(time>=total){if(repeat)time%=total;else{time=total;setPlaying(false);}}dirty=true;if(now-lastSessionSave>1000)saveSession();}if(dirty){scene.render(project,time);renderPosition();dirty=false;}}requestAnimationFrame(tick);}
+function tick(now:number){const elapsed=Math.min(.1,Math.max(0,(now-lastTime)/1000));lastTime=now;
+  if(!exporting&&!loading&&scene.actors.size){
+    if(playing&&!preparingSound){time=soundtrack.position()??time+elapsed;const total=durationOf(project);if(time>=total){if(repeat){time=0;setPlaying(true);}else{time=total;setPlaying(false);}}dirty=true;if(now-lastSessionSave>1000)saveSession();}
+    if(dirty){scene.render(project,time);renderPosition();dirty=false;}
+  }requestAnimationFrame(tick);}
 requestAnimationFrame(tick);
 const dialog = $<HTMLDialogElement>('export-dialog');
 async function updateCapability() {
   const token = ++capabilityToken, size = Number(select('resolution').value), { width, height } = dimensions(size);
   button('start-export').disabled = true; $('export-message').textContent = 'Checking video export on this browser…';
-  const supported = await supportsMp4(width, height);
+  const supported = await supportsMp4(width, height),soundSupported=!hasAudio(project.audio)||!!await audioCodec();
+  $('export-audio-label').textContent=hasAudio(project.audio)?'Stereo soundtrack':'Silent MP4';
   if (token !== capabilityToken || !dialog.open) return;
-  button('start-export').disabled = !supported;
-  $('export-message').textContent = supported ? '' : 'This browser cannot encode this MP4 size. Try 720p, or use a current Chrome, Edge or Safari browser. You can still save a frame or project.';
+  button('start-export').disabled = !supported||!soundSupported;
+  $('export-message').textContent = !soundSupported?'This browser cannot encode MP4 audio. Save the WAV soundtrack, use another browser, or mute the film.':supported ? '' : 'This browser cannot encode this MP4 size. Try 720p, or use a current Chrome, Edge or Safari browser. You can still save a frame or project.';
 }
 button('open-export').addEventListener('click', () => {
   setPlaying(false); $('export-length').textContent = `${Number(durationOf(project).toFixed(1))} seconds`;
@@ -397,7 +435,7 @@ async function start() {
     const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();loading=false;renderUI();
     if(resume){
       document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
-      if(resume.assist.open)button('open-assist').click();else if(resume.text.open)textEditor.open(resume.text.selected);
+      if(resume.assist.open)button('open-assist').click();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open)soundEditor.open(resume.sound.selected);
     }
     const saved=save();
     if(acceptedLink&&saved){
@@ -410,4 +448,4 @@ async function start() {
 function historyReplaceHash(hash:string){const url=new URL(location.href);url.hash=hash;window.history.replaceState(window.history.state,'',url);}
 
 void start();
-if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&!importing&&scene.actors.size===project.actors.length;},exportMovie,supportsMp4,setProject:apply,sets:SETS}});
+if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&!importing&&scene.actors.size===project.actors.length;},exportMovie,supportsMp4,setProject:apply,sets:SETS,audio:{playback:soundtrack,editor:soundEditor}}});

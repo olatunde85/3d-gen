@@ -1579,3 +1579,14 @@ textarea:disabled { opacity: .55; }
 .text-track-blocks { position:relative;min-height:23px;max-height:92px;overflow-y:auto; }
 .text-beat { position:absolute;height:21px;min-width:3px;padding:2px 5px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:3px;background:#3b3349;border-color:#79648e;font-size:9px; }
 @media(max-width:650px){.text-editor-columns{grid-template-columns:1fr;gap:18px;}#text-dialog{padding:20px;}#text-cue{height:120px;}}
+#sound-dialog{width:min(1000px,calc(100vw - 28px));}
+.sound-columns{display:grid;grid-template-columns:280px minmax(0,1fr);gap:24px;margin-top:18px;}
+.sound-columns>section{min-width:0;}.sound-columns label{font-size:11px;margin:9px 0 5px;}.sound-columns input,.sound-columns select{font-size:12px;min-height:30px;padding:6px 8px;}
+.sound-actions{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;}.sound-actions button{font-size:10px;padding:7px 8px;}
+#sound-cue{height:180px;}#sound-cue option{padding:7px 4px;text-overflow:ellipsis;overflow:hidden;}#sound-count{float:right;color:var(--muted);}
+.sound-columns h3{font-size:13px;margin:18px 0 10px;}#sound-waveform{width:100%;height:58px;display:block;margin-top:10px;background:#15181d;border:1px solid var(--line);border-radius:6px;}
+.sound-columns .setting-hint{font-size:10px;line-height:1.6;margin-top:7px;}.sound-columns details{border-top:1px solid var(--line);padding-top:12px;margin-top:15px;}.sound-columns summary{font-size:11px;cursor:pointer;color:#c8c4ba;}
+.sound-columns .check-label input{width:14px;height:14px;min-height:14px;flex:none;}.sound-columns #sound-generate{font-size:11px;padding:8px 12px;margin-top:9px;}
+.sound-status{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;bottom:-28px;background:#202329;border-top:1px solid var(--line);margin-top:20px;padding:12px 0;min-height:44px;}.sound-status p{font-size:11px;line-height:1.5;overflow-wrap:anywhere;}.sound-status button{font-size:11px;flex:none;}
+.sound-columns a{text-decoration:underline;}#sound-delete{color:#e6afa0;}.audio-beat{background:#293e49;border-color:#527e94;}.music-beat{background:#2f4335;border-color:#608369;}
+@media(max-width:650px){#sound-dialog{padding:20px;}.sound-columns{grid-template-columns:1fr;gap:15px;}#sound-cue{height:120px;}.sound-status{bottom:-20px;}}

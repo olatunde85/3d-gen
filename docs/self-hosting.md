@@ -63,3 +63,7 @@ npm run test:ui     # drives the app in headless Chrome: build, slider, preset, 
 ## Motion capture data
 
 The motion-captured clips are baked into `src/core/anim/clips/mocap-data.ts`, which is committed, so you don't need the source recordings. To change them, edit `scripts/mocap-takes.ts`, run `npm run setup-assets` (it downloads the takes into `vendor/mocap/cmu`), then `npm run build-mocap`. See [Animations](animations.md#motion-capture).
+
+## Studio audio
+
+Speech recording/upload, Web Audio effects and procedural background music work without a server API or API key. Native device speech is available for quick read-throughs. Exportable typed speech optionally downloads a pinned Supertonic 2 model when requested; those large files are excluded from the static build. To mirror them, set `VITE_STUDIO_TTS_MODEL_URL` before building and follow the [Studio hosting instructions](studio.md#hosting-optional-speech), including its licence. The shipped CPU WASM runtime stays below Cloudflare Pages’ 25 MiB per-file limit. Serve `.wasm` as `application/wasm` and `.mjs` as JavaScript. Microphone capture and WebCodecs export need HTTPS or localhost.
