@@ -42,11 +42,11 @@ function modifierRanges(cat:Catalog){
   for(const preset of Object.values(PRESETS))for(const key of Object.keys(preset.modifiers??{}))if(!mods.has(key))mods.set(key,{label:key,minimum:-1,maximum:1});
   return mods;
 }
-export function parseCharacterInput(source:string,cat:Catalog):HumanParams{
+export function parseCharacterInput(source:string,cat:Catalog,initial:HumanParams=DEFAULT_PARAMS):HumanParams{
   if(source.length>100_000)throw Error('Use character JSON smaller than 100 KB.');
   let raw:unknown;try{raw=JSON.parse(source.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i,'$1'));}catch{throw Error('Paste a complete JSON object, without surrounding explanation.');}
   if(!object(raw))throw Error('Use an Ara character JSON object.');
-  let patch:Record<string,unknown>,base=structuredClone(DEFAULT_PARAMS);
+  let patch:Record<string,unknown>,base=structuredClone(initial);
   if('kind'in raw){
     if(raw.kind!=='ara-character'||raw.version!==1)throw Error('Use ara-character version 1. Studio film JSON belongs in Ara Studio.');
     for(const key of Object.keys(raw))if(!['kind','version','preset','params'].includes(key))throw Error(`Unsupported character field: ${key}.`);
@@ -80,15 +80,10 @@ export function characterSchema(cat:Catalog){
   properties.garmentStyles={type:'object',maxProperties:60,propertyNames:{enum:[...new Set([...GARMENTS.map(g=>g.id),...OUTFIT_SETS.map(s=>s.id),...Object.keys(CARRY_STYLES),...Object.values(PRESETS).flatMap(p=>Object.keys(p.garmentStyles??{}))])]},additionalProperties:{type:'object',additionalProperties:false,properties:{pattern:enumeration(PATTERNS),color:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},color2:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'}}}};
   return{$schema:'https://json-schema.org/draft/2020-12/schema',title:'Ara character input',type:'object',additionalProperties:false,required:['kind','version'],anyOf:[{required:['preset']},{required:['params']}],properties:{kind:{const:'ara-character'},version:{const:1},preset:enumeration(Object.keys(PRESETS)),params:{type:'object',additionalProperties:false,properties,not:{required:['age','ageYears']}}}};
 }
-export function generateCharacterGuide(cat:Catalog,brief='',current?:HumanParams){
+/** Shared appearance instructions and live assets, without an LLM task or output schema. */
+export function characterReference(cat:Catalog):string{
   const json=(value:unknown)=>JSON.stringify(value,null,2);
-  return `ARA 3D GEN — CHARACTER LLM ASSIST (version 1)
-Create ONE character, not a Studio film. Return only a complete JSON object using kind ara-character and version 1. Choose an optional preset as the base, then override its settings with params. Omitted fields keep the preset values or the listed defaults; arrays and maps replace their base values when supplied. The user will paste or open this JSON in Ara 3D Gen. Do not invent asset IDs, sliders, fields or new geometry. If a request exceeds the available builder, explain and suggest a supported alternative before returning JSON.
-
-USER'S BRIEF
-${brief.trim()||'[Describe the character you want here.]'}
-
-CAPABILITIES
+  return `CAPABILITIES
 All body controls are normalized 0..1: gender 0 female / 1 male; muscle, weight, height, proportions, breastSize and breastFirmness. Height is a body proportion, not centimetres. Use ageYears 12..90 for age in years, OR normalized age (never both); age 0.5 is 25 years. african/asian/caucasian are blended ancestry weights; use values summing to 1. seed is an integer 0..1e9. Facial and body detail sliders use exact modifiers IDs below, range -1..1 if bipolar, otherwise 0..1.
 Choose skin/eye/brow/lash/hair assets, procedural hair and facial hair, tattoos, earrings, expressions, teeth and tongue. Hex colours multiply textures: skinTint/hairTint/outfitTint darken their source; procedural hair uses hairColor. You cannot lighten a dark texture with a tint. Existing age-dependent clothing and tattoo rules still apply (tattoos and removing underwear are adult-only).
 Clothing: choose an outfit ID or outfit set; choose outfit none to combine top, jacket, bottom, underwear and accessories. Outfit sets supply their own top/bottom/jacket; standalone jacket applies with separate pieces or a mesh outfit. Garment styles use garment/set/bag IDs and only the patterns offered for that item, with optional color/color2 #RRGGBB overrides. Omit maps to keep preset styling; if you supply a map include all desired overrides. Shoes and hat are independent. Colour/pattern overrides affect procedural pieces, sets and bags. Legacy mesh-style metadata from presets is retained, but does not recolour imported textures; use outfitTint for imported clothing. weapon/carry equip fitted props; vehicle bicycle is a preview prop, not an exported vehicle. Do not use scene, timeline, subtitle or camera fields here.
@@ -113,7 +108,17 @@ OUTFIT SETS
 ${json(OUTFIT_SETS)}
 
 BAG FINISHES
-${json(CARRY_STYLES)}
+${json(CARRY_STYLES)}`;
+}
+export function generateCharacterGuide(cat:Catalog,brief='',current?:HumanParams){
+  const json=(value:unknown)=>JSON.stringify(value,null,2);
+  return `ARA 3D GEN — CHARACTER LLM ASSIST (version 1)
+Create ONE character, not a Studio film. Return only a complete JSON object using kind ara-character and version 1. Choose an optional preset as the base, then override its settings with params. Omitted fields keep the preset values or the listed defaults; arrays and maps replace their base values when supplied. The user will paste or open this JSON in Ara 3D Gen. Do not invent asset IDs, sliders, fields or new geometry. If a request exceeds the available builder, explain and suggest a supported alternative before returning JSON.
+
+USER'S BRIEF
+${brief.trim()||'[Describe the character you want here.]'}
+
+${characterReference(cat)}
 
 JSON SCHEMA (also lists equipment, expressions, facial hair, tattoos, earrings and every detail slider)
 ${json(characterSchema(cat))}

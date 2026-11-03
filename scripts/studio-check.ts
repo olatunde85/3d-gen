@@ -99,7 +99,8 @@ const passed:string[]=[];
 const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
-async function step(name:string,fn:()=>Promise<void>){if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+const assistOnly=process.argv.includes('--assist');
+async function step(name:string,fn:()=>Promise<void>){if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -295,6 +296,26 @@ try{
   const before=await evaluate<string>('JSON.stringify(window.studio.project)');await upload('{broken json');await pause();if(before!==await evaluate<string>('JSON.stringify(window.studio.project)'))throw Error('Invalid file changed project');
   await evaluate('window.__beforeReload=true');await send('Page.reload');await waitFor('!window.__beforeReload && window.studio?.ready','saved cast after reload',120000);
   if(!await evaluate('window.studio.project.actors.length===2'))throw Error('Autosave lost cast');
+ });
+ await step('Custom character specifications build in Studio through paste and Open, then survive reload and Undo',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)'),payload=JSON.parse(original);
+  payload.actors[0].character={kind:'ara-character',version:1,preset:'The Female Executive',params:{name:'Ife',ageYears:41,hair:'cornrows',hairColor:'#241a13',expression:'happy',rig:'game_lite',restPose:'T'}};
+  payload.actors[1].params={name:'Kofi',gender:1,ageYears:33,hair:'buzz',facialHair:'short_beard',outfit:'set_suit_tie',shoes:'oxfords',carry:'briefcase',height:.62,breastSize:0,garmentStyles:{set_suit_tie:{pattern:'suiting',color:'#26364b',color2:'#354760'}}};
+  await evaluate("document.querySelector('#open-assist').click()");const bad=structuredClone(payload);bad.actors[0].character.params.hair='made-up-style';await search('assist-json',JSON.stringify(bad));
+  if(!await evaluate("document.querySelector('#assist-create').disabled && document.querySelector('#assist-status').textContent.includes('Character 1:')"))throw Error('Invalid custom appearance was not rejected');
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Custom validation changed the existing film');
+  await search('assist-json',JSON.stringify(payload));if(!await evaluate("!document.querySelector('#assist-create').disabled && document.querySelector('#assist-status').textContent.includes('Ife')"))throw Error('Inline character specifications were not accepted');
+  await evaluate("document.querySelector('#assist-create').click()");await ready();await waitFor("!document.querySelector('#assist-dialog').open",'custom character film');
+  const actual=await evaluate<any>("(()=>{const p=window.studio.project,s=window.studio.scene;return{actors:p.actors.map(a=>s.actors.get(a.id).character.params),beats:p.actors.map(a=>a.beats),shots:p.shots,finite:[...s.actors.values()].every(a=>a.mesh.skeleton.bones.every(b=>b.quaternion.toArray().every(Number.isFinite)))}})()");
+  if(actual.actors[0].name!=='Ife'||actual.actors[0].hair!=='cornrows'||actual.actors[0].rig!=='game_lite'||actual.actors[0].restPose!=='T'||actual.actors[0].outfit!=='set_pantsuit'||actual.actors[1].name!=='Kofi'||actual.actors[1].gender!==1||actual.actors[1].facialHair!=='short_beard'||actual.actors[1].carry!=='briefcase'||!actual.finite)throw Error('Custom characters were not built from their inherited parameters');
+  if(JSON.stringify(actual.beats)!==JSON.stringify(payload.actors.map((a:any)=>a.beats))||JSON.stringify(actual.shots)!==JSON.stringify(payload.shots))throw Error('Character specifications changed the scene direction');
+  await evaluate('window.studio.seek(1.5)');await pause();await shot('custom-character-json-cast');await evaluate("document.querySelector('#undo').click()");await ready();
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Custom film import was not one Undo edit');
+  await upload(JSON.stringify(payload));await ready();const saved=await evaluate<string>('JSON.stringify(window.studio.project)');await evaluate('window.__customReload=true');await send('Page.reload');await waitFor('!window.__customReload && window.studio?.ready','custom character recovery');
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==saved||!await evaluate("[...window.studio.scene.actors.values()].map(a=>a.character.params.name).join(',')==='Ife,Kofi'"))throw Error('Custom appearances were lost after Open/reload');
+  await evaluate("document.querySelector('#open-assist').click();(()=>{const e=document.querySelector('#assist-context');e.checked=true;e.dispatchEvent(new Event('change'))})()");
+  if(!await evaluate("document.querySelector('#assist-guide').value.includes('CHARACTER CREATION REFERENCE') && document.querySelector('#assist-guide').value.includes('GARMENTS AND ALLOWED PATTERNS') && document.querySelector('#assist-guide').value.includes('\"name\": \"Ife\"') && !document.querySelector('#assist-guide').value.includes(window.studio.project.actors[0].character)"))throw Error('Current film guide did not expose editable character parameters');
+  await evaluate("document.querySelector('#close-assist').click();document.querySelector('#undo').click()");await ready();if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Reload lost Undo for the custom film');
  });
  await step('LLM Assist exports a live guide and validates pasted projects before building',async()=>{
   const original=await evaluate<string>('JSON.stringify(window.studio.project)');

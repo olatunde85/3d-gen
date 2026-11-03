@@ -166,7 +166,7 @@ function renderUI() {
   $('cast-status').textContent=characterSelected?`Selected: ${actorName(a)}`:'No character selected';
   $('key-help').textContent=characterSelected?'Arrows: move · Shift/Ctrl + arrows: turn / height · Esc: deselect':'Arrows: orbit · click a character to select';
   const params=decodeCharacter(a.character,a.detail)??DEFAULT_PARAMS,picker=select('character');picker.replaceChildren();
-  const isPreset=!!PRESETS[params.name]&&presetCode(params.name)===a.character;
+  const isPreset=Object.hasOwn(PRESETS,params.name)&&presetCode(params.name)===a.character;
   if(!isPreset)picker.append(new Option(`${params.name||'Your character'} · custom`,'__custom'));
   for(const name of [...CAST,...Object.keys(PRESETS).filter(n=>!CAST.includes(n))])picker.append(new Option(name.replace(/^The /,''),name));picker.value=isPreset?params.name:'__custom';
   $<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:a.character,detail:a.detail})}`;
@@ -293,7 +293,7 @@ async function importStudioProject(source: string | File): Promise<boolean> {
   saveSession();importing=true;setPlaying(false);lock();
   try {
     if(typeof source!=='string'&&source.size>100_000)throw Error('Use JSON smaller than 100 KB.');
-    const next=parseStudioInput(typeof source==='string'?source:await source.text());
+    const next=parseStudioInput(typeof source==='string'?source:await source.text(),lib.catalog);
     if(!await apply(next))return false;
     selectedActor=project.actors[0].id;characterSelected=true;cameraSelection=false;selected=0;time=0;
     renderUI();return true;
@@ -308,7 +308,7 @@ input('project-file').addEventListener('change',async()=>{
 const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
-setupAssist({project:()=>project,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,
+setupAssist({project:()=>project,catalog:()=>lib.catalog,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,
   load:next=>importStudioProject(JSON.stringify(next)),download});
 button('snapshot').addEventListener('click',()=>{scene.render(project,time);scene.output.toBlob(b=>{if(b)download(b,`${filename()}-frame.png`);},'image/png');});
 $('edit-character').addEventListener('click',e=>{if(!characterSelected||loading||exporting||importing||placementBefore){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});

@@ -34,7 +34,7 @@ Quick build always reflects the current character, however it was made: in Detai
 
 Character input uses `{"kind":"ara-character","version":1,"preset":"The Adventurer","params":{"name":"Desert explorer","ageYears":34,"hair":"cornrows","carry":"backpack"}}`. A preset is optional; omitted parameters keep preset values or the builder defaults. Supplied arrays and maps replace their base values. Use `ageYears` (12–90) or normalized `age`, not both. Full `.params.json` exports can also be opened. Invalid fields, asset IDs, ranges and garment patterns are rejected before building.
 
-**Build character** updates the normal builder controls and mesh. Undo restores the previous character, and the normal Studio button can return an edited actor to its film. Draft briefs and pasted JSON survive reloads. This mode accepts character settings only; film JSON, subtitles, text and camera shots belong in [Ara Studio](studio.md).
+**Build character** updates the normal builder controls and mesh. Undo restores the previous character, and the normal Studio button can return an edited actor to its film. Draft briefs and pasted JSON survive reloads. This mode accepts character settings only; film JSON, subtitles, text and camera shots belong in [Ara Studio](studio.md). Studio can also embed this character JSON in an actor’s `character` field, or use the same `preset`/`params` fields directly on an actor.
 
 ## The data behind the bodies
 

@@ -57,12 +57,38 @@ Five styles are available: readable subtitle plates, plain outlined text, speech
 Choose **LLM Assist** in the top bar to create a film with your preferred AI assistant:
 
 1. Describe your film. Optionally include your current film as the starting point for revisions.
-2. **Copy guide** or **Save guide .txt**, then give that text to your AI assistant. It includes your brief, all locations, character presets, animation IDs and timings, equipment, timed text/comic bubbles, the JSON schema, a valid example and the editor’s actual limits.
+2. **Copy guide** or **Save guide .txt**, then give that text to your AI assistant. It includes your brief, all locations, full character-creation controls and assets, animation IDs and timings, equipment, timed text/comic bubbles, the JSON schema, a valid example and the editor’s actual limits.
 3. Paste the returned JSON into **Bring back the JSON**, or choose **Open JSON**. Studio validates it and shows the location, cast, duration and track counts before **Build film** replaces your project. Undo restores the previous film.
 
 The guide is generated from the editor’s live registries, so newly added sets, presets, animations and equipment appear automatically. Studio makes no LLM API calls and sends nothing automatically. You choose where to use the guide.
 
-LLM input uses the same version 2 project structure as saved films, with a readable shortcut for characters: use `"preset": "The Female Executive"` instead of an encoded `character` recipe, and optional `"weapon": "pistol"` or `"carry": "briefcase"` overrides. Each actor must use either `preset` or `character`, with an explicit `detail` level. Existing custom character recipes can be copied unchanged from the current film. Saving the result produces an ordinary project with exact character recipes.
+Studio JSON can design the cast directly, using the same body, face, skin, hair, clothing, colour, detail-slider and rig controls as the character builder. The Studio guide embeds the builder’s complete instructions and installed catalogues; its JSON Schema shares the same character parameter definitions. No separate visit to the builder is needed.
+
+An actor can use `params` alone to build from defaults, or combine `preset` and `params` to inherit a preset and override selected settings:
+
+```json
+{
+  "id": "explorer",
+  "preset": "The Adventurer",
+  "params": {
+    "name": "Maya",
+    "ageYears": 34,
+    "hair": "cornrows",
+    "carry": "backpack",
+    "garmentStyles": {
+      "tank_top": { "pattern": "solid", "color": "#436b67" },
+      "cargo_shorts": { "pattern": "khaki", "color": "#9c875f" }
+    }
+  },
+  "detail": "medium",
+  "x": 0, "y": 0, "z": 0, "yaw": 0,
+  "beats": [{ "clip": "wave", "duration": 3, "move": false }]
+}
+```
+
+Alternatively, put an entire character-builder response inside `actor.character`, including its `kind: "ara-character"`, `version: 1`, optional `preset` and `params`. Raw `.params.json` objects also work there. Existing encoded `character` strings remain supported; adding actor-level `params` overrides that saved character’s settings. Do not combine `preset` and `character`, or provide params both inside a character object and on its actor.
+
+Omitted parameters retain the chosen preset/recipe values, or defaults when neither is supplied. Supplied arrays and maps replace their inherited values. Actor-level `detail`, `weapon` and `carry` take precedence over embedded settings. Studio enables animations and uses the game rig when a character specifies `rig: "none"`. **Include my current film** expands saved character recipes into readable parameter objects, so an assistant can revise the existing cast. Saving the result keeps the exact normalized character recipes, including all custom appearance settings.
 
 Both the normal **Open** button and LLM Assist accept this JSON. Pasted JSON can also be enclosed in a single Markdown JSON code fence. Invalid JSON, unknown presets, unsupported fields, invalid camera targets and out-of-range timing are rejected before character construction. The editor’s existing limits still apply: one location, two independent actors, a silent film of at most 60 seconds, and no automatic physical interaction or lip-sync. Review staging in the viewport after importing.
 

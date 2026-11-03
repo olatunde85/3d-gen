@@ -1,8 +1,10 @@
 import { assistExample, generateAssistGuide, parseStudioInput, summarizeAssistProject } from './assist';
+import type { Catalog } from '../core/assets';
 import type { StudioProject } from './project';
 
 interface AssistEditor {
   project(): StudioProject;
+  catalog(): Catalog;
   canEdit(): boolean;
   load(project: StudioProject): Promise<boolean>;
   download(blob: Blob, name: string): void;
@@ -20,14 +22,14 @@ export function setupAssist(editor: AssistEditor) {
   const create = element<HTMLButtonElement>('assist-create');
   let parsed: StudioProject | undefined, busy = false;
 
-  function updateGuide() { guide.value = generateAssistGuide(brief.value, context.checked ? editor.project() : undefined); }
+  function updateGuide() { guide.value = generateAssistGuide(editor.catalog(),brief.value, context.checked ? editor.project() : undefined); }
   function validate() {
     parsed = undefined;
     status.classList.remove('error');
     draft.setAttribute('aria-invalid', 'false');
     if (!draft.value.trim()) status.textContent = 'Paste the complete project JSON or open a JSON file.';
     else try {
-      parsed = parseStudioInput(draft.value);
+      parsed = parseStudioInput(draft.value,editor.catalog());
       status.textContent = summarizeAssistProject(parsed);
     } catch (error) {
       status.textContent = (error as Error).message;

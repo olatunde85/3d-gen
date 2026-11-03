@@ -1,15 +1,20 @@
 /** Schema migration, catalogue contracts and independent actor/camera clock invariants. */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import type { Catalog } from '../src/core/assets';
 import { newProject, newActor, parseProject, timelineAt, durationOf, shotAt, beat, presetCode } from '../src/studio/project';
 import { SETS, searchScenes, SCENE_CATEGORIES } from '../src/studio/catalog';
 import { searchAnimations } from '../src/studio/animations';
 import { equipActor, WEAPONS, CARRIED } from '../src/studio/equipment';
 import { decodeCharacter } from '../src/app/share';
-import { assistExample, assistSchema, generateAssistGuide, parseStudioInput } from '../src/studio/assist';
+import { assistExample, assistSchema, generateAssistGuide, projectForAssist, parseStudioInput as parseInput } from '../src/studio/assist';
 import { readEditorSession } from '../src/studio/session';
-import { PRESETS } from '../src/core/params';
+import { characterExample, parseCharacterInput } from '../src/app/character-assist';
+import { PRESETS, ageToYears } from '../src/core/params';
 import { parseTextCues, parseSubtitles, subtitlesToSrt, MAX_TEXT_CUES } from '../src/studio/text';
 import { CLIPS } from '../src/core/anim/clips';
+const catalog=JSON.parse(readFileSync(new URL('../public/assets/catalog.json',import.meta.url),'utf8'))as Catalog;
+const parseStudioInput=(text:string)=>parseInput(text,catalog);
 assert.equal(SETS.length,50);assert.equal(new Set(SETS.map(s=>s.id)).size,50);assert.equal(SCENE_CATEGORIES.length,6);
 for(const set of SETS){const p=newProject(set.id);const copy=parseProject(JSON.stringify(p));assert.equal(copy.template,set.id);assert.equal(copy.actors[0].character,p.actors[0].character);assert.equal(durationOf(p),durationOf(copy));}
 assert.deepEqual(searchScenes('resort pool').map(s=>s.id),['resort-pool']);assert.ok(searchScenes('bedroom','Homes').length===2);assert.equal(searchScenes('pool','Workplaces').length,0);
@@ -37,12 +42,32 @@ const assisted=assistExample(),generated=parseStudioInput(JSON.stringify(assiste
 assert.equal(generated.template,'resort-pool');assert.equal(generated.actors.length,2);assert.equal(durationOf(generated),9);
 assert.equal(decodeCharacter(generated.actors[0].character,'medium')!.carry,'briefcase');assert.equal(decodeCharacter(generated.actors[1].character,'medium')!.carry,'backpack');
 assert.deepEqual(parseStudioInput(JSON.stringify(generated)),generated);assert.deepEqual(parseStudioInput('```json\n'+JSON.stringify(assisted)+'\n```'),generated);assert.deepEqual(parseStudioInput(JSON.stringify(legacy)),migrated);
-for(const name of Object.keys(PRESETS)){const input=structuredClone(assisted);input.actors[0].preset=name;const film=parseStudioInput(JSON.stringify(input));assert.equal(decodeCharacter(film.actors[0].character,'medium')!.name,name);}
-const guide=generateAssistGuide('Keep two actors talking.',generated),schema=assistSchema();
+for(const name of Object.keys(PRESETS)){const input=structuredClone(assisted);input.actors[0].preset=name;delete (input.actors[0] as {params?:unknown}).params;const film=parseStudioInput(JSON.stringify(input));assert.equal(decodeCharacter(film.actors[0].character,'medium')!.name,name);}
+const guide=generateAssistGuide(catalog,'Keep two actors talking.',generated),schema=assistSchema(catalog);
 for(const scene of SETS)assert.ok(guide.includes('"'+scene.id+'"'));for(const clip of CLIPS)assert.ok(guide.includes('"'+clip.id+'"'));
-for(const preset of Object.keys(PRESETS))assert.ok(guide.includes(preset));assert.ok(guide.includes(JSON.stringify(generated,null,2)));assert.ok(guide.includes('Keep two actors talking.'));
-assert.equal(schema.properties.actors.maxItems,2);assert.deepEqual(schema.properties.template.enum,SETS.map(s=>s.id));assert.ok(guide.length<100_000);
-assert.ok(!generateAssistGuide().includes('CURRENT FILM —'));
+for(const preset of Object.keys(PRESETS))assert.ok(guide.includes(preset));assert.ok(guide.includes(JSON.stringify(projectForAssist(generated),null,2)));assert.ok(guide.includes('Keep two actors talking.'));
+assert.equal(schema.properties.actors.maxItems,2);assert.deepEqual(schema.properties.template.enum,SETS.map(s=>s.id));assert.ok(guide.length<250_000);
+assert.ok(!generateAssistGuide(catalog).includes('CURRENT FILM —'));
+const hostParams=decodeCharacter(generated.actors[0].character,'medium')!,guestParams=decodeCharacter(generated.actors[1].character,'medium')!;
+assert.equal(hostParams.name,'Amara, the host');assert.equal(hostParams.outfit,'set_pantsuit');assert.equal(hostParams.hair,'cornrows');assert.ok(Math.abs(ageToYears(hostParams.age)-36)<1e-8);
+assert.equal(guestParams.name,'Maya, the explorer');assert.equal(guestParams.outfit,'none');assert.equal(guestParams.hair,'box_braids');assert.equal(guestParams.garmentStyles.tank_top.color,'#436b67');
+const embedded={...assisted,actors:[{id:'host',character:characterExample(),detail:'high',x:0,y:0,z:0,yaw:0,beats:assisted.actors[0].beats}]};
+const nested=parseStudioInput(JSON.stringify(embedded)),nestedParams=decodeCharacter(nested.actors[0].character,'high')!;
+assert.equal(nestedParams.name,'Desert explorer');assert.equal(nestedParams.carry,'backpack');assert.equal(nested.actors[0].detail,'high');assert.equal(nestedParams.detail,'high');
+assert.deepEqual(nestedParams,{...parseCharacterInput(JSON.stringify(characterExample()),catalog),detail:'high'});
+const fromRecipe={...embedded,actors:[{...embedded.actors[0],detail:'medium',character:generated.actors[0].character,params:{name:'Revised host',ageYears:43}}]};
+const inherited=decodeCharacter(parseStudioInput(JSON.stringify(fromRecipe)).actors[0].character,'medium')!;
+assert.equal(inherited.name,'Revised host');assert.ok(Math.abs(ageToYears(inherited.age)-43)<1e-8);assert.deepEqual({...inherited,name:hostParams.name,age:hostParams.age},hostParams);
+const rawParamsFilm={...embedded,actors:[{...embedded.actors[0],character:nestedParams}]};
+assert.deepEqual(decodeCharacter(parseStudioInput(JSON.stringify(rawParamsFilm)).actors[0].character,'high'),nestedParams);
+assert.deepEqual(parseStudioInput(JSON.stringify(projectForAssist(generated))),generated);
+assert.ok(guide.includes('CHARACTER CREATION REFERENCE'));assert.ok(guide.includes('GARMENTS AND ALLOWED PATTERNS'));assert.ok(guide.includes('ageYears'));assert.ok(guide.includes('modifiers'));
+assert.ok(schema.$defs.characterParams.properties.garmentStyles);assert.equal(schema.$defs.characterSpecification.properties.params.$ref,'#/$defs/characterParams');
+assert.throws(()=>parseInput(JSON.stringify(embedded)),/builder catalogue/);
+for(const params of [{hair:'made-up'},{ageYears:4},{height:10},{garmentStyles:{tank_top:{color:'red'}}},{modifiers:{'unknown/slider':.5}}])assert.throws(()=>parseStudioInput(JSON.stringify({...assisted,actors:[{...assisted.actors[0],params}]})),/Character 1:/);
+assert.throws(()=>parseStudioInput(JSON.stringify({...embedded,actors:[{...embedded.actors[0],params:{name:'Ambiguous'}}]})),/not both/);
+assert.throws(()=>parseStudioInput(JSON.stringify({...embedded,actors:[{...embedded.actors[0],character:{kind:'ara-character',version:9,params:{name:'Wrong version'}}}]})),/Character 1:/);
+console.log('Studio custom characters: params, preset inheritance, embedded builder JSON, existing recipe overrides, readable film context and invalid definitions passed.');
 const badAssist=[{...assisted,audio:'voice.mp3'},{...assisted,actors:[{...assisted.actors[0],preset:'Someone invented'}]},{...assisted,actors:[{...assisted.actors[0],preset:'toString'}]},
  {...assisted,actors:[{...assisted.actors[0],character:generated.actors[0].character}]},{...assisted,actors:[{...assisted.actors[0],weapon:'laser'}]},
  {...assisted,actors:[{...assisted.actors[0],carry:'suitcase'}]},{...assisted,actors:[{...assisted.actors[0],beats:[{clip:'teleport',duration:3,move:false}]}]},

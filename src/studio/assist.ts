@@ -1,7 +1,9 @@
 /** A portable LLM contract, derived from the same registries as the editor. No API calls. */
+import type { Catalog } from '../core/assets';
+import { parseCharacterInput, characterSchema, characterReference } from '../app/character-assist';
 import { PRESETS } from '../core/params';
 import { CLIPS } from '../core/anim/clips';
-import { decodeCharacter } from '../app/share';
+import { decodeCharacter, encodeCharacter } from '../app/share';
 import { SETS, sceneById } from './catalog';
 import { MAX_TEXT_CUES, TEXT_STYLES } from './text';
 import { actionNote } from './animations';
@@ -15,7 +17,7 @@ function fields(value: Record<string, unknown>, allowed: string[], path: string)
 }
 
 /** Accept saved projects or LLM-friendly preset/equipment names; keep the canonical validator authoritative. */
-export function parseStudioInput(text: string): StudioProject {
+export function parseStudioInput(text: string, catalog?: Catalog): StudioProject {
   if (text.length > 100_000) throw Error('Use JSON smaller than 100 KB.');
   const source = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, '$1');
   let value: unknown;
@@ -31,17 +33,34 @@ export function parseStudioInput(text: string): StudioProject {
   if (Array.isArray(value.actors)) value.actors = value.actors.map((raw, i) => {
     if (!object(raw)) return raw;
     const path = `Character ${i + 1}`;
-    fields(raw, ['id', 'preset', 'character', 'detail', 'weapon', 'carry', 'x', 'y', 'z', 'yaw', 'beats'], path);
+    fields(raw, ['id', 'preset', 'character', 'params', 'detail', 'weapon', 'carry', 'x', 'y', 'z', 'yaw', 'beats'], path);
     if (Array.isArray(raw.beats)) raw.beats.forEach((beat, j) => {
       if (object(beat)) fields(beat, ['id', 'clip', 'duration', 'move'], `${path}, action ${j + 1}`);
     });
-    let character = raw.character;
-    if ('preset' in raw) {
-      if ('character' in raw) throw Error(`${path}: use either preset or character, not both.`);
-      if (typeof raw.preset !== 'string' || !Object.hasOwn(PRESETS, raw.preset)) throw Error(`${path}: unknown preset. Copy an exact preset name from the guide.`);
-      character = presetCode(raw.preset);
+    const detail=raw.detail;
+    if(!['low','medium','high'].includes(String(detail)))throw Error(`${path}: choose low, medium or high detail.`);
+    let character=raw.character;
+    if('preset'in raw&&'character'in raw)throw Error(`${path}: use either preset or character, not both.`);
+    if(object(character)&&'params'in raw)throw Error(`${path}: put params inside the character specification or on the actor, not both.`);
+    const custom=object(character)||'params'in raw;
+    if(custom){
+      if(!catalog)throw Error(`${path}: custom characters need the installed builder catalogue.`);
+      try{
+        if(object(character))character=encodeCharacter({...parseCharacterInput(JSON.stringify(character),catalog),detail:detail as 'low'|'medium'|'high'});
+        else{
+          let base;
+          if('character'in raw){
+            if(typeof character!=='string'||!(base=decodeCharacter(character,detail as 'low'|'medium'|'high')))throw Error('Invalid existing character recipe.');
+          }
+          const specification={kind:'ara-character',version:1,...('preset'in raw?{preset:raw.preset}:{}),params:raw.params};
+          character=encodeCharacter({...parseCharacterInput(JSON.stringify(specification),catalog,base),detail:detail as 'low'|'medium'|'high'});
+        }
+      }catch(error){throw Error(`${path}: ${(error as Error).message}`);}
+    }else if('preset'in raw){
+      if(typeof raw.preset!=='string'||!Object.hasOwn(PRESETS,raw.preset))throw Error(`${path}: unknown preset. Copy an exact preset name from the guide.`);
+      character=presetCode(raw.preset);
     }
-    if (typeof character !== 'string' || !['low', 'medium', 'high'].includes(String(raw.detail)) || !decodeCharacter(character, raw.detail as 'low' | 'medium' | 'high')) throw Error(`${path}: choose a valid preset or character recipe and detail level.`);
+    if(typeof character!=='string'||!decodeCharacter(character,detail as 'low'|'medium'|'high'))throw Error(`${path}: provide a preset, params or a valid character specification/recipe.`);
     const actor = { character, detail: raw.detail as 'low' | 'medium' | 'high' };
     for (const slot of ['weapon', 'carry'] as const) if (slot in raw) {
       if (typeof raw[slot] !== 'string') throw Error(`${path}: ${slot} must be an equipment ID from the guide.`);
@@ -57,9 +76,9 @@ export function assistExample() {
   return {
     kind: 'ara-studio', version: 2, title: 'A poolside introduction', template: 'resort-pool',
     actors: [
-      { id: 'host', preset: 'The Female Executive', detail: 'medium', weapon: 'none', carry: 'briefcase', x: -0.95, y: 0, z: 0, yaw: 20,
+      { id: 'host', preset: 'The Female Executive', params: {name:'Amara, the host',ageYears:36,hair:'cornrows',hairColor:'#241a13'}, detail: 'medium', weapon: 'none', carry: 'briefcase', x: -0.95, y: 0, z: 0, yaw: 20,
         beats: [{ clip: 'wave', duration: 3, move: false }, { clip: 'talk', duration: 3, move: false }, { clip: 'idle', duration: 3, move: false }] },
-      { id: 'guest', preset: 'The Adventurer', detail: 'medium', weapon: 'none', carry: 'backpack', x: 0.95, y: 0, z: 0, yaw: -20,
+      { id: 'guest', params: {name:'Maya, the explorer',gender:0,ageYears:29,muscle:.55,height:.58,african:.7,asian:.1,caucasian:.2,outfit:'none',top:'tank_top',bottom:'cargo_shorts',hair:'box_braids',shoes:'combat_boots',accessories:[],garmentStyles:{tank_top:{pattern:'solid',color:'#436b67'},cargo_shorts:{pattern:'khaki',color:'#9c875f'}}}, detail: 'medium', weapon: 'none', carry: 'backpack', x: 0.95, y: 0, z: 0, yaw: -20,
         beats: [{ clip: 'idle', duration: 3, move: false }, { clip: 'talk', duration: 3, move: false }, { clip: 'wave', duration: 3, move: false }] },
     ],
     shots: [{ duration: 3, shot: 'wide', target: 'all' }, { duration: 3, shot: 'medium', target: 'host' }, { duration: 3, shot: 'wide', target: 'all' }],
@@ -70,7 +89,7 @@ export function assistExample() {
 }
 
 /** JSON Schema describes the portable input; total timeline duration is additionally validated at import. */
-export function assistSchema() {
+export function assistSchema(catalog:Catalog) {
   const num = (minimum: number, maximum: number) => ({ type: 'number', minimum, maximum });
   const enumeration = (values: readonly string[]) => ({ type: 'string', enum: values });
   const id = { type: 'string', pattern: '^[a-zA-Z0-9_-]{1,50}$', not: { enum: ['all', 'camera'] } };
@@ -78,14 +97,24 @@ export function assistSchema() {
   const action = { type: 'object', additionalProperties: false, required: ['clip', 'duration', 'move'], properties: {
     id: { type: 'string' }, clip: enumeration(CLIPS.map(c => c.id)), duration: num(0.1, 12), move: { type: 'boolean' },
   } };
+  const builder=characterSchema(catalog),builderDefinition=Object.fromEntries(Object.entries(builder).filter(([key])=>!['$schema','title'].includes(key)));
+  const characterSpecification={...builderDefinition,properties:{...builder.properties,params:{$ref:'#/$defs/characterParams'}}};
   const actor = { type: 'object', additionalProperties: false, required: ['id', 'detail', 'x', 'y', 'z', 'yaw', 'beats'],
-    oneOf: [{ required: ['preset'], not: { required: ['character'] } }, { required: ['character'], not: { required: ['preset'] } }], properties: {
-      id, preset: enumeration(Object.keys(PRESETS)), character: { type: 'string', description: 'An exact existing Ara character recipe; never invent or modify its encoded contents.' },
+    oneOf: [
+      {required:['preset'],not:{required:['character']}},
+      {required:['character'],not:{required:['preset']}},
+      {required:['params'],not:{anyOf:[{required:['preset']},{required:['character']}]}}
+    ],
+    allOf:[{if:{required:['character'],properties:{character:{type:'object'}}},then:{not:{required:['params']}}}],
+    properties: {
+      id, preset: enumeration(Object.keys(PRESETS)), params:{$ref:'#/$defs/characterParams',description:'Custom character parameters; override the preset or existing encoded character, or build from defaults.'},
+      character:{oneOf:[{type:'string',description:'An existing encoded character recipe copied verbatim.'},{$ref:'#/$defs/characterSpecification'},{$ref:'#/$defs/characterParams'}]},
       detail, weapon: enumeration(WEAPONS), carry: enumeration(CARRIED), x: num(-12, 12), y: num(0, 3), z: num(-12, 12), yaw: num(-180, 180),
       beats: { type: 'array', minItems: 1, maxItems: MAX_ACTIONS, items: action },
     } };
   return {
     $schema: 'https://json-schema.org/draft/2020-12/schema', title: 'Ara Studio LLM input, version 2', type: 'object', additionalProperties: false,
+    $defs:{characterParams:builder.properties.params,characterSpecification},
     required: ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption'], properties: {
       kind: { const: 'ara-studio' }, version: { const: 2 }, title: { type: 'string', maxLength: 60 }, template: enumeration(SETS.map(s => s.id)),
       actors: { type: 'array', minItems: 1, maxItems: MAX_ACTORS, items: actor },
@@ -101,7 +130,14 @@ export function assistSchema() {
   };
 }
 
-export function generateAssistGuide(brief = '', current?: StudioProject): string {
+/** Expand saved recipes for an LLM to inspect/edit without touching opaque encoded strings. */
+export function projectForAssist(project:StudioProject){
+  return {...project,actors:project.actors.map(({character,...actor})=>{
+    const params=decodeCharacter(character,actor.detail);
+    return {...actor,character:params?{kind:'ara-character',version:1,params}:character};
+  })};
+}
+export function generateAssistGuide(catalog:Catalog,brief = '', current?: StudioProject): string {
   const json = (value: unknown) => JSON.stringify(value, null, 2);
   return `ARA STUDIO — LLM ASSIST GUIDE (project version 2)
 You are directing a short silent 3D film in Ara Studio. Turn the user's brief into ONE complete JSON project that can be pasted or opened in Studio. Return only the JSON object: no code, comments, ellipses or invented capabilities. Use the exact IDs below. If the brief requires an unsupported capability, explain the limitation and suggest an achievable alternative before generating the project.
@@ -114,7 +150,9 @@ CAPABILITIES AND STAGING
 - Each actor has its own sequential beats. Camera shots run on an independent sequential track. All tracks start at time 0; no overlaps within a track. Film duration is the longest track, rounded up to a 30 fps frame, at most ${MAX_DURATION} seconds. Every beat/shot lasts 0.1–12 seconds; up to ${MAX_ACTIONS} beats per actor and ${MAX_SHOTS} shots. Shorter actor tracks hold their final pose; the last shot holds until the film ends. Synchronize beats by matching cumulative durations.
 - Looping clips repeat; one-shot clips play once and hold their final pose. Use catalogue duration for original clip timing. Consecutive identical looping beats continue their phase. No speed, blending or animation parameters are configurable in JSON.
 - move:true enables native travel ONLY on clips with a travel vector. Other clips use move:false. Travel vectors are metres per second at reference character height in local [X,Y,Z], scaled to character height and rotated by yaw. The whole travel path is centred around actor x/z. For static staging use move:false. Yaw 0 faces +Z; positive yaw turns toward +X. X/Z are horizontal metres; Y is elevation. Actor placement stays constant apart from enabled animation travel. Keep actors apart and in clear performance space.
-- Choose ONE of preset (exact catalogue name) or character (an existing encoded recipe copied verbatim). detail is low, medium or high. Optional weapon/carry IDs equip existing rigged props; none removes them. Omit equipment overrides to retain recipe/preset equipment. Never fabricate encoded character strings. Custom appearance beyond presets can be designed in the character builder and supplied as an existing recipe.
+- Design each character inside the film JSON: use actor.params alone to build from defaults, or actor.preset plus actor.params to inherit a preset and override its appearance. The shared character-building instructions and complete parameter schema below apply to these params. You can also paste an entire character-builder response into actor.character: {"kind":"ara-character","version":1,"preset":"The Adventurer","params":{"name":"Custom explorer","ageYears":34}}. A raw builder .params.json object is also accepted in actor.character. No separate builder visit is required.
+- Existing encoded actor.character strings still work. Add actor.params to override that existing character; never invent or edit an encoded string yourself. Do not combine preset and character, or put params both inside a character object and on its actor. Omitted fields inherit from the selected preset/existing recipe, or defaults when neither is provided. Supplied arrays/maps replace the inherited values, so include all desired entries. actor.detail (low/medium/high) always overrides embedded params.detail. Top-level actor.weapon/carry override equipment in the character specification; omit them to retain it, use none to remove it.
+- Studio needs an animated rig: rig none is rendered with the game rig, and animations are enabled for Studio performances. All other supported body, face, skin, hair, clothing, colours, modifiers and rig options use the builder specification below. Character parameters belong only inside params or a character specification; placement x/y/z/yaw and performance beats stay on the actor.
 - A chair is fitted automatically for seated clips; a bicycle for ride_bicycle. Other vehicle clips are poses only. Set furniture is fixed. Elevation can stage a lying character on a raised surface, but contact must be reviewed visually.
 - Camera shot: wide=full body, medium=waist-up, close=close-up; target=all or an actor id. Studio auto-frames the subject, including two actors. Global camera motion is locked, dolly (slow push-in) or orbit (gentle orbit), applied to every shot. view.azimuth/elevation are degree offsets from the default shot; zoom smaller than 1 is closer, larger than 1 is farther. No per-shot paths, camera coordinates or keyframes.
 - landscape=16:9; portrait=9:16. title up to 60 characters; caption toggles its overlay. The editor supports timeline edits, dragging and keyboard placement, actor selection, equipment, orbit/zoom, Undo, project save/open and still-image export. Movies are silent H.264 MP4 at 30 fps, manually exported at 720p or 1080p. Export resolution and editor selection are not project fields.
@@ -128,6 +166,10 @@ ${json(SETS.map(s => ({ id: s.id, name: s.name, category: s.category, mood: s.mo
 COMPLETE CHARACTER PRESET CATALOGUE
 ${json(Object.keys(PRESETS))}
 
+CHARACTER CREATION REFERENCE — applies to each actor's params/character, not the outer film object
+${characterReference(catalog)}
+Use the characterParams and characterSpecification definitions in the film JSON Schema below. Return a complete ara-studio film, not a standalone ara-character response.
+
 EQUIPMENT IDS
 ${json({ weapons: WEAPONS.map(id => ({ id, name: WEAPON_LABELS[id] })), bags: CARRIED.map(id => ({ id, name: CARRY_LABELS[id] })) })}
 
@@ -135,11 +177,11 @@ COMPLETE ANIMATION CATALOGUE
 ${json(CLIPS.map(c => ({ id: c.id, name: c.name, category: c.category, duration: c.duration, loop: c.loop, travel: c.travel ? Array.from(c.travel) : null, note: actionNote(c.id) })))}
 
 JSON SCHEMA
-${json(assistSchema())}
+${json(assistSchema(catalog))}
 Additional constraints: actor ids are unique; shot targets must be all or an actor id; each track and text cue must finish within ${MAX_DURATION}s. Screen text x/y must be 0..1; actor-relative x/y may be -1..1. Text IDs must be unique. Use move:true only for clips whose catalogue travel is non-null. Unknown fields are rejected.
 
 VALID EXAMPLE (replace it with the requested film)
-${json(assistExample())}${current ? `\n\nCURRENT FILM — use this as the starting point and preserve details not changed by the brief\n${json(current)}` : ''}
+${json(assistExample())}${current ? `\n\nCURRENT FILM — use this as the starting point and preserve details not changed by the brief\n${json(projectForAssist(current))}` : ''}
 
 Now create the complete importable JSON for the user's brief using only these capabilities.`;
 }
