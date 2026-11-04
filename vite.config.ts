@@ -1,12 +1,13 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import { studioLicenses } from './scripts/build-studio-licenses.ts';
+import { anthropicRelay } from './scripts/anthropic-relay.ts';
 
 export default defineConfig({
   // Set BASE_PATH (e.g. /3d-gen/) when hosting under a sub-path, such as GitHub Pages.
   base: process.env.BASE_PATH ?? '/',
   worker: { format: 'es' },
-  plugins: [studioLicenses()],
+  plugins: [studioLicenses(), anthropicRelay(process.env.BASE_PATH ?? '/')],
   build: {
     target: 'es2022',
     rollupOptions: {

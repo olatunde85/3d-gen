@@ -67,3 +67,13 @@ The motion-captured clips are baked into `src/core/anim/clips/mocap-data.ts`, wh
 ## Studio audio
 
 Speech recording/upload, Web Audio effects and procedural background music work without a server API or API key. Native device speech is available for quick read-throughs. Exportable typed speech optionally downloads a pinned Supertonic 2 model when requested; those large files are excluded from the static build. To mirror them, set `VITE_STUDIO_TTS_MODEL_URL` before building and follow the [Studio hosting instructions](studio.md#hosting-optional-speech), including its licence. The shipped CPU WASM runtime stays below Cloudflare Pages’ 25 MiB per-file limit. Serve `.wasm` as `application/wasm` and `.mjs` as JavaScript. Microphone capture and WebCodecs export need HTTPS or localhost.
+
+## LLM Assist relay
+
+LLM Assist's optional **Generate here** calls Claude with each user's own Anthropic API key. Some Anthropic organisations block calls made directly from web pages (the browser reports an origin or CORS error), so the site can relay those requests through its own origin:
+
+- **Locally:** `npm run dev` and `npm run preview` serve the relay at `/anthropic-relay` automatically.
+- **Cloudflare Pages:** the relay is the Pages Function in `functions/anthropic-relay/`. Deploy with `npx wrangler pages deploy dist` from the repository root, so the function is included; drag-and-drop **Upload assets** deploys static files only.
+- **Other hosts:** forward `POST /anthropic-relay/v1/messages` and `GET /anthropic-relay/v1/models/*` to `https://api.anthropic.com/v1/…`, passing only the `x-api-key`, `anthropic-version`, `anthropic-beta`, `content-type` and `accept` headers, and answer `GET /anthropic-relay/ping` with `{"ok":true,"relay":"anthropic"}`. `scripts/anthropic-relay-core.ts` is a ready-made, web-standard handler.
+
+The relay stores nothing and forwards only Claude message and model requests. Without a relay, Ara calls Anthropic directly, which works for keys whose organisation allows browser access.

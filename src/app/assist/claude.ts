@@ -25,9 +25,20 @@ export function saveConnection(c: Connection) { localStorage.setItem(KEY, JSON.s
 export function forgetConnection() { try { localStorage.removeItem(KEY); } catch { /* Already gone. */ } }
 export const maskKey = (key: string) => `${key.slice(0, 10)}…${key.slice(-4)}`;
 
+/**
+ * The site's relay (scripts/anthropic-relay-core.ts), when it has one. Some organisations block calls
+ * made directly from web pages; through the relay the same call is made server-side, so every key works.
+ */
+let relayBase: Promise<string | undefined> | undefined;
+const findRelay = () => relayBase ??= (async () => {
+  const url = new URL(`${import.meta.env.BASE_URL}anthropic-relay`, location.href).href;
+  try { const r = await fetch(`${url}/ping`, { cache: 'no-store' }); if (r.ok && (await r.json()).relay === 'anthropic') return url; }
+  catch { /* No relay: call Anthropic directly. */ }
+})();
+
 async function client(apiKey: string) {
-  const { default: Client } = await import('@anthropic-ai/sdk');
-  return { Client, api: new Client({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 2 }) };
+  const [{ default: Client }, baseURL] = await Promise.all([import('@anthropic-ai/sdk'), findRelay()]);
+  return { Client, relayed: !!baseURL, api: new Client({ apiKey, baseURL, dangerouslyAllowBrowser: true, maxRetries: 2 }) };
 }
 
 /** Plain-language message for any failure from the SDK. */
@@ -38,8 +49,11 @@ async function friendly(error: unknown, model: string): Promise<Error> {
   if (error instanceof A.PermissionDeniedError) return Error(`This key can't use ${modelOf(model).name}. Choose another model or check your organisation's settings.`);
   if (error instanceof A.NotFoundError) return Error(`${modelOf(model).name} isn't available to this key. Choose another model.`);
   if (error instanceof A.RateLimitError) return Error('Your API rate limit was reached. Wait a minute, then try again.');
-  // Anthropic's rejections of a bad key carry no CORS headers, so browsers report them as connection failures.
-  if (error instanceof A.APIConnectionError) return Error('Couldn\'t connect to Anthropic. Check that the key is correct and active, and that no ad or network blocker is stopping api.anthropic.com.');
+  // Browsers report blocked cross-origin calls as connection failures: a wrong key, or an organisation
+  // that doesn't allow calls from web pages. The relay avoids both.
+  if (error instanceof A.APIConnectionError) return Error(await findRelay()
+    ? 'Couldn\'t reach Anthropic through this site. Check your connection, then try again.'
+    : 'Anthropic refused a call from this web page. Check the key is correct. If it is, your organisation blocks browser calls: run Ara with npm run dev or npm run preview (they include a relay), or deploy with the Cloudflare Pages Function in functions/.');
   if (error instanceof A.InternalServerError || error instanceof A.APIError && error.status === 529) return Error('Claude is busy right now. Try again in a moment.');
   if (error instanceof A.APIError) return Error(`Anthropic API error ${error.status ?? ''}: ${error.message}`.trim());
   return error instanceof Error ? error : Error(String(error));

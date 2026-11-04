@@ -82,7 +82,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
             <label class="ai-field" for="${id}-key">Your Anthropic API key</label>
             <div class="ai-row ai-key-row"><input id="${id}-key" data-r="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" /><button class="ai-btn" data-r="key-save">Connect</button></div>
             <p class="ai-note" data-r="key-status" role="status"></p>
-            <p class="ai-note">The key stays in this browser and is sent only to Anthropic. Usage is billed to your Anthropic account. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Create a key ↗</a></p>
+            <p class="ai-note">The key stays in this browser and is used only for Anthropic (through this site's relay when it has one). Usage is billed to your Anthropic account. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Create a key ↗</a></p>
           </div>
           <div data-r="has-key" hidden>
             <div class="ai-conn"><span class="ai-dot" aria-hidden="true"></span><span data-r="key-label"></span><button class="ai-link" data-r="forget">Disconnect</button></div>
