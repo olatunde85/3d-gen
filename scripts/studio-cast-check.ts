@@ -1,0 +1,50 @@
+/** Five actors: UI operations, framing, independent tracks, recovery and a real recorded-music MP4. */
+import { writeFileSync } from 'node:fs';
+interface Harness{
+ enabled:boolean;step(name:string,fn:()=>Promise<void>):Promise<void>;evaluate<T=unknown>(source:string):Promise<T>;
+ waitFor(source:string,what:string,ms?:number):Promise<void>;change(id:string,value:string):Promise<unknown>;search(id:string,value:string):Promise<unknown>;ready():Promise<void>;pause(ms?:number):Promise<unknown>;shot(name:string):Promise<void>;
+ send<T=Record<string,unknown>>(method:string,params?:object):Promise<T>;folder:string;
+}
+export async function checkFiveCast(h:Harness){
+ if(!h.enabled)return;const{step,evaluate:e,waitFor:w,change,ready,pause,shot,send,folder}=h;
+ const click=async(id:string)=>{await e(`document.getElementById(${JSON.stringify(id)}).click()`);};
+ await step('Five actors add safely, retain existing meshes and expose independent controls',async()=>{
+  await e('window.__firstMeshes=[...studio.scene.actors].map(([id,a])=>[id,a.mesh.uuid])');
+  for(let i=0;i<3;i++){await click('add-actor');await ready();}
+  if(!await e('studio.project.actors.length===5&&studio.scene.actors.size===5&&new Set(studio.project.actors.map(a=>a.id)).size===5&&document.getElementById("add-actor").hidden&&document.getElementById("cast-count").textContent==="5 / 5"&&__firstMeshes.every(([id,uuid])=>studio.scene.actors.get(id).mesh.uuid===uuid)'))throw Error('Cast limit or model reuse');
+  await e(`(async()=>{const p=structuredClone(studio.project);p.template='portrait';p.camera='locked';p.caption=false;p.texts=[];p.shots=[{id:'all',duration:4,shot:'wide',target:'all'}];for(const a of p.actors)a.beats=[{id:'idle',clip:'idle',duration:4,move:false}];await studio.setProject(p);})()`);
+  await e('document.querySelectorAll(".cast-member")[4].click()');await change('action','laugh');if(!await e('studio.project.actors[4].beats[0].clip==="laugh"&&studio.project.actors.slice(0,4).every(a=>a.beats[0].clip==="idle")'))throw Error('Five tracks coupled');
+  await change('timeline-selection','camera:0');if(!await e('document.getElementById("shot-target").options.length===6'))throw Error('Missing camera subjects');await change('shot-target','actor-e');await change('shot','close');await pause();await shot('fifth-character-close');await change('shot-target','all');await change('shot','wide');
+ });
+ await step('Five actors fit landscape, portrait and every group arrangement',async()=>{
+  await e('document.querySelectorAll(".cast-member")[0].click()');
+  for(const arrangement of ['side','conversation','opposed']){
+   await change('blocking',arrangement);for(const aspect of ['landscape','portrait']){
+    await click(aspect);await e('studio.seek(1)');await pause();
+    const clipped=await e<string[]>(`(()=>{const s=studio.scene;s.render(studio.project,1);const bad=[];for(const [id,a]of s.actors)for(const y of [0,a.height]){const p=a.group.position.clone();p.y+=y;p.project(s.camera);if(Math.abs(p.x)>.98||Math.abs(p.y)>.98||p.z< -1||p.z>1)bad.push(id+':'+y);}return bad;})()`);if(clipped.length)throw Error('Clipped '+arrangement+' '+aspect+': '+clipped.join(','));await shot('five-'+arrangement+'-'+aspect);
+   }
+  }
+  await click('landscape');await change('blocking','conversation');
+  await send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await pause();if(!await e('document.getElementById("actor-carry").getBoundingClientRect().bottom<=innerHeight&&document.querySelector(".stage").clientHeight>=150&&document.querySelector(".timeline-scroll").scrollHeight>document.querySelector(".timeline-scroll").clientHeight&&document.querySelector(".timeline").getBoundingClientRect().bottom<=innerHeight'))throw Error('Five-track compact layout');await shot('five-compact-editor');
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await pause();if(!await e('document.documentElement.scrollWidth<=innerWidth&&document.querySelectorAll(".cast-member").length===5'))throw Error('Five-cast mobile overflow');await shot('five-mobile-editor');await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});
+ });
+ await step('Five actors and nine recorded music choices are described and imported by LLM Assist',async()=>{
+  await click('open-assist');await e('(()=>{const c=document.getElementById("assist-context");c.checked=true;c.dispatchEvent(new Event("change"));})()');
+  if(!await e('(()=>{const guide=document.getElementById("assist-guide").value;return guide.includes("5 characters maximum")&&guide.includes("restaurant-jazz")&&guide.includes("old-school-salsa")&&guide.includes("Afrobeat")&&guide.includes("actor-e");})()'))throw Error('Incomplete five-cast/music LLM guide');
+  await e(`(()=>{const box=document.getElementById('assist-json'),p=structuredClone(studio.project);p.audio.speech=[];p.audio.music.track='spy-opening';box.value=JSON.stringify(p);box.dispatchEvent(new Event('input',{bubbles:true}));document.getElementById('assist-create').click();})()`);await ready();await w('!document.getElementById("assist-dialog").open','five-character LLM film');if(!await e('studio.project.actors.length===5&&studio.project.audio.music.track==="spy-opening"'))throw Error('LLM film lost cast or music');
+ });
+ await step('Five actors survive removal, repair targets and reload without stale references',async()=>{
+  await e(`(async()=>{const p=structuredClone(studio.project);p.shots[0].target=p.actors[2].id;p.texts=[{id:'follow',text:'Third actor',style:'speech',anchor:p.actors[2].id,start:0,duration:2}];p.audio.speech=[{id:'spoken',source:'tts',name:'Third voice',text:'Hello',actor:p.actors[2].id,voice:'F1',start:0,duration:2,offset:0,speed:1,volume:0,pan:0,effect:'natural'}];await studio.setProject(p);document.querySelectorAll('.cast-member')[2].click();document.getElementById('remove-actor').click();})()`);await ready();if(!await e('studio.project.actors.length===4&&studio.project.shots[0].target==="all"&&!studio.project.texts.length&&studio.project.audio.speech[0].actor==="narrator"'))throw Error('Actor removal left stale references');await click('undo');await ready();
+  if(!await e('studio.project.actors.length===5&&studio.project.texts[0].anchor===studio.project.actors[2].id'))throw Error('Undo lost fifth cast');
+  await e('window.__fiveReload=true;window.__fiveSaved=JSON.stringify(studio.project);window.dispatchEvent(new Event("pagehide"))');const before=await e<string>('__fiveSaved');await send('Page.reload');await w('!window.__fiveReload&&window.studio?.ready','new five-character page');if(await e<string>('JSON.stringify(studio.project)')!==before)throw Error('Reload lost five-character project');
+ });
+ await step('Five actors export with audible recorded music and bounded render resources',async()=>{
+  await e(`(()=>{const frame=document.createElement('iframe');frame.id='cast-audio-fixture';frame.hidden=true;frame.src='/studio-audio-check.html';document.body.append(frame);})()`);await w('document.getElementById("cast-audio-fixture").contentWindow.audioCheck','audio decoding fixture');
+  const result=await e<{duration:number;rms:number;channels:number;size:number;geometries:number;textures:number;calls:number}>(`(async()=>{const p=structuredClone(studio.project);p.shots=[{id:'wide',shot:'wide',target:'all',duration:2}];for(const a of p.actors)a.beats=[{id:'wave',clip:'wave',duration:2,move:false}];p.texts=[];p.audio.speech=[];p.audio.music.track='restaurant-jazz';p.audio.music.volume=.4;p.audio.music.fadeIn=.1;p.audio.music.fadeOut=.2;await studio.setProject(p);window.__fiveMovie=await studio.exportMovie(studio.scene,p,{width:1280,height:720,signal:new AbortController().signal,progress:()=>{}});const ac=document.getElementById('cast-audio-fixture').contentWindow.audioCheck;return{size:__fiveMovie.size,...await ac.decodeMovie(__fiveMovie),geometries:studio.scene.renderer.info.memory.geometries,textures:studio.scene.renderer.info.memory.textures,calls:studio.scene.renderer.info.render.calls};})()`);
+  console.log('Five-cast recorded-music film:',result);if(result.rms<.0001||Math.abs(result.duration-2)>.1||result.channels!==2||result.geometries>170||result.textures>140||result.calls>500)throw Error('Five-character movie or resource budget');
+  const data=await e<string>('document.getElementById("cast-audio-fixture").contentWindow.audioCheck.asData(__fiveMovie)');writeFileSync(`${folder}/five-characters-recorded-music.mp4`,Buffer.from(data.split(',')[1],'base64'));await shot('five-recorded-music-film');
+  const portrait=await e<{duration:number;rms:number;channels:number;width:number;height:number}>(`(async()=>{const p=structuredClone(studio.project);p.aspect='portrait';p.shots[0].duration=1;for(const a of p.actors)a.beats[0].duration=1;await studio.setProject(p);window.__fivePortrait=await studio.exportMovie(studio.scene,p,{width:1080,height:1920,signal:new AbortController().signal,progress:()=>{}});const ac=document.getElementById('cast-audio-fixture').contentWindow.audioCheck,video=document.createElement('video'),url=URL.createObjectURL(__fivePortrait);video.src=url;await new Promise((resolve,reject)=>{video.onloadedmetadata=resolve;video.onerror=()=>reject(Error('Portrait movie failed to decode'))});const dimensions={width:video.videoWidth,height:video.videoHeight};video.removeAttribute('src');video.load();URL.revokeObjectURL(url);return{...await ac.decodeMovie(__fivePortrait),...dimensions};})()`);
+  console.log('Five-cast Full HD portrait:',portrait);if(portrait.width!==1080||portrait.height!==1920||Math.abs(portrait.duration-1)>.1||portrait.rms<.0001||portrait.channels!==2)throw Error('Five-cast Full HD portrait export');const portraitData=await e<string>('document.getElementById("cast-audio-fixture").contentWindow.audioCheck.asData(__fivePortrait)');writeFileSync(`${folder}/five-characters-1080p-portrait.mp4`,Buffer.from(portraitData.split(',')[1],'base64'));
+
+ });
+}

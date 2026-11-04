@@ -19,7 +19,7 @@ export interface StudioProject {
   camera: CameraMove; view: View; aspect: 'landscape' | 'portrait'; caption: boolean; texts: TextCue[]; audio: FilmAudio;
 }
 export const CAST = ['The Female Executive', 'The Adventurer', 'The Priest', 'The Miami Dealer', 'The Corporate High-Flier', 'The Gangster'];
-export const MAX_DURATION = 60, MAX_ACTIONS = 16, MAX_SHOTS = 12, MAX_ACTORS = 2;
+export const MAX_DURATION = 60, MAX_ACTIONS = 16, MAX_SHOTS = 12, MAX_ACTORS = 5;
 let nextId = 0;
 export const beatId = () => `beat-${Date.now().toString(36)}-${++nextId}`;
 export const beat = (clip: Action, duration: number, move = false): Beat => ({ id: beatId(), clip, duration, move });
@@ -56,7 +56,7 @@ export function parseProject(text: string): StudioProject {
       shots: p.beats.map(raw => { const b = record(raw); return { duration: b.duration, shot: b.shot, target: 'all' }; }), view: { azimuth: 0, elevation: 0, zoom: 1 } };
   }
   if (typeof p.template !== 'string' || !sceneById.has(p.template as SetId) || !member(p.camera, ['locked', 'orbit', 'dolly']) || !member(p.aspect, ['landscape', 'portrait'])) throw new Error('Unsupported scene or camera.');
-  if (!Array.isArray(p.actors) || p.actors.length < 1 || p.actors.length > MAX_ACTORS) throw new Error('A film needs one or two characters.');
+  if (!Array.isArray(p.actors) || p.actors.length < 1 || p.actors.length > MAX_ACTORS) throw new Error(`A film needs one to ${MAX_ACTORS} characters.`);
   const ids = new Set<string>();
   const actors: ActorTrack[] = p.actors.map((raw, i) => {
     const a = record(raw);

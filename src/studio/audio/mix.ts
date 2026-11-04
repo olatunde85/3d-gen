@@ -43,7 +43,7 @@ export async function renderSoundtrack(project:StudioProject,signal?:AbortSignal
     for(let i=0;i<curve.length;i++){const t=i/steps*duration;let duck=1;
       if(music.ducking)for(const cue of speech)if(cue.volume>0){const before=(t-(cue.start-.12))/.12,after=(cue.start+cue.duration+.35-t)/.35;duck=Math.min(duck,1-.7*Math.max(0,Math.min(1,before,after)));}
       const fadeIn=music.fadeIn?Math.min(1,t/music.fadeIn):1,fadeOut=music.fadeOut?Math.min(1,(duration-t)/music.fadeOut):1;curve[i]=music.volume*duck*Math.max(0,Math.min(fadeIn,fadeOut));}
-    gain.gain.setValueCurveAtTime(curve,0,duration);gain.connect(master);addMusic(ctx,music.track,duration,gain);
+    gain.gain.setValueCurveAtTime(curve,0,duration);gain.connect(master);await addMusic(ctx,music.track,duration,gain,signal);
   }
   signal?.throwIfAborted();const rendered=await ctx.startRendering();signal?.throwIfAborted();
   // A final common gain preserves the mix while preventing clipping from overlapping recordings.
@@ -52,14 +52,14 @@ export async function renderSoundtrack(project:StudioProject,signal?:AbortSignal
   return rendered;
 }
 export class AudioPlayback{
-  private context?:AudioContext;private source?:AudioBufferSourceNode;private token=0;private at=0;private offset=0;private key='';private buffer?:AudioBuffer;
+  private controller?:AbortController;private context?:AudioContext;private source?:AudioBufferSourceNode;private token=0;private at=0;private offset=0;private key='';private buffer?:AudioBuffer;
   get active(){return !!this.source;}
   position(){return this.source&&this.context?this.offset+this.context.currentTime-this.at:undefined;}
-  stop(){this.token++;if(this.source){this.source.onended=null;try{this.source.stop();}catch{/* already ended */}this.source.disconnect();this.source=undefined;}}
+  stop(){this.token++;this.controller?.abort();this.controller=undefined;if(this.source){this.source.onended=null;try{this.source.stop();}catch{/* already ended */}this.source.disconnect();this.source=undefined;}}
   async play(project:StudioProject,time:number,done:()=>void,length?:number){
     this.stop();const token=this.token;if(!hasAudio(project.audio))return false;
     this.context??=new AudioContext();await this.context.resume();const key=JSON.stringify({audio:project.audio,duration:durationOf(project)});
-    if(this.key!==key||!this.buffer){const buffer=await renderSoundtrack(project);if(token!==this.token)return false;this.buffer=buffer;this.key=key;}
+    if(this.key!==key||!this.buffer){const controller=new AbortController();this.controller=controller;try{const buffer=await renderSoundtrack(project,controller.signal);if(token!==this.token)return false;this.buffer=buffer;this.key=key;}catch(error){if(token!==this.token)return false;throw error;}}
     if(token!==this.token||!this.buffer)return false;const source=this.context.createBufferSource();source.buffer=this.buffer;source.connect(this.context.destination);this.at=this.context.currentTime;this.offset=time;this.source=source;source.onended=()=>{if(this.source===source){this.source=undefined;done();}};source.start(0,Math.min(time,Math.max(0,this.buffer.duration-.001)),length);return true;
   }
   invalidate(){this.stop();this.key='';this.buffer=undefined;}

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type { Catalog } from '../src/core/assets';
-import { newProject, newActor, parseProject, timelineAt, durationOf, shotAt, beat, presetCode } from '../src/studio/project';
+import { MAX_ACTORS, newProject, newActor, parseProject, timelineAt, durationOf, shotAt, beat, presetCode } from '../src/studio/project';
 import { SETS, searchScenes, SCENE_CATEGORIES } from '../src/studio/catalog';
 import { searchAnimations } from '../src/studio/animations';
 import { equipActor, WEAPONS, CARRIED } from '../src/studio/equipment';
@@ -13,6 +13,7 @@ import { characterExample, parseCharacterInput } from '../src/app/character-assi
 import { PRESETS, ageToYears } from '../src/core/params';
 import { parseTextCues, parseSubtitles, subtitlesToSrt, MAX_TEXT_CUES } from '../src/studio/text';
 import { defaultAudio, parseAudio, speechActor, MAX_SPEECH, MUSIC_TRACKS, VOICE_EFFECTS } from '../src/studio/audio/schema';
+import { addCastActor, arrangeCast } from '../src/studio/staging';
 import { CLIPS } from '../src/core/anim/clips';
 import { seatCast, seatedAt, hipsAt, type Sitter } from '../src/studio/seating';
 const catalog=JSON.parse(readFileSync(new URL('../public/assets/catalog.json',import.meta.url),'utf8'))as Catalog;
@@ -48,7 +49,7 @@ for(const name of Object.keys(PRESETS)){const input=structuredClone(assisted);in
 const guide=generateAssistGuide(catalog,'Keep two actors talking.',generated),schema=assistSchema(catalog);
 for(const scene of SETS)assert.ok(guide.includes('"'+scene.id+'"'));for(const clip of CLIPS)assert.ok(guide.includes('"'+clip.id+'"'));
 for(const preset of Object.keys(PRESETS))assert.ok(guide.includes(preset));assert.ok(guide.includes(JSON.stringify(projectForAssist(generated),null,2)));assert.ok(guide.includes('Keep two actors talking.'));
-assert.equal(schema.properties.actors.maxItems,2);assert.deepEqual(schema.properties.template.enum,SETS.map(s=>s.id));assert.ok(guide.length<250_000);
+assert.equal(schema.properties.actors.maxItems,5);assert.deepEqual(schema.properties.template.enum,SETS.map(s=>s.id));assert.ok(guide.length<250_000);
 assert.ok(!generateAssistGuide(catalog).includes('CURRENT FILM —'));
 const hostParams=decodeCharacter(generated.actors[0].character,'medium')!,guestParams=decodeCharacter(generated.actors[1].character,'medium')!;
 assert.equal(hostParams.name,'Amara, the host');assert.equal(hostParams.outfit,'set_pantsuit');assert.equal(hostParams.hair,'cornrows');assert.ok(Math.abs(ageToYears(hostParams.age)-36)<1e-8);
@@ -130,3 +131,14 @@ console.log('Audio: defaults/legacy migration, actor aliases, timing, limits, va
   assert.doesNotThrow(()=>parseProject(JSON.stringify(film)));
   console.log('Seating: nearest free seat, facing, no sharing, idempotent and valid placements passed.');
 }
+
+const ensemble=newProject(),firstActor=JSON.stringify(ensemble.actors[0]);
+while(ensemble.actors.length<MAX_ACTORS)addCastActor(ensemble);
+assert.equal(ensemble.actors.length,5);assert.equal(new Set(ensemble.actors.map(a=>a.id)).size,5);assert.equal(JSON.stringify(ensemble.actors[0]),firstActor);
+assert.equal(addCastActor(ensemble),undefined);assert.deepEqual(parseStudioInput(JSON.stringify(projectForAssist(ensemble))),parseProject(JSON.stringify(ensemble)));
+for(const kind of ['side','conversation','opposed']as const){arrangeCast(ensemble.actors,kind);for(const a of ensemble.actors)for(const b of ensemble.actors)if(a!==b)assert.ok(Math.hypot(a.x-b.x,a.z-b.z)>=1.4);assert.doesNotThrow(()=>parseProject(JSON.stringify(ensemble)));}
+const removed=ensemble.actors.splice(2,1)[0];assert.equal(addCastActor(ensemble)?.id,removed.id);assert.equal(new Set(ensemble.actors.map(a=>a.id)).size,5);
+assert.throws(()=>parseProject(JSON.stringify({...ensemble,actors:[...ensemble.actors,{...ensemble.actors[0],id:'sixth'}]})),/one to 5/);
+for(const track of MUSIC_TRACKS){assert.ok(guide.includes(track.id));if(track.file)assert.ok(readFileSync(new URL('../public/media/music/'+track.file,import.meta.url)).length>1000);}
+assert.equal(MUSIC_TRACKS.filter(t=>t.file).length,9);assert.equal(parseAudio({music:{track:'cinematic'}},new Set()).music.track,'adventure-trailer');assert.equal(parseAudio({music:{track:'ambient'}},new Set()).music.track,'tropical-pop');
+console.log('Five-character cast: cap, IDs, safe addition, group arrangements, readable LLM JSON and recorded music migration passed.');

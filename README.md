@@ -43,7 +43,7 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 - **Props:** a rifle, pistol, sword and knife on the socket (exported in the hand or as separate props), and a bicycle fitted to every rider.
 - **Exports you can trust:** an export panel that lists every file before you download it: static, rigged, or rigged + animations; one file or one per clip; Unity `model@clip` and Godot loop naming.
 - **Share:** a branded image of your character, a caption and a link that rebuilds the exact character in the app (no server or account needed).
-- **Ara Studio (early preview):** open your character in `/studio/`, search 50 categorized sets, direct two characters with 77 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with effects and music. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
+- **Ara Studio (early preview):** open your character in `/studio/`, search 50 categorized sets, direct up to five characters with 77 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with effects and nine recorded music options. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
 - **LLM Assist:** copy a complete guide from the character builder or Studio into your preferred AI assistant, then paste or open its JSON to build a character or an editable film with a custom-designed cast. Studio JSON supports character specifications and preset overrides directly, and prepares scripted voices automatically during review. No API key or integrated AI service needed.
 - **Tested:** `npm test` builds 259 characters and validates every format; `npm run test:gltf` checks every bone of every clip in three.js; `npm run test:ui` drives the app in headless Chrome.
 
@@ -75,6 +75,7 @@ Questions and showcases: [Discussions](https://github.com/olatunde85/3d-gen/disc
 ## Licensing
 
 - **Code:** [MIT](LICENSE).
+- **Studio music:** nine recorded tracks supplied for Ara, compressed and loudness-matched with FFmpeg. Creator/source credits ship in `media/music/CREDITS.txt`; music retains its own rights and is not covered by the code licence.
 - **Studio speech tools:** optional local Supertonic 2 voices use separately downloaded OpenRAIL-M model files; ONNX Runtime Web is MIT. Native device voices are available for read-throughs. Notices ship in `third-party/speech/`; see the [Studio guide](docs/studio.md#speech-and-music).
 - **Studio video tools:** Mediabunny is MPL 2.0. Static builds include its licence and original source in `third-party/mediabunny/`; see the [Studio guide](docs/studio.md).
 - **Character data:** MakeHuman assets, CC0 1.0 (public domain); see [scripts/ASSETS_LICENSE.txt](scripts/ASSETS_LICENSE.txt). They are downloaded by `setup-assets`, not stored in this repository.

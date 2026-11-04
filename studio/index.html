@@ -25,8 +25,8 @@
       <label class="sr-only" for="scene-search">Search scenes</label><input id="scene-search" type="search" placeholder="Search 50 scenes…" />
       <label class="sr-only" for="scene-category">Scene category</label><select id="scene-category"><option value="">All locations</option></select>
       <div id="set-list" class="set-list" aria-label="Scene results"></div><p id="scene-empty" hidden>No matching scenes. Try another search.</p>
-      <div class="section-heading cast-heading"><span>02 / THE CAST</span><a id="edit-character" href="../app/" title="Edit this character in Ara 3D Gen">Character builder ↗</a></div>
-      <div id="cast-roster" class="cast-roster" aria-label="Characters"></div><div class="cast-actions"><button id="add-actor">+ Second character</button><button id="remove-actor" hidden>Remove</button></div>
+      <div class="section-heading cast-heading"><span>02 / THE CAST <small id="cast-count">1 / 5</small></span><a id="edit-character" href="../app/" title="Edit this character in Ara 3D Gen">Character builder ↗</a></div>
+      <div id="cast-roster" class="cast-roster" aria-label="Characters"></div><div class="cast-actions"><button id="add-actor">+ Add character</button><button id="remove-actor" hidden>Remove</button></div>
       <label class="sr-only" for="character">Choose a character</label><select id="character"></select>
 <p id="cast-status" class="cast-status" aria-live="polite"></p>
       <section class="equipment-panel" id="equipment-settings">
@@ -107,7 +107,7 @@
         <label for="sound-cue">Speech clips <span id="sound-count"></span></label><select id="sound-cue" size="6"></select>
         </div>
         <div class="sound-music-library">
-        <h3>Background music</h3><label class="sr-only" for="sound-music">Music track</label><select id="sound-music"></select>
+        <h3>Background music</h3><label class="sr-only" for="sound-music">Music track</label><select id="sound-music"></select><p id="sound-music-credit" class="setting-hint"></p>
         <label for="sound-music-volume">Music volume %</label><input id="sound-music-volume" type="number" min="0" max="100" step="1" />
         <div class="form-row"><div><label for="sound-fade-in">Fade in (s)</label><input id="sound-fade-in" type="number" min="0" max="10" step="0.1" /></div><div><label for="sound-fade-out">Fade out (s)</label><input id="sound-fade-out" type="number" min="0" max="10" step="0.1" /></div></div>
         <label class="check-label"><input id="sound-ducking" type="checkbox" checked /><span>Lower music while someone speaks</span></label>

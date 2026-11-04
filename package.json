@@ -39,6 +39,7 @@
     "test:ui": "tsx scripts/ui-check.ts",
     "test:studio:model": "tsx scripts/studio-model-check.ts",
     "test:studio": "tsx scripts/studio-check.ts",
+    "build:studio-music": "tsx scripts/build-studio-music.ts",
     "setup:studio-speech": "tsx scripts/setup-studio-speech.ts",
     "test:character-assist": "tsx scripts/character-assist-check.ts"
   },

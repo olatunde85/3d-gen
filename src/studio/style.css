@@ -1631,3 +1631,14 @@ textarea:disabled { opacity: .55; }
 .sound-generation a { text-decoration:underline; }
 .sound-generation button { flex:none; padding:13px 18px; font-size:13px; }
 @media(max-width:650px){.sound-generation{flex-direction:column;align-items:stretch;gap:12px;padding:12px;}.sound-generation button{width:100%;}}
+
+#cast-count { margin-left:6px; color:var(--muted); font-size:9px; letter-spacing:0; }
+.cast-member:nth-child(3)[aria-pressed=true] { border-color:#a9a0cf; background:#39334b; color:#e0d7fa; }
+.cast-member:nth-child(4)[aria-pressed=true] { border-color:#cc9ca7; background:#4a3039; color:#f3d6dd; }
+.cast-member:nth-child(5)[aria-pressed=true] { border-color:#a4ba87; background:#344030; color:#e0edcd; }
+.track-lane:nth-child(4) .beat { background:#39334b; border-color:#72658c; }
+.track-lane:nth-child(5) .beat { background:#4a3039; border-color:#875965; }
+.track-lane:nth-child(6) .beat { background:#344030; border-color:#647d51; }
+@media(min-width:1101px) and (max-height:800px){
+  .library:has(.cast-member:nth-child(4)) #set-list { max-height:133px; }
+}

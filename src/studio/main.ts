@@ -6,7 +6,7 @@ import { decodeCharacter } from '../app/share';
 import { StudioActor } from './actor';
 import { StudioScene } from './scene';
 import { exportMovie, supportsMp4, audioCodec } from './export';
-import { CAST, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, durationOf, newActor, newProject, parseProject, presetCode, shotAt, timelineAt, trackDuration, type ActorTrack, type StudioProject } from './project';
+import { CAST, MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, durationOf, newProject, parseProject, presetCode, shotAt, timelineAt, trackDuration, type ActorTrack, type StudioProject } from './project';
 import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
 import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations';
 import { orbitControls } from './orbit';
@@ -19,6 +19,8 @@ import { hasAudio, resolveSpeechActor } from './audio/schema';
 import { audioProjectBundle, openAudioBundle } from './audio/bundle';
 import { setupAssist } from './assist-ui';
 import { seatCast } from './seating';
+import { addCastActor, arrangeCast, type Arrangement } from './staging';
+import { MUSIC_TRACKS } from './audio/tracks';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 
@@ -103,7 +105,7 @@ function lock() {
     button('earlier').disabled = selected === 0; button('later').disabled = selected === items.length - 1;
     button('add-beat').disabled = actorTrack().beats.length >= MAX_ACTIONS || trackDuration(actorTrack()) > MAX_DURATION - 0.1;
     button('add-shot').disabled = project.shots.length >= MAX_SHOTS || project.shots.reduce((s, b) => s + b.duration, 0) > MAX_DURATION - 0.1;
-    button('add-actor').disabled = project.actors.length >= 2;
+    button('add-actor').disabled = project.actors.length >= MAX_ACTORS;
     input('movement').disabled = !clipById.get(actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)].clip)?.travel;
     select('blocking').disabled = project.actors.length < 2;
   }
@@ -174,7 +176,7 @@ function renderTracks() {
   if(project.audio.speech.length||project.audio.music.track!=='none'){
     const lane=document.createElement('div');lane.className='track-lane text-track';const label=document.createElement('div');label.className='track-name';label.textContent=project.audio.muted?'SOUND · MUTED':'SOUND';
     const blocks=document.createElement('div');blocks.className='text-track-blocks';let rows=0;
-    if(project.audio.music.track!=='none'){const music=document.createElement('button');music.className='text-beat music-beat';music.style.width='100%';music.textContent=`Music · ${project.audio.music.track}`;music.onclick=()=>soundEditor.open();blocks.append(music);rows++;}
+    if(project.audio.music.track!=='none'){const music=document.createElement('button');music.className='text-beat music-beat';music.style.width='100%';music.textContent=`Music · ${MUSIC_TRACKS.find(t=>t.id===project.audio.music.track)?.name??project.audio.music.track}`;music.onclick=()=>soundEditor.open();blocks.append(music);rows++;}
     const ends:number[]=[];for(const cue of [...project.audio.speech].sort((a,b)=>a.start-b.start)){let level=ends.findIndex(t=>t<=cue.start);if(level<0)level=ends.length;ends[level]=cue.start+cue.duration;
       const clip=document.createElement('button');clip.className='text-beat audio-beat';clip.style.left=`${cue.start/total*100}%`;clip.style.width=`${cue.duration/total*100}%`;clip.style.top=`${(rows+Math.min(level,2))*23}px`;clip.textContent=`${cue.asset?'':'○ '}${cue.name}`;clip.title=`${cue.name} · ${cue.effect} · ${cue.start.toFixed(1)}s`;clip.onclick=()=>{time=cue.start;setPlaying(false);soundEditor.open(cue.id);};blocks.append(clip);}
     blocks.style.height=`${(rows+Math.min(3,ends.length))*23}px`;lane.append(label,blocks);$('tracks').append(lane);
@@ -191,7 +193,7 @@ function renderUI() {
     const b=document.createElement('button');b.className='cast-member';b.setAttribute('aria-pressed',String(characterSelected&&actor.id===selectedActor));b.textContent=`${i+1} · ${actorName(actor)}`;
     b.addEventListener('click',()=>{characterSelected=true;selectedActor=actor.id;cameraSelection=false;selected=0;renderUI();});$('cast-roster').append(b);
   }
-  $('add-actor').hidden=project.actors.length===2;$('remove-actor').hidden=project.actors.length===1;
+  $('add-actor').hidden=project.actors.length>=MAX_ACTORS;$('cast-count').textContent=`${project.actors.length} / ${MAX_ACTORS}`;$('remove-actor').hidden=project.actors.length===1;
   $('cast-status').textContent=characterSelected?`Selected: ${actorName(a)}`:'No character selected';
   $('key-help').textContent=characterSelected?'Arrows: move · Shift/Ctrl + arrows: turn / height · Esc: deselect':'Arrows: orbit · click a character to select';
   const params=decodeCharacter(a.character,a.detail)??DEFAULT_PARAMS,picker=select('character');picker.replaceChildren();
@@ -257,10 +259,10 @@ select('timeline-selection').addEventListener('change',()=>{const [id,index]=sel
 for(const c of ANIMATION_CATEGORIES)select('animation-category').append(new Option(c,c));
 input('animation-search').addEventListener('input',renderAnimations);select('animation-category').addEventListener('change',renderAnimations);
 select('character').addEventListener('change',()=>{const value=select('character').value;if(value!=='__custom')void edit(p=>p.actors.find(a=>a.id===selectedActor)!.character=presetCode(value));});
-button('add-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length>=2)return;const first=p.actors[0],duration=durationOf(p);const a=newActor(presetCode('The Adventurer'),'medium',p.actors.some(a=>a.id==='actor-b')?'actor-a':'actor-b');a.x=first.x+1.9<=12?first.x+1.9:first.x-1.9;a.y=first.y;a.z=first.z;a.yaw=first.yaw;if(duration>=0.3&&duration<=36)a.beats=a.beats.map(b=>({...b,duration:duration/3}));else{a.beats=[];for(let left=duration;left>0.001;left-=12)a.beats.push(beat('idle',Math.min(12,left)));}p.actors.push(a);characterSelected=true;selectedActor=a.id;selected=0;cameraSelection=false;}));
+button('add-actor').addEventListener('click',()=>void edit(p=>{const actor=addCastActor(p);if(!actor)return;characterSelected=true;selectedActor=actor.id;selected=0;cameraSelection=false;}));
 button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';p.texts=p.texts.filter(c=>c.anchor==='screen'||resolveTextActor(c.anchor)!==removed);for(const c of p.audio.speech)if(c.actor!=='narrator'&&resolveSpeechActor(c.actor)===removed)c.actor='narrator';selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
 for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)![key]=Number(input(`actor-${key}`).value)));
-select('blocking').addEventListener('change',()=>{const value=select('blocking').value;if(!value)return;void edit(p=>{if(p.actors.length<2)return;for(const [i,a]of p.actors.entries()){a.x=i?0.95:-0.95;a.z=0;a.y=0;a.yaw=value==='side'?0:(i?-1:1)*(value==='opposed'?90:35);}});});
+select('blocking').addEventListener('change',()=>{const value=select('blocking').value;if(!value)return;void edit(p=>arrangeCast(p.actors,value as Arrangement));});
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});

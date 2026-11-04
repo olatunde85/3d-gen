@@ -1,20 +1,12 @@
 /** Portable audio direction; recordings and generated waveforms live in the local asset library. */
+import { MUSIC_TRACKS, migrateMusic, type MusicId } from './tracks';
+export { MUSIC_TRACKS, type MusicId } from './tracks';
 export const MAX_SPEECH = 24;
 export const VOICE_EFFECTS = ['natural','robotic','dramatic','radio','telephone','echo'] as const;
 export const EFFECT_LABELS:Record<VoiceEffect,string>={natural:'Natural',robotic:'Robotic',dramatic:'Dramatic',radio:'Radio',telephone:'Telephone',echo:'Echo'};
 export type VoiceEffect = typeof VOICE_EFFECTS[number];
 export const STUDIO_VOICES=['F1','F2','M1','M2'] as const;
 export const VOICE_LABELS={F1:'Studio voice · F1',F2:'Studio voice · F2',M1:'Studio voice · M1',M2:'Studio voice · M2'};
-export const MUSIC_TRACKS=[
-  {id:'none',name:'No music',bpm:0,description:'Silence'},
-  {id:'ambient',name:'Quiet horizons',bpm:60,description:'Gentle sustained chords and a sparse melody'},
-  {id:'cinematic',name:'A story unfolds',bpm:72,description:'Warm cinematic pads, piano and a low pulse'},
-  {id:'suspense',name:'Something is coming',bpm:84,description:'A restrained minor-key pulse and dark textures'},
-  {id:'lofi',name:'After the rain',bpm:82,description:'Soft electric keys, bass and a relaxed beat'},
-  {id:'playful',name:'Small adventures',bpm:112,description:'Bright plucked notes and light percussion'},
-  {id:'uplifting',name:'First light',bpm:104,description:'Major-key arpeggios, gentle drums and broad chords'},
-] as const;
-export type MusicId=typeof MUSIC_TRACKS[number]['id'];
 export const speechActor=(id:string)=>id==='narrator'?'actor:narrator':id;
 export const resolveSpeechActor=(id:string)=>id==='actor:narrator'?'narrator':id;
 export interface SpeechCue {source:'tts'|'file'|'recording';id:string;name:string;actor:string;text:string;voice:typeof STUDIO_VOICES[number];asset?:string;start:number;duration:number;offset:number;speed:number;volume:number;pan:number;effect:VoiceEffect}
@@ -46,6 +38,6 @@ export function parseAudio(raw:unknown,actors:Set<string>):FilmAudio{
       offset:num(value.offset,0,59.9,label,0),speed:num(value.speed,.5,1.5,label,1),volume:num(value.volume,0,1.5,label,1),pan:num(value.pan,-1,1,label,0),effect:effect as VoiceEffect};
   });
   const music=raw.music??{};if(!object(music))throw Error('Music must be an object.');fields(music,['track','volume','ducking','fadeIn','fadeOut'],'Music');
-  const track=music.track??'none';if(!MUSIC_TRACKS.some(t=>t.id===track))throw Error('Choose a music track from the library.');
+  const track=migrateMusic(music.track??'none');if(!MUSIC_TRACKS.some(t=>t.id===track))throw Error('Choose a music track from the library.');
   return{speech:cues,music:{track:track as MusicId,volume:num(music.volume,0,1,'Music volume',.22),ducking:bool(music.ducking,true,'Music ducking'),fadeIn:num(music.fadeIn,0,10,'Music fade in',.6),fadeOut:num(music.fadeOut,0,10,'Music fade out',1.2)},muted:bool(raw.muted,false,'Audio muted')};
 }
