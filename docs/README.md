@@ -15,6 +15,10 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 - [Rigging](rigging.md): skeletons, skin weights, rest poses and the weapon socket
 - [Exporting](exporting.md): the Export panel and the file formats
 
+**Making films**
+
+- [Ara Studio](studio.md): direct up to five characters in 50 sets, with dialogue, sound effects, music and LLM Assist, and export an MP4
+
 **Under the hood**
 
 - [Architecture](architecture.md): how the code is organised and how a character is built

@@ -43,6 +43,8 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 - **Props:** a rifle, pistol, sword and knife on the socket (exported in the hand or as separate props), and a bicycle fitted to every rider.
 - **Exports you can trust:** an export panel that lists every file before you download it: static, rigged, or rigged + animations; one file or one per clip; Unity `model@clip` and Godot loop naming.
 - **Share:** a branded image of your character, a caption and a link that rebuilds the exact character in the app (no server or account needed).
+- **Ara Studio (early preview):** open your character in `/studio/`, search 50 categorized sets, direct up to five characters with 77 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with voice effects, timed sound effects and nine recorded music options. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
+- **LLM Assist:** copy a complete guide from the character builder or Studio into your preferred AI assistant, then paste or open its JSON to build a character or an editable film with a custom-designed cast. Studio JSON supports character specifications and preset overrides directly, and prepares scripted voices automatically during review. No API key or integrated AI service needed.
 - **Tested:** `npm test` builds 259 characters and validates every format; `npm run test:gltf` checks every bone of every clip in three.js; `npm run test:ui` drives the app in headless Chrome.
 
 ## Quick start
@@ -67,12 +69,16 @@ The full guides live in [`docs/`](docs/README.md), also at [ara3dgen.com/docs](h
 - [Using characters in your engine](docs/engines.md): Unity, Unreal, Godot, Blender and the web
 - [Bodies, clothing and looks](docs/characters.md) · [Faces, expressions and lip-sync](docs/faces.md) · [Animations](docs/animations.md)
 - [Rigging](docs/rigging.md) · [Exporting](docs/exporting.md) · [Architecture](docs/architecture.md)
+- [Ara Studio](docs/studio.md): short films with up to five characters, dialogue, sound and music
 
 Questions and showcases: [Discussions](https://github.com/olatunde85/3d-gen/discussions). Bugs and ideas: [Issues](https://github.com/olatunde85/3d-gen/issues). What changed in each version: [Releases](https://github.com/olatunde85/3d-gen/releases).
 
 ## Licensing
 
 - **Code:** [MIT](LICENSE).
+- **Studio music:** nine recorded tracks supplied for Ara, compressed and loudness-matched with FFmpeg. Creator/source credits ship in `media/music/CREDITS.txt`; music retains its own rights and is not covered by the code licence.
+- **Studio speech tools:** optional local Supertonic 2 voices use separately downloaded OpenRAIL-M model files; ONNX Runtime Web is MIT. Native device voices are available for read-throughs. Notices ship in `third-party/speech/`; see the [Studio guide](docs/studio.md#assets-and-licences).
+- **Studio video tools:** Mediabunny is MPL 2.0. Static builds include its licence and original source in `third-party/mediabunny/`; see the [Studio guide](docs/studio.md#assets-and-licences).
 - **Character data:** MakeHuman assets, CC0 1.0 (public domain); see [scripts/ASSETS_LICENSE.txt](scripts/ASSETS_LICENSE.txt). They are downloaded by `setup-assets`, not stored in this repository.
 - **Motion capture:** the captured clips come from the [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu): free to use, including in commercial products, but the data may not be resold on its own. The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217. The retargeted clips are baked into `src/core/anim/clips/mocap-data.ts` by `npm run build-mocap` (takes are listed in `scripts/mocap-takes.ts`).
 - **Your exports:** yours. Use them in commercial and non-commercial projects without attribution.

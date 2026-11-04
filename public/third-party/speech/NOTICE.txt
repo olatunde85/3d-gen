@@ -1,0 +1,21 @@
+Ara Studio optional local speech generation
+
+The inference implementation follows Supertone's MIT-licensed Web example:
+Copyright (c) 2025 Supertone Inc. See SUPERTONIC-MIT.txt.
+https://github.com/supertone-oss-archive/supertonic/blob/main/web/helper.js
+
+ONNX Runtime Web 1.31.1, Microsoft Corporation, MIT licence.
+See ONNXRUNTIME-LICENSE.txt and ONNXRUNTIME-NOTICES.txt.
+https://github.com/microsoft/onnxruntime/tree/v1.31.1
+
+The optional Supertonic 2 model and voice styles are downloaded only when
+Generate speech is chosen. They are not bundled with Ara Studio.
+Model provider: Supertone Inc.
+Model licence: OpenRAIL-M. See MODEL-LICENSE.txt, including use restrictions.
+Pinned model revision: 75e6727618a02f323c720cba9478152d4bc16ca4
+https://huggingface.co/Supertone/supertonic-2/tree/75e6727618a02f323c720cba9478152d4bc16ca4
+
+Model hosting can be changed with VITE_STUDIO_TTS_MODEL_URL at build time.
+The selected host receives model-file requests. Dialogue inference runs in a
+browser worker on the user's device; Ara does not upload the script to it.
+Native device read-through uses the browser/OS voice service separately.

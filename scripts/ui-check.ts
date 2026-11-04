@@ -184,6 +184,34 @@ try {
     const name = await evaluate<string>("document.querySelector('#name').value");
     if (name !== 'The African Warrior') throw new Error(`name field shows "${name}"`);
   });
+  await step('character LLM Assist guides, validates pasted JSON and builds an undoable character', async () => {
+    const original=await evaluate<string>("localStorage.getItem('3dgen.human')");
+    await evaluate("document.querySelector('#character-assist-btn').click()");await waitFor("document.querySelector('#character-assist-dialog').open",'character Assist');
+    if(await evaluate('!!document.querySelector("#character-assist-dialog .ai-starters,#character-assist-dialog .ai-chip")'))throw Error('Builder Assist still has idea pills');
+    await evaluate("(()=>{const b=document.querySelector('#ca-brief');b.value='An explorer in cornrows';b.dispatchEvent(new Event('input'));const c=document.querySelector('#ca-context');c.checked=true;c.dispatchEvent(new Event('change'))})()");
+    if(!await evaluate("document.querySelector('#ca-guide').value.includes('An explorer in cornrows') && document.querySelector('#ca-guide').value.includes('CURRENT CHARACTER') && document.querySelector('#ca-guide').value.includes('garmentStyles') && document.querySelector('#ca-guide').value.includes('JSON SCHEMA')"))throw Error('Character guide missing capabilities/context');
+    await evaluate("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>window.__characterGuide=text}});document.querySelector('#ca-copy').click()");await waitFor("window.__characterGuide===document.querySelector('#ca-guide').value",'copied character guide');await evaluate('delete navigator.clipboard');
+    await evaluate(`(()=>{const e=document.querySelector('#ca-json');e.value=JSON.stringify({kind:'ara-studio',version:2});e.dispatchEvent(new Event('input'))})()`);
+    if(!await evaluate("document.querySelector('#ca-create').disabled && document.querySelector('#ca-status').textContent.includes('Studio')"))throw Error('Character builder accepted film JSON');
+    if(await evaluate<string>("localStorage.getItem('3dgen.human')")!==original)throw Error('Invalid JSON changed the character');
+    await evaluate("document.querySelector('#ca-example').click()");await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+    if(!await evaluate("document.querySelector('#character-assist-dialog').scrollWidth<=document.querySelector('#character-assist-dialog').clientWidth"))throw Error('Character Assist overflows mobile');await send('Emulation.clearDeviceMetricsOverride');
+    const before=await statsNow();await evaluate("document.querySelector('#ca-create').click()");await builtAfter(before,'the LLM character');await waitFor("!document.querySelector('#character-assist-dialog').open",'character modal to close');
+    if(!await evaluate("(()=>{const p=JSON.parse(localStorage.getItem('3dgen.human'));return p.name==='Desert explorer' && p.hair==='cornrows' && p.carry==='backpack' && document.querySelector('#name').value==='Desert explorer'})()"))throw Error('LLM character settings were not built/read back');
+    const current=await statsNow();await send('Input.dispatchKeyEvent',{type:'keyDown',key:'z',code:'KeyZ',modifiers:2});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'z',code:'KeyZ',modifiers:2});await builtAfter(current,'undoing the LLM character');
+    if(await evaluate<string>("localStorage.getItem('3dgen.human')")!==original)throw Error('LLM character did not undo as one edit');
+  });
+  await step('character LLM Assist opens a JSON file and recovers unfinished drafts',async()=>{
+    await evaluate("document.querySelector('#character-assist-btn').click()");await waitFor("document.querySelector('#character-assist-dialog').open",'Assist reopen');
+    const fileJSON=JSON.stringify({kind:'ara-character',version:1,preset:'The Priest',params:{name:'AI-designed priest',detail:'medium'}});
+    await evaluate(`(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(fileJSON)}],'character.json',{type:'application/json'}));const e=document.querySelector('#ca-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);
+    await waitFor("document.querySelector('#ca-json').value.includes('AI-designed priest') && !document.querySelector('#ca-create').disabled",'character file validation');
+    const before=await statsNow();await evaluate("document.querySelector('#ca-create').click()");await builtAfter(before,'the imported character');await waitFor("!document.querySelector('#character-assist-dialog').open",'imported character modal close');
+    if(!await evaluate("JSON.parse(localStorage.getItem('3dgen.human')).name==='AI-designed priest'"))throw Error('Character file was not built');
+    await evaluate(`document.querySelector('#character-assist-btn').click()`);await waitFor("document.querySelector('#character-assist-dialog').open",'character draft');
+    await evaluate(`(()=>{const e=document.querySelector('#ca-json');e.value='{unfinished';e.dispatchEvent(new Event('input'));window.__characterReload=true})()`);await send('Page.reload');await waitFor("!window.__characterReload && document.querySelector('#loading')?.hidden && document.querySelector('#character-assist-dialog')?.open",'character draft recovery');
+    if(!await evaluate("document.querySelector('#ca-json').value==='{unfinished' && document.querySelector('#ca-create').disabled && JSON.parse(localStorage.getItem('3dgen.human')).name==='AI-designed priest'"))throw Error('Character or unfinished draft lost on reload');await evaluate("document.querySelector('#ca-close').click()");
+  });
   await step('animation browser plays a clip', async () => {
     await evaluate("document.querySelector('.anim-browse').click()");
     await waitFor("document.querySelector('#anim-pop').classList.contains('open')", 'the browser to open', 5000);

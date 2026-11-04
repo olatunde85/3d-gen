@@ -196,8 +196,8 @@ export class Bicycle {
     this.group.add(this.crank);
   }
 
-  /** Follow the rider: the crank points at the left foot; the wheels turn with it (about 2.5:1). */
-  update(pos: Vec3[]): void {
+  /** Follow the rider. An absolute wheel angle lets offline renderers seek without accumulating turns. */
+  update(pos: Vec3[], absoluteWheelAngle?: number): void {
     const { bl } = joints(this.rig, pos);
     if (!bl) return;
     const a = Math.atan2(bl.z - this.crankCentre.z, bl.y - this.crankCentre.y); // 0 = up, + = forward
@@ -207,7 +207,7 @@ export class Bicycle {
     this.lastAngle = a;
     this.crank.rotation.x = a;
     for (const c of this.crank.children) if (c.userData.counter) c.rotation.x = -a;
-    this.wheelAngle += d * 2.5;
+    this.wheelAngle = absoluteWheelAngle ?? this.wheelAngle + d * 2.5;
     for (const w of this.wheels) w.rotation.x = this.wheelAngle;
   }
 

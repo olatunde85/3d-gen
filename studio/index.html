@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ara Studio — a character, a short film</title>
+  <meta name="description" content="Turn your Ara character into a short film. Choose a set, direct a performance and export a video, locally in your browser." />
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#14171c" />
+  <link rel="stylesheet" href="/src/studio/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../"><span class="brand-symbol">a</span><span>ARA<span class="brand-studio">STUDIO</span></span></a>
+    <span class="prototype">EARLY PREVIEW</span>
+    <div id="project-name" class="project-heading"><label class="sr-only" for="title">Film title</label><input id="title" maxlength="60" type="text" placeholder="Untitled film" title="Edit film title" autocomplete="off" /><span id="save-status">Saved on this device</span></div>
+    <nav class="file-tools" aria-label="Project">
+      <button id="undo" title="Undo last edit (Ctrl/Cmd+Z)" aria-label="Undo last edit" disabled>↶</button><button id="open-assist" title="Create a film with your AI assistant">LLM Assist</button><button id="load-project" title="Open an Ara Studio project">Open</button><button id="save-project" title="Save an editable project file">Save project</button>
+      <button class="export-button" id="open-export"><span aria-hidden="true">↗</span> Export film</button>
+    </nav>
+  </header>
+  <div class="workspace">
+    <aside class="library" aria-label="Scene library">
+      <div class="section-heading"><span>01 / THE SET</span><span class="small-label" id="scene-count">50 scenes</span></div>
+      <h1 class="sr-only">Scene editor</h1>
+      <label class="sr-only" for="scene-search">Search scenes</label><input id="scene-search" type="search" placeholder="Search 50 scenes…" />
+      <label class="sr-only" for="scene-category">Scene category</label><select id="scene-category"><option value="">All locations</option></select>
+      <div id="set-list" class="set-list" aria-label="Scene results"></div><p id="scene-empty" hidden>No matching scenes. Try another search.</p>
+      <div class="section-heading cast-heading"><span>02 / THE CAST <small id="cast-count">1 / 5</small></span><a id="edit-character" href="../app/" title="Edit this character in Ara 3D Gen">Character builder ↗</a></div>
+      <div id="cast-roster" class="cast-roster" aria-label="Characters"></div><div class="cast-actions"><button id="add-actor">+ Add character</button><button id="remove-actor" hidden>Remove</button></div>
+      <label class="sr-only" for="character">Choose a character</label><select id="character"></select>
+<p id="cast-status" class="cast-status" aria-live="polite"></p>
+      <section class="equipment-panel" id="equipment-settings">
+        <h2 id="equipment-title">Equipment</h2>
+        <div class="form-row"><div><label for="actor-weapon">Weapon</label><select id="actor-weapon"></select></div><div><label for="actor-carry">Bag</label><select id="actor-carry"></select></div></div>
+      </section>
+      <a class="help-link" href="../docs/studio/">A short guide to Studio <span>↗</span></a>
+    </aside>
+    <main class="director">
+      <div class="viewer-heading"><div><span class="live-dot"></span><span id="scene-name">The portrait</span><span class="viewer-subtitle">DIRECTOR’S VIEW</span></div><div class="viewer-actions"><button id="deselect-actor" class="text-button" title="Deselect character (Esc)">Deselect</button><button id="place-actor" class="text-button" aria-pressed="false" title="Click the ground to place the selected character">Click to place</button><button id="snapshot" class="text-button" title="Save this exact frame as a PNG">Save frame <span aria-hidden="true">↘</span></button><button id="expand-view" class="text-button" aria-pressed="false" title="Make the preview bigger by hiding the side panels and timeline (F)">Expand <span aria-hidden="true">⤢</span></button></div></div>
+      <div class="stage" id="stage" data-aspect="landscape">
+        <div class="film-frame"><canvas tabindex="0" id="film" aria-label="Your animated short film. Click a character to select it, drag it to move, drag the background to orbit, scroll or pinch to zoom"></canvas><div class="load-overlay" id="loading"><span class="loader"></span><strong id="loading-label">Preparing your set…</strong><span>Building your Ara character</span></div></div>
+        <span class="frame-corner top-left"></span><span class="frame-corner bottom-right"></span>
+      </div>
+      <div class="transport">
+        <div class="transport-left"><button id="restart" class="icon-button" title="Back to the beginning" aria-label="Back to the beginning">↤</button><button id="play" class="play-button" title="Play / pause (Space)" aria-label="Play film">▶</button><button id="repeat" class="icon-button on" title="Repeat preview" aria-label="Repeat preview" aria-pressed="true">↻</button></div>
+        <output id="timecode">00:00:00 <span>/ 00:09:00</span></output>
+        <div class="frame-spec"><span>PREVIEW</span> <b>30 FPS</b><span class="sound-off" id="sound-readout">Silent film</span></div>
+      </div>
+      <div id="speech-needed" class="sound-prompt" hidden>
+        <span id="speech-needed-copy"></span><button id="prepare-speech">Add speech audio <span aria-hidden="true">↗</span></button>
+      </div>
+      <div class="timeline-resizer" id="timeline-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize the preview and timeline" tabindex="0" title="Drag to give the preview or the timeline more room · double-click to reset"></div>
+      <section class="timeline" aria-label="Film timeline">
+        <div class="timeline-heading"><span>THE TIMELINE</span><div><span id="duration-label">9 seconds</span><button id="open-sound">Sound</button><button id="open-effects">Sound effects</button><button id="open-text">Text &amp; subtitles</button><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
+        <div class="timeline-scroll">
+          <div class="ruler" id="ruler"></div>
+          <div class="timeline-track multi-track"><div id="tracks"></div><div id="playhead" class="playhead"><span></span></div></div>
+        </div>
+        <label class="sr-only" for="scrub">Film position in seconds</label><input id="scrub" class="scrubber" type="range" min="0" max="9" step="0.0333333333" value="0" />
+        <div class="timeline-footer"><span id="key-help">Arrows: move selected character</span><span><kbd>Space</kbd> play / pause · <kbd>F</kbd> expand</span></div>
+      </section>
+    </main>
+    <aside class="inspector" aria-label="Film settings">
+      <div class="selection-tools"><label class="sr-only" for="timeline-selection">Select a shot or action</label><select id="timeline-selection"></select></div>
+      <section class="inspector-section">
+        <div class="inspector-title"><h2 id="beat-title">Shot 01</h2><span id="shot-count">1 of 3</span></div>
+        <div id="action-settings">
+          <div class="form-row"><div><label class="sr-only" for="animation-search">Find a performance</label><input id="animation-search" type="search" placeholder="Search…" /></div><div><label class="sr-only" for="animation-category">Animation category</label><select id="animation-category"><option value="">All categories</option></select></div></div>
+          <label class="sr-only" for="action">Performance <span id="animation-count"></span></label><select id="action"></select>
+          <p id="action-note" class="setting-hint"></p>
+          <div class="form-row timing-row"><div class="duration-value"><label class="sr-only" for="beat-duration">Seconds</label><input id="beat-duration" type="number" min="0.1" max="12" step="0.1" /><span>sec</span></div><button id="clip-length" class="text-button">Original timing</button></div>
+          <label class="check-label"><input id="movement" type="checkbox" /><span>Move through the set</span></label>
+        </div>
+        <div id="shot-settings" hidden>
+          <label for="shot">Framing</label><select id="shot"><option value="wide">Full body</option><option value="medium">Medium</option><option value="close">Close-up</option></select>
+          <label for="shot-target">Camera subject</label><select id="shot-target"></select>
+          <label for="shot-duration">Shot duration (seconds)</label><input id="shot-duration" type="number" min="0.1" max="12" step="0.1" />
+        </div>
+        <div class="beat-tools"><button id="earlier" title="Move this action earlier">← Earlier</button><button id="later" title="Move this action later">Later →</button><button id="remove-beat" class="remove-button">Remove</button></div>
+      </section>
+      <section class="inspector-section" id="blocking-settings">
+        <h2 id="blocking-title">Character placement</h2>
+        <div class="form-row coordinate-row"><div><label title="X position in metres" for="actor-x">X</label><input id="actor-x" type="number" min="-12" max="12" step="0.1" /></div><div><label title="Z position in metres" for="actor-z">Z</label><input id="actor-z" type="number" min="-12" max="12" step="0.1" /></div></div>
+        <div class="form-row coordinate-row"><div><label title="Facing in degrees" for="actor-yaw">Turn°</label><input id="actor-yaw" type="number" min="-180" max="180" step="5" /></div><div><label title="Elevation in metres" for="actor-y">Height</label><input id="actor-y" type="number" min="0" max="3" step="0.05" /></div></div>
+        <label class="sr-only" for="blocking">Stage the cast</label><select id="blocking"><option value="">Stage the cast…</option><option value="side">Side by side</option><option value="conversation">Conversation</option><option value="opposed">Facing each other</option></select>
+      </section>
+      <section class="inspector-section">
+        <h2>Camera</h2>
+        <label class="sr-only" for="camera">Camera movement</label><select id="camera"><option value="locked">Locked-off</option><option value="dolly">Slow push-in</option><option value="orbit">Gentle orbit</option></select>
+        <div class="camera-reset"><button id="view-reset" class="text-button">Reset angle</button><output id="view-readout"></output></div>
+        <span class="sr-only">Aspect ratio</span><div class="aspect-options" role="group" aria-label="Aspect ratio"><button id="landscape" aria-pressed="true"><span class="aspect-icon landscape-icon"></span>16:9</button><button id="portrait" aria-pressed="false"><span class="aspect-icon portrait-icon"></span>9:16</button></div>
+      </section>
+      <label class="check-label caption-setting"><input type="checkbox" id="caption" checked /><span>Show title in the film</span></label>
+    </aside>
+  </div>
+  <div id="notice" class="notice" role="status" aria-live="polite"></div>
+  <input id="project-file" type="file" accept=".json,.zip,application/json,application/zip" hidden />
+  <dialog id="sound-dialog" aria-labelledby="sound-title">
+    <div class="dialog-top"><span class="eyebrow">THE SOUNDTRACK</span><button id="sound-close" class="icon-button" aria-label="Close sound editor">✕</button></div>
+    <h2 id="sound-title">Speech, music &amp; effects</h2><p class="export-description">Direct dialogue, choose music, and time sound effects to the action. The mix is included in your film.</p>
+    <div class="sound-tabs" role="tablist" aria-label="Sound editor"><button id="sound-tab-dialogue" role="tab" aria-controls="sound-dialogue-panel" aria-selected="true">Dialogue &amp; music</button><button id="sound-tab-effects" role="tab" aria-controls="sound-effects-panel" aria-selected="false" tabindex="-1">Sound effects</button></div>
+    <section id="sound-dialogue-panel" role="tabpanel" aria-labelledby="sound-tab-dialogue">
+    <section class="sound-generation" aria-label="Generate the film’s speech">
+      <div><h3>Generate the whole dialogue</h3><p id="sound-generation-summary" class="setting-hint"></p><p class="setting-hint">Runs on your device · about 265 MB on first use. <a href="../third-party/speech/MODEL-LICENSE.txt" target="_blank" rel="noopener">Model terms</a>.</p></div>
+      <button id="sound-generate-all" class="export-button">Generate all speech</button>
+    </section>
+    <div class="sound-columns">
+      <section class="sound-library"><div class="sound-speech-library"><div class="sound-actions"><button id="sound-add">+ Dialogue</button><button id="sound-upload">Upload speech</button><button id="sound-record">Record speech</button></div>
+        <label for="sound-cue">Speech clips <span id="sound-count"></span></label><select id="sound-cue" size="6"></select>
+        </div>
+        <div class="sound-music-library">
+        <h3>Background music</h3><label class="sr-only" for="sound-music">Music track</label><select id="sound-music"></select><p id="sound-music-credit" class="setting-hint"></p>
+        <label for="sound-music-volume">Music volume %</label><input id="sound-music-volume" type="number" min="0" max="100" step="1" />
+        <div class="form-row"><div><label for="sound-fade-in">Fade in (s)</label><input id="sound-fade-in" type="number" min="0" max="10" step="0.1" /></div><div><label for="sound-fade-out">Fade out (s)</label><input id="sound-fade-out" type="number" min="0" max="10" step="0.1" /></div></div>
+        <label class="check-label"><input id="sound-ducking" type="checkbox" checked /><span>Lower music while someone speaks</span></label>
+        <div class="sound-actions"><button id="sound-music-preview">Preview music</button><button id="sound-stop">Stop</button></div>
+        <label class="check-label"><input id="sound-muted" type="checkbox" /><span>Mute film audio</span></label>
+        <div class="sound-actions"><button id="sound-wav">Save soundtrack WAV</button><button id="sound-bundle">Save project + audio</button></div></div>
+      </section>
+      <p id="sound-empty" class="setting-hint">Add dialogue, upload a voice clip, or record yourself. Music works without any voice download.</p>
+      <section id="sound-fields" hidden>
+        <div class="form-row"><div><label for="sound-name">Clip name</label><input id="sound-name" type="text" maxlength="80" /></div><div><label for="sound-actor">Speaker</label><select id="sound-actor"></select></div></div>
+        <label for="sound-script">Dialogue / transcript</label><textarea id="sound-script" rows="3" maxlength="600" placeholder="What does this person say?"></textarea>
+        <section class="sound-take" aria-label="Generate or attach speech">
+          <div class="sound-take-toolbar"><div><label for="sound-voice">Voice · English</label><select id="sound-voice"></select></div>
+            <div class="sound-take-actions"><button id="sound-generate">Generate this clip</button><button id="sound-attach">Attach audio</button></div>
+          </div>
+          <p id="sound-asset-status" class="setting-hint" role="status"></p>
+        </section>
+        <canvas id="sound-waveform" width="600" height="58" aria-label="Speech waveform"></canvas>
+        <div class="sound-actions sound-preview-actions"><button id="sound-preview">Preview voice</button><button id="sound-fit">Fit duration to audio</button><button id="sound-delete">Delete clip</button></div>
+        <div class="form-row"><div><label for="sound-effect">Voice effect</label><select id="sound-effect"></select></div><div><label for="sound-volume">Voice volume %</label><input id="sound-volume" type="number" min="0" max="150" step="5" /></div></div>
+        <div class="form-row"><div><label for="sound-start">Start (seconds)</label><input id="sound-start" type="number" min="0" max="59.9" step="0.1" /></div><div><label for="sound-duration">Duration (seconds)</label><input id="sound-duration" type="number" min="0.1" max="60" step="0.1" /></div><div><label for="sound-offset">Trim start (seconds)</label><input id="sound-offset" type="number" min="0" max="59.9" step="0.1" /></div></div>
+        <div class="form-row"><div><label for="sound-speed">Playback speed ×</label><input id="sound-speed" type="number" min="0.5" max="1.5" step="0.05" /></div><div><label for="sound-pan">Pan −100 L / +100 R</label><input id="sound-pan" type="number" min="-100" max="100" step="5" /></div></div>
+        <details class="sound-device"><summary>Quick read-through with a device voice · no download</summary><label for="sound-device-voice">Device voice</label><select id="sound-device-voice"></select>
+          <div class="form-row"><div><label for="sound-device-rate">Native rate</label><input id="sound-device-rate" type="number" min="0.1" max="10" step="0.1" value="1" /></div><div><label for="sound-device-pitch">Native pitch</label><input id="sound-device-pitch" type="number" min="0" max="2" step="0.1" value="1" /></div></div>
+          <div class="sound-actions"><button id="sound-device-read">Read with device voice</button><button id="sound-device-stop">Stop read-through</button></div><p class="setting-hint">Device voices use your browser’s voice service. Read-throughs cannot use these audio effects or be exported; generate or attach audio for the film.</p>
+        </details>
+        <details class="sound-tts"><summary>Generation settings &amp; licences</summary>
+          <label class="check-label"><input id="sound-fit-generated" type="checkbox" checked /><span>Fit clip duration to the generated take</span></label>
+          <p class="setting-hint">Your script stays on this device. Later generations use the cached model. <a href="../third-party/speech/NOTICE.txt" target="_blank" rel="noopener">Voice engine and model licences</a>.</p>
+        </details>
+      </section>
+    </div>
+    </section>
+    <section id="sound-effects-panel" role="tabpanel" aria-labelledby="sound-tab-effects" hidden>
+      <div class="effects-columns">
+        <section><h3>Sound library</h3><label class="sr-only" for="fx-library">Choose a sound effect</label><select id="fx-library"></select><p id="fx-description" class="setting-hint"></p>
+          <div class="sound-actions"><button id="fx-add" class="export-button">Add at playhead</button><button id="fx-audition">Listen</button></div>
+          <label for="fx-cue">Sound-effect cues <span id="fx-count"></span></label><select id="fx-cue" size="7"></select>
+        </section>
+        <p id="fx-empty" class="setting-hint">Choose an effect and add it at the playhead. Each cue plays once; duplicate a cue for repeated sounds.</p>
+        <section id="fx-fields" hidden>
+          <div class="form-row"><div><label for="fx-name">Cue name</label><input id="fx-name" type="text" maxlength="80" /></div><div><label for="fx-sound">Sound effect</label><select id="fx-sound"></select></div></div>
+          <label for="fx-actor">Associated character</label><select id="fx-actor"></select><p class="setting-hint">A character label for organization. Pan is set manually; this does not add spatial audio.</p>
+          <div class="form-row"><div><label for="fx-start">Start (seconds)</label><input id="fx-start" type="number" min="0" max="59.9" step="0.01" /></div><div><label for="fx-duration">Duration (seconds)</label><input id="fx-duration" type="number" min="0.01" max="60" step="0.01" /></div></div>
+          <div class="form-row"><div><label for="fx-offset">Trim start (seconds)</label><input id="fx-offset" type="number" min="0" step="0.01" /></div><div><label for="fx-speed">Speed ×</label><input id="fx-speed" type="number" min="0.5" max="2" step="0.05" /></div></div>
+          <div class="form-row"><div><label for="fx-volume">Volume %</label><input id="fx-volume" type="number" min="0" max="200" step="5" /></div><div><label for="fx-pan">Pan −100 L / +100 R</label><input id="fx-pan" type="number" min="-100" max="100" step="5" /></div></div>
+          <div class="sound-actions"><button id="fx-preview">Preview cue</button><button id="fx-fit">Fit duration</button><button id="fx-duplicate">Duplicate</button><button id="fx-delete">Delete cue</button></div>
+        </section>
+      </div>
+      <p id="fx-status" class="setting-hint" role="status" aria-live="polite"></p>
+    </section>
+    <div class="sound-status"><p id="sound-message" role="status" aria-live="polite"></p><button id="sound-cancel" hidden>Cancel generation</button></div>
+    <input id="sound-file" type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" hidden />
+  </dialog>
+  <dialog id="text-dialog" aria-labelledby="text-title">
+    <div class="dialog-top"><span class="eyebrow">WORDS ON SCREEN</span><button id="close-text" class="icon-button" aria-label="Close text editor">✕</button></div>
+    <h2 id="text-title">Text &amp; subtitles</h2>
+    <p class="export-description">Time a subtitle, place a title, or give a character a comic bubble that follows them.</p>
+    <div class="text-editor-columns">
+      <section class="text-library" aria-label="Text cues"><div class="text-add"><button id="text-add-subtitle">+ Subtitle</button><button id="text-add-plain">+ Text</button><button id="text-add-bubble">+ Bubble</button></div>
+        <label for="text-cue">Your text cues <span id="text-count"></span></label><select id="text-cue" size="8"></select>
+        <div class="text-file-tools"><button id="text-srt-import">Import SRT</button><button id="text-srt-export">Save SRT</button></div>
+        <p id="text-message" class="setting-hint" role="status"></p>
+      </section>
+      <p id="text-empty" class="setting-hint">Add a subtitle, text overlay or comic bubble to get started.</p>
+      <section id="text-fields" hidden aria-label="Selected text settings">
+        <label for="text-body">Text</label><textarea id="text-body" maxlength="500" rows="3" placeholder="Write your text…"></textarea>
+        <div class="form-row"><div><label for="text-style">Style</label><select id="text-style"></select></div><div><label for="text-anchor">Attachment</label><select id="text-anchor"></select></div></div>
+        <div class="form-row"><div><label for="text-start">Start (seconds)</label><input id="text-start" type="number" min="0" max="59.9" step="0.1" /></div><div><label for="text-duration">Duration (seconds)</label><input id="text-duration" type="number" min="0.1" max="60" step="0.1" /></div></div>
+        <div class="form-row"><div><label id="text-x-label" for="text-x">Position X %</label><input id="text-x" type="number" min="-100" max="100" step="1" /></div><div><label id="text-y-label" for="text-y">Position Y %</label><input id="text-y" type="number" min="-100" max="100" step="1" /></div></div>
+        <p id="text-position-note" class="setting-hint"></p>
+        <div class="form-row text-appearance"><div><label for="text-size">Size at 720p</label><input id="text-size" type="number" min="14" max="72" step="1" /></div><div><label for="text-color">Text colour</label><input id="text-color" type="color" /></div><div><label for="text-background">Background</label><input id="text-background" type="color" /></div></div>
+        <div class="text-footer"><button id="text-delete">Delete text</button><button id="text-preview" class="export-button">Preview in scene ↗</button></div>
+      </section>
+    </div>
+    <input id="text-srt-file" type="file" accept=".srt,text/plain,application/x-subrip" hidden />
+  </dialog>
+  <dialog id="assist-dialog"></dialog>
+  <dialog id="export-dialog" aria-labelledby="export-title">
+    <div class="dialog-top"><span class="eyebrow">THE FINAL CUT</span><button id="close-export" class="icon-button" aria-label="Close export">✕</button></div>
+    <h2 id="export-title">Take your film with you.</h2><p class="export-description">A clean MP4, rendered frame by frame on your device.</p>
+    <div class="export-options" id="export-options"><label for="resolution">Picture quality</label><select id="resolution"><option value="1080">Full HD · 1080p</option><option value="720">HD · 720p</option></select><div class="export-facts"><span id="export-length">9 seconds</span><span>30 fps</span><span id="export-audio-label">Silent MP4</span></div></div>
+    <div id="export-progress" hidden><progress id="render-progress" value="0" max="100"></progress><p id="render-status" role="status">Preparing frames…</p></div>
+    <p id="export-message" role="status"></p><video id="export-preview" controls playsinline hidden></video>
+    <div class="export-actions"><button id="export-fix-audio" class="export-button" hidden>Add speech audio ↗</button><button id="render-again" hidden>Render another version</button><button id="cancel-export" hidden>Cancel export</button><a id="download-film" class="export-button" hidden>Download MP4 ↘</a><button id="start-export" class="export-button">Render film <span>↗</span></button></div>
+    <p class="dialog-footnote">Your project is saved separately. Keep the tab open while your film renders. <a id="video-licence" href="../third-party/mediabunny/NOTICE.txt">Video library licence and source</a>.</p>
+  </dialog>
+  <script type="module" src="/src/studio/main.ts"></script>
+</body>
+</html>

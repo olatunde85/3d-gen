@@ -36,10 +36,18 @@
     "build-assets": "tsx scripts/build-assets.ts",
     "test:gltf": "tsx scripts/gltf-check.ts",
     "build-mocap": "tsx scripts/build-mocap.ts",
-    "test:ui": "tsx scripts/ui-check.ts"
+    "test:ui": "tsx scripts/ui-check.ts",
+    "test:studio:model": "tsx scripts/studio-model-check.ts",
+    "test:studio": "tsx scripts/studio-check.ts",
+    "build:studio-effects": "tsx scripts/build-studio-effects.ts",
+    "build:studio-music": "tsx scripts/build-studio-music.ts",
+    "setup:studio-speech": "tsx scripts/setup-studio-speech.ts",
+    "test:character-assist": "tsx scripts/character-assist-check.ts"
   },
   "dependencies": {
     "fflate": "^0.8.3",
+    "mediabunny": "^1.65.0",
+    "onnxruntime-web": "1.31.1",
     "three": "^0.186.1"
   },
   "devDependencies": {

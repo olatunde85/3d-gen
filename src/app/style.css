@@ -67,6 +67,8 @@ main { flex: 1; position: relative; min-width: 0; }
   body { flex-direction: column-reverse; }
   #panel { width: 100%; height: 45%; border-right: 0; border-top: 1px solid var(--border); }
   main { height: 55%; }
+  #export { max-width: calc(100% - 20px); width: max-content; flex-wrap: wrap; justify-content: center; }
+  #rig-pop { bottom: 112px; }
 }
 
 /* Thumbnail pickers */
@@ -384,3 +386,5 @@ body:not([data-mode='quick']) #quick { display: none; }
   .qb-step { scroll-margin-top: 120px; }
   .mode-switch button span { display: none; }
 }
+#character-assist-btn { width:100%;display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;border-color:#465b82;background:#242e42;font-size:12px; }
+#character-assist-btn span { font-size:10px;color:#b4c4e5; }

@@ -1,0 +1,6 @@
+Ara Studio built-in warehouse example
+
+Project and eight dialogue recordings supplied by the project owner.
+The original speech takes are preserved with lossless ZIP compression.
+Existing character, animation and speech-model terms continue to apply;
+media rights remain separate from the MIT code licence.

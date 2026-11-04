@@ -28,6 +28,20 @@ Quick build always reflects the current character, however it was made: in Detai
 
 **Detailed** has every slider and setting, described in the rest of this page.
 
+## Character LLM Assist
+
+**LLM Assist** in the builder header creates a single character from a description. It works like [Studio's LLM Assist](studio.md#llm-assist):
+
+1. **Describe** the character, or pick one of the **Ideas**. Optionally start from the current character.
+2. **Get the JSON:** **Copy guide** (or **Save as .txt**) and give it to your AI assistant. No API key is needed, and the builder sends nothing automatically.
+3. **Review and build:** paste the assistant's whole reply (the JSON is found inside it) or open a file. A summary card shows the name, age, outfit, hair and extras, and any problem comes with a fix request to send back.
+
+The guide includes the installed asset IDs, all body and face controls, clothing and fabric options, equipment, presets, rig and detail settings, a JSON schema and a valid example.
+
+Character input uses `{"kind":"ara-character","version":1,"preset":"The Adventurer","params":{"name":"Desert explorer","ageYears":34,"hair":"cornrows","carry":"backpack"}}`. A preset is optional; omitted parameters keep preset values or the builder defaults. Supplied arrays and maps replace their base values. Use `ageYears` (12–90) or normalized `age`, not both. Full `.params.json` exports can also be opened. Invalid fields, asset IDs, ranges and garment patterns are rejected before building.
+
+**Build character** updates the normal builder controls and mesh. Undo restores the previous character, and the normal Studio button can return an edited actor to its film. Draft briefs and pasted JSON survive reloads. This mode accepts character settings only; film JSON, subtitles, text and camera shots belong in [Ara Studio](studio.md). Studio can also embed this character JSON in an actor’s `character` field, or use the same `preset`/`params` fields directly on an actor.
+
 ## The data behind the bodies
 
 Realism comes from data, not hand-built shapes. The generator uses the MakeHuman anatomy dataset, which has been CC0 (public domain) since 2020:

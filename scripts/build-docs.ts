@@ -15,7 +15,7 @@ const SITE = 'https://ara3dgen.com';
 const REPO = 'https://github.com/olatunde85/3d-gen/blob/main';
 
 // Page order for the sidebar (any other .md files follow alphabetically).
-const ORDER = ['README', 'self-hosting', 'engines', 'characters', 'faces', 'animations', 'rigging', 'exporting', 'architecture'];
+const ORDER = ['README', 'self-hosting', 'engines', 'characters', 'faces', 'animations', 'rigging', 'exporting', 'studio', 'architecture'];
 const files = readdirSync(DOCS).filter((f) => f.endsWith('.md'));
 const slugs = files.map((f) => basename(f, '.md')).sort((a, b) => {
   const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
