@@ -1,112 +1,118 @@
-# Ara Studio (preview)
+# Ara Studio
 
-Studio turns Ara characters into short films with dialogue and music. Open **Studio** in the character builder's bottom toolbar, or go to `/studio/`.
+Studio turns Ara characters into short films with dialogue, sound and music. Open **Studio** in the character builder's bottom toolbar, or go to `/studio/`. It's an early preview: films run up to 60 seconds with up to five characters.
+
+## The workspace
+
+- **Left:** the cast and their equipment.
+- **Centre:** the film preview, with the timeline below it.
+- **Right:** the selected action, placement and camera settings.
+- **More room for the picture:** **Expand** (or **F**) hides the side panels and the timeline rows. Drag the bar between the preview and the timeline to resize them; double-click it to reset. Both are remembered.
+
+Use the top-bar **Undo** for any edit, including moves, camera changes and the title. **Space** plays or pauses.
 
 ## Find a location
 
-Search **50 sets** or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City** and **Outdoors**. Locations include executive and open-plan offices, a boardroom, bedrooms, a kitchen, beaches, resort and infinity pools, a hotel lobby, a café, a forest trail and a harbour.
+Search **50 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City** and **Outdoors**. They include executive and open-plan offices, a boardroom, a classroom, a newsroom, bedrooms, a living room, a kitchen, beaches, pools, a hotel lobby, a café, a forest trail and a harbour.
 
-Selecting another set keeps your cast, performances, camera shots and title. Scenes are original procedural environments; only the active scene is built. Mesh primitives and materials are shared within each set and GPU resources are released when changing locations.
+Changing the set keeps your cast, performances, camera shots and title. Every set is original, built in the browser, with no downloads.
 
 ## Direct the cast
 
-Bring your exact character from the builder, or select an Ara preset. **Add character** grows the cast to **five actors**. New actors start in a free nearby position, with unique IDs; the existing cast and their performances stay in place. Select a name in the cast roster to edit that character. The compact desktop layout keeps the cast and equipment on the left, the film and timeline in the centre, and action, placement and camera controls on the right. Each actor has a separate performance track, character recipe and detail level. Adding an actor keeps the existing performance, placement and camera plan, and gives the new track the film’s current duration. Changing one character reuses the other loaded models. The cast count shows the five-character limit; removing an actor makes a slot available again.
+- **Add characters:** bring your exact character from the builder, or pick an Ara preset. **Add character** grows the cast to **five**. New characters start in a free spot and the others stay where they are.
+- **Select:** click a character in the picture, or their name under **The cast**. The selected character gets a gold ring and a name tag. Click the background, press **Escape** or use **Deselect** to clear it. Equipment and placement say so if you try to use them with nobody selected.
+- **Move:**
+  - Drag a character across the floor, or choose **Click to place** (or Shift-click the ground).
+  - **Arrow keys** move the selected character 0.1 m, relative to your view. Hold **Shift** or **Ctrl/Cmd** with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m.
+  - The placement fields set the exact position, facing and height.
+- **Arrange the group:** **Side by side**, **Conversation** (a semicircle) or **Facing each other**.
+- **Equipment:** under **Equipment**, give the selected character a weapon (rifle, pistol, sword or knife) or a bag (straw tote, handbag, briefcase or backpack).
+- **Edit in the builder:** **Character builder** opens the selected character for editing. The builder's **Studio** button brings you back with only that character changed. Save your project first if your browser blocks session storage.
 
-Click a character in the picture to select it; a subtle selection ring identifies the active character. Drag it to move it across the staging plane. Click the background, press Escape or use **Deselect** to clear selection. Escape cancels an active drag or keyboard move; Undo reverses a completed move. Choose **Click to place** and click the ground, or Shift-click the ground, to place the selected character at that point. These moves preserve the action sequence and travel setting.
+Removing a character also tidies up camera shots and captions that pointed at them. Their recordings and sound effects stay, assigned to the narrator.
 
-With a character selected, **arrow keys move it across the staging plane**, relative to your viewing angle. Hold **Shift or Ctrl** (Cmd also works) with **Left/Right to turn**, or **Up/Down to raise/lower**. Each step moves 0.1 m, turns 5° or changes height by 0.05 m; a held arrow is one undoable move. Shortcuts leave text and number inputs alone.
+## Actions and camera shots
 
-The existing placement fields still position each character in metres along the horizontal axes, set their facing angle, or adjust elevation for a raised surface. **Side by side**, **Conversation** and **Facing each other** provide starting arrangements for the whole cast: a line, a conversation semicircle, or opposing groups. Two-character films retain their existing pair arrangements. Removing a character also repairs camera shots that targeted them.
+The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-Under **Equipment** in the left panel, choose a weapon (rifle, pistol, sword or knife) and a bag (straw tote, handbag, briefcase or backpack), including **None** to remove them. These use Ara’s fitted, rigged props and update only the selected character. Equipment is saved in the character recipe, supports Undo, and follows the character through animation and dragging.
-
-The **Character builder** link opens the selected actor for further editing. Returning with the builder's **Studio** button restores the film and updates only that actor. This uses session storage in the same browser tab. If session storage is unavailable, ordinary character links still work, but cannot restore the film automatically; save your project first.
-
-## Sequence performances and camera shots
-
-The timeline has one **camera lane** and one **performance lane per actor**, all using the same film clock. The **Select a shot or action** menu also reaches very short timeline items in longer films.
-
-- Select an actor's action to choose from **77 animations**, searchable by name and category. Change its duration or use **original clip length**. Non-looping actions play once and hold; looping actions repeat. Consecutive shots of a looping performance continue its phase.
-- Enable **Move through the set** for clips with travel, including forward/backward walking, strafing and running. Travel follows the clip's native direction and speed, rotated by the actor's facing angle. Stage long travelling actions carefully: there is no collision detection, pathfinding or obstacle avoidance. Characters can pass through brick walls, furniture, props and each other. Use clear paths or disable travel; the LLM guide describes this limitation but cannot enforce it.
-- Seated clips use the set's own furniture. When a character sits, Studio moves them onto the nearest free seat (chair, sofa, armchair, bench, stool or log), facing the way the seat faces, and matches the pose to the seat's height. Drag a seated character towards another seat to switch. Sets without seating, such as studios, beaches and streets, say so in the action note. A bicycle is fitted for the cycling clip. Weapon performances use equipment chosen in Studio or the builder. Other vehicle poses do not create their vehicles. Interaction poses still need appropriate staging; hands do not automatically attach to set props or another actor.
-- Select a camera shot to choose full-body, medium or close framing and target **the entire cast** or **one character**. Cast framing accounts for both characters and the selected aspect ratio.
-- Add, remove or reorder actions and shots independently. Up to **16 actions per actor**, **12 camera shots** and **60 seconds** per film. Each item can last 0.1–12 seconds. Shorter performance lanes hold their final pose; the last camera shot holds when another lane runs longer.
-
-Use the top-bar **Undo** to restore edits, including placement, camera gestures and title changes. Space plays or pauses when focus is outside a form control. The timeline scrubber evaluates every track at the selected time.
+- **Actions:** choose from **77 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Move through the set:** walking, running and strafing clips can travel. There's no collision detection, so characters will walk through walls, furniture and each other. Give them a clear path.
+- **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
+- **Props:** a bicycle appears for the cycling clip, and weapon clips use the character's equipment. Other vehicles aren't created, and hands don't grab set props or other characters.
+- **Camera shots:** full-body, medium or close framing, on the **whole cast** or **one character**.
+- **Limits:** up to **16 actions per character**, **12 camera shots** and **60 seconds** per film. Each item lasts 0.1–12 seconds.
 
 ## Move the camera
 
-Drag the background to orbit around the set; Alt-drag or right-drag also orbits when the pointer is over a character. Scroll to zoom; on touch screens, drag with one finger and pinch with two. With no character selected, use the arrow keys to rotate the scene. Focus the picture for plus/minus to zoom or Home to reset. **Reset viewing angle** is also available in the camera settings.
+- **Orbit:** drag the background. Alt-drag or right-drag also works over a character.
+- **Zoom:** scroll, or pinch on a touch screen. With the picture focused, **+** and **−** zoom and **Home** resets.
+- **Rotate with the keyboard:** the arrow keys, when no character is selected.
+- **Camera movement:** locked, slow push-in or gentle orbit, on top of your chosen angle.
 
-The camera holds still during a character drag or keyboard move, then resumes the current shot’s automatic framing.
-
-The angle and zoom are part of the saved film, so preview, still images and exported video use the same view. Room walls use a cutaway treatment when seen from outside. The camera stays above the floor.
-
-Choose a locked camera, slow push-in or gentle orbit on top of the chosen viewing angle. Landscape (16:9), portrait (9:16) and an optional title are supported. Edit the film name directly in the top bar; **Show title in the film** controls its caption. The editor’s selection markers never appear in saved PNGs or MP4s.
+The angle is saved with the film, so the preview, saved frames and the exported video match. Walls cut away when you look in from outside. Choose **landscape (16:9)** or **portrait (9:16)**, and edit the film's name in the top bar; **Show title in the film** adds it as a caption. Selection rings and name tags never appear in saved images or videos.
 
 ## Subtitles, text and comic bubbles
 
-Choose **Text & subtitles** above the timeline. Add a **Subtitle**, **Text**, or **Bubble**, then set its text, start time, duration, size and colours. Up to 64 cues can overlap independently of camera shots and performances; a later cue extends the film, within the 60-second limit. Click a cue in the text timeline lane to edit it. **Preview in scene** jumps to that cue’s start.
+Choose **Text & subtitles** above the timeline, then add a **Subtitle**, **Text** or **Bubble**.
 
-Five styles are available: readable subtitle plates, plain outlined text, speech bubbles, thought bubbles and comic bursts. Choose **Fixed in the frame** for subtitles/titles, or **Follow character 1/2** for text that travels with the animated character. Frame positions are percentages; character-relative offsets are percentages from the animated head (negative Y is above it). Position and size remain consistent between landscape/portrait previews, PNGs and MP4s. Text wraps, stays inside the picture and scales with export resolution; review longer bubbles in the chosen shot. Simultaneous comic bubbles are separated when space allows. Removing a character also removes its attached cues; Undo restores them together.
+- **Styles:** subtitle plates, outlined text, speech bubbles, thought bubbles and comic bursts.
+- **Placement:** **Fixed in the frame**, or **Follow** a character so the text moves with their head.
+- **Timing:** set the start, duration, size and colours. Up to **64 cues** can overlap.
+- **SRT:** **Import SRT** adds timed subtitles, and **Save SRT** exports them. SRT keeps text and timing only; styles are saved in the project.
 
-**Import SRT** appends timed subtitles. **Save SRT** exports subtitle text and timings; SRT does not preserve comic styles or placements. Styling and attachments are kept in saved project JSON instead. Text edits, selection and an open text editor survive reloads. These are visual captions only; they do not generate audio or lip-sync.
+Text is visual only: it doesn't create speech or lip-sync.
 
-## Speech, music and sound effects
+## Speech
 
-Choose **Sound** above the timeline. Speech clips have independent start times and durations, an optional character/narrator assignment, volume, left/right pan, playback speed and a source trim offset. Up to **24 clips** can overlap within the 60-second film. Click a sound timeline item to edit it. **Generate all speech** at the top is the primary action for outstanding dialogue; **Generate this clip** handles an individual take. Dialogue awaiting a voice has an **Add speech audio** shortcut below the preview and in the export dialog. If playback reaches an unprepared project, Studio opens that clip’s voice controls directly. Removing a character keeps their recordings and assigns them to the narrator. Speaker assignment does not create lip-sync or automatically position the voice in space.
+Choose **Sound** above the timeline. Up to **24 speech clips** can overlap, each with its own start, duration, speaker, volume, pan, speed and trim.
 
 There are three ways to add a voice:
 
-- **Typed dialogue:** add **Dialogue**, enter a script, choose one of four English voices, then press **Generate all speech** at the top, or **Generate this clip** below the script for one take. **Attach audio** is next to it if you already have a recording. First use downloads approximately 265 MB of pinned Supertonic 2 model files; later generations use the browser cache when available. Inference runs in a worker on your device. The model host receives file requests, but Ara does not send it your dialogue. Generation is optional and can be cancelled. Closing Sound releases the local generation worker; cached model files remain available for a later session. **Generate all speech** processes outstanding scripts in sequence and preserves existing audio. Generated audio is saved locally; fitting a take updates its clip duration, so review your actions and captions against the actual delivery. Changing a generated take’s script or voice requires generation again; Undo can recover its previous take.
-- **Record speech:** grant microphone access, record, then stop to add the take. Recording stops automatically before 60 seconds. Closing the editor stops the microphone and discards an unfinished take. Recording requires HTTPS or localhost.
-- **Upload speech:** choose a browser-decodable WAV, MP3, M4A, Ogg or WebM file, at most 60 seconds and 24 MiB. **Attach audio** attaches a file to the selected dialogue; **Replace audio** replaces an existing take. Audio is normalized to a local PCM WAV without uploading it.
+1. **Typed dialogue:** write the line, choose one of four English voices, then **Generate all speech** (or **Generate this clip**). The first time downloads a speech model of about 265 MB; it runs on your device, and your dialogue isn't sent anywhere.
+2. **Record:** allow the microphone, record and stop. Recording needs HTTPS or localhost.
+3. **Upload:** a WAV, MP3, M4A, Ogg or WebM file, up to 60 seconds and 24 MB, with **Attach audio** or **Replace audio**.
 
-**Quick read-through with a device voice** uses the native Web Speech API without the optional speech model. Select an installed browser/OS voice and adjust rate (0.1–10) and pitch (0–2); the clip volume also applies. Some platform voices use an online voice service. Native speech exposes no PCM buffer, so this read-through cannot use Web Audio effects or appear in the exported film. Generate a take, record or upload audio when you need effects/export. The browser’s voice list varies by platform and can arrive after the editor opens.
+**Quick read-through with a device voice** uses your browser's built-in voices, with no download. It's for rehearsing only: it can't take effects and isn't included in exports.
 
-Six Web Audio effects apply to generated, uploaded and recorded takes: **Natural**, **Robotic** (ring modulation), **Dramatic** (warm EQ and reverb), **Radio**, **Telephone** and **Echo**. Dramatic is an audio treatment, not emotional voice acting. **Preview voice** auditions the processed take; **Fit duration to audio** uses the remaining audio after its trim. Playback speed changes both timing and pitch. A short clip trims its take; a longer clip holds silence after the source ends. Effects are faded out at the clip boundary, so allow enough duration for an echo or reverb tail.
+- **Voice effects:** **Natural**, **Robotic**, **Dramatic**, **Radio**, **Telephone** and **Echo**. **Preview voice** plays the result.
+- **Fit duration to audio** matches the clip to its take. A shorter clip cuts the take; a longer one adds silence.
+- **Nothing missing:** dialogue still waiting for a voice shows **Add speech audio** under the preview and in the export dialog.
 
-Choose from **nine recorded tracks**, grouped by genre: Dramatic Adventure Trailer, Tropical Relaxing Pop, Jazz Restaurant Music, Horror, Urban Hip Hop Beat / Hip Hop Story, Spy Opening Scene, Afrobeat Instrumental / Alone, Spy Agent Mission Music, and Old School Salsa 02. The picker shows the creator and the selected track’s full duration. Synthetic scores have been removed. Existing films using the six old music IDs migrate to a suitable recorded selection.
+Assigning a speaker doesn't add lip-sync or place the voice in the scene.
 
-Only the chosen track downloads. Playback, WAV and MP4 use its beginning, with the film’s volume, fades and dialogue ducking. The full-song web files are FFmpeg-compressed MP3s at 44.1 kHz stereo, with matched loudness around −20 LUFS and a −2 dB true-peak ceiling. The nine files total **22.51 MiB**, down from **33.38 MiB** (33% smaller). The decoder retains at most one 60-second PCM excerpt, matching the maximum film duration. The originals stay in `music-for-ara`; regenerate the web versions with `npm run build:studio-music` when FFmpeg is installed. Creator/source credits are in `public/media/music/CREDITS.txt`.
+## Music
 
-**Sound effects** above the timeline opens a dedicated tab in Sound. The initial library contains **Suppressed pistol shot** (`suppressed-pistol-shot`) and **Body fall thump** (`body-fall-thump`). Listen before adding, then **Add at playhead** to place a cue. Up to **64 one-shot cues** may overlap dialogue, music or other effects. Set the start time to the visual contact/firing moment; edit duration, source trim, speed (0.5–2×), volume (0–200%) and pan. **Fit duration** uses the remaining source at that speed. Duplicate adds a new cue after the selected one; Delete and Undo work as expected. The separate effects timeline lane opens the selected cue directly.
+Choose from **nine recorded tracks**, grouped by genre: Dramatic Adventure Trailer, Tropical Relaxing Pop, Jazz Restaurant Music, Horror, Urban Hip Hop Beat / Hip Hop Story, Spy Opening Scene, Afrobeat Instrumental / Alone, Spy Agent Mission Music and Old School Salsa 02. The picker shows each creator and length.
 
-An optional actor tag groups an effect with a character; **Scene sound** leaves it unassigned. Tags do not automate spatial audio. Removing a character keeps its effects as scene sounds. Effects do not create animations, collisions, gunfire physics or falls; direct those performances independently and review synchronization. Effects play immediately in imported LLM JSON without generating speech. Their cues, selected effect and editor tab survive reloads, and the library references transfer in JSON or project bundles.
+Only the chosen track downloads. The film uses its beginning, with your volume and fades, and lowers the music under dialogue.
 
-The two supplied recordings retain their full 0.6065-second clips. FFmpeg VBR MP3 compression at 48 kHz stereo, with 1 dB headroom, reduces them from **233,052 to 27,605 bytes (88% smaller)**. Only used sounds download and the decoded cache is bounded. Originals stay in `sound-for-ara`; regenerate compressed assets with `npm run build:studio-effects`. Credits are in `public/media/effects/CREDITS.txt`.
+## Sound effects
 
-For an LLM-directed impact, merge this into the film's `audio` object (keep any speech and music settings):
+**Sound effects** above the timeline opens the effects library: **Suppressed pistol shot** and **Body fall thump**.
 
-```json
-{"effects":[{"id":"landing","sound":"body-fall-thump","start":2.4,"volume":0.8}]}
-```
+1. Listen, then **Add at playhead**.
+2. Set the start time to the moment of the shot or impact.
+3. Adjust duration, trim, speed (0.5–2×), volume (0–200%) and pan. **Duplicate** adds another after it.
 
-The guide includes both sound IDs, timing defaults and limits, this cue format, and the explicit lack of collision/pathfinding enforcement. Align the cue to an existing visual action; sound alone does not make a character fall.
-
-Timeline playback follows the audio clock. Pausing, scrubbing, restarting and editing stop or restart the soundtrack at the corresponding position. Preview, **Save soundtrack WAV**, and MP4 export use the same offline Web Audio mix, including effects, panning, fades, ducking and peak protection. A pending or missing audible take produces an actionable error rather than silently disappearing from an export.
-
-Recordings and generated takes live in IndexedDB on this browser/device, while project JSON holds their content hashes. Reload recovers the direction and stored audio. Browser storage can be cleared or evicted; **Save project** creates a portable `.ara-studio.zip` containing the recipe and its WAV assets whenever the film references audio. **Save project + audio** does this explicitly; **Open** restores the bundle on another device. Bundles are limited to 128 MiB. Projects using only library music/effects and pending scripts remain ordinary JSON. JSON alone cannot transfer recorded audio; use a bundle for those films.
+Up to **64 effects** can overlap the dialogue and music. Tag an effect with a character to keep things organised, or leave it as a **Scene sound**. Effects don't make anything happen on screen: a thump doesn't make a character fall, so direct the matching action yourself.
 
 ## LLM Assist
 
-Choose **LLM Assist** in the top bar to turn a description into an editable film:
+**LLM Assist** in the top bar turns a description into an editable film, using any AI assistant you like: ChatGPT, Claude, Gemini or another. No API key is needed and Studio sends nothing on its own.
 
-**Try an example** loads **Agents of Mild Competence: The Warehouse**, the supplied 30-second, five-character spy comedy, for review before building. It preserves the character recipes, camera direction, comic text, eight original dialogue takes, eleven sound effects and spy soundtrack. The original dialogue is restored from an on-demand, losslessly compressed bundle (840 KiB), so this example does not need the speech-model download. Editing its scripted lines still uses normal speech generation. The description placeholder summarizes the same film.
+1. **Describe your film,** or pick one of the **Ideas**. Tick **Start from my current film** to revise what you have.
+2. **Get the film JSON:** **Copy guide** (or **Save as .txt**) and give it to your assistant. The guide holds your description and everything the assistant needs: the locations, character controls, animations, equipment, text, speech, sound effects, music, the JSON format, an example and Studio's limits.
+3. **Review and build:** **Paste reply**, paste into the box, or **Open file**. You can paste the whole reply; Studio finds the JSON inside it. A summary card lists the location, cast, length, shots, actions, text, sound and music. If something's wrong, it says what and offers **Copy fix request** to send back. **Build film** replaces your project, and Undo brings the old one back.
 
-1. **Describe your film** in your own words. Tick **Start from my current film** to revise what you have.
-2. **Get the film JSON:** **Copy guide** (or **Save as .txt**) and give it to ChatGPT, Claude, Gemini or another assistant. The guide holds your description and everything the assistant needs: all locations, full character-creation controls and assets, animation IDs and timings, equipment, timed text and comic bubbles, speech and voice effects, the sound-effect and music libraries, the JSON schema, a valid example and the editor's actual limits.
-3. **Review and build.** Press **Paste reply** (or paste into the box, or **Open file**). You can paste the assistant's whole reply: Studio finds the JSON inside any surrounding text or code fences. A summary card lists the location, cast, length, shots, actions, text, speech, sound effects and music. If something needs fixing, the card says what and offers **Copy fix request** to send back to your assistant. **Build film** replaces your project, and Undo restores the previous film.
+- **Voices are prepared for you:** typed dialogue in a valid reply is generated while you review, with progress, **Stop generation** and retry.
+- **Try an example:** loads *Agents of Mild Competence: The Warehouse*, a 30-second, five-character spy comedy with its original dialogue, sound effects and music. No speech download needed.
+- **Shortcuts:** Ctrl/Cmd+Enter in the description copies the guide; in the JSON box it builds. Drafts survive reloads.
 
-Ctrl/Cmd+Enter in the description copies the guide; in the JSON box it builds. Drafts survive reloads.
+The guide is built from Studio's own catalogues, so new sets, presets, animations and equipment appear in it automatically.
 
-Valid pasted or opened Studio JSON automatically generates typed dialogue during review. First use downloads the local speech model. Progress, **Stop generation**, and retry are available. Completed takes are saved into the draft as they finish; replacing a reply cancels its old work. **Build film** includes the prepared voices. Existing recordings are preserved. Generation keeps the authored speech windows and lengthens a window when necessary to avoid cutting off words; review timings when delivery runs longer than planned. No speech is generated for a muted film.
+### Characters in film JSON
 
-The guide is generated from the editor's live registries, so newly added sets, presets, animations and equipment appear automatically. Studio makes no LLM service calls. Optional speech-model file requests go to the configured host; dialogue generation runs locally.
-
-Studio JSON can design the cast directly, using the same body, face, skin, hair, clothing, colour, detail-slider and rig controls as the character builder. The Studio guide embeds the builder’s complete instructions and installed catalogues; its JSON Schema shares the same character parameter definitions. No separate visit to the builder is needed.
-
-An actor can use `params` alone to build from defaults, or combine `preset` and `params` to inherit a preset and override selected settings:
+The assistant can design each character with the same controls as the [character builder](characters.md#character-llm-assist). Use `params` on its own, or with a `preset` to start from:
 
 ```json
 {
@@ -128,47 +134,42 @@ An actor can use `params` alone to build from defaults, or combine `preset` and 
 }
 ```
 
-Alternatively, put an entire character-builder response inside `actor.character`, including its `kind: "ara-character"`, `version: 1`, optional `preset` and `params`. Raw `.params.json` objects also work there. Existing encoded `character` strings remain supported; adding actor-level `params` overrides that saved character’s settings. Do not combine `preset` and `character`, or provide params both inside a character object and on its actor.
+- **Or embed a builder character:** put a whole character-builder reply (`"kind": "ara-character"`) or a `.params.json` in the actor's `character` field. Don't combine `preset` with `character`.
+- **What's kept:** anything left out keeps the preset's value, or the default. Arrays and maps you supply replace the inherited ones. The actor's own `detail`, `weapon` and `carry` win over the character's.
 
-Omitted parameters retain the chosen preset/recipe values, or defaults when neither is supplied. Supplied arrays and maps replace their inherited values. Actor-level `detail`, `weapon` and `carry` take precedence over embedded settings. Studio enables animations and uses the game rig when a character specifies `rig: "none"`. **Include my current film** expands saved character recipes into readable parameter objects, so an assistant can revise the existing cast. Saving the result keeps the exact normalized character recipes, including all custom appearance settings.
+A sound effect cue goes in the film's `audio` object:
 
-Both the normal **Open** button and LLM Assist accept this JSON. Pasted JSON can also be enclosed in a single Markdown JSON code fence. Invalid JSON, unknown presets, unsupported fields, invalid camera targets and out-of-range timing are rejected before character construction. The editor’s existing limits still apply: one location, up to five independent actors, a film of at most 60 seconds, and no automatic physical interaction or lip-sync. Review staging in the viewport after importing.
+```json
+{"effects":[{"id":"landing","sound":"body-fall-thump","start":2.4,"volume":0.8}]}
+```
+
+The normal **Open** button accepts the same JSON. Anything invalid (unknown presets or fields, bad camera targets, out-of-range timings) is rejected before any character is built.
 
 ## Save and export
 
-Studio automatically saves on this device. Reloading restores the film, viewing angle, selected character and timeline item, text/sound-cue selection, device read-through settings, playhead position, repeat and placement modes, search filters, export resolution and Undo history. Unfinished LLM Assist briefs and JSON drafts are recovered, including an open Assist window. Playback resumes paused. Character links from the builder are consumed once, so refreshing keeps your subsequent film edits.
+- **Automatic:** Studio saves on this device as you work. A reload brings back the film, the view, your selection, the playhead, open editors, LLM Assist drafts and your Undo history.
+- **Save project:** downloads an editable `.ara-studio.json`. Films with recorded or generated voices save as a `.ara-studio.zip` bundle with the audio included (up to 128 MB). **Open** loads either one, on any device.
+- **Save frame:** the current picture as a PNG.
+- **Export film:** a 30 fps MP4 at 720p or 1080p, with sound. **Save soundtrack WAV** exports the audio on its own.
 
-**Save project** downloads an editable `.ara-studio.json` recipe, including all actors, their tracks and placement, timed text and attachments, speech/music direction, camera shots, view, set and title. Films with attached audio are saved as `.ara-studio.zip` bundles containing the JSON and recordings. **Open** restores it. Existing version 1 single-character projects migrate to version 2 automatically. Invalid projects are rejected before allocating models.
+Recordings and generated voices are stored in your browser, which can clear them; save a project bundle to keep them safe. Projects point to Ara's built-in characters, sets and sounds rather than copying them, so keep the same Ara version to reopen them exactly.
 
-Recipes reference Ara's asset library rather than embedding models and textures. Keep the corresponding Ara version for long-term reproducibility; a recipe is not an archival video file.
+**Video export** needs HTTPS or localhost, and a browser that can encode MP4 video (current Chrome, Edge or Safari). If sound can't be encoded, save the WAV separately or use another browser. Rendering can take longer than playback; keep the tab open. Five detailed characters in a long film need more memory and time.
 
-**Save frame** downloads the current picture as a PNG. **Export film** renders a 30 fps H.264 MP4 at 720p or 1080p, then offers playback and download. Completed films remain available when reopening the export dialog, until the project changes or the page reloads.
+## What Studio doesn't do yet
 
-MP4 export requires HTTPS or localhost and a browser/device with a supported H.264 encoder. Films with sound also need a supported MP4 audio encoder; Studio prefers AAC and falls back to Opus when available. If audio encoding is unavailable, save a separate WAV soundtrack, use another browser, or mute the film explicitly. Support is checked at the selected resolution. Current Chrome, Edge and Safari are intended browsers; availability varies by operating system. Frames and projects can still be saved when encoding is unavailable.
+- Lip-sync for dialogue
+- Characters touching or holding each other, or handing over props
+- Collisions and pathfinding
+- Importing your own models
 
-Export samples the whole cast and camera at explicit timestamps. Rendering can take longer than playback without changing the movie's speed. Export waits for all character textures and shaders; cancellation restores the cast and preview. Keep the tab open. Bounded exports are held in memory, so long films and five high-detail actors can require more memory and rendering time.
-
-Automatic dialogue lip-sync, imported GLBs, paired contact animations, physical collisions and prop handover are outside this version. The cast shares a scene and clock; their performances remain independently directed.
+Each character's performance is directed on its own, on a shared clock.
 
 ## Assets and licences
 
-The sets use original geometry and textures bundled in the source. There are no remote background downloads or scene API dependencies. Existing character asset and motion-capture terms still apply.
+- **Sets:** original geometry and textures in the source code.
+- **Music and sound effects:** supplied for Ara. Credits ship in `media/music/CREDITS.txt` and `media/effects/CREDITS.txt`. The recordings keep their own rights and aren't covered by the MIT code licence.
+- **Speech:** the optional Supertonic 2 model and voices are **OpenRAIL-M**, including its use restrictions, and are downloaded only when you generate speech. ONNX Runtime Web is MIT. Notices ship in `third-party/speech/` and are linked from the sound editor.
+- **Video:** [Mediabunny](https://mediabunny.dev/) (MPL 2.0) encodes the MP4. Every build includes its licence and source in `third-party/mediabunny/`, linked from the export dialog.
 
-Optional local speech uses ONNX Runtime Web (MIT) and an inference implementation based on Supertone’s MIT Web example. Supertonic 2 model/voice files use **OpenRAIL-M**, including its use restrictions; the model is downloaded separately when generation is chosen. Licences and notices are shipped in `third-party/speech/` and linked from the sound editor. The recorded music was supplied in `music-for-ara` for this project. Creator/source credits accompany the web files in `media/music/CREDITS.txt`; music keeps its own rights and is not covered by the MIT code licence. The two sound effects were supplied in `sound-for-ara`; their source filenames and processing are recorded in `media/effects/CREDITS.txt`, and their audio rights are likewise separate from the code licence.
-
-Video encoding/muxing uses [Mediabunny](https://mediabunny.dev/) under MPL 2.0. Every production build includes its licence, notice and exact unmodified source archive in `third-party/mediabunny/`, linked from the export dialog.
-
-## Development checks
-
-- `npm run test:studio:model`: catalogue search, project migration, validation and independent timeline contracts.
-- `npm run test:studio`: all 50 set renders with GPU resource budgets, animation search/poses, fitted props, two actors, selection-aware pointer/keyboard controls, compact desktop and mobile layouts, timed text/SRT editing and tracking, LLM guide/paste/file workflows, project recovery, real MP4 encoding and the builder round trip. Review images and video are saved under `out/studio-expansion/`.
-- `npm run test:studio -- --cast`: five-character addition/removal, unique IDs and model reuse, group arrangements, landscape/portrait framing, compact/mobile layouts, LLM import, reload recovery, GPU resource budgets and a real MP4 with recorded music.
-- `npm run test:studio -- --sfx`: compressed source decoding, deterministic cue timing/trim/speed/pan, a 64-effect mix with speech/music, effect editing and Undo, actor tags, keyboard/mobile tabs, reload recovery, LLM JSON/guide, portable project references and decoded effects-only MP4/WAV sound. No speech-model download is required.
-- `npm run test:studio -- --audio`: focused browser checks for six effects and nine recorded music tracks, device speech controls, real local speech inference, simulated microphone capture, audio-clock playback, reload recovery, portable bundles and decoded MP4 sound. Run `npm run setup:studio-speech` first to cache the pinned model under ignored `out/studio-speech-model`, or set `STUDIO_TTS_FIXTURE` to an existing model directory containing `onnx/` and `voice_styles/`; the suite serves them locally and does not use your microphone.
-- `npm run test:ui` and `npm run test:gltf`: character builder and engine-export regression checks.
-
-### Hosting optional speech
-
-The default model URL is pinned to revision `75e6727618a02f323c720cba9478152d4bc16ca4` of `Supertone/supertonic-2` on Hugging Face. Set `VITE_STUDIO_TTS_MODEL_URL` before building to mirror the exact model directory on a CORS-enabled host. It needs `onnx/{tts,unicode_indexer}.json`, `onnx/{duration_predictor,text_encoder,vector_estimator,vocoder}.onnx`, and `voice_styles/{F1,F2,M1,M2}.json`. Keep the model licence with a mirror. Large model files belong on object storage or a suitable model host; they exceed Cloudflare Pages’ individual file limit and are deliberately excluded from `dist/`.
-
-Only the CPU WASM runtime is shipped (approximately 14.2 MiB), loaded with the generation worker when requested. It uses one thread and does not require cross-origin isolation headers. The character builder and ordinary Studio playback do not load the model or runtime. Cold generation needs a connection and sufficient device memory; cached generation can work offline, subject to browser storage availability. Recording/upload remains available independently.
+Character assets and motion capture keep their usual terms. Hosting, the speech model and the Studio tests are covered in [Self-hosting](self-hosting.md#studio).

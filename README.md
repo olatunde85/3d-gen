@@ -69,6 +69,7 @@ The full guides live in [`docs/`](docs/README.md), also at [ara3dgen.com/docs](h
 - [Using characters in your engine](docs/engines.md): Unity, Unreal, Godot, Blender and the web
 - [Bodies, clothing and looks](docs/characters.md) · [Faces, expressions and lip-sync](docs/faces.md) · [Animations](docs/animations.md)
 - [Rigging](docs/rigging.md) · [Exporting](docs/exporting.md) · [Architecture](docs/architecture.md)
+- [Ara Studio](docs/studio.md): short films with up to five characters, dialogue, sound and music
 
 Questions and showcases: [Discussions](https://github.com/olatunde85/3d-gen/discussions). Bugs and ideas: [Issues](https://github.com/olatunde85/3d-gen/issues). What changed in each version: [Releases](https://github.com/olatunde85/3d-gen/releases).
 
@@ -76,8 +77,8 @@ Questions and showcases: [Discussions](https://github.com/olatunde85/3d-gen/disc
 
 - **Code:** [MIT](LICENSE).
 - **Studio music:** nine recorded tracks supplied for Ara, compressed and loudness-matched with FFmpeg. Creator/source credits ship in `media/music/CREDITS.txt`; music retains its own rights and is not covered by the code licence.
-- **Studio speech tools:** optional local Supertonic 2 voices use separately downloaded OpenRAIL-M model files; ONNX Runtime Web is MIT. Native device voices are available for read-throughs. Notices ship in `third-party/speech/`; see the [Studio guide](docs/studio.md#speech-and-music).
-- **Studio video tools:** Mediabunny is MPL 2.0. Static builds include its licence and original source in `third-party/mediabunny/`; see the [Studio guide](docs/studio.md).
+- **Studio speech tools:** optional local Supertonic 2 voices use separately downloaded OpenRAIL-M model files; ONNX Runtime Web is MIT. Native device voices are available for read-throughs. Notices ship in `third-party/speech/`; see the [Studio guide](docs/studio.md#assets-and-licences).
+- **Studio video tools:** Mediabunny is MPL 2.0. Static builds include its licence and original source in `third-party/mediabunny/`; see the [Studio guide](docs/studio.md#assets-and-licences).
 - **Character data:** MakeHuman assets, CC0 1.0 (public domain); see [scripts/ASSETS_LICENSE.txt](scripts/ASSETS_LICENSE.txt). They are downloaded by `setup-assets`, not stored in this repository.
 - **Motion capture:** the captured clips come from the [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu): free to use, including in commercial products, but the data may not be resold on its own. The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217. The retargeted clips are baked into `src/core/anim/clips/mocap-data.ts` by `npm run build-mocap` (takes are listed in `scripts/mocap-takes.ts`).
 - **Your exports:** yours. Use them in commercial and non-commercial projects without attribution.

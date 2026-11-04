@@ -5,3 +5,7 @@ vendor
 public/assets
 out/
 .DS_Store
+
+# Original Studio recordings (see docs/self-hosting.md#studio)
+music-for-ara/
+sound-for-ara/
