@@ -2,9 +2,15 @@
 
 Studio turns Ara characters into short films with dialogue, sound and music. Open **Studio** in the character builder's bottom toolbar, or go to `/studio/`. It's an early preview: films run up to 60 seconds with up to five characters.
 
+## First visit
+
+An animated **Quick tour of Studio** opens once the first set is ready. It highlights the real controls and demonstrates selecting, dragging, keyboard movement, turning, elevation and orbiting, then covers the timeline, cameras, sound, text, LLM Assist and export. Use **Back / Next** or **Left / Right** to move through the guide; **Skip tour** or **Escape** closes it. The illustrations leave your film and Undo history untouched. The guide adapts to small screens and respects reduced-motion settings.
+
+Replay it from **Quick tour of Studio** in the left panel, or press **?** with the preview focused. Dismissal is remembered in this browser. A recovered text, sound or LLM Assist dialog stays open; the first-use tour waits until you close it.
+
 ## The workspace
 
-- **Left:** the cast and their equipment.
+- **Left:** locations, the cast, their equipment and the quick tour.
 - **Centre:** the film preview, with the timeline below it.
 - **Right:** the selected action, placement and camera settings.
 - **More room for the picture:** **Expand** (or **F**) hides the side panels and the timeline rows. Drag the bar between the preview and the timeline to resize them; double-click it to reset. Both are remembered.

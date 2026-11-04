@@ -18,6 +18,7 @@ import { AudioPlayback, SpeechAudioRequired } from './audio/mix';
 import { hasAudio, resolveSpeechActor } from './audio/schema';
 import { audioProjectBundle, openAudioBundle } from './audio/bundle';
 import { setupAssist } from './assist-ui';
+import { setupStudioTour } from './tour';
 import { seatCast } from './seating';
 import { addCastActor, arrangeCast, type Arrangement } from './staging';
 import { MUSIC_TRACKS } from './audio/tracks';
@@ -301,10 +302,10 @@ function fitFilm(){
   if(width>0&&height>0){const w=Math.min(width,height*ratio);frame.style.width=`${w}px`;frame.style.height=`${w/ratio}px`;}
 }
 new ResizeObserver(fitFilm).observe($('stage'));addEventListener('resize',fitFilm);
-function setWide(wide:boolean){
+function setWide(wide:boolean,persist=true){
   document.querySelector('.workspace')!.classList.toggle('wide',wide);
   button('expand-view').setAttribute('aria-pressed',String(wide));button('expand-view').innerHTML=wide?'Show editor <span aria-hidden="true">⤡</span>':'Expand <span aria-hidden="true">⤢</span>';
-  try{localStorage.setItem('ara.studio.wide',wide?'1':'0');}catch{ /* The layout choice is a convenience. */ }
+  try{if(persist)localStorage.setItem('ara.studio.wide',wide?'1':'0');}catch{ /* The layout choice is a convenience. */ }
 }
 // Drag the handle between preview and timeline; the split is remembered.
 {
@@ -405,6 +406,10 @@ const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>ch
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
 const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,
   load:next=>importStudioProject(JSON.stringify(next))});
+const tour=setupStudioTour({canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore,begin:()=>{
+  const wide=document.querySelector('.workspace')!.classList.contains('wide');setPlaying(false);setWide(false,false);
+  return()=>setWide(wide,false);
+}});
 button('prepare-speech').addEventListener('click',()=>soundEditor.open(pendingSpeech()[0]?.id,true));
 button('snapshot').addEventListener('click',()=>{scene.render(project,time);scene.output.toBlob(b=>{if(b)download(b,`${filename()}-frame.png`);},'image/png');});
 $('edit-character').addEventListener('click',e=>{if(!characterSelected||loading||exporting||importing||placementBefore){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});
@@ -509,6 +514,7 @@ async function start() {
       for(const key of ['c','detail','studioReturn'])hash.delete(key);
       historyReplaceHash(hash.toString());if(returned)sessionStorage.removeItem(HANDOFF);
     }
+    tour.ready();
   }catch(e){$('loading-label').textContent='The cast could not load.';$('loading').querySelector('span:last-child')!.textContent='Reload to try again.';notify((e as Error).message);}
 }
 function historyReplaceHash(hash:string){const url=new URL(location.href);url.hash=hash;window.history.replaceState(window.history.state,'',url);}
