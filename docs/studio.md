@@ -29,7 +29,7 @@ Changing the set keeps your cast, performances, camera shots and title. Every se
 - **Select:** click a character in the picture, or their name under **The cast**. The selected character gets a gold ring and a name tag. Click the background, press **Escape** or use **Deselect** to clear it. Equipment and placement say so if you try to use them with nobody selected.
 - **Move:**
   - Drag a character across the floor, or choose **Click to place** (or Shift-click the ground).
-  - **Arrow keys** move the selected character 0.1 m, relative to your view. Hold **Shift** or **Ctrl/Cmd** with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m.
+  - **Arrow keys** move the selected character 0.1 m, relative to your view. With the preview focused, hold **Ctrl** (or **Command ⌘** on Mac) with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m. **Shift** is also supported as an alternative.
   - The placement fields set the exact position, facing and height.
 - **Arrange the group:** **Stage the cast** on the right applies **Side by side**, **Conversation** (a semicircle) or **Facing each other** to the entire cast. Add at least two characters; no individual selection is needed. The dropdown shows a matching arrangement until you change the placement manually, and Undo or reload restores that display from the actual positions. Seated characters continue to fit the set’s seats.
 - **Equipment:** under **Equipment**, give the selected character a weapon (rifle, pistol, sword or knife) or a bag (straw tote, handbag, briefcase or backpack).

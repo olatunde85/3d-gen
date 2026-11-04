@@ -204,7 +204,7 @@ function renderUI() {
   }
   $('add-actor').hidden=project.actors.length>=MAX_ACTORS;$('cast-count').textContent=`${project.actors.length} / ${MAX_ACTORS}`;$('remove-actor').hidden=project.actors.length===1;
   $('cast-status').textContent=characterSelected?`Selected: ${actorName(a)}`:'No character selected';
-  $('key-help').textContent=characterSelected?'Arrows: move · Shift/Ctrl + arrows: turn / height · Esc: deselect':'Arrows: orbit · click a character to select';
+  $('key-help').textContent=characterSelected?'Arrows: move · Ctrl/⌘ + arrows: turn / height · Esc: deselect':'Arrows: orbit · click a character to select';
   const params=decodeCharacter(a.character,a.detail)??DEFAULT_PARAMS,picker=select('character');picker.replaceChildren();
   const isPreset=Object.hasOwn(PRESETS,params.name)&&presetCode(params.name)===a.character;
   if(!isPreset)picker.append(new Option(`${params.name||'Your character'} · custom`,'__custom'));
