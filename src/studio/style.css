@@ -1642,3 +1642,17 @@ textarea:disabled { opacity: .55; }
 @media(min-width:1101px) and (max-height:800px){
   .library:has(.cast-member:nth-child(4)) #set-list { max-height:133px; }
 }
+
+.sound-tabs { display:flex; gap:8px; margin:18px 0 12px; border-bottom:1px solid var(--line); padding-bottom:10px; }
+.sound-tabs button { padding:8px 12px; font-size:12px; }
+.sound-tabs [aria-selected=true] { color:var(--gold); border-color:var(--gold); background:#383127; }
+#sound-dialogue-panel[hidden],#sound-effects-panel[hidden] { display:none; }
+.effects-columns { display:grid; grid-template-columns:280px minmax(0,1fr); gap:24px; margin-top:15px; }
+.effects-columns>section { min-width:0; }
+.effects-columns h3 { font-size:14px; margin:0 0 12px; }
+.effects-columns label { margin:10px 0 5px; font-size:11px; }
+.effects-columns input,.effects-columns select { font-size:12px; min-height:32px; padding:6px 8px; }
+.effects-columns .setting-hint,#fx-status { font-size:11px; line-height:1.6; margin-top:8px; }
+#fx-cue { height:210px; }#fx-cue option { padding:7px 4px; }#fx-count { float:right; color:var(--muted); }
+#fx-delete { color:#e6afa0; }.effect-beat { background:#473b29; border-color:#a17d46; }
+@media(max-width:650px){.effects-columns{grid-template-columns:1fr;gap:18px;}#fx-cue{height:120px;}.sound-tabs button{font-size:11px;}}

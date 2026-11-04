@@ -53,7 +53,7 @@ function editorState(): EditorState {
     sceneSearch:input('scene-search').value,sceneCategory:select('scene-category').value,
     animationSearch:input('animation-search').value,animationCategory:select('animation-category').value,resolution:select('resolution').value as '720'|'1080',
     text:{open:$<HTMLDialogElement>('text-dialog').open,selected:select('text-cue').value},
-    sound:{open:$<HTMLDialogElement>('sound-dialog').open,selected:select('sound-cue').value,deviceVoice:soundEditor.deviceVoice(),rate:Number(input('sound-device-rate').value),pitch:Number(input('sound-device-pitch').value),fit:input('sound-fit-generated').checked},
+    sound:{open:$<HTMLDialogElement>('sound-dialog').open,selected:select('sound-cue').value,deviceVoice:soundEditor.deviceVoice(),rate:Number(input('sound-device-rate').value),pitch:Number(input('sound-device-pitch').value),fit:input('sound-fit-generated').checked,tab:soundEditor.tab(),selectedEffect:soundEditor.selectedEffect()},
     assist:assist.state(),
     scroll:{library:document.querySelector('.library')!.scrollTop,inspector:document.querySelector('.inspector')!.scrollTop,sets:$('set-list').scrollTop,page:window.scrollY}};
 }
@@ -182,6 +182,14 @@ function renderTracks() {
     blocks.style.height=`${(rows+Math.min(3,ends.length))*23}px`;lane.append(label,blocks);$('tracks').append(lane);
   }
 
+  if(project.audio.effects.length){
+    const lane=document.createElement('div');lane.className='track-lane text-track';const label=document.createElement('div');label.className='track-name';label.textContent=project.audio.muted?'SOUND EFFECTS · MUTED':'SOUND EFFECTS';
+    const blocks=document.createElement('div');blocks.className='text-track-blocks';const ends:number[]=[];
+    for(const cue of [...project.audio.effects].sort((a,b)=>a.start-b.start)){let level=ends.findIndex(end=>end<=cue.start);if(level<0)level=ends.length;ends[level]=cue.start+cue.duration;
+      const b=document.createElement('button');b.className='text-beat effect-beat';b.textContent=cue.name;b.title=`${cue.name} · ${cue.start.toFixed(2)}s`;b.style.left=`${cue.start/total*100}%`;b.style.width=`${cue.duration/total*100}%`;b.style.top=`${Math.min(level,2)*23}px`;b.onclick=()=>{time=cue.start;setPlaying(false);soundEditor.openEffects(cue.id);};blocks.append(b);}
+    blocks.style.height=`${Math.min(3,ends.length)*23}px`;lane.append(label,blocks);$('tracks').append(lane);
+  }
+
 }
 function renderUI() {
   if(!project.actors.some(a=>a.id===selectedActor)){selectedActor=project.actors[0].id;characterSelected=false;}
@@ -260,7 +268,7 @@ for(const c of ANIMATION_CATEGORIES)select('animation-category').append(new Opti
 input('animation-search').addEventListener('input',renderAnimations);select('animation-category').addEventListener('change',renderAnimations);
 select('character').addEventListener('change',()=>{const value=select('character').value;if(value!=='__custom')void edit(p=>p.actors.find(a=>a.id===selectedActor)!.character=presetCode(value));});
 button('add-actor').addEventListener('click',()=>void edit(p=>{const actor=addCastActor(p);if(!actor)return;characterSelected=true;selectedActor=actor.id;selected=0;cameraSelection=false;}));
-button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';p.texts=p.texts.filter(c=>c.anchor==='screen'||resolveTextActor(c.anchor)!==removed);for(const c of p.audio.speech)if(c.actor!=='narrator'&&resolveSpeechActor(c.actor)===removed)c.actor='narrator';selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
+button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';p.texts=p.texts.filter(c=>c.anchor==='screen'||resolveTextActor(c.anchor)!==removed);for(const c of p.audio.speech)if(c.actor!=='narrator'&&resolveSpeechActor(c.actor)===removed)c.actor='narrator';for(const c of p.audio.effects)if(c.actor===removed)delete c.actor;selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
 for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)![key]=Number(input(`actor-${key}`).value)));
 select('blocking').addEventListener('change',()=>{const value=select('blocking').value;if(!value)return;void edit(p=>arrangeCast(p.actors,value as Arrangement));});
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
@@ -493,7 +501,7 @@ async function start() {
     const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();seatCharacters(false);loading=false;renderUI();
     if(resume){
       document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
-      if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open)soundEditor.open(resume.sound.selected);
+      if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open){if(resume.sound.tab==='effects')soundEditor.openEffects(resume.sound.selectedEffect);else soundEditor.open(resume.sound.selected);}
     }
     const saved=save();
     if(acceptedLink&&saved){

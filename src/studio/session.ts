@@ -10,7 +10,7 @@ export interface EditorState {
   sceneSearch: string; sceneCategory: string; animationSearch: string; animationCategory: string;
   resolution: '720' | '1080';
   text: {open:boolean;selected:string};
-  sound:{open:boolean;selected:string;deviceVoice:string;rate:number;pitch:number;fit:boolean};
+  sound:{open:boolean;selected:string;deviceVoice:string;rate:number;pitch:number;fit:boolean;tab:'dialogue'|'effects';selectedEffect:string};
   assist: AssistDraft;
   scroll: { library: number; inspector: number; sets: number; page: number };
 }
@@ -36,7 +36,7 @@ export function readEditorSession(source: string | null): EditorSession | undefi
       animationSearch: text(state.animationSearch), animationCategory: ANIMATION_CATEGORIES.some(category => category === state.animationCategory) ? String(state.animationCategory) : '',
       resolution: state.resolution === '720' ? '720' : '1080',
       text:{open:textState.open===true,selected:project.texts.some(c=>c.id===textState.selected)?String(textState.selected):project.texts[0]?.id??''},
-      sound:{open:sound.open===true,selected:project.audio.speech.some(c=>c.id===sound.selected)?String(sound.selected):project.audio.speech[0]?.id??'',deviceVoice:text(sound.deviceVoice,500),rate:finite(sound.rate,.1,10,1),pitch:finite(sound.pitch,0,2,1),fit:sound.fit!==false},
+      sound:{open:sound.open===true,selected:project.audio.speech.some(c=>c.id===sound.selected)?String(sound.selected):project.audio.speech[0]?.id??'',deviceVoice:text(sound.deviceVoice,500),rate:finite(sound.rate,.1,10,1),pitch:finite(sound.pitch,0,2,1),fit:sound.fit!==false,tab:sound.tab==='effects'?'effects':'dialogue',selectedEffect:project.audio.effects.some(c=>c.id===sound.selectedEffect)?String(sound.selectedEffect):project.audio.effects[0]?.id??''},
       assist: { brief: text(assist.brief, 6000), json: text(assist.json, 200_000), context: assist.context === true, open: assist.open === true, guideOpen: assist.guideOpen === true },
       scroll: { library: finite(scroll.library, 0, 100_000), inspector: finite(scroll.inspector, 0, 100_000), sets: finite(scroll.sets, 0, 100_000), page: finite(scroll.page, 0, 100_000) },
     };

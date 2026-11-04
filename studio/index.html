@@ -51,7 +51,7 @@
       </div>
       <div class="timeline-resizer" id="timeline-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize the preview and timeline" tabindex="0" title="Drag to give the preview or the timeline more room · double-click to reset"></div>
       <section class="timeline" aria-label="Film timeline">
-        <div class="timeline-heading"><span>THE TIMELINE</span><div><span id="duration-label">9 seconds</span><button id="open-sound">Sound</button><button id="open-text">Text &amp; subtitles</button><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
+        <div class="timeline-heading"><span>THE TIMELINE</span><div><span id="duration-label">9 seconds</span><button id="open-sound">Sound</button><button id="open-effects">Sound effects</button><button id="open-text">Text &amp; subtitles</button><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
         <div class="timeline-scroll">
           <div class="ruler" id="ruler"></div>
           <div class="timeline-track multi-track"><div id="tracks"></div><div id="playhead" class="playhead"><span></span></div></div>
@@ -97,7 +97,9 @@
   <input id="project-file" type="file" accept=".json,.zip,application/json,application/zip" hidden />
   <dialog id="sound-dialog" aria-labelledby="sound-title">
     <div class="dialog-top"><span class="eyebrow">THE SOUNDTRACK</span><button id="sound-close" class="icon-button" aria-label="Close sound editor">✕</button></div>
-    <h2 id="sound-title">Speech &amp; music</h2><p class="export-description">Direct the dialogue, shape the voice, and choose a music bed. The mix is included in your film.</p>
+    <h2 id="sound-title">Speech, music &amp; effects</h2><p class="export-description">Direct dialogue, choose music, and time sound effects to the action. The mix is included in your film.</p>
+    <div class="sound-tabs" role="tablist" aria-label="Sound editor"><button id="sound-tab-dialogue" role="tab" aria-controls="sound-dialogue-panel" aria-selected="true">Dialogue &amp; music</button><button id="sound-tab-effects" role="tab" aria-controls="sound-effects-panel" aria-selected="false" tabindex="-1">Sound effects</button></div>
+    <section id="sound-dialogue-panel" role="tabpanel" aria-labelledby="sound-tab-dialogue">
     <section class="sound-generation" aria-label="Generate the film’s speech">
       <div><h3>Generate the whole dialogue</h3><p id="sound-generation-summary" class="setting-hint"></p><p class="setting-hint">Runs on your device · about 265 MB on first use. <a href="../third-party/speech/MODEL-LICENSE.txt" target="_blank" rel="noopener">Model terms</a>.</p></div>
       <button id="sound-generate-all" class="export-button">Generate all speech</button>
@@ -140,6 +142,25 @@
         </details>
       </section>
     </div>
+    </section>
+    <section id="sound-effects-panel" role="tabpanel" aria-labelledby="sound-tab-effects" hidden>
+      <div class="effects-columns">
+        <section><h3>Sound library</h3><label class="sr-only" for="fx-library">Choose a sound effect</label><select id="fx-library"></select><p id="fx-description" class="setting-hint"></p>
+          <div class="sound-actions"><button id="fx-add" class="export-button">Add at playhead</button><button id="fx-audition">Listen</button></div>
+          <label for="fx-cue">Sound-effect cues <span id="fx-count"></span></label><select id="fx-cue" size="7"></select>
+        </section>
+        <p id="fx-empty" class="setting-hint">Choose an effect and add it at the playhead. Each cue plays once; duplicate a cue for repeated sounds.</p>
+        <section id="fx-fields" hidden>
+          <div class="form-row"><div><label for="fx-name">Cue name</label><input id="fx-name" type="text" maxlength="80" /></div><div><label for="fx-sound">Sound effect</label><select id="fx-sound"></select></div></div>
+          <label for="fx-actor">Associated character</label><select id="fx-actor"></select><p class="setting-hint">A character label for organization. Pan is set manually; this does not add spatial audio.</p>
+          <div class="form-row"><div><label for="fx-start">Start (seconds)</label><input id="fx-start" type="number" min="0" max="59.9" step="0.01" /></div><div><label for="fx-duration">Duration (seconds)</label><input id="fx-duration" type="number" min="0.01" max="60" step="0.01" /></div></div>
+          <div class="form-row"><div><label for="fx-offset">Trim start (seconds)</label><input id="fx-offset" type="number" min="0" step="0.01" /></div><div><label for="fx-speed">Speed ×</label><input id="fx-speed" type="number" min="0.5" max="2" step="0.05" /></div></div>
+          <div class="form-row"><div><label for="fx-volume">Volume %</label><input id="fx-volume" type="number" min="0" max="200" step="5" /></div><div><label for="fx-pan">Pan −100 L / +100 R</label><input id="fx-pan" type="number" min="-100" max="100" step="5" /></div></div>
+          <div class="sound-actions"><button id="fx-preview">Preview cue</button><button id="fx-fit">Fit duration</button><button id="fx-duplicate">Duplicate</button><button id="fx-delete">Delete cue</button></div>
+        </section>
+      </div>
+      <p id="fx-status" class="setting-hint" role="status" aria-live="polite"></p>
+    </section>
     <div class="sound-status"><p id="sound-message" role="status" aria-live="polite"></p><button id="sound-cancel" hidden>Cancel generation</button></div>
     <input id="sound-file" type="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.webm" hidden />
   </dialog>

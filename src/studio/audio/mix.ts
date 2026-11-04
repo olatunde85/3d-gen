@@ -1,6 +1,7 @@
 /** The same offline Web Audio graph supplies real-time playback, WAV and MP4 audio. */
 import { durationOf, type StudioProject } from '../project';
 import { decodeAsset } from './assets';
+import { addSoundEffects } from './effects';
 import { addMusic } from './music';
 import { hasAudio, type VoiceEffect } from './schema';
 export class SpeechAudioRequired extends Error {
@@ -38,6 +39,7 @@ export async function renderSoundtrack(project:StudioProject,signal?:AbortSignal
     gain.gain.setValueAtTime(0,cue.start);gain.gain.linearRampToValueAtTime(cue.volume,cue.start+fade);gain.gain.setValueAtTime(cue.volume,Math.max(cue.start+fade,end-fade));gain.gain.linearRampToValueAtTime(0,end);
     effectChain(ctx,source,cue.effect,duration).connect(gain).connect(pan).connect(master);source.start(cue.start,cue.offset);source.stop(end);
   }
+  await addSoundEffects(ctx,project.audio.effects,master,signal);
   const music=project.audio.music;
   if(music.track!=='none'&&music.volume>0){const gain=ctx.createGain(),step=.02,steps=Math.ceil(duration/step);const curve=new Float32Array(steps+1);
     for(let i=0;i<curve.length;i++){const t=i/steps*duration;let duck=1;

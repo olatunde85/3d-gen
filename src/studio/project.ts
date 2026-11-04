@@ -38,7 +38,7 @@ export function newProject(template: SetId = 'portrait', character?: string, det
     actors: [actor], shots: actor.beats.map((b, i) => ({ id: beatId(), duration: b.duration, shot: (['wide', 'medium', 'close'] as const)[i], target: 'all' })),
     camera: template === 'courtyard' ? 'orbit' : template === 'runway' ? 'locked' : 'dolly', view: { azimuth: 0, elevation: 0, zoom: 1 }, aspect: 'landscape', caption: true, texts: [], audio:defaultAudio() };
 }
-export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration),...(p.audio?.speech??[]).map(c=>c.start+c.duration)) * 30 - 1e-7) / 30;
+export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration),...(p.audio?.speech??[]).map(c=>c.start+c.duration),...(p.audio?.effects??[]).map(c=>c.start+c.duration)) * 30 - 1e-7) / 30;
 const member = <T extends string>(v: unknown, values: readonly T[]): v is T => typeof v === 'string' && values.includes(v as T);
 function number(v: unknown, min: number, max: number, name: string) {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) throw new Error(`Invalid ${name}.`);

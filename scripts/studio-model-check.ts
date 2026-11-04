@@ -12,7 +12,8 @@ import { readEditorSession } from '../src/studio/session';
 import { characterExample, parseCharacterInput } from '../src/app/character-assist';
 import { PRESETS, ageToYears } from '../src/core/params';
 import { parseTextCues, parseSubtitles, subtitlesToSrt, MAX_TEXT_CUES } from '../src/studio/text';
-import { defaultAudio, parseAudio, speechActor, MAX_SPEECH, MUSIC_TRACKS, VOICE_EFFECTS } from '../src/studio/audio/schema';
+import { defaultAudio, parseAudio, speechActor, hasAudio, MAX_SOUND_EFFECTS, MAX_SPEECH, MUSIC_TRACKS, VOICE_EFFECTS } from '../src/studio/audio/schema';
+import { SOUND_EFFECTS } from '../src/studio/audio/effects-catalog';
 import { addCastActor, arrangeCast } from '../src/studio/staging';
 import { CLIPS } from '../src/core/anim/clips';
 import { seatCast, seatedAt, hipsAt, type Sitter } from '../src/studio/seating';
@@ -142,3 +143,20 @@ assert.throws(()=>parseProject(JSON.stringify({...ensemble,actors:[...ensemble.a
 for(const track of MUSIC_TRACKS){assert.ok(guide.includes(track.id));if(track.file)assert.ok(readFileSync(new URL('../public/media/music/'+track.file,import.meta.url)).length>1000);}
 assert.equal(MUSIC_TRACKS.filter(t=>t.file).length,9);assert.equal(parseAudio({music:{track:'cinematic'}},new Set()).music.track,'adventure-trailer');assert.equal(parseAudio({music:{track:'ambient'}},new Set()).music.track,'tropical-pop');
 console.log('Five-character cast: cap, IDs, safe addition, group arrangements, readable LLM JSON and recorded music migration passed.');
+
+// Independent sound effects use the same validated, portable audio contract as speech/music.
+const fxAudio=parseAudio({effects:[{sound:'body-fall-thump',actor:'host',start:1,offset:.1,speed:2}]},actors);
+assert.equal(fxAudio.effects[0].duration,(.6065-.1)/2);assert.equal(fxAudio.effects[0].id,'fx-0');assert.ok(hasAudio(fxAudio));
+assert.ok(!hasAudio({...fxAudio,muted:true}));assert.ok(!hasAudio({...fxAudio,effects:[{...fxAudio.effects[0],volume:0}]}));
+const fxFilm=parseStudioInput(JSON.stringify({...valid,audio:{effects:[{sound:'suppressed-pistol-shot',start:42}]}}));
+assert.ok(Math.abs(durationOf(fxFilm)-Math.ceil(42.6065*30)/30)<1e-7);
+assert.deepEqual(parseStudioInput(JSON.stringify(projectForAssist(fxFilm))),fxFilm);
+for(const patch of [{sound:'unknown'},{actor:'missing'},{start:59.9,duration:.2},{offset:.6065},{offset:-.1},{speed:0},{speed:2.1},{pan:2},{volume:2.1},{duration:.001},{loop:true},{url:'effect.mp3'},{id:'invalid id'},{start:NaN}])assert.throws(()=>parseAudio({effects:[{sound:'body-fall-thump',...patch}]},actors));
+assert.throws(()=>parseAudio({effects:[{id:'same',sound:'body-fall-thump'},{id:'same',sound:'body-fall-thump'}]},actors));
+assert.throws(()=>parseAudio({effects:Array.from({length:MAX_SOUND_EFFECTS+1},()=>({sound:'body-fall-thump'}))},actors));
+assert.doesNotThrow(()=>parseAudio({effects:Array.from({length:MAX_SOUND_EFFECTS},()=>({sound:'body-fall-thump'}))},actors));
+assert.deepEqual(schema.properties.audio.properties.effects.items.properties.sound.enum,SOUND_EFFECTS.map(s=>s.id));assert.equal(schema.properties.audio.properties.effects.maxItems,MAX_SOUND_EFFECTS);
+for(const sound of SOUND_EFFECTS)assert.ok(guide.includes(sound.id));assert.ok(guide.includes('NO obstacle collision detection'));assert.ok(guide.includes('audio.effects'));assert.ok(guide.includes('Sounds do not add weapons'));
+const fxSession=readEditorSession(JSON.stringify({version:1,project:fxFilm,editor:{sound:{open:true,tab:'effects',selectedEffect:'fx-0'}}}));
+assert.equal(fxSession?.editor.sound.tab,'effects');assert.equal(fxSession?.editor.sound.selectedEffect,'fx-0');
+console.log('Sound effects: legacy defaults, timing/trim/speed, actor references, cap, invalid cues, LLM catalogue/schema, explicit collision limits and recovery passed.');

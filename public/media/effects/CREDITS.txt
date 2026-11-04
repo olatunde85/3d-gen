@@ -1,0 +1,14 @@
+Ara Studio sound effects
+
+Recordings supplied by the project owner in sound-for-ara.
+Audio retains its own rights and is not covered by Ara's MIT code licence.
+Web versions use FFmpeg VBR MP3 compression at 48 kHz stereo, with 1 dB
+of additional headroom. No trimming, looping or time-stretching is applied.
+
+Suppressed pistol shot
+Original: Single_suppressed_pistol_shot.wav
+Web file: suppressed-pistol-shot.mp3
+
+Body fall thump
+Original: Body_fall_thump.wav
+Web file: body-fall-thump.mp3
