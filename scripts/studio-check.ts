@@ -239,6 +239,28 @@ try{
   if(!await evaluate('!window.studio.scene.selectionId'))throw Error('Escape did not deselect');
   await upload(original);await ready();
  });
+ await step('Cast arrangements work without a character selection and reflect placement, Undo and reload',async()=>{
+  const original=await evaluate<string>('JSON.stringify(studio.project)');
+  await evaluate(`(async()=>{const p=structuredClone(studio.project);p.template='portrait';p.camera='locked';p.shots=[{id:'all',shot:'wide',target:'all',duration:3}];p.texts=[];p.audio.speech=[];p.audio.effects=[];p.audio.music.track='none';for(const a of p.actors)a.beats=[{id:'idle',clip:'idle',duration:3,move:false}];window.__stagingBase=p;await studio.setProject(p);document.getElementById('deselect-actor').click();})()`);await ready();
+  if(!await evaluate('!studio.scene.selectionId&&!document.getElementById("blocking").disabled&&document.getElementById("actor-x").disabled'))throw Error('Cast controls still require selecting an individual');
+  const centre=await evaluate<{x:number;y:number}>('(()=>{const s=document.getElementById("blocking"),r=s.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  if(!await evaluate(`document.elementFromPoint(${centre.x},${centre.y}).id==='blocking'`))throw Error('The character-selection guard still covers the cast menu');
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',...centre,button:'left',buttons:1,clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',...centre,button:'left',buttons:0,clickCount:1});
+  if(!await evaluate('document.activeElement.id==="blocking"'))throw Error('Cast dropdown cannot be focused by pointer');await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});
+  for(const count of [2,5]){
+   if(count===5){await evaluate(`(async()=>{const p=structuredClone(__stagingBase);for(let i=2;i<5;i++)p.actors.push({...structuredClone(p.actors[0]),id:'stage-'+i});await studio.setProject(p);})()`);await ready();}
+   const meshes=await evaluate<string>('JSON.stringify([...studio.scene.actors].map(([id,a])=>[id,a.mesh.uuid]))');
+   for(const kind of ['side','conversation','opposed']){
+    await change('blocking',kind);await waitFor(`document.getElementById('blocking').value===${JSON.stringify(kind)}&&document.getElementById('notice').textContent.includes('applied to all ${count}')`,'applied cast arrangement');await pause(80);
+    await waitFor('!studio.scene.selectionId&&studio.project.actors.every(a=>{const group=studio.scene.actors.get(a.id).group;return Math.abs(group.position.x-a.x)<.001&&Math.abs(group.position.z-a.z)<.001&&Math.abs(group.rotation.y-a.yaw*Math.PI/180)<.001})',`visible ${count}-character ${kind} arrangement`,15000);
+    if(await evaluate<string>('JSON.stringify([...studio.scene.actors].map(([id,a])=>[id,a.mesh.uuid]))')!==meshes)throw Error('Arrangement unnecessarily rebuilt the cast');
+   }
+  }
+  await shot('cast-staging-unselected');const arranged=await evaluate<string>('JSON.stringify(studio.project)');await evaluate('document.querySelector(".cast-member").click()');await change('actor-x','2.3');if(!await evaluate('document.getElementById("blocking").value===""'))throw Error('Menu displays a stale arrangement after manual placement');await evaluate('document.getElementById("undo").click()');await ready();if(await evaluate<string>('JSON.stringify(studio.project)')!==arranged||!await evaluate('document.getElementById("blocking").value==="opposed"'))throw Error('Undo did not restore arrangement/menu');
+  await evaluate('document.getElementById("deselect-actor").click();window.dispatchEvent(new Event("pagehide"))');const previous=await evaluate<number>('performance.timeOrigin');await send('Page.reload');await waitFor(`performance.timeOrigin!==${previous}&&window.studio?.ready`,'reloaded staged cast');if(!await evaluate('document.getElementById("blocking").value==="opposed"&&!document.getElementById("blocking").disabled&&!studio.scene.selectionId'))throw Error('Reload lost the layout or selection-independent controls');
+  await evaluate('(async()=>{const p=structuredClone(studio.project);p.actors=p.actors.slice(0,1);await studio.setProject(p)})()');await ready();if(!await evaluate('document.getElementById("blocking").disabled&&document.getElementById("blocking-hint").textContent.includes("Add another character")'))throw Error('One-character cast has no useful explanation');
+  await upload(original);await ready();await evaluate('document.querySelector(".cast-member").click()');
+ });
  await step('Desktop controls, equipment and timeline fit the viewport together',async()=>{
   await evaluate("document.querySelectorAll('.cast-member')[0].click()");
   for(const [width,height]of [[1366,768],[1280,720]]){

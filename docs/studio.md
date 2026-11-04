@@ -31,7 +31,7 @@ Changing the set keeps your cast, performances, camera shots and title. Every se
   - Drag a character across the floor, or choose **Click to place** (or Shift-click the ground).
   - **Arrow keys** move the selected character 0.1 m, relative to your view. Hold **Shift** or **Ctrl/Cmd** with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m.
   - The placement fields set the exact position, facing and height.
-- **Arrange the group:** **Side by side**, **Conversation** (a semicircle) or **Facing each other**.
+- **Arrange the group:** **Stage the cast** on the right applies **Side by side**, **Conversation** (a semicircle) or **Facing each other** to the entire cast. Add at least two characters; no individual selection is needed. The dropdown shows a matching arrangement until you change the placement manually, and Undo or reload restores that display from the actual positions. Seated characters continue to fit the set’s seats.
 - **Equipment:** under **Equipment**, give the selected character a weapon (rifle, pistol, sword or knife) or a bag (straw tote, handbag, briefcase or backpack).
 - **Edit in the builder:** **Character builder** opens the selected character for editing. The builder's **Studio** button brings you back with only that character changed. Save your project first if your browser blocks session storage.
 

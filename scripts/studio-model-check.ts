@@ -17,7 +17,7 @@ import { PRESETS, ageToYears } from '../src/core/params';
 import { parseTextCues, parseSubtitles, subtitlesToSrt, MAX_TEXT_CUES } from '../src/studio/text';
 import { defaultAudio, parseAudio, speechActor, hasAudio, MAX_SOUND_EFFECTS, MAX_SPEECH, MUSIC_TRACKS, VOICE_EFFECTS } from '../src/studio/audio/schema';
 import { SOUND_EFFECTS } from '../src/studio/audio/effects-catalog';
-import { addCastActor, arrangeCast } from '../src/studio/staging';
+import { addCastActor, arrangeCast, castArrangement, ARRANGEMENTS } from '../src/studio/staging';
 import { CLIPS } from '../src/core/anim/clips';
 import { seatCast, seatedAt, hipsAt, type Sitter } from '../src/studio/seating';
 const catalog=JSON.parse(readFileSync(new URL('../public/assets/catalog.json',import.meta.url),'utf8'))as Catalog;
@@ -149,6 +149,13 @@ while(ensemble.actors.length<MAX_ACTORS)addCastActor(ensemble);
 assert.equal(ensemble.actors.length,5);assert.equal(new Set(ensemble.actors.map(a=>a.id)).size,5);assert.equal(JSON.stringify(ensemble.actors[0]),firstActor);
 assert.equal(addCastActor(ensemble),undefined);assert.deepEqual(parseStudioInput(JSON.stringify(projectForAssist(ensemble))),parseProject(JSON.stringify(ensemble)));
 for(const kind of ['side','conversation','opposed']as const){arrangeCast(ensemble.actors,kind);for(const a of ensemble.actors)for(const b of ensemble.actors)if(a!==b)assert.ok(Math.hypot(a.x-b.x,a.z-b.z)>=1.4);assert.doesNotThrow(()=>parseProject(JSON.stringify(ensemble)));}
+assert.equal(castArrangement([ensemble.actors[0]]),'');
+for(let count=2;count<=MAX_ACTORS;count++)for(const kind of ARRANGEMENTS){
+ const cast=structuredClone(ensemble.actors.slice(0,count));arrangeCast(cast,kind);const snapshot=JSON.stringify(cast);
+ assert.equal(castArrangement(cast),kind);assert.equal(JSON.stringify(cast),snapshot,'Arrangement detection must not move characters');
+ cast[0].x+=.1;assert.equal(castArrangement(cast),'');cast[0].x-=.1;assert.equal(castArrangement(cast),kind);
+ cast[0].y=.05;assert.equal(castArrangement(cast),'');cast[0].y=0;cast[0].yaw+=5;assert.equal(castArrangement(cast),'');
+}
 const removed=ensemble.actors.splice(2,1)[0];assert.equal(addCastActor(ensemble)?.id,removed.id);assert.equal(new Set(ensemble.actors.map(a=>a.id)).size,5);
 assert.throws(()=>parseProject(JSON.stringify({...ensemble,actors:[...ensemble.actors,{...ensemble.actors[0],id:'sixth'}]})),/one to 5/);
 for(const track of MUSIC_TRACKS){assert.ok(guide.includes(track.id));if(track.file)assert.ok(readFileSync(new URL('../public/media/music/'+track.file,import.meta.url)).length>1000);}

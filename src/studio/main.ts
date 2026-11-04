@@ -20,7 +20,7 @@ import { audioProjectBundle, openAudioBundle } from './audio/bundle';
 import { setupAssist } from './assist-ui';
 import { setupStudioTour } from './tour';
 import { seatCast } from './seating';
-import { addCastActor, arrangeCast, type Arrangement } from './staging';
+import { addCastActor, arrangeCast, castArrangement, ARRANGEMENTS, ARRANGEMENT_LABELS, type Arrangement } from './staging';
 import { MUSIC_TRACKS } from './audio/tracks';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
@@ -111,7 +111,7 @@ function lock() {
     select('blocking').disabled = project.actors.length < 2;
   }
   input('title').disabled=loading||exporting||importing||!!placementBefore;
-  if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','actor-x','actor-y','actor-z','actor-yaw','blocking','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
+  if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','actor-x','actor-y','actor-z','actor-yaw','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
   $('deselect-actor').hidden=!characterSelected;
   for(const guard of document.querySelectorAll<HTMLElement>('.select-first'))guard.hidden=characterSelected||loading||exporting||importing;
   for(const hint of document.querySelectorAll<HTMLElement>('.select-first-hint')){hint.hidden=characterSelected;if(characterSelected)hint.classList.remove('urgent');}
@@ -220,7 +220,8 @@ function renderUI() {
   $('action-settings').hidden=cameraSelection;$('shot-settings').hidden=!cameraSelection;
   if(cameraSelection){const s=project.shots[selected];select('shot').value=s.shot;input('shot-duration').value=String(s.duration);select('shot-target').replaceChildren(new Option('Entire cast','all'));for(const [i,actor]of project.actors.entries())select('shot-target').append(new Option(`Character ${i+1} · ${actorName(actor)}`,actor.id));select('shot-target').value=s.target;}
   else{const b=a.beats[selected];renderAnimations();input('beat-duration').value=String(b.duration);input('movement').checked=b.move;}
-  $('blocking-title').textContent=characterSelected?`Character ${ai+1} placement`:'Character placement';for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).value=String(a[key]);select('blocking').value='';
+  $('blocking-title').textContent=characterSelected?`Character ${ai+1} placement`:'Character placement';for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).value=String(a[key]);select('blocking').value=castArrangement(project.actors);
+  $('blocking-hint').textContent=project.actors.length<2?'Add another character to arrange the cast.':`Moves and turns all ${project.actors.length} characters.`;
   $('equipment-title').textContent='Equipment';select('actor-weapon').value=params.weapon;select('actor-carry').value=params.carry;
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
   $('view-readout').textContent=`${Math.round(project.view.azimuth)}° · ${project.view.zoom.toFixed(1)}×`;
@@ -271,7 +272,11 @@ select('character').addEventListener('change',()=>{const value=select('character
 button('add-actor').addEventListener('click',()=>void edit(p=>{const actor=addCastActor(p);if(!actor)return;characterSelected=true;selectedActor=actor.id;selected=0;cameraSelection=false;}));
 button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';p.texts=p.texts.filter(c=>c.anchor==='screen'||resolveTextActor(c.anchor)!==removed);for(const c of p.audio.speech)if(c.actor!=='narrator'&&resolveSpeechActor(c.actor)===removed)c.actor='narrator';for(const c of p.audio.effects)if(c.actor===removed)delete c.actor;selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
 for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)![key]=Number(input(`actor-${key}`).value)));
-select('blocking').addEventListener('change',()=>{const value=select('blocking').value;if(!value)return;void edit(p=>arrangeCast(p.actors,value as Arrangement));});
+select('blocking').addEventListener('change',async()=>{
+  const value=select('blocking').value as Arrangement;if(project.actors.length<2||!ARRANGEMENTS.includes(value))return;
+  if(!await edit(p=>arrangeCast(p.actors,value)))return;
+  notify(castArrangement(project.actors)===value?`${ARRANGEMENT_LABELS[value]} applied to all ${project.actors.length} characters.`:'Cast placement updated. Seated characters use the set’s seats.');
+});
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});
@@ -331,7 +336,7 @@ function setWide(wide:boolean,persist=true){
 }
 // Character-only controls explain how to select someone instead of silently ignoring clicks.
 const SELECT_FIRST='Select a character first: click them in the preview, or choose one under The cast.';
-for(const id of ['equipment-settings','blocking-settings']){
+for(const id of ['equipment-settings','actor-placement-settings']){
   const section=$(id),heading=section.querySelector('h2')!,hint=document.createElement('p'),guard=document.createElement('button');
   hint.className='select-first-hint';hint.textContent='Select a character to change this.';heading.after(hint);
   guard.type='button';guard.className='select-first';guard.title=SELECT_FIRST;guard.setAttribute('aria-label',SELECT_FIRST);section.append(guard);

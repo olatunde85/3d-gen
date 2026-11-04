@@ -1588,7 +1588,7 @@ textarea:disabled { opacity: .55; }
 .timeline-resizer:focus-visible { outline: none; }
 
 /* Clicking a character-only control with nobody selected explains what to do. */
-#equipment-settings,#blocking-settings { position: relative; }
+#equipment-settings,#actor-placement-settings { position: relative; }
 .select-first { position: absolute; inset: 0; z-index: 2; background: transparent; border: 0; border-radius: 0; padding: 0; cursor: help; }
 .select-first:hover:not(:disabled) { background: rgba(224,183,133,.04); border: 0; }
 .select-first[hidden] { display: none; }
@@ -1656,3 +1656,5 @@ textarea:disabled { opacity: .55; }
 #fx-cue { height:210px; }#fx-cue option { padding:7px 4px; }#fx-count { float:right; color:var(--muted); }
 #fx-delete { color:#e6afa0; }.effect-beat { background:#473b29; border-color:#a17d46; }
 @media(max-width:650px){.effects-columns{grid-template-columns:1fr;gap:18px;}#fx-cue{height:120px;}.sound-tabs button{font-size:11px;}}
+
+#blocking-hint { font-size:10px; line-height:1.5; margin:5px 0 0; }

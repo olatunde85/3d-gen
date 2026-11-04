@@ -1,6 +1,8 @@
 /** Cast operations share one limit and deterministic, non-overlapping starting arrangements. */
 import { CAST, MAX_ACTORS, beat, durationOf, newActor, presetCode, type ActorTrack, type StudioProject } from './project';
-export type Arrangement='side'|'conversation'|'opposed';
+export const ARRANGEMENTS=['side','conversation','opposed'] as const;
+export type Arrangement=typeof ARRANGEMENTS[number];
+export const ARRANGEMENT_LABELS:Record<Arrangement,string>={side:'Side by side',conversation:'Conversation',opposed:'Facing each other'};
 export function addCastActor(project:StudioProject):ActorTrack|undefined{
   if(project.actors.length>=MAX_ACTORS)return;
   const id=Array.from({length:MAX_ACTORS},(_,i)=>`actor-${String.fromCharCode(97+i)}`).find(id=>!project.actors.some(a=>a.id===id))!;
@@ -30,3 +32,13 @@ export function arrangeCast(actors:ActorTrack[],kind:Arrangement){
   }
 }
 const round=(n:number)=>Math.round(n*1000)/1000;
+
+/** Infer the actual placement, so edits/Undo/reloads never display a stale arrangement. */
+export function castArrangement(actors:ActorTrack[]):Arrangement|''{
+  if(actors.length<2)return '';
+  for(const kind of ARRANGEMENTS){
+    const arranged=actors.map(actor=>({...actor}));arrangeCast(arranged,kind);
+    if(actors.every((actor,i)=>(['x','y','z']as const).every(key=>Math.abs(actor[key]-arranged[i][key])<.0001)&&Math.abs(((actor.yaw-arranged[i].yaw+540)%360)-180)<.0001))return kind;
+  }
+  return '';
+}
