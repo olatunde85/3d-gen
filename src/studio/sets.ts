@@ -1,9 +1,10 @@
 /** A bounded set factory: 50 searchable recipes reuse fourteen families of original props. */
 import * as THREE from 'three';
 import { sceneById, type SetId, type SceneDefinition } from './catalog';
-import { SetBuilder } from './sets/builder';
+import { SetBuilder, type Seat } from './sets/builder';
 import { createOriginalSet } from './sets/original';
-export interface StudioSet { group: THREE.Group; background: string; floor: string; key: string; fill: string; exposure: number }
+export interface StudioSet { group: THREE.Group; background: string; floor: string; key: string; fill: string; exposure: number; seats: Seat[] }
+export type { Seat };
 const HALF_TURN = Math.PI, LEFT = Math.PI / 2, RIGHT = -Math.PI / 2;
 function office(b: SetBuilder, s: SceneDefinition) {
   const { id } = s, night = s.mood === 'night';
@@ -37,7 +38,7 @@ function office(b: SetBuilder, s: SceneDefinition) {
     b.cylinder(0.12, 0.02, [3.6, 0.01, -1.2], '#2f3438'); b.cylinder(0.015, 1.55, [3.6, 0.78, -1.2], '#3c4246'); b.cylinder(0.05, 0.16, [3.6, 1.62, -1.15], '#59605f');
   } else if (id === 'laboratory') {
     for (const x of [-3.3, 3.3]) { b.table(x, -2, '#d4dedd', 2.1, 1, 0.9); for (let i = 0; i < 4; i++) b.cylinder(0.08, 0.25 + i * 0.06, [x - 0.6 + i * 0.35, 1.06, -2.1], i % 2 ? '#85b7c3' : '#adbdc2');
-      b.stool(x - 0.5, -1.2, 0.68, '#3f4a50'); b.stool(x + 0.5, -1.2, 0.68, '#3f4a50'); b.screen(x + 0.7, 1.25, -2.35, 0.5, '#4f8d9b'); }
+      b.stool(x - 0.5, -1.2, 0.68, '#3f4a50', Math.PI); b.stool(x + 0.5, -1.2, 0.68, '#3f4a50', Math.PI); b.screen(x + 0.7, 1.25, -2.35, 0.5, '#4f8d9b'); }
     b.box([2.6, 2.2, 0.8], [0, 1.1, -5.05], '#c9d2d2'); b.box([2.2, 1.0, 0.05], [0, 1.45, -4.64], '#9fc3c9', 0.15); b.label('RESEARCH LAB', [0, 2.9, -5.3], 2.5);
     b.whiteboard(-3.8, -5.42, 2, ['H₂O → H₂ + ½O₂', 'trial 3: pH 7.2']);
   } else if (id === 'newsroom') {
@@ -109,7 +110,7 @@ function kitchen(b: SetBuilder) {
   for (let i = -4; i <= 4; i++) if (Math.abs(i) > 1) { b.box([0.85, 0.75, 0.35], [i, 2.1, -5.2], '#c5c4b6'); b.box([0.24, 0.02, 0.03], [i, 1.96, -4.99], '#555e5c'); }
   b.box([1.0, 2.1, 0.75], [5.2, 1.05, -4.95], '#cfd3d2', 0.3, 0.4); b.box([0.03, 0.8, 0.03], [4.75, 1.3, -4.55], '#7e8586');
   b.box([2.3, 0.9, 1.2], [-3.2, 0.45, -0.9], '#889b91'); b.box([2.5, 0.08, 1.3], [-3.2, 0.94, -0.9], '#dcd8c7');
-  for (const x of [-3.9, -3.2, -2.5]) b.stool(x, 0.05, 0.68);
+  for (const x of [-3.9, -3.2, -2.5]) b.stool(x, 0.05, 0.68, '#6f5d4a', Math.PI);
   for (const x of [-3.7, -2.7]) b.pendant(x, -0.9, 2.2);
   b.cylinder(0.16, 0.1, [-3.2, 1.03, -0.9], '#b6875d'); for (let i = 0; i < 4; i++) b.ball([0.06, 0.06, 0.06], [-3.25 + (i % 2) * 0.09, 1.1 + Math.floor(i / 2) * 0.05, -0.92 + (i % 2) * 0.05], ['#c0412f', '#e0b23c', '#7aa040', '#d8692e'][i]);
   b.cylinder(0.25, 0.16, [0.5, 1.04, -4.75], '#67777b'); b.cylinder(0.12, 0.2, [-1, 1.06, -4.7], '#b08766'); b.box([0.6, 0.3, 0.4], [2.4, 1.12, -4.8], '#3a3f42'); b.plant(4.5, -3);
@@ -120,7 +121,7 @@ function coast(b: SetBuilder, s: SceneDefinition) {
   else {
     b.box([11.5, 0.14, 6.5], [0, -0.05, -6.6], '#d8d4c3'); b.water(-6.6, 10.8, 5.8, s.id === 'spa' ? '#88aaa2' : '#54b4bd');
     for (const x of [-5.7, 5.7]) { b.box([0.18, 0.1, 6.5], [x, 0.025, -6.6], '#e5decc'); b.palm(x + (x < 0 ? -1 : 1), -6, 5); }
-    for (const x of [-4, 4]) { b.parasol(x, -0.8, s.id === 'spa' ? '#b3b7a3' : '#d6c6a6'); b.box([0.8, 0.15, 1.9], [x, 0.3, 1.2], '#9b8a70'); b.box([0.72, 0.08, 1.75], [x, 0.42, 1.2], '#e2dfd2'); b.box([0.55, 0.06, 0.4], [x, 0.5, 0.6], '#c4dbd6'); }
+    for (const x of [-4, 4]) { b.parasol(x, -0.8, s.id === 'spa' ? '#b3b7a3' : '#d6c6a6'); b.box([0.8, 0.15, 1.9], [x, 0.3, 1.2], '#9b8a70'); b.box([0.72, 0.08, 1.75], [x, 0.42, 1.2], '#e2dfd2'); b.seat(x, 0.46, 1.55); b.box([0.55, 0.06, 0.4], [x, 0.5, 0.6], '#c4dbd6'); }
     if (s.id === 'resort-pool') { for (const x of [-7.5, 7.5]) { b.box([2, 3, 8], [x, 1.5, -6.5], '#d8c9ad'); for (const z of [-9, -6, -3]) b.box([0.04, 1.4, 1.5], [x + (x < 0 ? 1.01 : -1.01), 1.9, z], '#688f91'); } }
     if (s.id === 'spa') for (const x of [-7, 7]) for (let i = 0; i < 12; i++) b.box([0.08, 2.5, 0.08], [x, 1.25, -9 + i * 0.55], '#8e8064');
   }
@@ -140,7 +141,7 @@ function garden(b: SetBuilder, s: SceneDefinition) {
   } else if (s.id === 'veranda') {
     for (const x of [-5, 5]) b.box([0.18, 3.2, 0.18], [x, 1.6, -3], '#d6ccb4'); b.box([10.5, 0.18, 4], [0, 3.3, -3.5], '#b6a88b'); b.armchair(-3.3, -2, '#a09071', 0.4); b.armchair(-1.5, -2, '#a09071', -0.4); b.table(-2.4, -1.4, '#7d6a52', 0.8, 0.6, 0.45); b.plate(-2.4, 0.45, -1.4); for (const x of [-4.5, 4.5]) b.plant(x, -4.2, 1.4);
   } else {
-    for (const x of [-3.8, 3.8]) { b.box([1.8, 0.13, 0.5], [x, 0.48, -2], '#8c7b5e'); b.box([1.8, 0.4, 0.08], [x, 0.75, -2.22], '#8c7b5e'); for (const dx of [-0.65, 0.65]) b.box([0.12, 0.5, 0.4], [x + dx, 0.25, -2], '#6d7168');
+    for (const x of [-3.8, 3.8]) { b.box([1.8, 0.13, 0.5], [x, 0.48, -2], '#8c7b5e'); b.box([1.8, 0.4, 0.08], [x, 0.75, -2.22], '#8c7b5e'); b.seat(x - 0.45, 0.545, -1.98); b.seat(x + 0.45, 0.545, -1.98); for (const dx of [-0.65, 0.65]) b.box([0.12, 0.5, 0.4], [x + dx, 0.25, -2], '#6d7168');
       b.cylinder(0.05, 3.2, [x + 1.4, 1.6, -2.6], '#3c4442'); const glow = b.ball([0.16, 0.16, 0.16], [x + 1.4, 3.25, -2.6], '#f2dfb2'); glow.material = b.material('#f2dfb2', 0.6, 0, 0.8); b.cylinder(0.22, 0.7, [x - 1.3, 0.35, -2.4], '#4f5a52'); }
     b.box([2.8, 0.01, 25], [0, -0.005, -6], '#c9c4ad');
   }
@@ -167,7 +168,7 @@ function restaurant(b: SetBuilder, s: SceneDefinition) {
 function urban(b: SetBuilder, s: SceneDefinition) {
   b.floor(s.family === 'warehouse' ? '#96988e' : '#a5a89e');
   if (s.family === 'transit') {
-    b.wall(20, 4, [0, 2, -6], '#a3ada8'); for (const x of [-4.5, 4.5]) { b.box([2.5, 0.15, 0.6], [x, 0.5, -3], '#68777b'); b.box([2.5, 0.5, 0.09], [x, 0.8, -3.25], '#68777b'); }
+    b.wall(20, 4, [0, 2, -6], '#a3ada8'); for (const x of [-4.5, 4.5]) { b.box([2.5, 0.15, 0.6], [x, 0.5, -3], '#68777b'); b.box([2.5, 0.5, 0.09], [x, 0.8, -3.25], '#68777b'); for (const dx of [-0.75, 0, 0.75]) b.seat(x + dx, 0.575, -2.95); }
     b.label(s.id === 'airport-lounge' ? 'DEPARTURES  →' : s.id === 'subway' ? 'CENTRAL  ·  PLATFORM 02' : 'NORTHBOUND  ·  PLATFORM 1', [0, 2.65, -5.88], 4);
     if (s.id === 'train-platform') { for (const z of [-7, -8.5]) b.box([60, 0.08, 0.06], [0, 0, z], '#6c7778'); b.box([15, 0.12, 3], [0, 3.7, -3], '#b5b6a4'); b.cylinder(0.03, 0.6, [3.4, 3.35, -3], '#3a3f42'); b.clock(3.4, 2.9, -2.95); }
     else if (s.id === 'airport-lounge') { b.screen(-3.7, 2.4, -5.9, 1.6, '#1f3346', 0, 0.8); b.screen(3.7, 2.4, -5.9, 1.6, '#1f3346', 0, 0.8); for (const x of [-4.5, 4.5]) b.plant(x + (x < 0 ? -1.2 : 1.2), -4.5, 1.6); for (let i = -4; i <= 4; i++) b.box([0.03, 3.5, 0.03], [i * 2, 1.75, -5.9], '#d1d4c7'); }
@@ -192,6 +193,7 @@ function landscape(b: SetBuilder, s: SceneDefinition) {
     for (let i = 0; i < 14; i++) b.tree((i % 2 ? 1 : -1) * (4 + i % 4 * 2), -5 - Math.floor(i / 2) * 3, 4 + i % 3);
     if (s.id === 'campsite') { b.water(-26, 100, 24, s.mood === 'sunset' ? '#8eaaa6' : '#6e9fa3');
       for (const [x, z, yaw] of [[3, -1.5, 0], [4.2, -2.5, Math.PI / 2], [1.8, -2.6, Math.PI / 2]] as const) { const log = b.cylinder(0.16, 1.3, [x, 0.16, z], '#6e5a42'); log.rotation.set(0, yaw, Math.PI / 2); }
+      b.seat(3, 0.32, -1.5, Math.PI); b.seat(4.2, 0.32, -2.5, -Math.PI / 2); b.seat(1.8, 0.32, -2.6, Math.PI / 2);
       const tent = b.mesh(b.geometry('tent', () => new THREE.ConeGeometry(1.6, 2, 3)), b.material('#ac8a5e'), [-3.6, 1, -2.4]); tent.rotation.y = Math.PI / 6;
       for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; b.ball([0.18, 0.1, 0.15], [3 + Math.cos(a) * 0.5, 0.1, -2.5 + Math.sin(a) * 0.5], '#79796c'); }
       const fire = b.mesh(b.geometry('fire', () => new THREE.ConeGeometry(0.2, 0.55, 7)), b.material('#ce9257', 0.8, 0, 1.2), [3, 0.3, -2.5]); fire.castShadow = false;
@@ -204,7 +206,7 @@ function yacht(b: SetBuilder, s: SceneDefinition) {
   for (let i = -5; i <= 5; i++) { b.box([0.06, 1, 0.06], [i * 1.5, 0.5, -5], '#b6bdb6', 0.3, 0.7); b.box([1.5, 0.045, 0.045], [i * 1.5, 1, -5], '#c6cbc3', 0.3, 0.7); }
   for (const x of [-3.7, 3.7]) {
     if (s.id === 'harbour') { b.cylinder(0.18, 0.65, [x, 0.33, -2], '#7a7666'); const hull = b.box([1.8, 0.5, 4.5], [x, 0.1, -11], '#d7d6c9'); hull.rotation.y = x * 0.05; b.box([0.8, 0.7, 1.7], [x, 0.7, -11], '#c4cbbb'); }
-    else { b.box([1.2, 0.4, 2.5], [x, 0.2, -1.8], '#d1cbb6'); b.box([1.1, 0.1, 2.4], [x, 0.46, -1.8], '#dbe1d1'); }
+    else { b.box([1.2, 0.4, 2.5], [x, 0.2, -1.8], '#d1cbb6'); b.box([1.1, 0.1, 2.4], [x, 0.46, -1.8], '#dbe1d1'); for (const dz of [-0.6, 0.6]) b.seat(x, 0.51, -1.8 + dz, x < 0 ? Math.PI / 2 : -Math.PI / 2); }
   }
 }
 function studio(b: SetBuilder, s: SceneDefinition) {
@@ -223,7 +225,7 @@ export function createSet(id: SetId): StudioSet {
   if(s.mood==='sunset'&&['beach','pool','landscape','yacht','garden'].includes(s.family)){const sun=b.ball([1.1,1.1,1.1],[-18,5,-42],'#efc995');sun.material=b.material('#efc995',1,0,1);sun.castShadow=false;}
   b.compact();
   const night = s.mood === 'night', sunset = s.mood === 'sunset';
-  return { group: b.group, background: night ? '#27313e' : sunset ? '#c8b49c' : '#afc5cb', floor: '#b2aa96',
+  return { group: b.group, seats: b.seats, background: night ? '#27313e' : sunset ? '#c8b49c' : '#afc5cb', floor: '#b2aa96',
     key: night ? '#e8d2b4' : sunset ? '#ffdfad' : '#fff3de', fill: night ? '#9db7d4' : '#d4e7ef', exposure: night ? 0.95 : 1.06 };
 }
 export function disposeSet(group: THREE.Group) {

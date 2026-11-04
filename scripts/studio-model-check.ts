@@ -14,6 +14,7 @@ import { PRESETS, ageToYears } from '../src/core/params';
 import { parseTextCues, parseSubtitles, subtitlesToSrt, MAX_TEXT_CUES } from '../src/studio/text';
 import { defaultAudio, parseAudio, speechActor, MAX_SPEECH, MUSIC_TRACKS, VOICE_EFFECTS } from '../src/studio/audio/schema';
 import { CLIPS } from '../src/core/anim/clips';
+import { seatCast, seatedAt, hipsAt, type Sitter } from '../src/studio/seating';
 const catalog=JSON.parse(readFileSync(new URL('../public/assets/catalog.json',import.meta.url),'utf8'))as Catalog;
 const parseStudioInput=(text:string)=>parseInput(text,catalog);
 assert.equal(SETS.length,50);assert.equal(new Set(SETS.map(s=>s.id)).size,50);assert.equal(SCENE_CATEGORIES.length,6);
@@ -113,3 +114,19 @@ assert.ok(guide.includes('Generate missing speech'));assert.ok(guide.includes('N
 const audioRecovery=readEditorSession(JSON.stringify({version:1,project:audioFilm,editor:{sound:{open:true,selected:'take',rate:1.3,pitch:.7,deviceVoice:'test',fit:false}}}));
 assert.equal(audioRecovery?.editor.sound.selected,'take');assert.equal(audioRecovery?.editor.sound.rate,1.3);assert.equal(audioRecovery?.editor.sound.fit,false);
 console.log('Audio: defaults/legacy migration, actor aliases, timing, limits, validation, live LLM contract and editor recovery passed.');
+
+// Seated characters move onto the set's own furniture: nearest free seat, facing the seat, never shared.
+{
+  const film=newProject('living-room'),sitter:Sitter={scale:1,hips:[0,.5,-.1]};
+  const second={...newActor(),id:'second'};film.actors.push(second);
+  for(const a of film.actors){a.beats=[beat('idle',1),beat('sit_down',1.5),beat('sit_idle',2),beat('stand_up',1.5)];a.x=0;a.z=0;a.yaw=0;}
+  const seats=[{x:2,y:.55,z:-2,yaw:Math.PI},{x:-1,y:.5,z:-3,yaw:Math.PI/2},{x:9,y:.5,z:9,yaw:0}],sitters=new Map(film.actors.map(a=>[a.id,sitter]));
+  assert.deepEqual(seatCast(film,seats,sitters),[film.actors[0].id,'second']);
+  const hips=film.actors.map(a=>hipsAt(a,seatedAt(film,a)!,sitter));
+  assert.ok(Math.hypot(hips[0].x-2,hips[0].z+2)<.01&&film.actors[0].yaw===180,'first sitter takes the nearest seat and faces its way');
+  assert.ok(Math.hypot(hips[1].x+1,hips[1].z+3)<.01&&film.actors[1].yaw===90,'second sitter takes the next free seat');
+  assert.deepEqual(seatCast(film,seats,sitters),[],'seated characters stay put');
+  const standing=newProject('living-room');assert.deepEqual(seatCast(standing,seats,new Map([[standing.actors[0].id,sitter]])),[],'characters who never sit are not moved');
+  assert.doesNotThrow(()=>parseProject(JSON.stringify(film)));
+  console.log('Seating: nearest free seat, facing, no sharing, idempotent and valid placements passed.');
+}

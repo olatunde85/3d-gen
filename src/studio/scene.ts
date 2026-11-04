@@ -53,6 +53,8 @@ export class StudioScene {
     for(const [id,actor]of previous)if(next.get(id)!==actor)actor.dispose();
   }
   async ready() { await Promise.all([...this.actors.values()].map(a => a.ready())); }
+  /** The seats in the project's set, building the set if it isn't showing yet. */
+  seatsFor(project: StudioProject) { this.updateSet(project); return this.set!.seats; }
   private updateSet(project: StudioProject) {
     if (this.set?.group.name === project.template) return;
     if (this.set) disposeSet(this.set.group);
@@ -70,7 +72,7 @@ export class StudioScene {
   render(project: StudioProject, time: number) {
     this.updateSet(project);
     const at = shotAt(project, time), beat = at.shot;
-    for (const track of project.actors) this.actors.get(track.id)?.pose(project, time, track);
+    for (const track of project.actors) this.actors.get(track.id)?.pose(project, time, track, this.set?.seats);
     const subjects = project.actors.filter(a => beat.target === 'all' || a.id === beat.target).map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a);
     const h = Math.max(1.6, ...subjects.map(a => a.height)), center = new THREE.Vector3();
     for (const a of subjects) center.add(a.group.position); if(subjects.length)center.multiplyScalar(1/subjects.length);

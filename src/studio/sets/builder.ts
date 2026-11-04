@@ -3,10 +3,16 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Mood } from '../catalog';
+/** A place to sit: the seat's centre, the height of its top, and the way a sitter faces (radians; 0 faces +Z). */
+export interface Seat { x: number; y: number; z: number; yaw: number }
+
 export class SetBuilder {
   constructor(readonly mood: Mood = 'day', readonly surface: 'stone' | 'wood' | 'sand' | 'grass' = 'stone') {}
   private surfaceMaps = new Map<string, THREE.CanvasTexture>();
   readonly group = new THREE.Group();
+  /** Where characters can sit; seated performances use these instead of conjuring chairs. */
+  readonly seats: Seat[] = [];
+  seat(x: number, y: number, z: number, yaw = 0) { this.seats.push({ x, y, z, yaw }); }
   private geometries = new Map<string, THREE.BufferGeometry>();
   private materials = new Map<string, THREE.MeshStandardMaterial>();
   /** Merges the pieces that share a material into one mesh, so a detailed set costs only a few draw calls. */
@@ -89,15 +95,20 @@ export class SetBuilder {
   }
   /** Builds `make` around (x, z), then turns it by `yaw` radians. Unturned furniture faces +Z, towards the camera. */
   at(x: number, z: number, yaw: number, make: () => void) {
-    const start = this.group.children.length; make();
+    const start = this.group.children.length, firstSeat = this.seats.length; make();
     if (!yaw) return;
     const pivot = new THREE.Vector3(x, 0, z), turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
     for (const child of this.group.children.slice(start)) { child.position.sub(pivot).applyQuaternion(turn).add(pivot); child.quaternion.premultiply(turn); }
+    for (const seat of this.seats.slice(firstSeat)) {
+      const p = new THREE.Vector3(seat.x, 0, seat.z).sub(pivot).applyQuaternion(turn).add(pivot);
+      seat.x = p.x; seat.z = p.z; seat.yaw = Math.atan2(Math.sin(seat.yaw + yaw), Math.cos(seat.yaw + yaw));
+    }
   }
   chair(x: number, z: number, color = '#56666b', yaw = 0) {
     this.at(x, z, yaw, () => {
       this.box([0.5, 0.09, 0.48], [x, 0.46, z], color); this.box([0.5, 0.52, 0.075], [x, 0.73, z - 0.22], color);
       for (const dx of [-0.2, 0.2]) for (const dz of [-0.19, 0.19]) this.box([0.035, 0.43, 0.035], [x + dx, 0.22, z + dz], '#42454a');
+      this.seat(x, 0.505, z + 0.02);
     });
   }
   armchair(x: number, z: number, color = '#7b6f62', yaw = 0) {
@@ -105,19 +116,22 @@ export class SetBuilder {
       this.box([0.9, 0.32, 0.85], [x, 0.26, z], color); this.box([0.9, 0.5, 0.18], [x, 0.66, z - 0.36], color);
       for (const dx of [-0.39, 0.39]) this.box([0.14, 0.36, 0.85], [x + dx, 0.5, z], color);
       this.box([0.64, 0.12, 0.66], [x, 0.47, z + 0.05], '#b3ab9b');
+      this.seat(x, 0.53, z + 0.05);
     });
   }
   sofa(x: number, z: number, color = '#68736d', yaw = 0) {
     this.at(x, z, yaw, () => {
       this.box([2.1, 0.3, 0.86], [x, 0.28, z], color); this.box([2.1, 0.55, 0.18], [x, 0.7, z - 0.4], color);
       for (const dx of [-1, 1]) this.box([0.16, 0.5, 0.9], [x + dx, 0.48, z], color);
-      for (const dx of [-0.5, 0.5]) this.box([0.93, 0.15, 0.72], [x + dx, 0.48, z + 0.04], '#a3a89b');
+      for (const dx of [-0.5, 0.5]) { this.box([0.93, 0.15, 0.72], [x + dx, 0.48, z + 0.04], '#a3a89b'); this.seat(x + dx, 0.555, z + 0.04); }
       for (const dx of [-0.72, 0.72]) { const c = this.box([0.42, 0.36, 0.12], [x + dx, 0.7, z - 0.24], dx < 0 ? '#c9b48e' : '#8d9d96'); c.rotation.z = dx < 0 ? 0.12 : -0.12; }
     });
   }
-  stool(x: number, z: number, height = 0.75, color = '#6f5d4a') {
+  /** A round stool; `yaw` is the way a sitter faces (towards a counter or bench). */
+  stool(x: number, z: number, height = 0.75, color = '#6f5d4a', yaw = 0) {
     this.cylinder(0.2, 0.06, [x, height, z], color); this.cylinder(0.025, height, [x, height / 2, z], '#3f4446'); this.cylinder(0.17, 0.02, [x, 0.01, z], '#3f4446');
     this.cylinder(0.14, 0.02, [x, height * 0.35, z], '#3f4446', 0.14);
+    this.seat(x, height + 0.03, z, yaw);
   }
   /** A flat rug that never casts shadows. */
   rug(x: number, z: number, width: number, depth: number, color = '#b59f86', border = '#8a7561') {

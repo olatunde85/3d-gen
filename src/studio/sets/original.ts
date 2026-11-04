@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 
 
-export interface StudioSet { group: THREE.Group; background: string; floor: string; key: string; fill: string; exposure: number }
+export interface StudioSet { group: THREE.Group; background: string; floor: string; key: string; fill: string; exposure: number; seats: { x: number; y: number; z: number; yaw: number }[] }
 function stoneTexture(color: string) {
   const c = document.createElement('canvas'); c.width = c.height = 512;
   const g = c.getContext('2d')!; g.fillStyle = color; g.fillRect(0, 0, 512, 512);
@@ -15,7 +15,7 @@ function stoneTexture(color: string) {
   return t;
 }
 export function createOriginalSet(id: 'portrait' | 'runway' | 'courtyard'): StudioSet {
-  const group = new THREE.Group();
+  const group = new THREE.Group(), seats: StudioSet['seats'] = [];
   const palette = {
     portrait: { background: '#b8b3aa', floor: '#b8b3aa', key: '#fff5e8', fill: '#e4ebff', exposure: 1.05 },
     runway: { background: '#14171c', floor: '#202329', key: '#fff0d8', fill: '#c4d7ff', exposure: 1.12 },
@@ -62,6 +62,7 @@ export function createOriginalSet(id: 'portrait' | 'runway' | 'courtyard'): Stud
     for (const x of [-4, 4]) {
       box([1.8, 0.38, 0.8], [x, 0.19, -1.5], stone);
       box([1.95, 0.08, 0.9], [x, 0.42, -1.5], material('#8e785b'));
+      for (const dx of [-0.5, 0.5]) seats.push({ x: x + dx, y: 0.46, z: -1.5, yaw: 0 });
       const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.25, 0.6, 40), material('#a87355')); pot.position.set(x, 0.3, -4.5); pot.castShadow = true; group.add(pot);
       const soil = new THREE.Mesh(new THREE.CircleGeometry(0.34, 32).rotateX(-Math.PI / 2), material('#514638')); soil.position.set(x, 0.61, -4.5); group.add(soil);
       for (let i = 0; i < 9; i++) {
@@ -71,5 +72,5 @@ export function createOriginalSet(id: 'portrait' | 'runway' | 'courtyard'): Stud
       }
     }
   }
-  return { group, ...palette };
+  return { group, seats, ...palette };
 }

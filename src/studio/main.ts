@@ -18,6 +18,7 @@ import { AudioPlayback } from './audio/mix';
 import { hasAudio, resolveSpeechActor } from './audio/schema';
 import { audioProjectBundle, openAudioBundle } from './audio/bundle';
 import { setupAssist } from './assist-ui';
+import { seatCast } from './seating';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 
@@ -143,7 +144,7 @@ function renderAnimations() {
   const picker = select('action'); picker.replaceChildren();
   if(!clips.some(c=>c.id===b.clip))picker.append(new Option(`${clipById.get(b.clip)!.name} · current`,b.clip));
   for(const category of ANIMATION_CATEGORIES){const group=document.createElement('optgroup');group.label=category;for(const c of clips.filter(c=>c.category===category))group.append(new Option(c.name,c.id));if(group.children.length)picker.append(group);}
-  picker.value=b.clip;$('animation-count').textContent=`${clips.length} / ${CLIPS.length}`;$('action-note').textContent=actionNote(b.clip,decodeCharacter(actorTrack().character,actorTrack().detail)?.weapon);$('action-note').title=$('action-note').textContent||'';
+  picker.value=b.clip;$('animation-count').textContent=`${clips.length} / ${CLIPS.length}`;$('action-note').textContent=actionNote(b.clip,decodeCharacter(actorTrack().character,actorTrack().detail)?.weapon,loading?undefined:scene.seatsFor(project).length);$('action-note').title=$('action-note').textContent||'';
 }
 function renderTracks() {
   const total=durationOf(project);$('tracks').replaceChildren();
@@ -226,6 +227,13 @@ async function syncActors() {
     await scene.setActors(next,project);builtRecipes.clear();for(const a of project.actors)builtRecipes.set(a.id,`${a.detail}:${a.character}`);
   }catch(e){for(const actor of made)if(![...scene.actors.values()].includes(actor))actor.dispose();throw e;}
 }
+/** Characters who sit use the set's furniture: move them onto the nearest free seat (part of the same edit). */
+function seatCharacters(announce:boolean){
+  const moved=seatCast(project,scene.seatsFor(project),new Map([...scene.actors].map(([id,a])=>[id,a.sitter])));
+  if(!moved.length)return;
+  project=parseProject(JSON.stringify(project));
+  if(announce)notify(`${moved.map(id=>actorName(project.actors.find(a=>a.id===id)!)).join(' and ')} ${moved.length>1?'take':'takes'} the nearest seat in the set.`);
+}
 async function apply(next: StudioProject, keepHistory=true) {
   if(loading||exporting)return false;
   let valid:StudioProject;try{valid=parseProject(JSON.stringify(next));}catch(e){notify((e as Error).message);renderUI();return false;}
@@ -233,6 +241,7 @@ async function apply(next: StudioProject, keepHistory=true) {
   const previous=project;if(keepHistory)remember();project=valid;soundtrack.invalidate();time=Math.min(time,durationOf(project));setPlaying(false);
   const needsBuild=project.actors.length!==scene.actors.size||project.actors.some(a=>builtRecipes.get(a.id)!==`${a.detail}:${a.character}`);
   if(needsBuild){loading=true;renderUI();try{await syncActors();}catch(e){applied=false;project=previous;if(keepHistory)history.pop();notify(`Character unchanged: ${(e as Error).message}`);}finally{loading=false;}}
+  if(applied)seatCharacters(true);
   const {width,height}=dimensions();scene.resize(width,height);renderUI();save();return applied;
 }
 function edit(fn:(p:StudioProject)=>void){const next=structuredClone(project);fn(next);return apply(next);}
@@ -472,7 +481,7 @@ async function start() {
   }catch(e){notify((e as Error).message);try{recover();}catch{ /* Keep the default project if saved data is invalid. */ }}
   renderUI();
   try{
-    const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();loading=false;renderUI();
+    const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();seatCharacters(false);loading=false;renderUI();
     if(resume){
       document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
       if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open)soundEditor.open(resume.sound.selected);

@@ -7,11 +7,9 @@ import { localTransform, quatOf } from '../core/rig/rig';
 import type { ActorTrack, StudioProject } from './project';
 import { Bicycle, BICYCLE_CLIP } from '../app/bicycle';
 import { boneFor } from '../core/rig/poses';
-import { SetBuilder } from './sets/builder';
-import { disposeSet } from './sets';
 import { timelineAt } from './project';
-
-const SEATED = ['sit_down', 'sit_idle', 'stand_up'];
+import type { Seat } from './sets/builder';
+import { hipsAt, isSeated, nearestSeat, seatedAt, SEAT_REACH, type Sitter } from './seating';
 
 export class StudioActor {
   readonly group = new THREE.Group();
@@ -21,7 +19,7 @@ export class StudioActor {
   readonly height: number;
   framingPadding = 0;
   private bones: THREE.Bone[];
-  private chair?: THREE.Group;
+  private sittingHips?: [number, number, number];
   private bike?: Bicycle;
   private textures: THREE.Texture[] = [];
   constructor(readonly character: Character, texture: (file: string) => string) {
@@ -105,7 +103,7 @@ export class StudioActor {
     }
     return frame;
   }
-  pose(project: StudioProject, time: number, track: ActorTrack = project.actors[0]) {
+  pose(project: StudioProject, time: number, track: ActorTrack = project.actors[0], seats: readonly Seat[] = []) {
     const frame = this.frame(project, time, track);
     frame.rot.forEach((q, i) => this.bones[i].quaternion.set(...q));
     for (const [i, p] of frame.rootPos) this.bones[i].position.set(...p);
@@ -114,41 +112,37 @@ export class StudioActor {
     this.place(this.group, track, at);
     this.framingPadding=track.beats[at.index].clip===BICYCLE_CLIP?0.9*this.scale:0;
     this.props(track.beats[at.index].clip, frame, at.phase);
-    // A chair is set furniture: it stands where the character first sits, before they sit and after they stand.
-    const seat = track.beats.findIndex(b => SEATED.includes(b.clip));
-    if (seat < 0) { if (this.chair) this.chair.visible = false; }
-    else {
-      this.fitChair();
-      const start = track.beats.slice(0, seat).reduce((sum, b) => sum + b.duration, 0);
-      this.place(this.chair!, track, timelineAt(project, start + 1e-4, track));
-      this.chair!.visible = true;
-      if (this.group.parent && this.chair!.parent !== this.group.parent) this.group.parent.add(this.chair!);
-      this.chair!.updateMatrixWorld(true);
-    }
+    this.group.position.y += this.seatLift(project, track, seats, track.beats[at.index].clip, at.phase);
     this.group.updateMatrixWorld(true);
+  }
+  /** The scale and sitting-hip position the seating needs. */
+  get sitter(): Sitter {
+    if (!this.sittingHips) {
+      const rig = this.character.rig!, hips = rig.bones.findIndex(b => b.name === boneFor(rig.type, 'Hips'));
+      this.sittingHips = [...this.animator.positions(this.animator.frame(clipById.get('sit_idle')!, 0))[Math.max(0, hips)]] as [number, number, number];
+    }
+    return { scale: this.scale, hips: this.sittingHips };
+  }
+  /** Raises or lowers the sitting pose to the seat's height, easing in while sitting down and out while standing up. */
+  private seatLift(project: StudioProject, track: ActorTrack, seats: readonly Seat[], clip: string, phase: number) {
+    if (!isSeated(clip) || !seats.length) return 0;
+    const at = seatedAt(project, track)!, sitter = this.sitter, hips = hipsAt(track, at, sitter), found = nearestSeat(seats, hips.x, hips.z);
+    if (!found || found.distance > SEAT_REACH) return 0;
+    const duration = clipById.get(clip)!.duration, t = Math.min(1, phase / duration);
+    const weight = clip === 'sit_down' ? t : clip === 'stand_up' ? 1 - t : 1;
+    // The pose sits on a surface 8 cm (at reference height) below its hips.
+    return (found.seat.y - (sitter.hips[1] - 0.08 * this.scale)) * weight * weight * (3 - 2 * weight);
   }
   private place(object: THREE.Object3D, track: ActorTrack, at: { x: number; z: number }) {
     const yaw = track.yaw * Math.PI / 180;
     object.rotation.y = yaw;
     object.position.set(track.x + (at.x * Math.cos(yaw) + at.z * Math.sin(yaw)) * this.scale, track.y, track.z + (-at.x * Math.sin(yaw) + at.z * Math.cos(yaw)) * this.scale);
   }
-  private fitChair() {
-    if (!this.chair) {
-      const rig = this.character.rig!, hips = rig.bones.findIndex(b => b.name === boneFor(rig.type, 'Hips'));
-      const p = this.animator.positions(this.animator.frame(clipById.get('sit_idle')!, 0))[Math.max(0, hips)];
-      const b = new SetBuilder(), s = this.scale, y = Math.max(0.25, p[1] - 0.12 * s);
-      b.box([0.52*s,0.08*s,0.5*s],[p[0],y,p[2]],'#81715d');
-      b.box([0.52*s,0.55*s,0.07*s],[p[0],y+0.27*s,p[2]-0.23*s],'#81715d');
-      for(const x of [-0.21,0.21])for(const z of [-0.2,0.2])b.box([0.035*s,y,0.035*s],[p[0]+x*s,y/2,p[2]+z*s],'#4d5556');
-      this.chair = b.group;
-    }
-  }
   private props(clip: string, frame: Frame, phase: number) {
     if(clip===BICYCLE_CLIP&&!this.bike){this.bike=new Bicycle(this.character.rig!,this.animator,clipById.get(BICYCLE_CLIP)!);this.group.add(this.bike.group);}
     if(this.bike){this.bike.group.visible=clip===BICYCLE_CLIP;if(clip===BICYCLE_CLIP)this.bike.update(this.animator.positions(frame), phase / clipById.get(BICYCLE_CLIP)!.duration * Math.PI * 5);}
   }
-  /** Takes the character and its set furniture out of the scene. */
-  detach() { this.group.removeFromParent(); this.chair?.removeFromParent(); }
-  dispose() { if(this.chair)disposeSet(this.chair);this.bike?.dispose();this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
+  detach() { this.group.removeFromParent(); }
+  dispose() { this.bike?.dispose();this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
     this.mesh.skeleton.dispose(); this.textures.forEach((t) => t.dispose()); this.group.removeFromParent(); }
 }
