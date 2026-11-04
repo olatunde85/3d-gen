@@ -15,6 +15,8 @@ import { checkFiveCast } from './studio-cast-check';
 import { checkStudioAudio } from './studio-audio-check';
 import { checkStudioEffects } from './studio-effects-check';
 import { checkStudioTour } from './studio-tour-check';
+import { checkStudioShortcuts } from './studio-shortcut-check';
+import { captureStudioExample } from './studio-example-capture';
 import { TOUR_STORAGE_KEY } from '../src/studio/tour-content';
 
 const winDirs = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter((d): d is string => !!d);
@@ -27,7 +29,7 @@ const CHROME = process.env.CHROME ?? [
 ].find(existsSync);
 if (!CHROME) throw new Error('No Chrome, Chromium or Edge found: set CHROME=/path/to/browser');
 
-const audioOnly=process.argv.includes('--audio'),castOnly=process.argv.includes('--cast'),effectsOnly=process.argv.includes('--sfx'),tourOnly=process.argv.includes('--tour');
+const audioOnly=process.argv.includes('--audio'),castOnly=process.argv.includes('--cast'),effectsOnly=process.argv.includes('--sfx'),tourOnly=process.argv.includes('--tour'),keysOnly=process.argv.includes('--keys'),exampleOnly=process.argv.includes('--example');
 if(castOnly||effectsOnly)process.env.STUDIO_AUDIO_CHECK='1';
 if(audioOnly&&!existsSync(join(process.env.STUDIO_TTS_FIXTURE??'out/studio-speech-model','onnx/vocoder.onnx')))throw Error('Run npm run setup:studio-speech first, or set STUDIO_TTS_FIXTURE to the pinned model directory.');
 if(audioOnly){process.env.STUDIO_AUDIO_CHECK='1';process.env.VITE_STUDIO_TTS_MODEL_URL='/__tts-model';}
@@ -110,7 +112,7 @@ const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
 const assistOnly=process.argv.includes('--assist');
-async function step(name:string,fn:()=>Promise<void>){if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+async function step(name:string,fn:()=>Promise<void>){if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -247,8 +249,7 @@ try{
   if(!await evaluate(`document.elementFromPoint(${centre.x},${centre.y}).id==='blocking'`))throw Error('The character-selection guard still covers the cast menu');
   await send('Input.dispatchMouseEvent',{type:'mousePressed',...centre,button:'left',buttons:1,clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',...centre,button:'left',buttons:0,clickCount:1});
   if(!await evaluate('document.activeElement.id==="blocking"'))throw Error('Cast dropdown cannot be focused by pointer');await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});
-  for(const count of [2,5]){
-   if(count===5){await evaluate(`(async()=>{const p=structuredClone(__stagingBase);for(let i=2;i<5;i++)p.actors.push({...structuredClone(p.actors[0]),id:'stage-'+i});await studio.setProject(p);})()`);await ready();}
+  for(const count of [2]){
    const meshes=await evaluate<string>('JSON.stringify([...studio.scene.actors].map(([id,a])=>[id,a.mesh.uuid]))');
    for(const kind of ['side','conversation','opposed']){
     await change('blocking',kind);await waitFor(`document.getElementById('blocking').value===${JSON.stringify(kind)}&&document.getElementById('notice').textContent.includes('applied to all ${count}')`,'applied cast arrangement');await pause(80);
@@ -256,9 +257,15 @@ try{
     if(await evaluate<string>('JSON.stringify([...studio.scene.actors].map(([id,a])=>[id,a.mesh.uuid]))')!==meshes)throw Error('Arrangement unnecessarily rebuilt the cast');
    }
   }
+  const stagingBase=await evaluate<string>('JSON.stringify(__stagingBase)');
   await shot('cast-staging-unselected');const arranged=await evaluate<string>('JSON.stringify(studio.project)');await evaluate('document.querySelector(".cast-member").click()');await change('actor-x','2.3');if(!await evaluate('document.getElementById("blocking").value===""'))throw Error('Menu displays a stale arrangement after manual placement');await evaluate('document.getElementById("undo").click()');await ready();if(await evaluate<string>('JSON.stringify(studio.project)')!==arranged||!await evaluate('document.getElementById("blocking").value==="opposed"'))throw Error('Undo did not restore arrangement/menu');
   await evaluate('document.getElementById("deselect-actor").click();window.dispatchEvent(new Event("pagehide"))');const previous=await evaluate<number>('performance.timeOrigin');await send('Page.reload');await waitFor(`performance.timeOrigin!==${previous}&&window.studio?.ready`,'reloaded staged cast');if(!await evaluate('document.getElementById("blocking").value==="opposed"&&!document.getElementById("blocking").disabled&&!studio.scene.selectionId'))throw Error('Reload lost the layout or selection-independent controls');
   await evaluate('(async()=>{const p=structuredClone(studio.project);p.actors=p.actors.slice(0,1);await studio.setProject(p)})()');await ready();if(!await evaluate('document.getElementById("blocking").disabled&&document.getElementById("blocking-hint").textContent.includes("Add another character")'))throw Error('One-character cast has no useful explanation');
+  for(const count of [3,4,5]){
+   await evaluate(`(async()=>{const p=JSON.parse(${JSON.stringify(stagingBase)});for(let i=2;i<${count};i++)p.actors.push({...structuredClone(p.actors[0]),id:'stage-'+i,x:(i-1)*1.9,z:-2});await studio.setProject(p);})()`);await ready();
+   if(!await evaluate('document.getElementById("cast-staging").hidden&&document.getElementById("blocking").disabled&&document.getElementById("blocking").getBoundingClientRect().width===0'))throw Error('Arrangement menu visible for '+count+' actors');
+   const before=await evaluate<string>('JSON.stringify(studio.project.actors)');await change('blocking','side');if(await evaluate<string>('JSON.stringify(studio.project.actors)')!==before)throw Error('Hidden arrangement changed a larger cast');
+  }
   await upload(original);await ready();await evaluate('document.querySelector(".cast-member").click()');
  });
  await step('Desktop controls, equipment and timeline fit the viewport together',async()=>{
@@ -504,6 +511,8 @@ try{
   if(b.actors.length!==2||b.actors[0].character!==a.actors[0].character||b.template!==a.template||b.title!==a.title||JSON.stringify(b.shots)!==JSON.stringify(a.shots)||JSON.stringify(b.actors[1].beats)!==JSON.stringify(a.actors[1].beats)||b.actors[1].character===a.actors[1].character)throw Error('Builder round trip changed another part of the film');
   if(b.actors[1].detail!=='high')throw Error('Character detail lost on return');await shot('mixed-rig-cast');
  });
+ await captureStudioExample({enabled:exampleOnly,step,evaluate,ready,pause,folder});
+ await checkStudioShortcuts({enabled:keysOnly,step,evaluate,waitFor,ready,pause,send});
  await checkStudioTour({enabled:tourOnly,step,evaluate,waitFor,ready,pause,shot,send});
  await checkFiveCast({enabled:castOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
  await checkStudioEffects({enabled:effectsOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});

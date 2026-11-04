@@ -92,3 +92,14 @@ npm run test:studio -- --audio    # voice effects, music, device voices, real sp
 ```
 
 Screenshots and videos from the browser suites are saved in `out/studio-expansion/`. `--audio` uses a simulated microphone; set `STUDIO_TTS_FIXTURE` to use a model directory you already have.
+
+## Rebuild the Studio README preview
+
+The checked-in GIF shows the current warehouse example. To regenerate it, install FFmpeg and a supported Chrome, Chromium or Edge browser, then run:
+
+```bash
+npm run test:studio -- --example
+npm run build:studio-example-gif
+```
+
+The first command renders the complete example to an ignored MP4 under `out/studio-expansion/`. The second preserves its 30-second timing and creates the compressed GIF under `docs/media/`. Normal site builds use that checked-in asset and do not need to render it again.

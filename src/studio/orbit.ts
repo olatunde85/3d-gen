@@ -34,7 +34,7 @@ export function orbitControls(canvas: HTMLCanvasElement, state: () => View, enab
   }
   canvas.addEventListener('pointerdown', e => {
     if (!enabled() || e.pointerType === 'mouse' && ![0, 2].includes(e.button)) return;
-    finishKeys();
+    canvas.focus({preventScroll:true});finishKeys();
     if (wheelTimer) { clearTimeout(wheelTimer); wheelTimer=0; end(); }
     if (pointers.size) {
       // A second finger changes to camera control; it never leaves an accidental actor move.
@@ -83,7 +83,12 @@ export function orbitControls(canvas: HTMLCanvasElement, state: () => View, enab
     finishKeys(true);const ids = [...pointers.keys()]; pointers.clear(); finish(true, 0, 0);
     for (const id of ids) if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
   }
-  window.addEventListener('blur', cancel);
+  // Commit keyboard edits before focus loss or saving; an interrupted pointer drag still cancels.
+  const loseFocus=()=>{finishKeys();cancel();};
+  window.addEventListener('blur',loseFocus);
+  window.addEventListener('pagehide',loseFocus,true);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)loseFocus();},true);
+  document.addEventListener('focusin',event=>{if(event.target!==canvas)finishKeys();});
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('wheel', e => {
     if (!enabled()) return; e.preventDefault(); if (pointers.size||actorKeys.size) return;
@@ -111,5 +116,10 @@ export function orbitControls(canvas: HTMLCanvasElement, state: () => View, enab
     else rotate(e.key==='ArrowLeft'?10:e.key==='ArrowRight'?-10:0,e.key==='ArrowUp'?5:e.key==='ArrowDown'?-5:0);
     end();
   });
-  document.addEventListener('keyup',e=>{if(actorKeys.delete(e.key)&&!actorKeys.size)placement?.end(false);});
+  document.addEventListener('keyup',e=>{
+    // macOS can omit an arrow keyup while Command is held. Releasing the modifier must finish
+    // the edit too, rather than leave controls locked or revert the turn on the next window blur.
+    if(['Meta','Control','Shift'].includes(e.key)&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey){finishKeys();return;}
+    if(actorKeys.delete(e.key)&&!actorKeys.size)placement?.end(false);
+  });
 }

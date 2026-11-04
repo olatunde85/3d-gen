@@ -108,7 +108,7 @@ function lock() {
     button('add-shot').disabled = project.shots.length >= MAX_SHOTS || project.shots.reduce((s, b) => s + b.duration, 0) > MAX_DURATION - 0.1;
     button('add-actor').disabled = project.actors.length >= MAX_ACTORS;
     input('movement').disabled = !clipById.get(actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)].clip)?.travel;
-    select('blocking').disabled = project.actors.length < 2;
+    select('blocking').disabled = project.actors.length !== 2;
   }
   input('title').disabled=loading||exporting||importing||!!placementBefore;
   if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','actor-x','actor-y','actor-z','actor-yaw','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
@@ -200,7 +200,7 @@ function renderUI() {
   scene.selectionId=characterSelected?selectedActor:undefined;$('scene-name').textContent=sceneById.get(project.template)!.name;renderScenes();
   $('cast-roster').replaceChildren();for(const [i,actor]of project.actors.entries()){
     const b=document.createElement('button');b.className='cast-member';b.setAttribute('aria-pressed',String(characterSelected&&actor.id===selectedActor));b.textContent=`${i+1} · ${actorName(actor)}`;
-    b.addEventListener('click',()=>{characterSelected=true;selectedActor=actor.id;cameraSelection=false;selected=0;renderUI();});$('cast-roster').append(b);
+    b.addEventListener('click',()=>{characterSelected=true;selectedActor=actor.id;cameraSelection=false;selected=0;renderUI();$('film').focus({preventScroll:true});});$('cast-roster').append(b);
   }
   $('add-actor').hidden=project.actors.length>=MAX_ACTORS;$('cast-count').textContent=`${project.actors.length} / ${MAX_ACTORS}`;$('remove-actor').hidden=project.actors.length===1;
   $('cast-status').textContent=characterSelected?`Selected: ${actorName(a)}`:'No character selected';
@@ -221,6 +221,7 @@ function renderUI() {
   if(cameraSelection){const s=project.shots[selected];select('shot').value=s.shot;input('shot-duration').value=String(s.duration);select('shot-target').replaceChildren(new Option('Entire cast','all'));for(const [i,actor]of project.actors.entries())select('shot-target').append(new Option(`Character ${i+1} · ${actorName(actor)}`,actor.id));select('shot-target').value=s.target;}
   else{const b=a.beats[selected];renderAnimations();input('beat-duration').value=String(b.duration);input('movement').checked=b.move;}
   $('blocking-title').textContent=characterSelected?`Character ${ai+1} placement`:'Character placement';for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).value=String(a[key]);select('blocking').value=castArrangement(project.actors);
+  $('cast-staging').hidden=project.actors.length>2;
   $('blocking-hint').textContent=project.actors.length<2?'Add another character to arrange the cast.':`Moves and turns all ${project.actors.length} characters.`;
   $('equipment-title').textContent='Equipment';select('actor-weapon').value=params.weapon;select('actor-carry').value=params.carry;
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
@@ -273,7 +274,7 @@ button('add-actor').addEventListener('click',()=>void edit(p=>{const actor=addCa
 button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.length<=1)return;const removed=actorTrack().id;p.actors=p.actors.filter(a=>a.id!==removed);for(const s of p.shots)if(s.target===removed)s.target='all';p.texts=p.texts.filter(c=>c.anchor==='screen'||resolveTextActor(c.anchor)!==removed);for(const c of p.audio.speech)if(c.actor!=='narrator'&&resolveSpeechActor(c.actor)===removed)c.actor='narrator';for(const c of p.audio.effects)if(c.actor===removed)delete c.actor;selectedActor=p.actors[0].id;characterSelected=true;selected=0;cameraSelection=false;}));
 for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)![key]=Number(input(`actor-${key}`).value)));
 select('blocking').addEventListener('change',async()=>{
-  const value=select('blocking').value as Arrangement;if(project.actors.length<2||!ARRANGEMENTS.includes(value))return;
+  const value=select('blocking').value as Arrangement;if(project.actors.length!==2||!ARRANGEMENTS.includes(value))return;
   if(!await edit(p=>arrangeCast(p.actors,value)))return;
   notify(castArrangement(project.actors)===value?`${ARRANGEMENT_LABELS[value]} applied to all ${project.actors.length} characters.`:'Cast placement updated. Seated characters use the set’s seats.');
 });

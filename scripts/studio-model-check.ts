@@ -148,11 +148,11 @@ const ensemble=newProject(),firstActor=JSON.stringify(ensemble.actors[0]);
 while(ensemble.actors.length<MAX_ACTORS)addCastActor(ensemble);
 assert.equal(ensemble.actors.length,5);assert.equal(new Set(ensemble.actors.map(a=>a.id)).size,5);assert.equal(JSON.stringify(ensemble.actors[0]),firstActor);
 assert.equal(addCastActor(ensemble),undefined);assert.deepEqual(parseStudioInput(JSON.stringify(projectForAssist(ensemble))),parseProject(JSON.stringify(ensemble)));
-for(const kind of ['side','conversation','opposed']as const){arrangeCast(ensemble.actors,kind);for(const a of ensemble.actors)for(const b of ensemble.actors)if(a!==b)assert.ok(Math.hypot(a.x-b.x,a.z-b.z)>=1.4);assert.doesNotThrow(()=>parseProject(JSON.stringify(ensemble)));}
-assert.equal(castArrangement([ensemble.actors[0]]),'');
-for(let count=2;count<=MAX_ACTORS;count++)for(const kind of ARRANGEMENTS){
- const cast=structuredClone(ensemble.actors.slice(0,count));arrangeCast(cast,kind);const snapshot=JSON.stringify(cast);
- assert.equal(castArrangement(cast),kind);assert.equal(JSON.stringify(cast),snapshot,'Arrangement detection must not move characters');
+for(let count=1;count<=MAX_ACTORS;count++)for(const kind of ARRANGEMENTS){
+ const cast=structuredClone(ensemble.actors.slice(0,count)),before=JSON.stringify(cast);arrangeCast(cast,kind);
+ if(count!==2){assert.equal(JSON.stringify(cast),before,'Arrangement commands only apply to two actors');assert.equal(castArrangement(cast),'');continue;}
+ assert.ok(Math.hypot(cast[0].x-cast[1].x,cast[0].z-cast[1].z)>=1.4);
+ const snapshot=JSON.stringify(cast);assert.equal(castArrangement(cast),kind);assert.equal(JSON.stringify(cast),snapshot,'Detection must not move characters');
  cast[0].x+=.1;assert.equal(castArrangement(cast),'');cast[0].x-=.1;assert.equal(castArrangement(cast),kind);
  cast[0].y=.05;assert.equal(castArrangement(cast),'');cast[0].y=0;cast[0].yaw+=5;assert.equal(castArrangement(cast),'');
 }
@@ -160,7 +160,7 @@ const removed=ensemble.actors.splice(2,1)[0];assert.equal(addCastActor(ensemble)
 assert.throws(()=>parseProject(JSON.stringify({...ensemble,actors:[...ensemble.actors,{...ensemble.actors[0],id:'sixth'}]})),/one to 5/);
 for(const track of MUSIC_TRACKS){assert.ok(guide.includes(track.id));if(track.file)assert.ok(readFileSync(new URL('../public/media/music/'+track.file,import.meta.url)).length>1000);}
 assert.equal(MUSIC_TRACKS.filter(t=>t.file).length,9);assert.equal(parseAudio({music:{track:'cinematic'}},new Set()).music.track,'adventure-trailer');assert.equal(parseAudio({music:{track:'ambient'}},new Set()).music.track,'tropical-pop');
-console.log('Five-character cast: cap, IDs, safe addition, group arrangements, readable LLM JSON and recorded music migration passed.');
+console.log('Five-character cast: cap, IDs, safe addition, two-character arrangements, readable LLM JSON and recorded music migration passed.');
 
 // Independent sound effects use the same validated, portable audio contract as speech/music.
 const fxAudio=parseAudio({effects:[{sound:'body-fall-thump',actor:'host',start:1,offset:.1,speed:2}]},actors);
