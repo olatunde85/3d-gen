@@ -98,10 +98,14 @@
   <dialog id="sound-dialog" aria-labelledby="sound-title">
     <div class="dialog-top"><span class="eyebrow">THE SOUNDTRACK</span><button id="sound-close" class="icon-button" aria-label="Close sound editor">✕</button></div>
     <h2 id="sound-title">Speech &amp; music</h2><p class="export-description">Direct the dialogue, shape the voice, and choose a music bed. The mix is included in your film.</p>
+    <section class="sound-generation" aria-label="Generate the film’s speech">
+      <div><h3>Generate the whole dialogue</h3><p id="sound-generation-summary" class="setting-hint"></p><p class="setting-hint">Runs on your device · about 265 MB on first use. <a href="../third-party/speech/MODEL-LICENSE.txt" target="_blank" rel="noopener">Model terms</a>.</p></div>
+      <button id="sound-generate-all" class="export-button">Generate all speech</button>
+    </section>
     <div class="sound-columns">
       <section class="sound-library"><div class="sound-speech-library"><div class="sound-actions"><button id="sound-add">+ Dialogue</button><button id="sound-upload">Upload speech</button><button id="sound-record">Record speech</button></div>
         <label for="sound-cue">Speech clips <span id="sound-count"></span></label><select id="sound-cue" size="6"></select>
-        <button id="sound-generate-all" class="sound-batch" hidden>Generate all voices</button></div>
+        </div>
         <div class="sound-music-library">
         <h3>Background music</h3><label class="sr-only" for="sound-music">Music track</label><select id="sound-music"></select>
         <label for="sound-music-volume">Music volume %</label><input id="sound-music-volume" type="number" min="0" max="100" step="1" />
@@ -117,10 +121,9 @@
         <label for="sound-script">Dialogue / transcript</label><textarea id="sound-script" rows="3" maxlength="600" placeholder="What does this person say?"></textarea>
         <section class="sound-take" aria-label="Generate or attach speech">
           <div class="sound-take-toolbar"><div><label for="sound-voice">Voice · English</label><select id="sound-voice"></select></div>
-            <div class="sound-take-actions"><button id="sound-generate" class="export-button">Generate speech</button><button id="sound-attach">Attach audio</button></div>
+            <div class="sound-take-actions"><button id="sound-generate">Generate this clip</button><button id="sound-attach">Attach audio</button></div>
           </div>
           <p id="sound-asset-status" class="setting-hint" role="status"></p>
-          <p class="setting-hint">Local generation downloads about 265 MB once. <a href="../third-party/speech/MODEL-LICENSE.txt" target="_blank" rel="noopener">Model terms</a>.</p>
         </section>
         <canvas id="sound-waveform" width="600" height="58" aria-label="Speech waveform"></canvas>
         <div class="sound-actions sound-preview-actions"><button id="sound-preview">Preview voice</button><button id="sound-fit">Fit duration to audio</button><button id="sound-delete">Delete clip</button></div>

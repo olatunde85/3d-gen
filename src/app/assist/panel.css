@@ -89,3 +89,6 @@ dialog.ai-assist::backdrop { background: #080b11bb; backdrop-filter: blur(6px); 
   .ai-assist .ai-review { border-top: 1px solid var(--ai-line); padding-top: 22px; }
   .ai-assist .ai-json { min-height: 180px; }
 }
+
+.ai-assist .ai-preparation { padding:10px 12px; border:1px solid var(--ai-line); border-radius:8px; background:var(--ai-raised); margin-bottom:10px; }
+.ai-assist .ai-preparation[hidden] { display:none; }

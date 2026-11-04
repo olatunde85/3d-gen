@@ -22,7 +22,7 @@ export function setupSoundEditor(editor:SoundEditor){
   if(typeof speechSynthesis!=='undefined')speechSynthesis.addEventListener('voiceschanged',voices);select('device-voice').addEventListener('change',()=>preferredDeviceVoice=select('device-voice').value);voices();
   function takeActions(ready:boolean){
     const cue=current(),locked=busy||recording?.state==='recording';
-    button('generate').textContent=ready&&cue?.source==='tts'?'Regenerate speech':'Generate speech';
+    button('generate').textContent=ready&&cue?.source==='tts'?'Regenerate this clip':'Generate this clip';
     button('generate').disabled=locked||!cue?.text.trim();button('attach').textContent=ready?'Replace audio':'Attach audio';
     button('preview').disabled=locked||!ready;button('fit').disabled=locked||!ready;
   }
@@ -45,11 +45,11 @@ export function setupSoundEditor(editor:SoundEditor){
       select('effect').value=cue.effect;select('voice').value=cue.voice;select('actor').replaceChildren(new Option('Narrator','narrator'));editor.project().actors.forEach((a,i)=>select('actor').append(new Option(`Character ${i+1}`,speechActor(a.id))));select('actor').value=cue.actor;
       $('sound-asset-status').textContent=cue.asset?'Checking the audio library…':'Generate a voice from this script, or attach your own audio.';
     }
-    lock();takeActions(!!cue?.asset&&cue.asset===readyAsset);const pending=audio.speech.filter(c=>!c.asset&&c.text.trim()).length;button('generate-all').hidden=pending<2;button('generate-all').textContent=`Generate all voices (${pending})`;button('add').disabled=busy||recording?.state==='recording'||audio.speech.length>=MAX_SPEECH;button('record').disabled=busy||!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined';void waveform(cue);
+    lock();takeActions(!!cue?.asset&&cue.asset===readyAsset);const pending=audio.speech.filter(c=>!c.asset&&c.text.trim()).length;button('generate-all').disabled=busy||recording?.state==='recording'||!pending;button('generate-all').textContent=pending?`Generate all speech (${pending})`:'Generate all speech';$('sound-generation-summary').textContent=pending?`${pending} ${pending===1?'line is':'lines are'} ready for a voice. Existing audio will be kept.`:audio.speech.length?'All scripted lines have audio.':'Add dialogue or import a film to generate its voices.';button('add').disabled=busy||recording?.state==='recording'||audio.speech.length>=MAX_SPEECH;button('record').disabled=busy||!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined';void waveform(cue);
   }
   async function update(patch:Partial<SpeechCue>,remember=true){if(!current())return;await commit(p=>{const c=p.audio.speech.find(c=>c.id===selected);if(c)Object.assign(c,patch);},remember);editor.changed();render();}
   function stopPreview(){preview.stop();stopDeviceSpeech();button('preview').textContent='Preview voice';}
-  function open(id?:string,focusTake=false){if(!editor.canEdit())return;editor.pause();stopPreview();if(id)selected=id;lastTyped='';render();voices();if(!dialog.open)dialog.showModal();if(focusTake)button(current()?.text.trim()?'generate':'attach').focus();else dialog.scrollTop=0;}
+  function open(id?:string,focusTake=false){if(!editor.canEdit())return;editor.pause();stopPreview();if(id)selected=id;lastTyped='';render();voices();if(!dialog.open)dialog.showModal();if(focusTake)button(current()?.text.trim()?'generate-all':'attach').focus();else dialog.scrollTop=0;}
   $('open-sound').addEventListener('click',()=>open());button('close').addEventListener('click',()=>dialog.close());
   dialog.addEventListener('cancel',event=>{if(busy){event.preventDefault();controller?.abort();}else if(recording?.state==='recording'){event.preventDefault();stopRecording(true);}});
   dialog.addEventListener('close',()=>{stopPreview();stopRecording(true);recordToken++;controller?.abort();releaseSpeechEngine();});

@@ -340,7 +340,7 @@ try{
   await search('assist-json','{"kind":"ara-studio",broken}');
   if(!await evaluate("document.querySelector('#assist-create').disabled && document.querySelector('#assist-json').getAttribute('aria-invalid')==='true'"))throw Error('Invalid pasted JSON was accepted');
   if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Validation changed the film');
-  await evaluate("document.querySelector('#assist-example').click()");
+  await evaluate("(()=>{document.querySelector('#assist-example').click();const e=document.querySelector('#assist-json'),p=JSON.parse(e.value);p.audio.speech=[];e.value=JSON.stringify(p);e.dispatchEvent(new Event('input',{bubbles:true}));})()");
   if(!await evaluate("!document.querySelector('#assist-create').disabled && document.querySelector('#assist-status').textContent.includes('Resort pool')"))throw Error('Example did not validate');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await pause();
   if(!await evaluate("document.querySelector('#assist-dialog').scrollWidth<=document.querySelector('#assist-dialog').clientWidth && document.documentElement.scrollWidth<=innerWidth"))throw Error('LLM dialog overflows mobile');
@@ -353,7 +353,7 @@ try{
  });
  await step('LLM-friendly JSON files open both in Assist and in the ordinary project importer',async()=>{
   const original=await evaluate<string>('JSON.stringify(window.studio.project)');
-  await evaluate("document.querySelector('#open-assist').click();document.querySelector('#assist-example').click()");
+  await evaluate("document.querySelector('#open-assist').click();(()=>{document.querySelector('#assist-example').click();const e=document.querySelector('#assist-json'),p=JSON.parse(e.value);p.audio.speech=[];e.value=JSON.stringify(p);e.dispatchEvent(new Event('input',{bubbles:true}));})()");
   const fileJSON=await evaluate<string>("(()=>{const p=JSON.parse(document.querySelector('#assist-json').value);p.template='beach';p.title='An assisted beach film';return JSON.stringify(p)})()");
   await evaluate(`(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(fileJSON)}],'llm-film.json',{type:'application/json'}));const e=document.querySelector('#assist-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);
   await waitFor("document.querySelector('#assist-json').value.includes('An assisted beach film') && !document.querySelector('#assist-create').disabled",'assisted file validation');

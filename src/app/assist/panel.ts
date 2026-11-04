@@ -27,6 +27,13 @@ export interface AssistConfig<T> {
   /** Applies the result; throws a readable error if it can't. */
   build(value: T): Promise<void>;
   canOpen(): boolean | Promise<boolean>;
+  /** Optional local preparation of a validated reply before building (Studio dialogue). */
+  prepare?: {
+    note:string;
+    needed(value:T):boolean;
+    run(value:T,options:{signal:AbortSignal;progress(message:string):void;updated(value:T):void}):Promise<T>;
+    write(value:T,json:string):string;
+  };
   footnote: string;
   /** Where drafts persist when the host doesn't save them itself. */
   storageKey?: string;
@@ -68,9 +75,11 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
       <section class="ai-col ai-review" aria-labelledby="${id}-s3">
         <div class="ai-step"><span class="ai-num">3</span><h3 id="${id}-s3">Review and build</h3></div>
         <div class="ai-row"><button class="ai-btn" id="${id}-paste" data-r="paste">Paste reply</button><button class="ai-btn" id="${id}-open" data-r="open">Open file</button><button class="ai-link" id="${id}-example" data-r="example">Try an example</button></div>
+        ${cfg.prepare?`<p class="ai-note">${html(cfg.prepare.note)}</p>`:''}
         <label class="sr-only" for="${id}-json">${Noun} JSON</label>
         <textarea id="${id}-json" class="ai-json" data-r="json" rows="12" spellcheck="false" aria-describedby="${id}-status" placeholder="Paste the assistant's whole reply here. Ara finds the JSON in it."></textarea>
         <div class="ai-result" id="${id}-status" data-r="result" role="status" aria-live="polite"></div>
+        <div class="ai-preparation" data-r="preparation" hidden><p class="ai-note" id="${id}-speech-status" data-r="preparation-status" role="status"></p><div class="ai-row"><button class="ai-btn" id="${id}-speech-cancel" data-r="preparation-cancel">Stop generation</button><button class="ai-btn" id="${id}-speech-retry" data-r="preparation-retry" hidden>Retry speech generation</button></div></div>
         <button class="ai-btn ai-primary ai-wide ai-build" id="${id}-create" data-r="build" disabled>Build ${noun} <span aria-hidden="true">↗</span></button>
         <p class="ai-note">${html(cfg.footnote)}</p>
       </section>
@@ -84,6 +93,8 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
 
   let parsed: T | undefined, error = '', cleaned = false, building = false;
   let saveTimer = 0, guideStale = true;
+  let preparing=false,preparationTimer=0,preparationToken=0,preparationText='',preparationRetry=false;
+  let preparationController:AbortController|undefined;
 
   // ---- Drafts ----
   const state = (): AssistDraft => ({ brief: brief.value, json: draft.value, context: context.checked, open: dialog.open, guideOpen: details.open });
@@ -114,7 +125,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     if (parsed) {
       const { headline, facts } = cfg.describe(parsed);
       result.classList.add('ok');
-      result.innerHTML = `<p class="ai-result-title"><span aria-hidden="true">✓</span> Ready to build</p><p class="ai-headline">${html(headline)}</p>
+      result.innerHTML = `<p class="ai-result-title"><span aria-hidden="true">${preparing?'…':'✓'}</span> ${preparing?'Preparing dialogue voices':'Ready to build'}</p><p class="ai-headline">${html(headline)}</p>
         <ul class="ai-facts">${facts.map(f => `<li>${html(f)}</li>`).join('')}</ul>${cleaned ? '<p class="ai-note">Found the JSON in the reply and ignored the text around it.</p>' : ''}`;
     } else if (error) {
       result.classList.add('error');
@@ -126,6 +137,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     lock();
   }
   function check() {
+    stopPreparation();
     parsed = undefined; error = ''; cleaned = false;
     const raw = draft.value;
     if (raw.trim()) {
@@ -142,15 +154,44 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     const clean = json.startsWith('{') ? pretty(json) : text;
     draft.value = clean; check();
     cleaned = hadSurroundingText(text, json) && clean !== text; showResult();
-    schedule();
+    schedule();queuePreparation();
   }
 
   // ---- Busy state ----
   function lock() {
     for (const el of dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement>('button,input,textarea')) el.disabled = building;
-    build.disabled = building || !parsed;
-    dialog.setAttribute('aria-busy', String(building));
+    build.disabled = building || preparing || !parsed;
+    dialog.setAttribute('aria-busy', String(building||preparing));
+    renderPreparation();
   }
+
+  // ---- Optional automatic preparation ----
+  function renderPreparation(){
+    $('preparation').hidden=!preparationText;
+    $('preparation-status').textContent=preparationText;
+    $('preparation-cancel').hidden=!preparing;$('preparation-retry').hidden=!preparationRetry;
+  }
+  function stopPreparation(message=''){
+    preparationToken++;clearTimeout(preparationTimer);preparationController?.abort();preparationController=undefined;
+    preparing=false;preparationText=message;preparationRetry=!!message&&!!parsed&&!!cfg.prepare?.needed(parsed);renderPreparation();
+  }
+  function queuePreparation(){
+    if(!cfg.prepare||!parsed||!dialog.open||!cfg.prepare.needed(parsed))return;
+    const source=parsed,token=++preparationToken,control=new AbortController();preparationController=control;
+    preparing=true;preparationText='Preparing dialogue voices automatically…';preparationRetry=false;showResult();
+    preparationTimer=window.setTimeout(async()=>{
+      const active=()=>token===preparationToken&&!control.signal.aborted;
+      const update=(value:T)=>{if(!active())return;parsed=value;draft.value=cfg.prepare!.write(value,extractJson(draft.value));schedule();draft.dispatchEvent(new Event('change',{bubbles:true}));showResult();};
+      try{
+        const value=await cfg.prepare!.run(source,{signal:control.signal,progress:message=>{if(active()){preparationText=message;renderPreparation();}},updated:update});
+        if(!active())return;update(value);preparing=false;preparationController=undefined;preparationText='Dialogue voices are ready and saved on this device.';showResult();persist();
+      }catch(e){
+        if(!active())return;preparing=false;preparationController=undefined;preparationRetry=true;preparationText=(e as Error).message+' Completed voices have been kept. Retry, or build the film and use Sound.';showResult();
+      }
+    },300);
+  }
+  $('preparation-cancel').addEventListener('click',()=>{stopPreparation('Speech generation stopped. Completed voices have been kept.');showResult();persist();});
+  $('preparation-retry').addEventListener('click',queuePreparation);
 
   // ---- Chat route ----
   $('copy').addEventListener('click', async () => {
@@ -187,18 +228,19 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     if (!text || !replacingAll) return; // Editing inside existing JSON: paste normally.
     e.preventDefault(); setReply(text);
   });
-  draft.addEventListener('input', () => { check(); schedule(); });
+  draft.addEventListener('input', () => { check(); schedule();queuePreparation(); });
   $('open').addEventListener('click', () => file.click());
   file.addEventListener('change', async () => {
     const chosen = file.files?.[0]; file.value = '';
     if (!chosen) return;
-    if (chosen.size > 200_000) { draft.value = ''; error = 'Use a file smaller than 200 KB.'; parsed = undefined; showResult(); return; }
+    if (chosen.size > 200_000) { stopPreparation();draft.value = ''; error = 'Use a file smaller than 200 KB.'; parsed = undefined; showResult(); return; }
     setReply(await chosen.text());
   });
   $('example').addEventListener('click', () => setReply(JSON.stringify(cfg.example())));
   build.addEventListener('click', async () => {
+    if(building||preparing)return;
     check();
-    if (!parsed || building) return;
+    if (!parsed) return;
     building = true; lock();
     const label = build.innerHTML;
     build.textContent = `Building your ${noun}…`;
@@ -218,15 +260,15 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   // ---- Open and close ----
   $('close').addEventListener('click', () => { if (!building) dialog.close(); });
   dialog.addEventListener('cancel', e => { if (building) e.preventDefault(); });
-  dialog.addEventListener('close', persist);
-  window.addEventListener('pagehide', persist);
+  dialog.addEventListener('close',()=>{stopPreparation();persist();});
+  window.addEventListener('pagehide',()=>{stopPreparation();persist();});
 
   async function open() {
     if (!await cfg.canOpen()) return;
     // A context-based guide reflects the current state, which may have changed since it was made.
     guideStale = true; check();
     if (!dialog.open) dialog.showModal();
-    refreshGuide();
+    refreshGuide();queuePreparation();
     (brief.value.trim() ? (parsed ? build : draft) : brief).focus();
     persist();
   }

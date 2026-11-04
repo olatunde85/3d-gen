@@ -15,7 +15,7 @@ export async function generateSpeech(text:string,voice:string,progress:(message:
       worker!.onerror=()=>{signal?.removeEventListener('abort',abort);cancelSpeechGeneration();reject(Error('The local speech engine could not start. Try a shorter script or upload a recording.'));};
       const base=import.meta.env.VITE_STUDIO_TTS_MODEL_URL||MODEL_BASE;worker!.postMessage({text,voice,base});
     });
-    signal?.throwIfAborted();return await putAsset(wavBlob([result.samples],result.sampleRate),text.slice(0,60),result.samples.length/result.sampleRate,result.sampleRate,1);
+    signal?.throwIfAborted();return await putAsset(wavBlob([result.samples],result.sampleRate),text.slice(0,60),result.samples.length/result.sampleRate,result.sampleRate,1,{text,voice,model:MODEL_REVISION});
   }finally{busy=false;}
 }
 export function deviceVoices(){return typeof speechSynthesis==='undefined'?[]:speechSynthesis.getVoices();}

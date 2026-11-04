@@ -1,4 +1,5 @@
 import { assistExample, describeAssistProject, generateAssistGuide, parseStudioInput } from './assist';
+import { hasScriptedSpeech, prepareDialogue } from './audio/prepare';
 import { assistPanel } from '../app/assist/panel';
 import type { Catalog } from '../core/assets';
 import type { StudioProject } from './project';
@@ -23,6 +24,12 @@ export function setupAssist(editor: AssistEditor) {
     parse: json => parseStudioInput(json, editor.catalog()),
     describe: describeAssistProject,
     example: assistExample,
+    prepare:{
+      note:'Dialogue voices generate automatically after a valid reply is pasted or opened. First use downloads about 265 MB; generation runs on your device and can be stopped.',
+      needed:hasScriptedSpeech,
+      run:prepareDialogue,
+      write:(project,json)=>JSON.stringify({...JSON.parse(json),audio:project.audio},null,2),
+    },
     build: async project => { if (!await editor.load(project)) throw Error('The film could not be loaded. Your previous film has been kept.'); },
     canOpen: () => editor.canEdit(),
     footnote: 'Building replaces the current film. Undo brings it back, and you can keep editing and export as usual.',

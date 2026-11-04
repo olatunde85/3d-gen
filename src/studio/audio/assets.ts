@@ -1,5 +1,6 @@
 /** Local, content-addressed audio. JSON holds IDs; ZIP project bundles carry the actual WAV files. */
-export interface AudioAsset {id:string;name:string;blob:Blob;duration:number;sampleRate:number;channels:number}
+export interface SpeechOrigin {text:string;voice:string;model:string}
+export interface AudioAsset {id:string;name:string;blob:Blob;duration:number;sampleRate:number;channels:number;speech?:SpeechOrigin}
 let database:Promise<IDBDatabase>|undefined;
 const cache=new Map<string,AudioAsset>();
 function db(){return database??=new Promise<IDBDatabase>((resolve,reject)=>{
@@ -8,10 +9,11 @@ function db(){return database??=new Promise<IDBDatabase>((resolve,reject)=>{
 export async function getAsset(id:string):Promise<AudioAsset|undefined>{
   if(cache.has(id))return cache.get(id);const database=await db();return new Promise((resolve,reject)=>{const request=database.transaction('assets').objectStore('assets').get(id);request.onsuccess=()=>{if(request.result)cache.set(id,request.result);resolve(request.result);};request.onerror=()=>reject(Error('Could not read the audio library.'));});
 }
-export async function putAsset(blob:Blob,name:string,duration:number,sampleRate:number,channels:number):Promise<AudioAsset>{
+export async function putAsset(blob:Blob,name:string,duration:number,sampleRate:number,channels:number,speech?:SpeechOrigin):Promise<AudioAsset>{
   if(blob.size>24*1024*1024||duration<=0||duration>60.05)throw Error('Use speech audio up to 60 seconds and 24 MiB.');
   const digest=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()),id=[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
-  const asset={id,name:name.slice(0,120),blob,duration,sampleRate,channels},database=await db();
+  const previous=await getAsset(id),origin=speech??previous?.speech;
+  const asset:AudioAsset={id,name:name.slice(0,120),blob,duration,sampleRate,channels,...(origin?{speech:origin}:{})},database=await db();
   await new Promise<void>((resolve,reject)=>{const tx=database.transaction('assets','readwrite');tx.objectStore('assets').put(asset);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(Error('Not enough browser storage for this audio.'));tx.onabort=()=>reject(Error('Audio could not be saved.'));});
   cache.set(id,asset);return asset;
 }
