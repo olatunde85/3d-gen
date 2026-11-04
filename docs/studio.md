@@ -92,6 +92,8 @@ Recordings and generated takes live in IndexedDB on this browser/device, while p
 
 Choose **LLM Assist** in the top bar to turn a description into an editable film:
 
+**Try an example** loads **Agents of Mild Competence: The Warehouse**, the supplied 30-second, five-character spy comedy, for review before building. It preserves the character recipes, camera direction, comic text, eight original dialogue takes, eleven sound effects and spy soundtrack. The original dialogue is restored from an on-demand, losslessly compressed bundle (840 KiB), so this example does not need the speech-model download. Editing its scripted lines still uses normal speech generation. The description placeholder summarizes the same film.
+
 1. **Describe your film** in your own words. Tick **Start from my current film** to revise what you have.
 2. **Get the film JSON:** **Copy guide** (or **Save as .txt**) and give it to ChatGPT, Claude, Gemini or another assistant. The guide holds your description and everything the assistant needs: all locations, full character-creation controls and assets, animation IDs and timings, equipment, timed text and comic bubbles, speech and voice effects, the sound-effect and music libraries, the JSON schema, a valid example and the editor's actual limits.
 3. **Review and build.** Press **Paste reply** (or paste into the box, or **Open file**). You can paste the assistant's whole reply: Studio finds the JSON inside any surrounding text or code fences. A summary card lists the location, cast, length, shots, actions, text, speech, sound effects and music. If something needs fixing, the card says what and offers **Copy fix request** to send back to your assistant. **Build film** replaces your project, and Undo restores the previous film.

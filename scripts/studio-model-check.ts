@@ -1,5 +1,8 @@
 /** Schema migration, catalogue contracts and independent actor/camera clock invariants. */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { unzipSync, strFromU8 } from 'fflate';
+import { customFilmFixture } from './fixtures/studio-custom-film';
 import { readFileSync } from 'node:fs';
 import type { Catalog } from '../src/core/assets';
 import { MAX_ACTORS, newProject, newActor, parseProject, timelineAt, durationOf, shotAt, beat, presetCode } from '../src/studio/project';
@@ -42,7 +45,15 @@ const valid=newProject();
 const invalid=[{version:3},{template:'missing'},{actors:[]},{actors:[{...valid.actors[0],id:'all'}]},{actors:[{...valid.actors[0],id:'camera'}]},{actors:[...valid.actors,...valid.actors]},{shots:[]},{shots:[{...valid.shots[0],target:'missing'}]},{view:{azimuth:0,elevation:90,zoom:1}},{actors:[{...valid.actors[0],x:Infinity}]},{actors:[{...valid.actors[0],beats:[{...valid.actors[0].beats[0],clip:'missing'}]}]},{actors:[{...valid.actors[0],beats:[{...valid.actors[0].beats[0],duration:-1}]}]},{actors:[{...valid.actors[0],beats:Array.from({length:6},()=>beat('idle',12))}]}];
 for(const patch of invalid)assert.throws(()=>parseProject(JSON.stringify({...valid,...patch})));
 for(const text of ['null','[]','{bad',' '.repeat(100001)])assert.throws(()=>parseProject(text));
-const assisted=assistExample(),generated=parseStudioInput(JSON.stringify(assisted));
+const warehouse=assistExample(),warehouseFilm=parseStudioInput(JSON.stringify(warehouse));
+assert.equal(warehouseFilm.title,'Agents of Mild Competence: The Warehouse');assert.equal(warehouseFilm.template,'warehouse');assert.equal(durationOf(warehouseFilm),30);
+assert.deepEqual(warehouseFilm.actors.map(a=>a.id),['dez','ngozi','thug_boss','thug_heavy','thug_wiry']);assert.equal(warehouseFilm.audio.speech.length,8);assert.equal(warehouseFilm.audio.effects.length,11);assert.equal(warehouseFilm.audio.music.track,'spy-mission');assert.equal(warehouseFilm.texts.length,14);
+const exampleBundle=unzipSync(readFileSync(new URL('../public/media/examples/warehouse.ara-studio.zip',import.meta.url)));
+assert.deepEqual(parseStudioInput(strFromU8(exampleBundle['project.json'])),warehouseFilm);
+for(const cue of warehouseFilm.audio.speech)assert.equal(createHash('sha256').update(exampleBundle[`audio/${cue.asset}.wav`]).digest('hex'),cue.asset);
+warehouse.actors[0].x=10;assert.equal(assistExample().actors[0].x,.9,'Try example must return a fresh project');
+console.log('Warehouse example: supplied five-character film, 30-second direction, all speech/effects/music, fresh copies and portable take hashes passed.');
+const assisted=customFilmFixture(),generated=parseStudioInput(JSON.stringify(assisted));
 assert.equal(generated.template,'resort-pool');assert.equal(generated.actors.length,2);assert.equal(durationOf(generated),9);
 assert.equal(decodeCharacter(generated.actors[0].character,'medium')!.carry,'briefcase');assert.equal(decodeCharacter(generated.actors[1].character,'medium')!.carry,'backpack');
 assert.deepEqual(parseStudioInput(JSON.stringify(generated)),generated);assert.deepEqual(parseStudioInput('```json\n'+JSON.stringify(assisted)+'\n```'),generated);assert.deepEqual(parseStudioInput(JSON.stringify(legacy)),migrated);

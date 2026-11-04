@@ -1,5 +1,7 @@
 import { assistExample, describeAssistProject, generateAssistGuide, parseStudioInput } from './assist';
-import { hasScriptedSpeech, prepareDialogue } from './audio/prepare';
+import { WAREHOUSE_BRIEF } from './examples/warehouse';
+import { prepareExampleDialogue } from './audio/example';
+import { hasScriptedSpeech } from './audio/prepare';
 import { assistPanel } from '../app/assist/panel';
 import type { Catalog } from '../core/assets';
 import type { StudioProject } from './project';
@@ -17,7 +19,7 @@ export function setupAssist(editor: AssistEditor) {
     id: 'assist', app: 'ARA STUDIO', noun: 'film',
     title: 'Describe a film. Bring it to life.',
     intro: 'Describe a scene in your own words. An AI assistant turns it into a film you can play, edit and export.',
-    placeholder: 'A nine-second poolside introduction: an executive greets an adventurer, then cut to their conversation.',
+    placeholder: WAREHOUSE_BRIEF,
     contextLabel: 'Start from my current film (to revise it)',
     guideFile: 'ara-studio-llm-guide.txt',
     guide: (brief, current) => generateAssistGuide(editor.catalog(), brief, current ? editor.project() : undefined),
@@ -25,9 +27,9 @@ export function setupAssist(editor: AssistEditor) {
     describe: describeAssistProject,
     example: assistExample,
     prepare:{
-      note:'Dialogue voices generate automatically after a valid reply is pasted or opened. First use downloads about 265 MB; generation runs on your device and can be stopped.',
+      note:'Dialogue is prepared automatically after paste or Open. New voices need about 265 MB on first use and run on your device. The built-in example includes its recorded dialogue.',
       needed:hasScriptedSpeech,
-      run:prepareDialogue,
+      run:(project,options)=>prepareExampleDialogue(project,editor.catalog(),options),
       write:(project,json)=>JSON.stringify({...JSON.parse(json),audio:project.audio},null,2),
     },
     build: async project => { if (!await editor.load(project)) throw Error('The film could not be loaded. Your previous film has been kept.'); },

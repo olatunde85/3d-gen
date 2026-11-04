@@ -343,13 +343,17 @@ try{
   await search('assist-json','{"kind":"ara-studio",broken}');
   if(!await evaluate("document.querySelector('#assist-create').disabled && document.querySelector('#assist-json').getAttribute('aria-invalid')==='true'"))throw Error('Invalid pasted JSON was accepted');
   if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Validation changed the film');
-  await evaluate("(()=>{document.querySelector('#assist-example').click();const e=document.querySelector('#assist-json'),p=JSON.parse(e.value);p.audio.speech=[];e.value=JSON.stringify(p);e.dispatchEvent(new Event('input',{bubbles:true}));})()");
-  if(!await evaluate("!document.querySelector('#assist-create').disabled && document.querySelector('#assist-status').textContent.includes('Resort pool')"))throw Error('Example did not validate');
+  await evaluate("document.querySelector('#assist-example').click()");
+  await waitFor("!document.querySelector('#assist-create').disabled && document.querySelector('#assist-speech-status').textContent.includes('voices are ready')",'bundled example voices');
+  if(!await evaluate("JSON.parse(document.querySelector('#assist-json').value).audio.speech.length===8 && document.querySelector('#assist-brief').placeholder.includes('Agents of Mild Competence') && performance.getEntriesByType('resource').some(r=>r.name.includes('warehouse.ara-studio.zip')) && !performance.getEntriesByType('resource').some(r=>r.name.includes('tts-worker')||r.name.includes('.onnx'))"))throw Error('Example lost dialogue, placeholder or downloaded the speech model');
+  if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Trying an example replaced the film before Build');
+  if(!await evaluate("!document.querySelector('#assist-create').disabled && document.querySelector('#assist-status').textContent.includes('Warehouse')"))throw Error('Example did not validate');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await pause();
   if(!await evaluate("document.querySelector('#assist-dialog').scrollWidth<=document.querySelector('#assist-dialog').clientWidth && document.documentElement.scrollWidth<=innerWidth"))throw Error('LLM dialog overflows mobile');
   await shot('llm-assist-mobile');await send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await pause();await shot('llm-assist');
   await evaluate("document.querySelector('#assist-create').click()");await ready();await waitFor("!document.querySelector('#assist-dialog').open",'assisted film');
-  if(!await evaluate("window.studio.project.template==='resort-pool' && window.studio.project.actors.length===2 && document.querySelector('#actor-carry').value==='briefcase' && window.studio.project.actors[0].beats[0].clip==='wave'"))throw Error('Pasted project did not create its scene, actors, equipment and actions');
+  if(!await evaluate("window.studio.project.template==='warehouse' && window.studio.project.actors.length===5 && window.studio.project.audio.effects.length===11 && window.studio.project.actors[0].beats[0].clip==='walk'"))throw Error('Pasted project did not create its scene, actors, equipment and actions');
+  await evaluate("document.querySelector('#play').click()");await waitFor('studio.audio.playback.active','warehouse example soundtrack');await evaluate("document.querySelector('#play').click()");
   await shot('llm-assisted-film');await evaluate("document.querySelector('#undo').click()");await ready();
   if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Undo did not restore the film replaced by LLM Assist');
   await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});
@@ -363,7 +367,7 @@ try{
   await evaluate("document.querySelector('#assist-create').click()");await ready();await waitFor("!document.querySelector('#assist-dialog').open",'assisted file build');
   if(!await evaluate("window.studio.project.template==='beach' && window.studio.project.title==='An assisted beach film'"))throw Error('Assisted JSON file did not load');
   await upload(original);await ready();await upload(fileJSON);await ready();
-  if(!await evaluate("window.studio.project.template==='beach' && window.studio.project.actors.length===2"))throw Error('Ordinary Open did not accept the LLM JSON');
+  if(!await evaluate("window.studio.project.template==='beach' && window.studio.project.actors.length===5"))throw Error('Ordinary Open did not accept the LLM JSON');
   await upload(original);await ready();
  });
  await step('Reload restores selection, playhead, filters, Undo and unfinished LLM Assist drafts',async()=>{
