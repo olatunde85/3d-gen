@@ -15,6 +15,9 @@ export async function relay(request: Request, path: string): Promise<Response> {
   const headers = new Headers();
   // Origin, cookies and the browser-access header stay behind: Anthropic sees an ordinary server request.
   for (const name of FORWARD) { const value = request.headers.get(name); if (value) headers.set(name, value); }
+  // The SDK sends the key as a bearer token to custom base URLs; Anthropic expects API keys in x-api-key.
+  const bearer = /^Bearer\s+(\S+)$/i.exec(request.headers.get('authorization') ?? '')?.[1];
+  if (bearer && !headers.has('x-api-key')) headers.set(bearer.startsWith('sk-ant-api') ? 'x-api-key' : 'authorization', bearer.startsWith('sk-ant-api') ? bearer : `Bearer ${bearer}`);
   const upstream = await fetch(`https://api.anthropic.com${path}${new URL(request.url).search}`, {
     method: request.method, headers, body: request.method === 'POST' ? await request.arrayBuffer() : undefined,
   });
