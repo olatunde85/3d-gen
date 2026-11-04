@@ -11,6 +11,8 @@ import { SetBuilder } from './sets/builder';
 import { disposeSet } from './sets';
 import { timelineAt } from './project';
 
+const SEATED = ['sit_down', 'sit_idle', 'stand_up'];
+
 export class StudioActor {
   readonly group = new THREE.Group();
   readonly mesh: THREE.SkinnedMesh;
@@ -108,28 +110,45 @@ export class StudioActor {
     frame.rot.forEach((q, i) => this.bones[i].quaternion.set(...q));
     for (const [i, p] of frame.rootPos) this.bones[i].position.set(...p);
     frame.morph?.forEach((w, i) => { if (this.mesh.morphTargetInfluences) this.mesh.morphTargetInfluences[i] = w; });
-    const at = timelineAt(project, time, track), yaw = track.yaw * Math.PI / 180;
-    this.group.rotation.y = yaw;
-    this.group.position.set(track.x + (at.x * Math.cos(yaw) + at.z * Math.sin(yaw)) * this.scale, track.y, track.z + (-at.x * Math.sin(yaw) + at.z * Math.cos(yaw)) * this.scale);
+    const at = timelineAt(project, time, track);
+    this.place(this.group, track, at);
     this.framingPadding=track.beats[at.index].clip===BICYCLE_CLIP?0.9*this.scale:0;
     this.props(track.beats[at.index].clip, frame, at.phase);
+    // A chair is set furniture: it stands where the character first sits, before they sit and after they stand.
+    const seat = track.beats.findIndex(b => SEATED.includes(b.clip));
+    if (seat < 0) { if (this.chair) this.chair.visible = false; }
+    else {
+      this.fitChair();
+      const start = track.beats.slice(0, seat).reduce((sum, b) => sum + b.duration, 0);
+      this.place(this.chair!, track, timelineAt(project, start + 1e-4, track));
+      this.chair!.visible = true;
+      if (this.group.parent && this.chair!.parent !== this.group.parent) this.group.parent.add(this.chair!);
+      this.chair!.updateMatrixWorld(true);
+    }
     this.group.updateMatrixWorld(true);
   }
-  private props(clip: string, frame: Frame, phase: number) {
-    const seated = ['sit_down', 'sit_idle', 'stand_up'].includes(clip);
-    if (seated && !this.chair) {
+  private place(object: THREE.Object3D, track: ActorTrack, at: { x: number; z: number }) {
+    const yaw = track.yaw * Math.PI / 180;
+    object.rotation.y = yaw;
+    object.position.set(track.x + (at.x * Math.cos(yaw) + at.z * Math.sin(yaw)) * this.scale, track.y, track.z + (-at.x * Math.sin(yaw) + at.z * Math.cos(yaw)) * this.scale);
+  }
+  private fitChair() {
+    if (!this.chair) {
       const rig = this.character.rig!, hips = rig.bones.findIndex(b => b.name === boneFor(rig.type, 'Hips'));
       const p = this.animator.positions(this.animator.frame(clipById.get('sit_idle')!, 0))[Math.max(0, hips)];
       const b = new SetBuilder(), s = this.scale, y = Math.max(0.25, p[1] - 0.12 * s);
       b.box([0.52*s,0.08*s,0.5*s],[p[0],y,p[2]],'#81715d');
       b.box([0.52*s,0.55*s,0.07*s],[p[0],y+0.27*s,p[2]-0.23*s],'#81715d');
       for(const x of [-0.21,0.21])for(const z of [-0.2,0.2])b.box([0.035*s,y,0.035*s],[p[0]+x*s,y/2,p[2]+z*s],'#4d5556');
-      this.chair = b.group; this.group.add(this.chair);
+      this.chair = b.group;
     }
-    if(this.chair)this.chair.visible=seated;
+  }
+  private props(clip: string, frame: Frame, phase: number) {
     if(clip===BICYCLE_CLIP&&!this.bike){this.bike=new Bicycle(this.character.rig!,this.animator,clipById.get(BICYCLE_CLIP)!);this.group.add(this.bike.group);}
     if(this.bike){this.bike.group.visible=clip===BICYCLE_CLIP;if(clip===BICYCLE_CLIP)this.bike.update(this.animator.positions(frame), phase / clipById.get(BICYCLE_CLIP)!.duration * Math.PI * 5);}
   }
+  /** Takes the character and its set furniture out of the scene. */
+  detach() { this.group.removeFromParent(); this.chair?.removeFromParent(); }
   dispose() { if(this.chair)disposeSet(this.chair);this.bike?.dispose();this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
     this.mesh.skeleton.dispose(); this.textures.forEach((t) => t.dispose()); this.group.removeFromParent(); }
 }

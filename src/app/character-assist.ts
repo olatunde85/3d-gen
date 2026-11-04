@@ -128,3 +128,11 @@ ${json(characterExample())}${current?`\n\nCURRENT CHARACTER — use as the start
 
 Generate the character JSON for the user's brief, using only these capabilities.`;
 }
+
+const IN_APP='You are running inside Ara 3D Gen, which reads your reply directly: reply with the JSON object only, with no explanation. If part of the brief is not possible, choose the closest achievable alternative.';
+/** In-app generation: the guide stays identical between requests (so it is cached); the brief and current character travel in the prompt. */
+export function characterRequest(cat:Catalog,brief:string,current?:HumanParams){
+  const system=`${generateCharacterGuide(cat,'Given in the user message.')}\n\n${IN_APP}`;
+  const prompt=`USER'S BRIEF\n${brief.trim()||'Revise the current character sensibly.'}${current?`\n\nCURRENT CHARACTER — use as the starting point for this revision; return complete params to preserve unspecified settings\n${JSON.stringify({kind:'ara-character',version:1,params:current},null,2)}`:''}`;
+  return{system,prompt};
+}

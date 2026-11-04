@@ -14,7 +14,7 @@ const entries = [
   ['boardroom', 'Boardroom', 'Workplaces', 'office', 'night', 'A long conference table and an evening decision.'],
   ['newsroom', 'Newsroom', 'Workplaces', 'office', 'night', 'Broadcast screens, a presentation desk and cool studio light.'],
   ['recording-studio', 'Recording studio', 'Workplaces', 'office', 'night', 'Acoustic panels, speakers and a mixing desk.'],
-  ['classroom', 'Classroom', 'Workplaces', 'office', 'day', 'A chalkboard and rows of desks around a clear teaching space.'],
+  ['classroom', 'Classroom', 'Workplaces', 'office', 'day', 'A whiteboard, a teacher’s desk and rows of desks facing the front.'],
   ['laboratory', 'Laboratory', 'Workplaces', 'office', 'day', 'Clean workbenches, glass vessels and task lighting.'],
   ['coworking', 'Co-working lounge', 'Workplaces', 'office', 'sunset', 'Shared desks, plants and an informal conversation.'],
   ['bedroom', 'Morning bedroom', 'Homes', 'bedroom', 'day', 'Linen, bedside lamps and a sunlit window.'],

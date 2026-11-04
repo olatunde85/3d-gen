@@ -36,7 +36,7 @@
       <a class="help-link" href="../docs/studio/">A short guide to Studio <span>↗</span></a>
     </aside>
     <main class="director">
-      <div class="viewer-heading"><div><span class="live-dot"></span><span id="scene-name">The portrait</span><span class="viewer-subtitle">DIRECTOR’S VIEW</span></div><div class="viewer-actions"><button id="deselect-actor" class="text-button" title="Deselect character (Esc)">Deselect</button><button id="place-actor" class="text-button" aria-pressed="false" title="Click the ground to place the selected character">Click to place</button><button id="snapshot" class="text-button" title="Save this exact frame as a PNG">Save frame <span aria-hidden="true">↘</span></button></div></div>
+      <div class="viewer-heading"><div><span class="live-dot"></span><span id="scene-name">The portrait</span><span class="viewer-subtitle">DIRECTOR’S VIEW</span></div><div class="viewer-actions"><button id="deselect-actor" class="text-button" title="Deselect character (Esc)">Deselect</button><button id="place-actor" class="text-button" aria-pressed="false" title="Click the ground to place the selected character">Click to place</button><button id="snapshot" class="text-button" title="Save this exact frame as a PNG">Save frame <span aria-hidden="true">↘</span></button><button id="expand-view" class="text-button" aria-pressed="false" title="Make the preview bigger by hiding the side panels and timeline (F)">Expand <span aria-hidden="true">⤢</span></button></div></div>
       <div class="stage" id="stage" data-aspect="landscape">
         <div class="film-frame"><canvas tabindex="0" id="film" aria-label="Your animated short film. Click a character to select it, drag it to move, drag the background to orbit, scroll or pinch to zoom"></canvas><div class="load-overlay" id="loading"><span class="loader"></span><strong id="loading-label">Preparing your set…</strong><span>Building your Ara character</span></div></div>
         <span class="frame-corner top-left"></span><span class="frame-corner bottom-right"></span>
@@ -46,12 +46,15 @@
         <output id="timecode">00:00:00 <span>/ 00:09:00</span></output>
         <div class="frame-spec"><span>PREVIEW</span> <b>30 FPS</b><span class="sound-off" id="sound-readout">Silent film</span></div>
       </div>
+      <div class="timeline-resizer" id="timeline-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize the preview and timeline" tabindex="0" title="Drag to give the preview or the timeline more room · double-click to reset"></div>
       <section class="timeline" aria-label="Film timeline">
         <div class="timeline-heading"><span>THE TIMELINE</span><div><span id="duration-label">9 seconds</span><button id="open-sound">Sound</button><button id="open-text">Text &amp; subtitles</button><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
-        <div class="ruler" id="ruler"></div>
-        <div class="timeline-track multi-track"><div id="tracks"></div><div id="playhead" class="playhead"><span></span></div></div>
+        <div class="timeline-scroll">
+          <div class="ruler" id="ruler"></div>
+          <div class="timeline-track multi-track"><div id="tracks"></div><div id="playhead" class="playhead"><span></span></div></div>
+        </div>
         <label class="sr-only" for="scrub">Film position in seconds</label><input id="scrub" class="scrubber" type="range" min="0" max="9" step="0.0333333333" value="0" />
-        <div class="timeline-footer"><span id="key-help">Arrows: move selected character</span><span><kbd>Space</kbd> play / pause</span></div>
+        <div class="timeline-footer"><span id="key-help">Arrows: move selected character</span><span><kbd>Space</kbd> play / pause · <kbd>F</kbd> expand</span></div>
       </section>
     </main>
     <aside class="inspector" aria-label="Film settings">
@@ -148,33 +151,7 @@
     </div>
     <input id="text-srt-file" type="file" accept=".srt,text/plain,application/x-subrip" hidden />
   </dialog>
-  <dialog id="assist-dialog" aria-labelledby="assist-title">
-    <div class="dialog-top"><span class="eyebrow">LLM ASSIST</span><button id="close-assist" class="icon-button" aria-label="Close LLM Assist">✕</button></div>
-    <h2 id="assist-title">Describe a film. Bring it to life.</h2>
-    <p class="export-description">Give your AI assistant the Studio guide and your idea. Bring its JSON back here to build an editable film.</p>
-    <div class="assist-columns">
-      <section aria-labelledby="assist-step-one">
-        <h3 id="assist-step-one">1. Brief your AI assistant</h3>
-        <label for="assist-brief">What do you want to create?</label>
-        <textarea id="assist-brief" rows="4" maxlength="6000" placeholder="A nine-second poolside introduction: an executive greets an adventurer, then cut to their conversation."></textarea>
-        <label class="check-label"><input id="assist-context" type="checkbox" /><span>Include my current film as the starting point</span></label>
-        <div class="assist-buttons"><button id="assist-copy" class="export-button">Copy guide</button><button id="assist-download">Save guide .txt</button></div>
-        <p id="assist-copy-status" class="setting-hint" role="status">Includes full character-building controls and assets, scenes, animations, text, JSON schema and an example.</p>
-        <details id="assist-guide-details"><summary>View the generated guide</summary><label class="sr-only" for="assist-guide">LLM guide text</label><textarea id="assist-guide" rows="8" readonly spellcheck="false"></textarea></details>
-        <p class="setting-hint assist-local-note">Use your preferred AI assistant. Studio does not send anything automatically.</p>
-      </section>
-      <section aria-labelledby="assist-step-two">
-        <h3 id="assist-step-two">2. Bring back the JSON</h3>
-        <div class="assist-buttons"><button id="assist-open">Open JSON</button><button id="assist-example" class="text-button">Try an example</button></div>
-        <label for="assist-json">Or paste the complete project JSON</label>
-        <textarea id="assist-json" rows="13" spellcheck="false" aria-describedby="assist-status" placeholder='{"kind": "ara-studio", "version": 2, …}'></textarea>
-        <p id="assist-status" role="status" aria-live="polite">Paste the complete project JSON or open a JSON file.</p>
-        <button id="assist-create" class="export-button" disabled>Build film <span aria-hidden="true">↗</span></button>
-        <p class="setting-hint">Replaces the current film after validation. Undo restores it. You can keep editing and export as usual.</p>
-      </section>
-    </div>
-    <input id="assist-file" type="file" accept=".json,application/json" hidden />
-  </dialog>
+  <dialog id="assist-dialog"></dialog>
   <dialog id="export-dialog" aria-labelledby="export-title">
     <div class="dialog-top"><span class="eyebrow">THE FINAL CUT</span><button id="close-export" class="icon-button" aria-label="Close export">✕</button></div>
     <h2 id="export-title">Take your film with you.</h2><p class="export-description">A clean MP4, rendered frame by frame on your device.</p>

@@ -49,8 +49,7 @@ function editorState(): EditorState {
     animationSearch:input('animation-search').value,animationCategory:select('animation-category').value,resolution:select('resolution').value as '720'|'1080',
     text:{open:$<HTMLDialogElement>('text-dialog').open,selected:select('text-cue').value},
     sound:{open:$<HTMLDialogElement>('sound-dialog').open,selected:select('sound-cue').value,deviceVoice:soundEditor.deviceVoice(),rate:Number(input('sound-device-rate').value),pitch:Number(input('sound-device-pitch').value),fit:input('sound-fit-generated').checked},
-    assist:{brief:$<HTMLTextAreaElement>('assist-brief').value,json:$<HTMLTextAreaElement>('assist-json').value,context:input('assist-context').checked,
-      open:$<HTMLDialogElement>('assist-dialog').open,guideOpen:$<HTMLDetailsElement>('assist-guide-details').open},
+    assist:assist.state(),
     scroll:{library:document.querySelector('.library')!.scrollTop,inspector:document.querySelector('.inspector')!.scrollTop,sets:$('set-list').scrollTop,page:window.scrollY}};
 }
 function saveSession():boolean {
@@ -70,8 +69,7 @@ function restoreEditor(state:EditorState,undoHistory:string[]){
   time=state.time;repeat=state.repeat;clickToPlace=state.clickToPlace;history.splice(0,history.length,...undoHistory);
   input('scene-search').value=state.sceneSearch;select('scene-category').value=state.sceneCategory;
   input('animation-search').value=state.animationSearch;select('animation-category').value=state.animationCategory;select('resolution').value=state.resolution;
-  $<HTMLTextAreaElement>('assist-brief').value=state.assist.brief;$<HTMLTextAreaElement>('assist-json').value=state.assist.json;input('assist-context').checked=state.assist.context;
-  $<HTMLDetailsElement>('assist-guide-details').open=state.assist.guideOpen;textEditor.select(state.text.selected);soundEditor.select(state.sound.selected);
+  assist.restore(state.assist);textEditor.select(state.text.selected);soundEditor.select(state.sound.selected);
   soundEditor.restore(state.sound);
   button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));
   button('place-actor').setAttribute('aria-pressed',String(clickToPlace));button('place-actor').textContent=clickToPlace?'Click a spot…':'Click to place';$('film').classList.toggle('click-placement',clickToPlace);
@@ -109,6 +107,8 @@ function lock() {
   input('title').disabled=loading||exporting||importing||!!placementBefore;
   if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','actor-x','actor-y','actor-z','actor-yaw','blocking','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
   $('deselect-actor').hidden=!characterSelected;
+  for(const guard of document.querySelectorAll<HTMLElement>('.select-first'))guard.hidden=characterSelected||loading||exporting||importing;
+  for(const hint of document.querySelectorAll<HTMLElement>('.select-first-hint')){hint.hidden=characterSelected;if(characterSelected)hint.classList.remove('urgent');}
   $('edit-character').setAttribute('aria-disabled',String(!characterSelected||loading||exporting||importing||!!placementBefore));
   $('edit-character').tabIndex=characterSelected?0:-1;
   $('loading').hidden = !loading;
@@ -278,7 +278,47 @@ function fitFilm(){
   const width=stage.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight),height=stage.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom),ratio=project.aspect==='landscape'?16/9:9/16;
   if(width>0&&height>0){const w=Math.min(width,height*ratio);frame.style.width=`${w}px`;frame.style.height=`${w/ratio}px`;}
 }
-new ResizeObserver(fitFilm).observe($('stage'));
+new ResizeObserver(fitFilm).observe($('stage'));addEventListener('resize',fitFilm);
+function setWide(wide:boolean){
+  document.querySelector('.workspace')!.classList.toggle('wide',wide);
+  button('expand-view').setAttribute('aria-pressed',String(wide));button('expand-view').innerHTML=wide?'Show editor <span aria-hidden="true">⤡</span>':'Expand <span aria-hidden="true">⤢</span>';
+  try{localStorage.setItem('ara.studio.wide',wide?'1':'0');}catch{ /* The layout choice is a convenience. */ }
+}
+// Drag the handle between preview and timeline; the split is remembered.
+{
+  const handle=$('timeline-resizer'),director=document.querySelector<HTMLElement>('.director')!,timeline=document.querySelector<HTMLElement>('.timeline')!;
+  const setMax=(px?:number)=>{
+    if(px===undefined){director.style.removeProperty('--timeline-max');try{localStorage.removeItem('ara.studio.timeline');}catch{ /* Optional. */ }return;}
+    const max=Math.max(90,Math.min(director.clientHeight-260,px));director.style.setProperty('--timeline-max',`${Math.round(max)}px`);
+    try{localStorage.setItem('ara.studio.timeline',String(Math.round(max)));}catch{ /* Optional. */ }
+  };
+  handle.addEventListener('pointerdown',e=>{
+    e.preventDefault();handle.setPointerCapture(e.pointerId);handle.classList.add('dragging');
+    const startY=e.clientY,start=timeline.getBoundingClientRect().height;
+    const move=(m:PointerEvent)=>setMax(start+startY-m.clientY);
+    const up=()=>{handle.classList.remove('dragging');handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',up);handle.removeEventListener('pointercancel',up);};
+    handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',up);handle.addEventListener('pointercancel',up);
+  });
+  handle.addEventListener('dblclick',()=>setMax());
+  // Fade the bottom edge while more rows are hidden below.
+  const rows=document.querySelector<HTMLElement>('.timeline-scroll')!,hint=()=>rows.classList.toggle('more',rows.scrollTop+rows.clientHeight<rows.scrollHeight-2);
+  rows.addEventListener('scroll',hint);new ResizeObserver(hint).observe(rows);new MutationObserver(hint).observe(rows,{childList:true,subtree:true});
+  handle.addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();e.stopPropagation();setMax(timeline.getBoundingClientRect().height+(e.key==='ArrowUp'?30:-30));}});
+  try{const saved=Number(localStorage.getItem('ara.studio.timeline'));if(saved>0)director.style.setProperty('--timeline-max',`${saved}px`);}catch{ /* Default split. */ }
+}
+// Character-only controls explain how to select someone instead of silently ignoring clicks.
+const SELECT_FIRST='Select a character first: click them in the preview, or choose one under The cast.';
+for(const id of ['equipment-settings','blocking-settings']){
+  const section=$(id),heading=section.querySelector('h2')!,hint=document.createElement('p'),guard=document.createElement('button');
+  hint.className='select-first-hint';hint.textContent='Select a character to change this.';heading.after(hint);
+  guard.type='button';guard.className='select-first';guard.title=SELECT_FIRST;guard.setAttribute('aria-label',SELECT_FIRST);section.append(guard);
+  guard.addEventListener('click',()=>{
+    hint.textContent=SELECT_FIRST;hint.classList.remove('urgent');void hint.offsetWidth;hint.classList.add('urgent');
+    const cast=$('cast-roster');cast.classList.remove('attention');void cast.offsetWidth;cast.classList.add('attention');setTimeout(()=>cast.classList.remove('attention'),1700);notify(SELECT_FIRST);
+  });
+}
+button('expand-view').addEventListener('click',()=>setWide(button('expand-view').getAttribute('aria-pressed')!=='true'));
+try{if(localStorage.getItem('ara.studio.wide')==='1')setWide(true);}catch{ /* Default layout. */ }
 button('place-actor').addEventListener('click',()=>{clickToPlace=!clickToPlace;button('place-actor').setAttribute('aria-pressed',String(clickToPlace));button('place-actor').textContent=clickToPlace?'Click a spot…':'Click to place';$('film').classList.toggle('click-placement',clickToPlace);});
 for(const id of WEAPONS)select('actor-weapon').append(new Option(WEAPON_LABELS[id],id));
 for(const id of CARRIED)select('actor-carry').append(new Option(CARRY_LABELS[id],id));
@@ -341,11 +381,11 @@ const soundEditor=setupSoundEditor({project:()=>project,time:()=>time,actor:()=>
 const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
-setupAssist({project:()=>project,catalog:()=>lib.catalog,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,
-  load:next=>importStudioProject(JSON.stringify(next)),download});
+const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,
+  load:next=>importStudioProject(JSON.stringify(next))});
 button('snapshot').addEventListener('click',()=>{scene.render(project,time);scene.output.toBlob(b=>{if(b)download(b,`${filename()}-frame.png`);},'image/png');});
 $('edit-character').addEventListener('click',e=>{if(!characterSelected||loading||exporting||importing||placementBefore){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});
-document.addEventListener('keydown',e=>{if((e.target as HTMLElement).closest('input,select,textarea,button')||document.querySelector('dialog[open]'))return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing);}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}});
+document.addEventListener('keydown',e=>{if((e.target as HTMLElement).closest('input,select,textarea,button')||document.querySelector('dialog[open]'))return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing);}if(e.key.toLowerCase()==='f'&&!e.metaKey&&!e.ctrlKey&&!e.altKey)button('expand-view').click();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}});
 let lastTime=performance.now();
 function tick(now:number){const elapsed=Math.min(.1,Math.max(0,(now-lastTime)/1000));lastTime=now;
   if(!exporting&&!loading&&scene.actors.size){
@@ -435,7 +475,7 @@ async function start() {
     const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();loading=false;renderUI();
     if(resume){
       document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
-      if(resume.assist.open)button('open-assist').click();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open)soundEditor.open(resume.sound.selected);
+      if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open)soundEditor.open(resume.sound.selected);
     }
     const saved=save();
     if(acceptedLink&&saved){

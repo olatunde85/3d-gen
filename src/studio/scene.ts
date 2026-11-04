@@ -43,11 +43,11 @@ export class StudioScene {
   }
   async setActors(next: Map<string, StudioActor>, project: StudioProject) {
     const previous = new Map(this.actors);
-    for(const actor of previous.values())actor.group.removeFromParent();
+    for(const actor of previous.values())actor.detach();
     this.actors.clear();for(const [id,actor]of next){this.actors.set(id,actor);this.scene.add(actor.group);}
     try { await this.warmup(project); }
     catch(error){
-      for(const actor of next.values())actor.group.removeFromParent();this.actors.clear();
+      for(const actor of next.values())actor.detach();this.actors.clear();
       for(const [id,actor]of previous){this.actors.set(id,actor);this.scene.add(actor.group);}throw error;
     }
     for(const [id,actor]of previous)if(next.get(id)!==actor)actor.dispose();
@@ -144,20 +144,40 @@ export class StudioScene {
     }
     return selected;
   }
+  /** Preview-only: a ring with a dark outline at the feet and a name tag above the head, legible on any set. */
   private drawSelection(ctx: CanvasRenderingContext2D) {
     const actor=this.selectionId?this.actors.get(this.selectionId):undefined;if(!actor)return;
-    const W=this.canvas.width,H=this.canvas.height,origin=actor.group.position,radius=actor.height*.28;
+    const W=this.canvas.width,H=this.canvas.height,origin=actor.group.position,radius=actor.height*.3;
+    // Sized for the screen, whatever the film's resolution or the preview's size.
+    const u=Math.max(W/1280,W/(this.canvas.clientWidth||W)),gold='#f4c78f',ink='rgba(10,12,16,.8)';
     const project=(p:THREE.Vector3)=>{p.project(this.camera);return{x:(p.x+1)*W/2,y:(1-p.y)*H/2,z:p.z};};
-    ctx.save();ctx.strokeStyle='rgba(224,183,133,.64)';ctx.lineWidth=Math.max(1,W/1000);ctx.lineCap='round';
-    let visible=false;const points=[];
-    for(let i=0;i<=64;i++){const a=i/64*Math.PI*2,p=project(new THREE.Vector3(origin.x+Math.cos(a)*radius,origin.y+.018,origin.z+Math.sin(a)*radius));points.push(p);if(p.z>=-1&&p.z<=1&&p.x>=0&&p.x<=W&&p.y>=0&&p.y<=H)visible=true;}
-    if(visible){ctx.beginPath();let started=false;for(const p of points){if(p.z< -1||p.z>1){started=false;continue;}if(!started)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);started=true;}ctx.stroke();}
-    else {
-      // Close shots may exclude the feet; small corner marks still identify the selected subject.
+    const stroke=()=>{ctx.strokeStyle=ink;ctx.lineWidth=5.5*u;ctx.stroke();ctx.strokeStyle=gold;ctx.lineWidth=2.6*u;ctx.stroke();};
+    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+    let visible=false,whole=true;const points=[];
+    for(let i=0;i<=64;i++){const a=i/64*Math.PI*2,p=project(new THREE.Vector3(origin.x+Math.cos(a)*radius,origin.y+.018,origin.z+Math.sin(a)*radius));points.push(p);if(p.z< -1||p.z>1)whole=false;else if(p.x>=0&&p.x<=W&&p.y>=0&&p.y<=H)visible=true;}
+    if(visible){
+      ctx.beginPath();let started=false;for(const p of points){if(p.z< -1||p.z>1){started=false;continue;}if(!started)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);started=true;}
+      if(whole){ctx.fillStyle='rgba(244,199,143,.2)';ctx.fill();}
+      stroke();
+    } else {
+      // Close shots may exclude the feet; corner marks still identify the selected subject.
       const projected=actor.mesh.skeleton.bones.map(b=>project(new THREE.Vector3().setFromMatrixPosition(b.matrixWorld))).filter(p=>p.z>=-1&&p.z<=1);
-      if(projected.length){const minX=Math.min(...projected.map(p=>p.x))-8,maxX=Math.max(...projected.map(p=>p.x))+8,minY=Math.min(...projected.map(p=>p.y))-8,maxY=Math.max(...projected.map(p=>p.y))+8;
-        if(maxX>0&&minX<W&&maxY>0&&minY<H){const left=Math.max(8,minX),right=Math.min(W-8,maxX),top=Math.max(8,minY),bottom=Math.min(H-8,maxY),d=Math.min(12,W*.014);ctx.beginPath();for(const [x,y,sx,sy]of [[left,top,1,1],[right,top,-1,1],[left,bottom,1,-1],[right,bottom,-1,-1]]){ctx.moveTo(x+sx*d,y);ctx.lineTo(x,y);ctx.lineTo(x,y+sy*d);}ctx.stroke();}
+      if(projected.length){const minX=Math.min(...projected.map(p=>p.x))-8*u,maxX=Math.max(...projected.map(p=>p.x))+8*u,minY=Math.min(...projected.map(p=>p.y))-8*u,maxY=Math.max(...projected.map(p=>p.y))+8*u;
+        if(maxX>0&&minX<W&&maxY>0&&minY<H){const left=Math.max(8*u,minX),right=Math.min(W-8*u,maxX),top=Math.max(8*u,minY),bottom=Math.min(H-8*u,maxY),d=Math.min(18*u,W*.02);ctx.beginPath();for(const [x,y,sx,sy]of [[left,top,1,1],[right,top,-1,1],[left,bottom,1,-1],[right,bottom,-1,-1]]){ctx.moveTo(x+sx*d,y);ctx.lineTo(x,y);ctx.lineTo(x,y+sy*d);}stroke();}
       }
+    }
+    // Name tag, kept inside the frame.
+    const bone=actor.mesh.skeleton.bones.find(b=>b.name==='HeadTop_End')??actor.mesh.skeleton.bones.find(b=>b.name==='Head'||b.name==='head');
+    const head=bone?new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld):origin.clone().add(new THREE.Vector3(0,actor.height,0));
+    if(bone?.name!=='HeadTop_End')head.y+=actor.height*.1;
+    const tip=project(head);
+    if(tip.z>=-1&&tip.z<=1){
+      const name=actor.character.params.name||'Selected character',size=Math.round(13*u),padX=10*u,h=24*u,gap=10*u;
+      ctx.font=`650 ${size}px system-ui,-apple-system,'Segoe UI',sans-serif`;const w=Math.min(W*.5,ctx.measureText(name).width+padX*2);
+      const x=Math.min(W-w-6*u,Math.max(6*u,tip.x-w/2)),y=Math.min(H-h-6*u,Math.max(6*u,tip.y-gap-h-6*u)),r=h/2;
+      ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=8*u;ctx.fillStyle=gold;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();ctx.shadowBlur=0;
+      const px=Math.min(x+w-r,Math.max(x+r,tip.x));ctx.beginPath();ctx.moveTo(px-6*u,y+h-0.5);ctx.lineTo(px,y+h+6*u);ctx.lineTo(px+6*u,y+h-0.5);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#1d1f24';ctx.textBaseline='middle';ctx.textAlign='center';ctx.fillText(name,x+w/2,y+h/2+0.5*u,w-padX*2);
     }
     ctx.restore();
   }

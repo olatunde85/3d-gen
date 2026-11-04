@@ -30,7 +30,13 @@ Quick build always reflects the current character, however it was made: in Detai
 
 ## Character LLM Assist
 
-**LLM Assist** in the builder header creates a single character from JSON supplied by your preferred AI assistant. Describe the character, optionally include the current character, then **Copy guide** or **Save guide .txt**. Give that text to the assistant and paste or **Open JSON** with its response. The guide includes the installed asset IDs, all body/face controls, clothing and fabric options, equipment, presets, rig/detail settings, a JSON schema and a valid example. No API key is required, and the builder sends nothing automatically.
+**LLM Assist** in the builder header creates a single character from a description. It works like [Studio's LLM Assist](studio.md#llm-assist):
+
+1. **Describe** the character, or pick one of the **Ideas**. Optionally start from the current character.
+2. **Get the JSON** from **Any AI chat** (**Copy guide** or **Save as .txt**, then give it to your assistant), or **Generate here** with your own Anthropic API key. The key stays in your browser, is sent only to Anthropic, and is shared with Studio. Generation checks the answer and fixes mistakes automatically.
+3. **Review and build:** paste the assistant's whole reply (the JSON is found inside it) or open a file. A summary card shows the name, age, outfit, hair and extras, and any problem comes with a fix request to send back.
+
+The guide includes the installed asset IDs, all body and face controls, clothing and fabric options, equipment, presets, rig and detail settings, a JSON schema and a valid example.
 
 Character input uses `{"kind":"ara-character","version":1,"preset":"The Adventurer","params":{"name":"Desert explorer","ageYears":34,"hair":"cornrows","carry":"backpack"}}`. A preset is optional; omitted parameters keep preset values or the builder defaults. Supplied arrays and maps replace their base values. Use `ageYears` (12–90) or normalized `age`, not both. Full `.params.json` exports can also be opened. Invalid fields, asset IDs, ranges and garment patterns are rejected before building.
 

@@ -1,4 +1,5 @@
-import { assistExample, generateAssistGuide, parseStudioInput, summarizeAssistProject } from './assist';
+import { assistExample, assistRequest, describeAssistProject, generateAssistGuide, parseStudioInput } from './assist';
+import { assistPanel } from '../app/assist/panel';
 import type { Catalog } from '../core/assets';
 import type { StudioProject } from './project';
 
@@ -7,82 +8,40 @@ interface AssistEditor {
   catalog(): Catalog;
   canEdit(): boolean;
   load(project: StudioProject): Promise<boolean>;
-  download(blob: Blob, name: string): void;
 }
 
 export function setupAssist(editor: AssistEditor) {
-  const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-  const dialog = element<HTMLDialogElement>('assist-dialog');
-  const brief = element<HTMLTextAreaElement>('assist-brief');
-  const context = element<HTMLInputElement>('assist-context');
-  const guide = element<HTMLTextAreaElement>('assist-guide');
-  const draft = element<HTMLTextAreaElement>('assist-json');
-  const file = element<HTMLInputElement>('assist-file');
-  const status = element<HTMLElement>('assist-status');
-  const create = element<HTMLButtonElement>('assist-create');
-  let parsed: StudioProject | undefined, busy = false;
-
-  function updateGuide() { guide.value = generateAssistGuide(editor.catalog(),brief.value, context.checked ? editor.project() : undefined); }
-  function validate() {
-    parsed = undefined;
-    status.classList.remove('error');
-    draft.setAttribute('aria-invalid', 'false');
-    if (!draft.value.trim()) status.textContent = 'Paste the complete project JSON or open a JSON file.';
-    else try {
-      parsed = parseStudioInput(draft.value,editor.catalog());
-      status.textContent = summarizeAssistProject(parsed);
-    } catch (error) {
-      status.textContent = (error as Error).message;
-      status.classList.add('error');
-      draft.setAttribute('aria-invalid', 'true');
-    }
-    create.disabled = busy || !parsed;
-  }
-  function lock() {
-    for (const control of dialog.querySelectorAll<HTMLButtonElement | HTMLTextAreaElement | HTMLInputElement>('button,textarea,input')) control.disabled = busy;
-    create.disabled = busy || !parsed;
-    dialog.setAttribute('aria-busy', String(busy));
-  }
-  element('open-assist').addEventListener('click', () => {
-    if (!editor.canEdit()) return;
-    updateGuide(); validate(); dialog.showModal();
+  const panel = assistPanel<StudioProject>({
+    dialog: document.getElementById('assist-dialog') as HTMLDialogElement,
+    id: 'assist', app: 'ARA STUDIO', noun: 'film',
+    title: 'Describe a film. Bring it to life.',
+    intro: 'Describe a scene in your own words. An AI assistant turns it into a film you can play, edit and export.',
+    placeholder: 'A nine-second poolside introduction: an executive greets an adventurer, then cut to their conversation.',
+    starters: [
+      ['Poolside hello', 'Resort pool, 10 seconds. A confident executive in a pantsuit waves as an adventurer with a backpack arrives, then they chat warmly. Wide establishing shot, then a medium on each. A speech bubble: "You made it!" Light ambient music.'],
+      ['Boardroom showdown', 'Boardroom at night, 14 seconds. Two executives argue across the table: one points and shouts, the other folds their arms, then storms out. Close-ups on each face, a tense score, and a comic shout bubble on the angriest line.'],
+      ['First lesson', 'Classroom, 12 seconds. A teacher stands by the whiteboard and talks to the class, then turns and points at the board. A student raises a hand. Narrator subtitle: "Day one." Gentle music.'],
+      ['Movie night', 'Living room, 12 seconds. Two friends arrive, one sits down on a chair to watch TV while the other stands and laughs. Slow push-in, warm music, and a thought bubble: "Best night in weeks."'],
+      ['Neon alley chase', 'Neon alley at night, 10 seconds. A hooded figure runs through the alley while a detective in a long coat follows, then stops and looks around. Orbiting camera, dramatic music, subtitle "Lost him."'],
+      ['Wedding vows', 'Wedding garden, 15 seconds. A couple stands under the floral arch facing each other; one speaks the vows (spoken voice and subtitles), then both turn and wave to the guests. Wide shot, then close-ups. Romantic music.'],
+      ['Rooftop toast', 'Rooftop bar at night, 10 seconds. Two old friends raise their drinks, laugh and talk against the skyline. Medium shots, upbeat lounge music, a speech bubble: "To new beginnings!"'],
+      ['Street dance', 'City street at night, 10 seconds. A dancer in streetwear performs a routine while a friend cheers beside them. Slow orbiting camera, upbeat music and a title card at the start.'],
+      ['News flash', 'Newsroom at night, 9 seconds. A news anchor at the desk delivers breaking news with a spoken voice (robotic radio effect optional), with subtitles. Cut from a wide shot to a close-up.'],
+      ['Desert stand-off', 'Desert outpost at sunset, 12 seconds. A sheriff and a stranger face each other several metres apart, hands ready; tense silence, then the stranger turns and walks away. Wide, then close-ups. Western-style tension.'],
+      ['Beach reunion', 'Sunset beach, 10 seconds. One friend walks along the sand toward another, who waves and runs to meet them. Wide shot with a slow dolly, warm music, subtitle "Ten years later…"'],
+      ['Detective intro', 'Executive office, 9 seconds. A detective in a long coat walks in, stops and says "Somebody called for help?" in a speech bubble and spoken voice. A narrator subtitle sets the scene first.'],
+    ],
+    contextLabel: 'Start from my current film (to revise it)',
+    guideFile: 'ara-studio-llm-guide.txt',
+    guide: (brief, current) => generateAssistGuide(editor.catalog(), brief, current ? editor.project() : undefined),
+    request: (brief, current) => assistRequest(editor.catalog(), brief, current ? editor.project() : undefined),
+    parse: json => parseStudioInput(json, editor.catalog()),
+    describe: describeAssistProject,
+    example: assistExample,
+    build: async project => { if (!await editor.load(project)) throw Error('The film could not be loaded. Your previous film has been kept.'); },
+    canOpen: () => editor.canEdit(),
+    footnote: 'Building replaces the current film. Undo brings it back, and you can keep editing and export as usual.',
   });
-  element('close-assist').addEventListener('click', () => { if (!busy) dialog.close(); });
-  dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
-  brief.addEventListener('input', updateGuide);
-  context.addEventListener('change', updateGuide);
-  draft.addEventListener('input', validate);
-  element('assist-copy').addEventListener('click', async () => {
-    updateGuide();
-    const message = element('assist-copy-status');
-    try { await navigator.clipboard.writeText(guide.value); message.textContent = 'Guide copied. Paste it into your AI assistant.'; }
-    catch {
-      element<HTMLDetailsElement>('assist-guide-details').open = true;
-      guide.focus(); guide.select(); message.textContent = 'Guide selected. Press Ctrl/Cmd+C to copy it.';
-    }
-  });
-  element('assist-download').addEventListener('click', () => {
-    updateGuide(); editor.download(new Blob([guide.value], { type: 'text/plain;charset=utf-8' }), 'ara-studio-llm-guide.txt');
-  });
-  element('assist-example').addEventListener('click', () => { draft.value = JSON.stringify(assistExample(), null, 2); validate(); });
-  element('assist-open').addEventListener('click', () => file.click());
-  file.addEventListener('change', async () => {
-    const chosen = file.files?.[0]; if (!chosen || busy) return;
-    busy = true; lock();
-    try {
-      if (chosen.size > 100_000) throw Error('Use JSON smaller than 100 KB.');
-      draft.value = await chosen.text(); validate();
-    } catch (error) {
-      parsed = undefined; status.textContent = (error as Error).message; status.classList.add('error');
-    } finally { file.value = ''; busy = false; lock(); }
-  });
-  create.addEventListener('click', async () => {
-    validate(); if (!parsed || busy || !editor.canEdit()) return;
-    busy = true; lock(); status.textContent = 'Building the cast and preparing the scene…';
-    try {
-      if (await editor.load(parsed)) dialog.close();
-      else { status.textContent = 'The film could not be loaded. Your previous project has been kept.'; status.classList.add('error'); }
-    } catch (error) { status.textContent = (error as Error).message; status.classList.add('error'); }
-    finally { busy = false; lock(); }
-  });
+  document.getElementById('open-assist')!.addEventListener('click', () => void panel.open());
+  return panel;
 }

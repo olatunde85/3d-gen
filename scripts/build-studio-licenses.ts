@@ -25,6 +25,9 @@ export function studioLicenses(): Plugin {
       emit('LICENSE.txt', readFileSync(join(root, 'LICENSE')));
       emit('source.zip', zipSync(files, { level: 9, mtime: new Date('1980-01-01T00:00:00Z') }));
       emit('NOTICE.txt', `Mediabunny ${pkg.version}\nCopyright (c) 2026-present, Vanilagy and contributors\nLicence: ${pkg.license}\n\nAra Studio uses the unmodified Mediabunny library for MP4 encoding and muxing.\nThe exact original source used by this build is available in source.zip in this directory.\nIts licence is included in LICENSE.txt and in the source archive.\n\nUpstream: https://github.com/Vanilagy/mediabunny\nPackage: https://www.npmjs.com/package/mediabunny/v/${pkg.version}\n`);
+      // LLM Assist's optional in-app generation uses the Anthropic SDK (Apache-2.0).
+      const sdk = resolve(import.meta.dirname, '../node_modules/@anthropic-ai/sdk'), sdkVersion = JSON.parse(readFileSync(join(sdk, 'package.json'), 'utf8')).version;
+      this.emitFile({ type: 'asset', fileName: 'third-party/anthropic-sdk/LICENSE.txt', source: `Anthropic TypeScript SDK ${sdkVersion} (@anthropic-ai/sdk), used unmodified.\n\n${readFileSync(join(sdk, 'LICENSE'), 'utf8')}\n\n${readFileSync(join(sdk, 'LICENSE-MIT'), 'utf8')}` });
     },
   };
 }
