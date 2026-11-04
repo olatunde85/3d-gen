@@ -1,4 +1,4 @@
-import { assistExample, assistRequest, describeAssistProject, generateAssistGuide, parseStudioInput } from './assist';
+import { assistExample, describeAssistProject, generateAssistGuide, parseStudioInput } from './assist';
 import { assistPanel } from '../app/assist/panel';
 import type { Catalog } from '../core/assets';
 import type { StudioProject } from './project';
@@ -34,7 +34,6 @@ export function setupAssist(editor: AssistEditor) {
     contextLabel: 'Start from my current film (to revise it)',
     guideFile: 'ara-studio-llm-guide.txt',
     guide: (brief, current) => generateAssistGuide(editor.catalog(), brief, current ? editor.project() : undefined),
-    request: (brief, current) => assistRequest(editor.catalog(), brief, current ? editor.project() : undefined),
     parse: json => parseStudioInput(json, editor.catalog()),
     describe: describeAssistProject,
     example: assistExample,

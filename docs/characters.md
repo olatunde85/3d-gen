@@ -33,7 +33,7 @@ Quick build always reflects the current character, however it was made: in Detai
 **LLM Assist** in the builder header creates a single character from a description. It works like [Studio's LLM Assist](studio.md#llm-assist):
 
 1. **Describe** the character, or pick one of the **Ideas**. Optionally start from the current character.
-2. **Get the JSON** from **Any AI chat** (**Copy guide** or **Save as .txt**, then give it to your assistant), or **Generate here** with your own Anthropic API key. The key stays in your browser, is sent only to Anthropic, and is shared with Studio. Generation checks the answer and fixes mistakes automatically.
+2. **Get the JSON:** **Copy guide** (or **Save as .txt**) and give it to your AI assistant. No API key is needed, and the builder sends nothing automatically.
 3. **Review and build:** paste the assistant's whole reply (the JSON is found inside it) or open a file. A summary card shows the name, age, outfit, hair and extras, and any problem comes with a fix request to send back.
 
 The guide includes the installed asset IDs, all body and face controls, clothing and fabric options, equipment, presets, rig and detail settings, a JSON schema and a valid example.

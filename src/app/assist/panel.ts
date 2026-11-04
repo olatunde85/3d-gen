@@ -1,13 +1,11 @@
 /**
- * LLM Assist: describe something, get JSON from any AI chat (or generate it here with your own
- * Anthropic key), review it and build. Shared by the character builder and Ara Studio.
+ * LLM Assist: describe something, get JSON from any AI chat, review it and build.
+ * Shared by the character builder and Ara Studio.
  */
 import './panel.css';
 import { extractJson, fixRequest, hadSurroundingText } from './extract';
-import { MODELS, checkConnection, costOf, forgetConnection, generate, loadConnection, maskKey, modelOf, saveConnection, StillInvalid, type Progress, type Usage } from './claude';
 
-export interface AssistDraft { brief: string; json: string; context: boolean; open: boolean; guideOpen: boolean; mode?: Mode }
-type Mode = 'chat' | 'claude';
+export interface AssistDraft { brief: string; json: string; context: boolean; open: boolean; guideOpen: boolean }
 
 export interface AssistConfig<T> {
   /** An existing empty <dialog> to fill, or one is created. */
@@ -24,8 +22,6 @@ export interface AssistConfig<T> {
   guideFile: string;
   /** The full guide for an AI chat, with the brief and optionally the current state embedded. */
   guide(brief: string, current: boolean): string;
-  /** In-app generation: the fixed guide (cached) and a prompt carrying the brief and current state. */
-  request(brief: string, current: boolean): { system: string; prompt: string };
   parse(json: string): T;
   describe(value: T): { headline: string; facts: string[] };
   example(): unknown;
@@ -62,11 +58,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         <label class="ai-check"><input type="checkbox" id="${id}-context" data-r="context" /><span>${html(cfg.contextLabel)}</span></label>
 
         <div class="ai-step"><span class="ai-num">2</span><h3>Get the ${noun} JSON</h3></div>
-        <div class="ai-tabs" role="tablist" aria-label="How to get the JSON">
-          <button role="tab" id="${id}-tab-chat" data-mode="chat" aria-controls="${id}-pane-chat">Any AI chat</button>
-          <button role="tab" id="${id}-tab-claude" data-mode="claude" aria-controls="${id}-pane-claude">Generate here <span class="ai-badge">API key</span></button>
-        </div>
-        <div class="ai-pane" role="tabpanel" id="${id}-pane-chat" aria-labelledby="${id}-tab-chat">
+        <div class="ai-pane">
           <ol class="ai-howto">
             <li><b>Copy the guide.</b> It holds your description and everything the assistant needs.</li>
             <li>Paste it into ChatGPT, Claude, Gemini or another assistant. If the chat says it's too long, attach the .txt file instead.</li>
@@ -75,23 +67,6 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
           <div class="ai-row"><button class="ai-btn ai-primary" id="${id}-copy" data-r="copy">Copy guide</button><button class="ai-btn" id="${id}-download" data-r="save">Save as .txt</button></div>
           <p class="ai-note" id="${id}-copy-status" data-r="copy-status" role="status"></p>
           <details id="${id}-guide-details" data-r="guide-details"><summary>Preview the guide</summary><textarea class="ai-guide" id="${id}-guide" data-r="guide" rows="8" readonly spellcheck="false" aria-label="LLM guide text"></textarea></details>
-        </div>
-        <div class="ai-pane" role="tabpanel" id="${id}-pane-claude" aria-labelledby="${id}-tab-claude">
-          <div data-r="no-key">
-            <p class="ai-note ai-lead">Skip the copy and paste: Ara asks Claude for you and checks the answer, fixing mistakes automatically.</p>
-            <label class="ai-field" for="${id}-key">Your Anthropic API key</label>
-            <div class="ai-row ai-key-row"><input id="${id}-key" data-r="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" /><button class="ai-btn" data-r="key-save">Connect</button></div>
-            <p class="ai-note" data-r="key-status" role="status"></p>
-            <p class="ai-note">The key stays in this browser and is used only for Anthropic (through this site's relay when it has one). Usage is billed to your Anthropic account. <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Create a key ↗</a></p>
-          </div>
-          <div data-r="has-key" hidden>
-            <div class="ai-conn"><span class="ai-dot" aria-hidden="true"></span><span data-r="key-label"></span><button class="ai-link" data-r="forget">Disconnect</button></div>
-            <label class="ai-field" for="${id}-model">Model</label>
-            <select id="${id}-model" data-r="model">${MODELS.map(m => `<option value="${m.id}">${m.name} · ${m.note}</option>`).join('')}</select>
-            <div class="ai-row"><button class="ai-btn ai-primary ai-wide" id="${id}-generate" data-r="generate">Generate ${noun} <span aria-hidden="true">✦</span></button></div>
-            <div class="ai-progress" data-r="progress" hidden><span class="ai-spin" aria-hidden="true"></span><span data-r="progress-text" role="status" aria-live="polite"></span><button class="ai-link" data-r="stop">Stop</button></div>
-            <p class="ai-note" data-r="usage"></p>
-          </div>
         </div>
       </section>
       <section class="ai-col ai-review" aria-labelledby="${id}-s3">
@@ -109,13 +84,13 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   const $ = <E extends HTMLElement = HTMLElement>(r: string) => dialog.querySelector<E>(`[data-r="${r}"]`)!;
   const brief = $<HTMLTextAreaElement>('brief'), context = $<HTMLInputElement>('context'), guide = $<HTMLTextAreaElement>('guide');
   const draft = $<HTMLTextAreaElement>('json'), result = $('result'), build = $<HTMLButtonElement>('build'), file = $<HTMLInputElement>('file');
-  const details = $<HTMLDetailsElement>('guide-details'), model = $<HTMLSelectElement>('model'), keyInput = $<HTMLInputElement>('key');
+  const details = $<HTMLDetailsElement>('guide-details');
 
-  let parsed: T | undefined, error = '', cleaned = false, mode: Mode = 'chat', building = false, running: AbortController | undefined;
+  let parsed: T | undefined, error = '', cleaned = false, building = false;
   let saveTimer = 0, guideStale = true;
 
   // ---- Drafts ----
-  const state = (): AssistDraft => ({ brief: brief.value, json: draft.value, context: context.checked, open: dialog.open, guideOpen: details.open, mode });
+  const state = (): AssistDraft => ({ brief: brief.value, json: draft.value, context: context.checked, open: dialog.open, guideOpen: details.open });
   const persist = () => {
     clearTimeout(saveTimer);
     if (cfg.storageKey) try { localStorage.setItem(cfg.storageKey, JSON.stringify(state())); } catch { /* Drafts are a convenience. */ }
@@ -147,10 +122,9 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         <ul class="ai-facts">${facts.map(f => `<li>${html(f)}</li>`).join('')}</ul>${cleaned ? '<p class="ai-note">Found the JSON in the reply and ignored the text around it.</p>' : ''}`;
     } else if (error) {
       result.classList.add('error');
-      const canAuto = mode === 'claude' && !!loadConnection();
       result.innerHTML = `<p class="ai-result-title"><span aria-hidden="true">!</span> Needs a fix</p><p class="ai-error-text"></p>
-        <div class="ai-row">${canAuto ? '<button class="ai-btn" data-r="auto-fix">Ask Claude to fix it</button>' : ''}<button class="ai-btn" data-r="fix">Copy fix request</button></div>
-        <p class="ai-note" data-r="fix-status">${canAuto ? '' : 'Send the fix request to your assistant, then paste its new reply here.'}</p>`;
+        <div class="ai-row"><button class="ai-btn" data-r="fix">Copy fix request</button></div>
+        <p class="ai-note" data-r="fix-status">Send the fix request to your assistant, then paste its new reply here.</p>`;
       result.querySelector('.ai-error-text')!.textContent = error;
     } else result.innerHTML = `<p class="ai-note ai-empty">Your ${noun} appears here once there's JSON to check.</p>`;
     lock();
@@ -177,85 +151,10 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
 
   // ---- Busy state ----
   function lock() {
-    const generating = !!running;
-    for (const el of dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('button,input,textarea,select')) {
-      const r = el.dataset.r;
-      el.disabled = building || generating && r !== 'stop' && r !== 'close' && !el.dataset.mode;
-    }
-    build.disabled = building || generating || !parsed;
-    dialog.setAttribute('aria-busy', String(building || generating));
+    for (const el of dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement>('button,input,textarea')) el.disabled = building;
+    build.disabled = building || !parsed;
+    dialog.setAttribute('aria-busy', String(building));
   }
-
-  // ---- Modes and connection ----
-  function setMode(next: Mode) {
-    mode = next;
-    for (const tab of dialog.querySelectorAll<HTMLButtonElement>('[role=tab]')) {
-      const on = tab.dataset.mode === mode;
-      tab.setAttribute('aria-selected', String(on)); tab.tabIndex = on ? 0 : -1;
-      dialog.querySelector<HTMLElement>(`#${tab.getAttribute('aria-controls')}`)!.hidden = !on;
-    }
-    showResult(); schedule();
-  }
-  function showConnection() {
-    const c = loadConnection();
-    $('no-key').hidden = !!c; $('has-key').hidden = !c;
-    if (c) { $('key-label').textContent = `Connected · ${maskKey(c.key)}`; model.value = c.model; }
-  }
-  $('key-save').addEventListener('click', async () => {
-    const key = keyInput.value.trim(), status = $('key-status');
-    if (!/^sk-ant-[\w-]{20,}$/.test(key)) { status.textContent = 'That doesn\'t look like an Anthropic API key. It starts with sk-ant-.'; status.className = 'ai-note bad'; return; }
-    const button = $<HTMLButtonElement>('key-save');
-    button.disabled = true; status.className = 'ai-note'; status.textContent = 'Checking the key…';
-    try {
-      const connection = { key, model: MODELS[0].id };
-      await checkConnection(connection);
-      saveConnection(connection); keyInput.value = ''; status.textContent = '';
-      showConnection(); showResult(); $('generate').focus();
-    } catch (e) { status.textContent = (e as Error).message; status.className = 'ai-note bad'; }
-    finally { button.disabled = false; }
-  });
-  keyInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('key-save').click(); } });
-  $('forget').addEventListener('click', () => { forgetConnection(); showConnection(); showResult(); keyInput.focus(); });
-  model.addEventListener('change', () => { const c = loadConnection(); if (c) saveConnection({ ...c, model: modelOf(model.value).id }); });
-
-  // ---- Generating here ----
-  const phaseText = (p: Progress) => {
-    const tries = p.attempt > 1 ? ` (attempt ${p.attempt})` : '';
-    switch (p.phase) {
-      case 'connecting': return `Sending your brief to ${modelOf(model.value).name}…`;
-      case 'thinking': return `Planning the ${noun}${tries}…`;
-      case 'writing': return `Writing the ${noun}${tries} · ${tokens(Math.round(p.chars / 3.5))} tokens`;
-      case 'checking': return `Checking it against Ara${tries}…`;
-      case 'fixing': return `Fixing: ${p.error ?? 'a problem Ara found'}`;
-    }
-  };
-  const usageText = (u: Usage, attempts: number) => {
-    const read = u.cacheRead ? `, ${tokens(u.cacheRead)} reused` : '';
-    return `${attempts > 1 ? `${attempts} attempts · ` : ''}${tokens(u.input + u.cacheWrite + u.cacheRead)} tokens in${read} · ${tokens(u.output)} out · about $${costOf(u, model.value).toFixed(2)}`;
-  };
-  async function runClaude(fixing?: { json: string; error: string }) {
-    const connection = loadConnection();
-    if (!connection || running) return;
-    if (!brief.value.trim() && !context.checked && !fixing) {
-      $('usage').textContent = `Describe your ${noun} first, or tick the box to start from your current one.`; brief.focus(); return;
-    }
-    running = new AbortController(); lock();
-    const progress = $('progress'), text = $('progress-text');
-    progress.hidden = false; $('usage').textContent = '';
-    const { system, prompt } = cfg.request(brief.value, context.checked);
-    const request = fixing ? `${prompt}\n\nYOUR EARLIER DRAFT\n${fixing.json}\n\n${fixRequest(fixing.error, noun)}` : prompt;
-    try {
-      const out = await generate({ connection: { ...connection, model: modelOf(model.value).id }, system, prompt: request, kind: noun,
-        accept: cfg.parse, onProgress: p => { text.textContent = phaseText(p); }, signal: running.signal });
-      $('usage').textContent = usageText(out.usage, out.attempts);
-      running = undefined; setReply(out.json); build.focus();
-    } catch (e) {
-      if (e instanceof StillInvalid) { $('usage').textContent = `${usageText(e.usage, 3)}. Claude couldn't fully fix it. Edit the JSON or try again.`; running = undefined; setReply(e.json); }
-      else $('usage').textContent = (e as Error).message;
-    } finally { running = undefined; progress.hidden = true; lock(); schedule(); }
-  }
-  $('generate').addEventListener('click', () => void runClaude());
-  $('stop').addEventListener('click', () => running?.abort());
 
   // ---- Chat route ----
   $('copy').addEventListener('click', async () => {
@@ -273,7 +172,6 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   // ---- Review ----
   result.addEventListener('click', async e => {
     const r = (e.target as HTMLElement).closest<HTMLElement>('[data-r]')?.dataset.r;
-    if (r === 'auto-fix') void runClaude({ json: extractJson(draft.value), error });
     if (r === 'fix') {
       const status = result.querySelector('[data-r="fix-status"]')!;
       try { await navigator.clipboard.writeText(fixRequest(error, noun)); status.textContent = 'Fix request copied. Send it in the same chat, then paste the new reply here.'; }
@@ -331,19 +229,11 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   brief.addEventListener('input', () => { staleGuide(300); schedule(); });
   context.addEventListener('change', () => { staleGuide(); schedule(); });
   brief.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); (mode === 'claude' && loadConnection() ? $('generate') : $('copy')).click(); }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('copy').click(); }
   });
   draft.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); build.click(); } });
 
-  // ---- Tabs, open and close ----
-  const tabs = [...dialog.querySelectorAll<HTMLButtonElement>('[role=tab]')];
-  for (const tab of tabs) {
-    tab.addEventListener('click', () => setMode(tab.dataset.mode as Mode));
-    tab.addEventListener('keydown', e => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      const next = tabs[(tabs.indexOf(tab) + 1) % tabs.length]; next.focus(); next.click();
-    });
-  }
+  // ---- Open and close ----
   $('close').addEventListener('click', () => { if (!building) dialog.close(); });
   dialog.addEventListener('cancel', e => { if (building) e.preventDefault(); });
   dialog.addEventListener('close', persist);
@@ -352,7 +242,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   async function open() {
     if (!await cfg.canOpen()) return;
     // A context-based guide reflects the current state, which may have changed since it was made.
-    guideStale = true; showConnection(); check();
+    guideStale = true; check();
     if (!dialog.open) dialog.showModal();
     refreshGuide();
     (brief.value.trim() ? (parsed ? build : draft) : brief).focus();
@@ -362,7 +252,6 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     brief.value = typeof d.brief === 'string' ? d.brief.slice(0, 6000) : '';
     draft.value = typeof d.json === 'string' ? d.json.slice(0, 200_000) : '';
     context.checked = d.context === true; details.open = d.guideOpen === true;
-    setMode(d.mode === 'claude' || d.mode === 'chat' ? d.mode : loadConnection() ? 'claude' : 'chat');
     guideStale = true; check();
   }
 
@@ -372,6 +261,5 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     if (saved?.open === true) void open();
   } catch { restore({}); }
   else restore({});
-  showConnection();
   return { dialog, open, state, restore };
 }

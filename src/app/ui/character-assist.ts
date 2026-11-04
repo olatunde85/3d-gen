@@ -1,4 +1,4 @@
-import { generateCharacterGuide, parseCharacterInput, characterExample, characterRequest } from '../character-assist';
+import { generateCharacterGuide, parseCharacterInput, characterExample } from '../character-assist';
 import { assistPanel } from '../assist/panel';
 import { ageToYears, type HumanParams } from '../../core/params';
 import type { Ctx } from './context';
@@ -40,7 +40,6 @@ export function characterAssist(ctx: Ctx) {
     contextLabel: 'Start from my current character (to revise it)',
     guideFile: 'ara-character-llm-guide.txt',
     guide: (brief, current) => generateCharacterGuide(ctx.cat, brief, current ? ctx.store.params : undefined),
-    request: (brief, current) => characterRequest(ctx.cat, brief, current ? ctx.store.params : undefined),
     parse: json => parseCharacterInput(json, ctx.cat),
     describe,
     example: characterExample,

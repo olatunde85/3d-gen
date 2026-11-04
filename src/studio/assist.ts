@@ -202,14 +202,6 @@ ${json(assistExample())}${current ? `\n\nCURRENT FILM — use this as the starti
 Now create the complete importable JSON for the user's brief using only these capabilities.`;
 }
 
-const IN_APP = 'You are running inside Ara Studio, which reads your reply directly: reply with the JSON object only, with no explanation. If part of the brief is not possible, choose the closest achievable alternative instead of explaining.';
-/** In-app generation: the guide stays identical between requests (so it is cached); the brief and current film travel in the prompt. */
-export function assistRequest(catalog: Catalog, brief: string, current?: StudioProject) {
-  const system = `${generateAssistGuide(catalog, 'Given in the user message.')}\n\n${IN_APP}`;
-  const prompt = `USER'S BRIEF\n${brief.trim() || 'Revise the current film sensibly.'}${current ? `\n\nCURRENT FILM — use this as the starting point and preserve details not changed by the brief\n${JSON.stringify(projectForAssist(current), null, 2)}` : ''}`;
-  return { system, prompt };
-}
-
 /** Headline and facts for the review card. */
 export function describeAssistProject(project: StudioProject) {
   const names = project.actors.map(a => decodeCharacter(a.character, a.detail)?.name || a.id);

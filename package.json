@@ -43,7 +43,6 @@
     "test:character-assist": "tsx scripts/character-assist-check.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.4.0",
     "fflate": "^0.8.3",
     "mediabunny": "^1.65.0",
     "onnxruntime-web": "1.31.1",

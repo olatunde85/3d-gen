@@ -77,14 +77,12 @@ Recordings and generated takes live in IndexedDB on this browser/device, while p
 Choose **LLM Assist** in the top bar to turn a description into an editable film:
 
 1. **Describe your film** in your own words, or start from one of the **Ideas** (**More ideas** shows others). Tick **Start from my current film** to revise what you have.
-2. **Get the film JSON**, in one of two ways:
-   - **Any AI chat:** **Copy guide** (or **Save as .txt**) and give it to ChatGPT, Claude, Gemini or another assistant. The guide holds your description and everything the assistant needs: all locations, full character-creation controls and assets, animation IDs and timings, equipment, timed text and comic bubbles, speech and effects, the music library, the JSON schema, a valid example and the editor's actual limits.
-   - **Generate here:** connect your own Anthropic API key once, choose a model and press **Generate film**. Studio sends the guide and your description to Claude, shows progress, checks the answer, and if anything is wrong asks Claude to fix it (up to twice). It then shows the tokens used and an estimated cost. The key stays in your browser and is used only for Anthropic; usage is billed to your Anthropic account. **Disconnect** removes it. Some organisations block API calls made directly from web pages. So, where the site provides one, Ara sends requests through its own small relay, which forwards only Claude requests with your key and stores nothing. `npm run dev` and `npm run preview` include the relay; deployed sites need the Cloudflare Pages Function described in [Self-hosting](self-hosting.md#llm-assist-relay).
-3. **Review and build.** Press **Paste reply** (or paste into the box, or **Open file**). You can paste the assistant's whole reply: Studio finds the JSON inside any surrounding text or code fences. A summary card lists the location, cast, length, shots, actions, text, speech and music. If something needs fixing, the card says what and offers **Copy fix request** to send back to your assistant, or **Ask Claude to fix it** when connected. **Build film** replaces your project, and Undo restores the previous film.
+2. **Get the film JSON:** **Copy guide** (or **Save as .txt**) and give it to ChatGPT, Claude, Gemini or another assistant. The guide holds your description and everything the assistant needs: all locations, full character-creation controls and assets, animation IDs and timings, equipment, timed text and comic bubbles, speech and effects, the music library, the JSON schema, a valid example and the editor's actual limits.
+3. **Review and build.** Press **Paste reply** (or paste into the box, or **Open file**). You can paste the assistant's whole reply: Studio finds the JSON inside any surrounding text or code fences. A summary card lists the location, cast, length, shots, actions, text, speech and music. If something needs fixing, the card says what and offers **Copy fix request** to send back to your assistant. **Build film** replaces your project, and Undo restores the previous film.
 
-Ctrl/Cmd+Enter in the description copies the guide (or generates, when connected); in the JSON box it builds. Drafts survive reloads.
+Ctrl/Cmd+Enter in the description copies the guide; in the JSON box it builds. Drafts survive reloads.
 
-The guide is generated from the editor's live registries, so newly added sets, presets, animations and equipment appear automatically. Without a connected key, Studio sends nothing anywhere.
+The guide is generated from the editor's live registries, so newly added sets, presets, animations and equipment appear automatically. Studio makes no AI calls and sends nothing anywhere.
 
 Studio JSON can design the cast directly, using the same body, face, skin, hair, clothing, colour, detail-slider and rig controls as the character builder. The Studio guide embeds the builder’s complete instructions and installed catalogues; its JSON Schema shares the same character parameter definitions. No separate visit to the builder is needed.
 
@@ -134,7 +132,7 @@ Automatic dialogue lip-sync, imported GLBs, paired contact animations, physical 
 
 ## Assets and licences
 
-The sets use original geometry and textures bundled in the source. There are no remote background downloads or scene API dependencies. LLM Assist's optional **Generate here** uses the unmodified Anthropic TypeScript SDK (Apache-2.0), loaded only when you generate; its licence ships at `third-party/anthropic-sdk/LICENSE.txt`. Existing character asset and motion-capture terms still apply.
+The sets use original geometry and textures bundled in the source. There are no remote background downloads or scene API dependencies. Existing character asset and motion-capture terms still apply.
 
 Optional local speech uses ONNX Runtime Web (MIT) and an inference implementation based on Supertone’s MIT Web example. Supertonic 2 model/voice files use **OpenRAIL-M**, including its use restrictions; the model is downloaded separately when generation is chosen. Licences and notices are shipped in `third-party/speech/` and linked from the sound editor. The procedural music scores are original Ara code and contain no sampled third-party recordings.
 
