@@ -17,7 +17,6 @@ export interface AssistConfig<T> {
   title: string;
   intro: string;
   placeholder: string;
-  starters: [label: string, brief: string][];
   contextLabel: string;
   guideFile: string;
   /** The full guide for an AI chat, with the brief and optionally the current state embedded. */
@@ -33,8 +32,6 @@ export interface AssistConfig<T> {
   storageKey?: string;
 }
 
-/** Ideas shown at once; "More ideas" pages through the rest. */
-const IDEAS = 4;
 const html = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const pretty = (text: string) => { try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; } };
 const tokens = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n);
@@ -54,7 +51,6 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         <div class="ai-step"><span class="ai-num">1</span><h3 id="${id}-s1">Describe your ${noun}</h3></div>
         <label class="sr-only" for="${id}-brief">Describe your ${noun}</label>
         <textarea id="${id}-brief" class="ai-brief" data-r="brief" rows="4" maxlength="6000" placeholder="${html(cfg.placeholder)}"></textarea>
-        <div class="ai-starters" role="group" aria-label="Example ideas"><span>Ideas</span><span class="ai-chips" data-r="chips"></span>${cfg.starters.length > IDEAS ? '<button class="ai-link" data-r="more-ideas">More ideas ↻</button>' : ''}</div>
         <label class="ai-check"><input type="checkbox" id="${id}-context" data-r="context" /><span>${html(cfg.contextLabel)}</span></label>
 
         <div class="ai-step"><span class="ai-num">2</span><h3>Get the ${noun} JSON</h3></div>
@@ -212,20 +208,6 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   });
 
   // ---- Describe ----
-  let ideaPage = 0;
-  const showIdeas = () => {
-    const pages = Math.ceil(cfg.starters.length / IDEAS);
-    $('chips').innerHTML = cfg.starters.map(([label], i) => [label, i] as const).slice(ideaPage % pages * IDEAS, ideaPage % pages * IDEAS + IDEAS)
-      .map(([label, i]) => `<button class="ai-chip" data-starter="${i}" title="${html(cfg.starters[i][1])}">${html(label)}</button>`).join('');
-    lock();
-  };
-  showIdeas();
-  dialog.querySelector('[data-r="more-ideas"]')?.addEventListener('click', () => { ideaPage++; showIdeas(); });
-  dialog.querySelector('.ai-starters')!.addEventListener('click', e => {
-    const i = (e.target as HTMLElement).closest<HTMLElement>('[data-starter]')?.dataset.starter;
-    if (i === undefined) return;
-    brief.value = cfg.starters[Number(i)][1]; brief.dispatchEvent(new Event('input')); brief.focus();
-  });
   brief.addEventListener('input', () => { staleGuide(300); schedule(); });
   context.addEventListener('change', () => { staleGuide(); schedule(); });
   brief.addEventListener('keydown', e => {

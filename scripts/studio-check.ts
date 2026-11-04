@@ -325,6 +325,7 @@ try{
  await step('LLM Assist exports a live guide and validates pasted projects before building',async()=>{
   const original=await evaluate<string>('JSON.stringify(window.studio.project)');
   await evaluate("document.querySelector('#open-assist').click()");
+  if(await evaluate('!!document.querySelector("#assist-dialog .ai-starters,#assist-dialog .ai-chip")'))throw Error('Studio Assist still has idea pills');
   await search('assist-brief','Two colleagues meet at the resort pool.');
   await evaluate("(()=>{const e=document.querySelector('#assist-context');e.checked=true;e.dispatchEvent(new Event('change'))})()");
   if(!await evaluate("document.querySelector('#assist-guide').value.includes('Two colleagues meet at the resort pool.') && document.querySelector('#assist-guide').value.includes('CURRENT FILM —') && document.querySelector('#assist-guide').value.includes('JSON SCHEMA') && document.querySelector('#assist-guide').value.includes('pick_up')"))throw Error('LLM guide missing brief, schema or live capabilities');

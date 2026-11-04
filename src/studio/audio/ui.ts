@@ -12,7 +12,7 @@ interface SoundEditor {
 export function setupSoundEditor(editor:SoundEditor){
   const $=<T extends HTMLElement>(id:string)=>document.getElementById(id) as T,input=(id:string)=>$<HTMLInputElement>('sound-'+id),select=(id:string)=>$<HTMLSelectElement>('sound-'+id),button=(id:string)=>$<HTMLButtonElement>('sound-'+id);
   const dialog=$<HTMLDialogElement>('sound-dialog'),body=$<HTMLTextAreaElement>('sound-script'),picker=select('cue'),message=$('sound-message'),preview=new AudioPlayback();
-  let preferredDeviceVoice='';const peaks=new Map<string,Float32Array>();
+  let preferredDeviceVoice='',readyAsset='';const peaks=new Map<string,Float32Array>();
   let selected='',busy=false,controller:AbortController|undefined,lastTyped='',lastTyping=0,recording:MediaRecorder|undefined,stream:MediaStream|undefined,recordTimer=0,recordTick=0,recordToken=0,discardRecording=false,waveToken=0;
   const current=()=>editor.project().audio.speech.find(c=>c.id===selected);
   const status=(text:string)=>{message.textContent=text;};
@@ -20,9 +20,15 @@ export function setupSoundEditor(editor:SoundEditor){
   const lock=()=>{for(const e of dialog.querySelectorAll<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement|HTMLButtonElement>('input,textarea,select,button'))e.disabled=busy||recording?.state==='recording';button('cancel').hidden=!controller;button('cancel').disabled=false;if(recording?.state==='recording'){button('record').disabled=false;button('close').disabled=false;}};
   function voices(){const old=select('device-voice').value||preferredDeviceVoice,available=deviceVoices();select('device-voice').replaceChildren();for(const voice of available)select('device-voice').append(new Option(`${voice.name} · ${voice.lang}${voice.localService?' · on device':' · voice service'}`,voice.voiceURI));if(available.some(v=>v.voiceURI===old))select('device-voice').value=old;else select('device-voice').value=(available.find(v=>v.localService)??available[0])?.voiceURI??'';}
   if(typeof speechSynthesis!=='undefined')speechSynthesis.addEventListener('voiceschanged',voices);select('device-voice').addEventListener('change',()=>preferredDeviceVoice=select('device-voice').value);voices();
+  function takeActions(ready:boolean){
+    const cue=current(),locked=busy||recording?.state==='recording';
+    button('generate').textContent=ready&&cue?.source==='tts'?'Regenerate speech':'Generate speech';
+    button('generate').disabled=locked||!cue?.text.trim();button('attach').textContent=ready?'Replace audio':'Attach audio';
+    button('preview').disabled=locked||!ready;button('fit').disabled=locked||!ready;
+  }
   async function waveform(cue:SpeechCue|undefined){
     const token=++waveToken,canvas=$<HTMLCanvasElement>('sound-waveform'),ctx=canvas.getContext('2d')!;ctx.clearRect(0,0,canvas.width,canvas.height);ctx.strokeStyle='#454e5e';ctx.beginPath();ctx.moveTo(0,canvas.height/2);ctx.lineTo(canvas.width,canvas.height/2);ctx.stroke();
-    if(!cue?.asset)return;const asset=await getAsset(cue.asset).catch(()=>undefined);if(token!==waveToken)return;if(!asset){$('sound-asset-status').textContent='Audio missing on this device. Attach the recording or open its project bundle.';return;}$('sound-asset-status').textContent='Audio attached · effects are included in preview and export.';
+    if(!cue?.asset){readyAsset='';return;}const asset=await getAsset(cue.asset).catch(()=>undefined);if(token!==waveToken)return;if(!asset){readyAsset='';takeActions(false);$('sound-asset-status').textContent='Attach this recording again, or generate a new voice from the script.';return;}readyAsset=cue.asset;takeActions(true);$('sound-asset-status').textContent='Voice ready · included in playback and export.';
     let values=peaks.get(cue.asset);if(!values){const data=new DataView(await asset.blob.arrayBuffer());if(token!==waveToken)return;const frames=(data.byteLength-44)/(2*asset.channels);values=new Float32Array(canvas.width);
       for(let x=0;x<canvas.width;x++){const start=Math.floor(x/canvas.width*frames),end=Math.floor((x+1)/canvas.width*frames);for(let i=start;i<end;i+=Math.max(1,Math.floor((end-start)/24)))values[x]=Math.max(values[x],Math.abs(data.getInt16(44+i*asset.channels*2,true)/32768));}peaks.set(cue.asset,values);}
     const mid=canvas.height/2;ctx.strokeStyle='#dcb884';ctx.lineWidth=1;for(let x=0;x<canvas.width;x++){ctx.beginPath();ctx.moveTo(x,mid-values[x]*mid*.9);ctx.lineTo(x,mid+values[x]*mid*.9);ctx.stroke();}
@@ -37,13 +43,13 @@ export function setupSoundEditor(editor:SoundEditor){
       if(document.activeElement!==body)body.value=cue.text;
       for(const key of ['name','start','duration','offset','speed','volume','pan']as const)if(document.activeElement!==input(key))input(key).value=String(key==='volume'||key==='pan'?Math.round(cue[key]*100):cue[key]);
       select('effect').value=cue.effect;select('voice').value=cue.voice;select('actor').replaceChildren(new Option('Narrator','narrator'));editor.project().actors.forEach((a,i)=>select('actor').append(new Option(`Character ${i+1}`,speechActor(a.id))));select('actor').value=cue.actor;
-      $('sound-asset-status').textContent=cue.asset?'Checking the audio library…':'No rendered audio yet. Generate speech or attach a recording.';
+      $('sound-asset-status').textContent=cue.asset?'Checking the audio library…':'Generate a voice from this script, or attach your own audio.';
     }
-    lock();button('add').disabled=busy||recording?.state==='recording'||audio.speech.length>=MAX_SPEECH;button('record').disabled=busy||!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined';void waveform(cue);
+    lock();takeActions(!!cue?.asset&&cue.asset===readyAsset);const pending=audio.speech.filter(c=>!c.asset&&c.text.trim()).length;button('generate-all').hidden=pending<2;button('generate-all').textContent=`Generate all voices (${pending})`;button('add').disabled=busy||recording?.state==='recording'||audio.speech.length>=MAX_SPEECH;button('record').disabled=busy||!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined';void waveform(cue);
   }
   async function update(patch:Partial<SpeechCue>,remember=true){if(!current())return;await commit(p=>{const c=p.audio.speech.find(c=>c.id===selected);if(c)Object.assign(c,patch);},remember);editor.changed();render();}
-  function stopPreview(){preview.stop();stopDeviceSpeech();button('preview').textContent='Preview selected clip';}
-  function open(id?:string){if(!editor.canEdit())return;editor.pause();stopPreview();if(id)selected=id;lastTyped='';render();voices();if(!dialog.open)dialog.showModal();}
+  function stopPreview(){preview.stop();stopDeviceSpeech();button('preview').textContent='Preview voice';}
+  function open(id?:string,focusTake=false){if(!editor.canEdit())return;editor.pause();stopPreview();if(id)selected=id;lastTyped='';render();voices();if(!dialog.open)dialog.showModal();if(focusTake)button(current()?.text.trim()?'generate':'attach').focus();else dialog.scrollTop=0;}
   $('open-sound').addEventListener('click',()=>open());button('close').addEventListener('click',()=>dialog.close());
   dialog.addEventListener('cancel',event=>{if(busy){event.preventDefault();controller?.abort();}else if(recording?.state==='recording'){event.preventDefault();stopRecording(true);}});
   dialog.addEventListener('close',()=>{stopPreview();stopRecording(true);recordToken++;controller?.abort();releaseSpeechEngine();});
@@ -82,7 +88,7 @@ export function setupSoundEditor(editor:SoundEditor){
   button('device-read').addEventListener('click',()=>{const cue=current();if(!cue?.text.trim()){status('Enter a script for the device read-through.');return;}stopPreview();try{previewDeviceSpeech(cue.text,select('device-voice').value,Number(input('device-rate').value),Number(input('device-pitch').value),cue.volume);status('Device read-through: rate/pitch only. Use generated or uploaded audio for effects and MP4 export.');}catch(error){status((error as Error).message);}});button('device-stop').addEventListener('click',stopDeviceSpeech);
   button('fit').addEventListener('click',async()=>{const cue=current();if(!cue?.asset)return;try{const asset=await getAsset(cue.asset);if(!asset)throw Error('Reattach this recording first.');const duration=(asset.duration-cue.offset)/cue.speed;if(duration<.1||cue.start+duration>60)throw Error('The audio does not fit here. Adjust its start or trim.');await update({duration});}catch(error){status((error as Error).message);}});
   button('delete').addEventListener('click',async()=>{stopPreview();await commit(p=>{p.audio.speech=p.audio.speech.filter(c=>c.id!==selected);});editor.changed();render();});
-  button('preview').addEventListener('click',async()=>{if(preview.active){stopPreview();return;}const cue=current();if(!cue)return;try{stopDeviceSpeech();const p=structuredClone(editor.project());p.audio.speech=[cue];p.audio.music.track='none';p.audio.muted=false;button('preview').textContent='Preparing…';const started=await preview.play(p,cue.start,()=>{button('preview').textContent='Preview selected clip';},cue.duration);button('preview').textContent=started?'Stop preview':'Preview selected clip';}catch(error){stopPreview();status((error as Error).message);}});
+  button('preview').addEventListener('click',async()=>{if(preview.active){stopPreview();return;}const cue=current();if(!cue)return;try{stopDeviceSpeech();const p=structuredClone(editor.project());p.audio.speech=[cue];p.audio.music.track='none';p.audio.muted=false;button('preview').textContent='Preparing…';const started=await preview.play(p,cue.start,()=>{button('preview').textContent='Preview voice';},cue.duration);button('preview').textContent=started?'Stop preview':'Preview voice';}catch(error){stopPreview();status((error as Error).message);}});
   const musicEdit=async(fn:(p:StudioProject)=>void)=>{stopPreview();await commit(fn);editor.changed();render();};
   select('music').addEventListener('change',()=>void musicEdit(p=>p.audio.music.track=select('music').value as typeof p.audio.music.track));input('music-volume').addEventListener('change',()=>void musicEdit(p=>p.audio.music.volume=Number(input('music-volume').value)/100));input('ducking').addEventListener('change',()=>void musicEdit(p=>p.audio.music.ducking=input('ducking').checked));input('muted').addEventListener('change',()=>void musicEdit(p=>p.audio.muted=input('muted').checked));
   for(const [id,key]of [['fade-in','fadeIn'],['fade-out','fadeOut']]as const)input(id).addEventListener('change',()=>void musicEdit(p=>p.audio.music[key]=Number(input(id).value)));

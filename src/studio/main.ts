@@ -14,7 +14,7 @@ import { parseStudioInput } from './assist';
 import { resolveTextActor } from './text';
 import { setupTextEditor } from './text-ui';
 import { setupSoundEditor } from './audio/ui';
-import { AudioPlayback } from './audio/mix';
+import { AudioPlayback, SpeechAudioRequired } from './audio/mix';
 import { hasAudio, resolveSpeechActor } from './audio/schema';
 import { audioProjectBundle, openAudioBundle } from './audio/bundle';
 import { setupAssist } from './assist-ui';
@@ -32,10 +32,12 @@ let project = newProject(), time = 0, selectedActor = project.actors[0].id, sele
 let characterSelected=true;
 let playing = false, repeat = true, loading = true, exporting = false, dirty = true, titleEditing = false;
 let engine: Engine, lib: AssetLibrary;
+let speechToFix:string|undefined;
 let movieUrl = '', renderedRecipe = '', movieInfo = '', noticeTimer = 0, capabilityToken = 0;
 let controller: AbortController | undefined;
 let clickToPlace=false,importing=false,placementBefore:string|undefined;
 const history: string[] = [], builtRecipes = new Map<string, string>();
+const pendingSpeech=()=>project.audio.muted?[]:project.audio.speech.filter(c=>c.volume>0&&!c.asset);
 const actorTrack = () => project.actors.find(a => a.id === selectedActor) ?? project.actors[0];
 const actorName = (a: ActorTrack) => decodeCharacter(a.character, a.detail)?.name || 'Your character';
 const filename = () => (project.title || 'ara-film').normalize('NFKD').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'ara-film';
@@ -89,7 +91,7 @@ function setPlaying(on: boolean) {
     preparingSound=true;
     void soundtrack.play(project,time,()=>{if(token!==playToken)return;time=durationOf(project);if(repeat){time=0;setPlaying(true);}else setPlaying(false);}).then(started=>{
       if(token!==playToken)return;preparingSound=false;if(!started)setPlaying(false);
-    }).catch(error=>{if(token===playToken){setPlaying(false);notify((error as Error).message);}});
+    }).catch(error=>{if(token===playToken){setPlaying(false);if(error instanceof SpeechAudioRequired)soundEditor.open(error.cueId,true);else notify((error as Error).message);}});
   }
   button('play').textContent=playing?'Ⅱ':'▶';button('play').setAttribute('aria-label',playing?'Pause film':'Play film');dirty=true;
 }
@@ -212,6 +214,7 @@ function renderUI() {
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
   $('view-readout').textContent=`${Math.round(project.view.azimuth)}° · ${project.view.zoom.toFixed(1)}×`;
   for(const aspect of ['landscape','portrait'])button(aspect).setAttribute('aria-pressed',String(project.aspect===aspect));
+  const pending=pendingSpeech();$('speech-needed').hidden=!pending.length;$('speech-needed-copy').textContent=`${pending.length===1?'1 dialogue clip is':`${pending.length} dialogue clips are`} ready for a voice.`;
   textEditor.render();soundEditor.render();$('sound-readout').textContent=project.audio.muted?'Sound muted':hasAudio(project.audio)?'Sound on':'Silent film';lock();renderPosition();fitFilm();dirty=true;scheduleSessionSave();
 }
 async function syncActors() {
@@ -392,6 +395,7 @@ const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>ch
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
 const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,
   load:next=>importStudioProject(JSON.stringify(next))});
+button('prepare-speech').addEventListener('click',()=>soundEditor.open(pendingSpeech()[0]?.id,true));
 button('snapshot').addEventListener('click',()=>{scene.render(project,time);scene.output.toBlob(b=>{if(b)download(b,`${filename()}-frame.png`);},'image/png');});
 $('edit-character').addEventListener('click',e=>{if(!characterSelected||loading||exporting||importing||placementBefore){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});
 document.addEventListener('keydown',e=>{if((e.target as HTMLElement).closest('input,select,textarea,button')||document.querySelector('dialog[open]'))return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing);}if(e.key.toLowerCase()==='f'&&!e.metaKey&&!e.ctrlKey&&!e.altKey)button('expand-view').click();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}});
@@ -405,9 +409,10 @@ requestAnimationFrame(tick);
 const dialog = $<HTMLDialogElement>('export-dialog');
 async function updateCapability() {
   const token = ++capabilityToken, size = Number(select('resolution').value), { width, height } = dimensions(size);
+  speechToFix=pendingSpeech()[0]?.id;$('export-fix-audio').hidden=!speechToFix;$('export-audio-label').textContent=hasAudio(project.audio)?'Stereo soundtrack':'Silent MP4';
+  if(speechToFix){button('start-export').disabled=true;$('export-message').textContent='Add a voice to your dialogue before exporting. Generate speech or attach your own recording.';return;}
   button('start-export').disabled = true; $('export-message').textContent = 'Checking video export on this browser…';
   const supported = await supportsMp4(width, height),soundSupported=!hasAudio(project.audio)||!!await audioCodec();
-  $('export-audio-label').textContent=hasAudio(project.audio)?'Stereo soundtrack':'Silent MP4';
   if (token !== capabilityToken || !dialog.open) return;
   button('start-export').disabled = !supported||!soundSupported;
   $('export-message').textContent = !soundSupported?'This browser cannot encode MP4 audio. Save the WAV soundtrack, use another browser, or mute the film.':supported ? '' : 'This browser cannot encode this MP4 size. Try 720p, or use a current Chrome, Edge or Safari browser. You can still save a frame or project.';
@@ -418,8 +423,9 @@ button('open-export').addEventListener('click', () => {
   const hasFilm = !!movieUrl && renderedRecipe === JSON.stringify(project);
   $('download-film').hidden = !hasFilm; $('export-preview').hidden = !hasFilm; $('render-again').hidden = !hasFilm; $('start-export').hidden = hasFilm;
   $('export-options').hidden = hasFilm; $('export-message').textContent = hasFilm ? movieInfo : '';
-  dialog.showModal(); if (!hasFilm) void updateCapability();
+  $('export-fix-audio').hidden=true;dialog.showModal(); if (!hasFilm) void updateCapability();
 });
+button('export-fix-audio').addEventListener('click',()=>{dialog.close();soundEditor.open(speechToFix,true);});
 button('render-again').addEventListener('click', () => { $('render-again').hidden = true; $('export-options').hidden = false; $('start-export').hidden = false; $('download-film').hidden = true; $('export-preview').hidden = true; void updateCapability(); });
 select('resolution').addEventListener('change', () => void updateCapability());
 button('close-export').addEventListener('click', () => { if (exporting) controller?.abort(); else dialog.close(); });
@@ -446,6 +452,7 @@ button('start-export').addEventListener('click', async () => {
   } catch (e) {
     $('export-message').textContent = controller.signal.aborted ? 'Export cancelled. Your project is safe.' : (e as Error).message;
     $('export-options').hidden = false; $('start-export').hidden = false;
+    if(e instanceof SpeechAudioRequired){speechToFix=e.cueId;$('export-fix-audio').hidden=false;}
   } finally {
     exporting = false; controller = undefined; time = before; dirty = true; $('cancel-export').hidden = true; lock();
     if (!button('start-export').hidden) button('start-export').disabled = false;

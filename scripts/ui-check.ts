@@ -187,6 +187,7 @@ try {
   await step('character LLM Assist guides, validates pasted JSON and builds an undoable character', async () => {
     const original=await evaluate<string>("localStorage.getItem('3dgen.human')");
     await evaluate("document.querySelector('#character-assist-btn').click()");await waitFor("document.querySelector('#character-assist-dialog').open",'character Assist');
+    if(await evaluate('!!document.querySelector("#character-assist-dialog .ai-starters,#character-assist-dialog .ai-chip")'))throw Error('Builder Assist still has idea pills');
     await evaluate("(()=>{const b=document.querySelector('#ca-brief');b.value='An explorer in cornrows';b.dispatchEvent(new Event('input'));const c=document.querySelector('#ca-context');c.checked=true;c.dispatchEvent(new Event('change'))})()");
     if(!await evaluate("document.querySelector('#ca-guide').value.includes('An explorer in cornrows') && document.querySelector('#ca-guide').value.includes('CURRENT CHARACTER') && document.querySelector('#ca-guide').value.includes('garmentStyles') && document.querySelector('#ca-guide').value.includes('JSON SCHEMA')"))throw Error('Character guide missing capabilities/context');
     await evaluate("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>window.__characterGuide=text}});document.querySelector('#ca-copy').click()");await waitFor("window.__characterGuide===document.querySelector('#ca-guide').value",'copied character guide');await evaluate('delete navigator.clipboard');

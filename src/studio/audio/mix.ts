@@ -3,6 +3,9 @@ import { durationOf, type StudioProject } from '../project';
 import { decodeAsset } from './assets';
 import { addMusic } from './music';
 import { hasAudio, type VoiceEffect } from './schema';
+export class SpeechAudioRequired extends Error {
+  constructor(readonly cueId:string,message:string){super(message);this.name='SpeechAudioRequired';}
+}
 function impulse(ctx:BaseAudioContext){const buffer=ctx.createBuffer(2,Math.ceil(ctx.sampleRate*1.2),ctx.sampleRate);let seed=5283;for(let channel=0;channel<2;channel++){const samples=buffer.getChannelData(channel);for(let i=0;i<samples.length;i++){seed=(seed*1664525+1013904223)>>>0;samples[i]=(seed/4294967296*2-1)*(1-i/samples.length)**3;}}return buffer;}
 function effectChain(ctx:BaseAudioContext,input:AudioNode,effect:VoiceEffect,end:number):AudioNode{
   if(effect==='natural')return input;
@@ -28,8 +31,8 @@ export async function renderSoundtrack(project:StudioProject,signal?:AbortSignal
   const duration=durationOf(project),ctx=new OfflineAudioContext(2,Math.ceil(duration*48000),48000),master=ctx.createGain(),compressor=ctx.createDynamicsCompressor();master.gain.value=.85;compressor.threshold.value=-3;compressor.knee.value=3;compressor.ratio.value=18;compressor.attack.value=.003;compressor.release.value=.12;master.connect(compressor).connect(ctx.destination);
   const speech=project.audio.speech;
   for(const cue of speech){
-    if(cue.volume<=0)continue;if(!cue.asset)throw Error(`Generate or attach audio for “${cue.name}” in Sound before playing/exporting.`);
-    const buffer=await decodeAsset(cue.asset,ctx);signal?.throwIfAborted();if(cue.offset>=buffer.duration)throw Error(`“${cue.name}” starts beyond the end of its audio. Adjust its trim.`);
+    if(cue.volume<=0)continue;if(!cue.asset)throw new SpeechAudioRequired(cue.id,`Choose a voice for “${cue.name}”: generate speech or attach an audio file.`);
+    let buffer:AudioBuffer;try{buffer=await decodeAsset(cue.asset,ctx);}catch(error){throw new SpeechAudioRequired(cue.id,(error as Error).message);}signal?.throwIfAborted();if(cue.offset>=buffer.duration)throw Error(`“${cue.name}” starts beyond the end of its audio. Adjust its trim.`);
     const source=ctx.createBufferSource(),gain=ctx.createGain(),pan=ctx.createStereoPanner();source.buffer=buffer;source.playbackRate.value=cue.speed;pan.pan.value=cue.pan;
     const end=Math.min(duration,cue.start+cue.duration),fade=Math.min(.015,(end-cue.start)/3);
     gain.gain.setValueAtTime(0,cue.start);gain.gain.linearRampToValueAtTime(cue.volume,cue.start+fade);gain.gain.setValueAtTime(cue.volume,Math.max(cue.start+fade,end-fade));gain.gain.linearRampToValueAtTime(0,end);
