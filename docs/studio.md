@@ -2,9 +2,15 @@
 
 Studio turns Ara characters into short films with dialogue, sound and music. Open **Studio** in the character builder's bottom toolbar, or go to `/studio/`. It's an early preview: films run up to 60 seconds with up to five characters.
 
+## First visit
+
+An animated **Quick tour of Studio** opens once the first set is ready. It highlights the real controls and demonstrates selecting, dragging, keyboard movement, turning, elevation and orbiting, then covers the timeline, cameras, sound, text, LLM Assist and export. Use **Back / Next** or **Left / Right** to move through the guide; **Skip tour** or **Escape** closes it. The illustrations leave your film and Undo history untouched. The guide adapts to small screens and respects reduced-motion settings.
+
+Replay it from **Quick tour of Studio** in the left panel, or press **?** with the preview focused. Dismissal is remembered in this browser. A recovered text, sound or LLM Assist dialog stays open; the first-use tour waits until you close it.
+
 ## The workspace
 
-- **Left:** the cast and their equipment.
+- **Left:** locations, the cast, their equipment and the quick tour.
 - **Centre:** the film preview, with the timeline below it.
 - **Right:** the selected action, placement and camera settings.
 - **More room for the picture:** **Expand** (or **F**) hides the side panels and the timeline rows. Drag the bar between the preview and the timeline to resize them; double-click it to reset. Both are remembered.
@@ -23,9 +29,9 @@ Changing the set keeps your cast, performances, camera shots and title. Every se
 - **Select:** click a character in the picture, or their name under **The cast**. The selected character gets a gold ring and a name tag. Click the background, press **Escape** or use **Deselect** to clear it. Equipment and placement say so if you try to use them with nobody selected.
 - **Move:**
   - Drag a character across the floor, or choose **Click to place** (or Shift-click the ground).
-  - **Arrow keys** move the selected character 0.1 m, relative to your view. Hold **Shift** or **Ctrl/Cmd** with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m.
+  - **Arrow keys** move the selected character 0.1 m, relative to your view. With the preview focused, hold **Ctrl** (or **Command ⌘** on Mac) with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m. **Shift** is also supported as an alternative. Selecting a character focuses the preview. Releasing the modifier completes the move even if the browser misses the arrow-key release.
   - The placement fields set the exact position, facing and height.
-- **Arrange the group:** **Side by side**, **Conversation** (a semicircle) or **Facing each other**.
+- **Arrange the group:** **Stage the cast** on the right applies **Side by side**, **Conversation** or **Facing each other** when there are exactly **two characters**; no individual selection is needed. It is hidden for casts of three to five, which you place individually, and disabled until a second character is added. The dropdown shows a matching arrangement until you change the placement manually, and Undo or reload restores that display from the actual positions. Seated characters continue to fit the set’s seats.
 - **Equipment:** under **Equipment**, give the selected character a weapon (rifle, pistol, sword or knife) or a bag (straw tote, handbag, briefcase or backpack).
 - **Edit in the builder:** **Character builder** opens the selected character for editing. The builder's **Studio** button brings you back with only that character changed. Save your project first if your browser blocks session storage.
 

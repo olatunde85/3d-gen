@@ -33,6 +33,7 @@
         <h2 id="equipment-title">Equipment</h2>
         <div class="form-row"><div><label for="actor-weapon">Weapon</label><select id="actor-weapon"></select></div><div><label for="actor-carry">Bag</label><select id="actor-carry"></select></div></div>
       </section>
+      <div class="studio-help"><button id="open-tour" class="tour-launch" title="Take the Studio tour (?)"><span aria-hidden="true">▶</span><span>Quick tour of Studio</span><kbd aria-hidden="true">?</kbd></button></div>
       <a class="help-link" href="../docs/studio/">A short guide to Studio <span>↗</span></a>
     </aside>
     <main class="director">
@@ -79,10 +80,15 @@
         <div class="beat-tools"><button id="earlier" title="Move this action earlier">← Earlier</button><button id="later" title="Move this action later">Later →</button><button id="remove-beat" class="remove-button">Remove</button></div>
       </section>
       <section class="inspector-section" id="blocking-settings">
-        <h2 id="blocking-title">Character placement</h2>
-        <div class="form-row coordinate-row"><div><label title="X position in metres" for="actor-x">X</label><input id="actor-x" type="number" min="-12" max="12" step="0.1" /></div><div><label title="Z position in metres" for="actor-z">Z</label><input id="actor-z" type="number" min="-12" max="12" step="0.1" /></div></div>
-        <div class="form-row coordinate-row"><div><label title="Facing in degrees" for="actor-yaw">Turn°</label><input id="actor-yaw" type="number" min="-180" max="180" step="5" /></div><div><label title="Elevation in metres" for="actor-y">Height</label><input id="actor-y" type="number" min="0" max="3" step="0.05" /></div></div>
-        <label class="sr-only" for="blocking">Stage the cast</label><select id="blocking"><option value="">Stage the cast…</option><option value="side">Side by side</option><option value="conversation">Conversation</option><option value="opposed">Facing each other</option></select>
+        <div id="actor-placement-settings">
+          <h2 id="blocking-title">Character placement</h2>
+          <div class="form-row coordinate-row"><div><label title="X position in metres" for="actor-x">X</label><input id="actor-x" type="number" min="-12" max="12" step="0.1" /></div><div><label title="Z position in metres" for="actor-z">Z</label><input id="actor-z" type="number" min="-12" max="12" step="0.1" /></div></div>
+          <div class="form-row coordinate-row"><div><label title="Facing in degrees" for="actor-yaw">Turn°</label><input id="actor-yaw" type="number" min="-180" max="180" step="5" /></div><div><label title="Elevation in metres" for="actor-y">Height</label><input id="actor-y" type="number" min="0" max="3" step="0.05" /></div></div>
+        </div>
+        <div id="cast-staging">
+          <label class="sr-only" for="blocking">Stage the cast</label><select id="blocking" aria-describedby="blocking-hint"><option value="">Stage the cast…</option><option value="side">Side by side</option><option value="conversation">Conversation</option><option value="opposed">Facing each other</option></select>
+          <p id="blocking-hint" class="setting-hint"></p>
+        </div>
       </section>
       <section class="inspector-section">
         <h2>Camera</h2>

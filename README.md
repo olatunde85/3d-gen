@@ -15,6 +15,9 @@ Shape a body, dress it, give it hair, a beard, tattoos and a weapon, pick from 7
 <p align="center"><a href="https://ara3dgen.com/media/ARA_3D_GEN_Cinematic_Cut_v9_4K.mp4"><img src="docs/media/cinematic-poster.jpg" alt="Watch the Ara 3D Gen cinematic (0:30)" width="720"></a><br><sub>▶ <a href="https://ara3dgen.com/media/ARA_3D_GEN_Cinematic_Cut_v9_4K.mp4">Watch the cinematic (0:30)</a></sub></p>
 
 
+<p align="center"><a href="https://ara3dgen.com/studio/"><img src="docs/media/studio-warehouse.gif" alt="Agents of Mild Competence: The Warehouse — five Ara characters perform a short film with camera cuts and comic dialogue" width="640"></a><br><sub><strong>Made in Ara Studio:</strong> Agents of Mild Competence: The Warehouse · full 30-second preview, without audio · <a href="https://ara3dgen.com/studio/">Try Studio</a></sub></p>
+
+
 ## Why self-hosted?
 
 Online character generators are convenient, but you rent them. Ara 3D Gen is yours:

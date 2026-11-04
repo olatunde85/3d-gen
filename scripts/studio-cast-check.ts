@@ -16,15 +16,16 @@ export async function checkFiveCast(h:Harness){
   await e('document.querySelectorAll(".cast-member")[4].click()');await change('action','laugh');if(!await e('studio.project.actors[4].beats[0].clip==="laugh"&&studio.project.actors.slice(0,4).every(a=>a.beats[0].clip==="idle")'))throw Error('Five tracks coupled');
   await change('timeline-selection','camera:0');if(!await e('document.getElementById("shot-target").options.length===6'))throw Error('Missing camera subjects');await change('shot-target','actor-e');await change('shot','close');await pause();await shot('fifth-character-close');await change('shot-target','all');await change('shot','wide');
  });
- await step('Five actors fit landscape, portrait and every group arrangement',async()=>{
+ await step('Five actors fit landscape and portrait with individually authored placements',async()=>{
   await e('document.querySelectorAll(".cast-member")[0].click()');
-  for(const arrangement of ['side','conversation','opposed']){
-   await change('blocking',arrangement);for(const aspect of ['landscape','portrait']){
+  for(const arrangement of ['line','arc']){
+   if(!await e('document.getElementById("cast-staging").hidden&&document.getElementById("blocking").disabled'))throw Error('Two-character arrangement control visible for five actors');
+   await e(`(async()=>{const p=structuredClone(studio.project);p.actors.forEach((a,i)=>{a.x=(i-2)*1.9;a.z=${arrangement==='arc'?'Math.abs(i-2)*.5':'0'};a.yaw=0;});await studio.setProject(p);})()`);for(const aspect of ['landscape','portrait']){
     await click(aspect);await e('studio.seek(1)');await pause();
     const clipped=await e<string[]>(`(()=>{const s=studio.scene;s.render(studio.project,1);const bad=[];for(const [id,a]of s.actors)for(const y of [0,a.height]){const p=a.group.position.clone();p.y+=y;p.project(s.camera);if(Math.abs(p.x)>.98||Math.abs(p.y)>.98||p.z< -1||p.z>1)bad.push(id+':'+y);}return bad;})()`);if(clipped.length)throw Error('Clipped '+arrangement+' '+aspect+': '+clipped.join(','));await shot('five-'+arrangement+'-'+aspect);
    }
   }
-  await click('landscape');await change('blocking','conversation');
+  await click('landscape');
   await send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await pause();if(!await e('document.getElementById("actor-carry").getBoundingClientRect().bottom<=innerHeight&&document.querySelector(".stage").clientHeight>=150&&document.querySelector(".timeline-scroll").scrollHeight>document.querySelector(".timeline-scroll").clientHeight&&document.querySelector(".timeline").getBoundingClientRect().bottom<=innerHeight'))throw Error('Five-track compact layout');await shot('five-compact-editor');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await pause();if(!await e('document.documentElement.scrollWidth<=innerWidth&&document.querySelectorAll(".cast-member").length===5'))throw Error('Five-cast mobile overflow');await shot('five-mobile-editor');await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});
  });
