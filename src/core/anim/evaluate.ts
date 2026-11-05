@@ -10,6 +10,7 @@ import { boneFrame, quatOf, type Rig } from '../rig/rig';
 import { clipById, type Ch, type Clip, type HandTarget, type Sample } from './clips';
 import { fist } from './clips/helpers';
 import { PARCEL_REST } from '../props/carry';
+import { carriesParcel, parcelHold } from './clips/interaction';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
 
 export interface Frame {
@@ -136,6 +137,7 @@ export class Animator {
   private scale: number;
   /** WeaponR socket bone (-1 if the rig has none) and cached weapon fits. */
   private socket: number;
+  private parcel:number;
   private fits = new Map<string, { rot: Q; supportZ: number }>();
 
   /** `face`: the character's blend-shape names and resting (expression) weights, if it has face shapes. */
@@ -244,6 +246,7 @@ export class Animator {
     this.recoveryFeet=[...new Set([...this.feet,...B.flatMap((b,i)=>/^(Left|Right)Toe_End$/.test(b.name)?[i]:[])])];
     this.recoveryFloor=Math.min(...this.recoveryFeet.map(i=>B[i].head[1]));
     this.socket = B.findIndex((b) => b.name === 'WeaponR');
+    this.parcel=B.findIndex(b=>b.name==='Parcel');
   }
 
   /**
@@ -292,19 +295,21 @@ export class Animator {
    * `faceTime`: blink and glance on this continuous clock (seconds) instead of at fixed times inside
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
-  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number } = {}): Frame {
-    const s = this.holding(this.withEyes(clip.sample(time), clip, time, opts.faceTime));
+  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean } = {}): Frame {
+    const sample=clip.sample(time);
+    const carried=this.parcel>=0&&!opts.parcelGrounded&&carriesParcel(clip)?parcelHold(sample):sample;
+    const s = this.holding(this.withEyes(carried, clip, time, opts.faceTime));
     const frame = this.frameOf(s, clip, time, opts);
-    this.placeParcel(frame,clip,time,opts.rootMotion);
+    this.placeParcel(frame,clip,time,opts.rootMotion,opts.parcelGrounded);
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
   }
 
   /** A rigid, level box: on the floor before pickup, then between the two solved wrists. */
-  private placeParcel(frame:Frame,clip:Clip,time:number,rootMotion=false){
-    const index=this.rig.bones.findIndex(b=>b.name==='Parcel');if(index<0)return;
+  placeParcel(frame:Frame,clip:Clip,time:number,rootMotion=false,grounded=false){
+    const index=this.parcel;if(index<0)return;
     const scale=this.scale,rest=PARCEL_REST.map((v,d)=>v*scale+(rootMotion&&clip.travel?clip.travel[d]*time*scale:0))as Vec3;
-    if(!['pick_up','put_down','carry_idle','carry_walk'].includes(clip.id)){frame.rot[index]=QI;frame.rootPos.set(index,rest);return;}
+    if(grounded||!(['pick_up','put_down'].includes(clip.id)||carriesParcel(clip))){frame.rot[index]=QI;frame.rootPos.set(index,rest);return;}
     const pos=this.positions(frame),left=this.idx.get('LeftHand'),right=this.idx.get('RightHand');if(left===undefined||right===undefined)return;
     const L=pos[left],R=pos[right],x=norm([L[0]-R[0],0,L[2]-R[2]]),z:Vec3=[-x[2],0,x[0]];
     const centre=L.map((v,d)=>(v+R[d])/2+z[d]*.06*scale-(d===1?.02*scale:0))as Vec3;

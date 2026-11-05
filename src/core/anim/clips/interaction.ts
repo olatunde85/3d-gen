@@ -24,6 +24,22 @@ function boxGrip(out: Record<string, Ch>, amount = 1) {
   grip(out, 'Right', false, 0.45 * amount);
 }
 
+/** Equipped parcels use the same two-hand hold over ordinary movement and standing poses. */
+export function carriesParcel(clip:Clip):boolean{
+  return clip.category==='Locomotion'||clip.category==='Turns'||['idle','talk','laugh','carry_idle','carry_walk'].includes(clip.id);
+}
+export function parcelHold(s:Sample):Sample{
+  const bones={...s.bones};
+  for(const side of ['Left','Right'])for(const part of ['Shoulder','Arm','ForeArm','Hand'])delete bones[side+part];
+  boxGrip(bones);
+  const rot=s.mocap&&{...s.mocap.rot};
+  if(rot)for(const side of ['Left','Right'])for(const part of ['Shoulder','Arm','ForeArm','Hand'])delete rot[side+part];
+  return {...s,bones,ik:carryHands(),thumbs:{Left:.25,Right:.25},
+    ...(s.mocap&&rot?{mocap:{...s.mocap,rot}}:{}),
+    ...(s.blend?{blend:{...s.blend,sample:parcelHold(s.blend.sample)}}:{}),
+  };
+}
+
 export const carryIdle: Clip = {
   id: 'carry_idle', name: 'Carry idle', category: 'Interaction', duration: 3.6, loop: true,
   sample: (t) => {

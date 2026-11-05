@@ -5,6 +5,7 @@ import { buildHuman } from '../src/core/human';
 import { DEFAULT_PARAMS } from '../src/core/params';
 import { Animator } from '../src/core/anim/evaluate';
 import { CLIPS, clipById } from '../src/core/anim/clips';
+import { carriesParcel } from '../src/core/anim/clips/interaction';
 import { boneFor } from '../src/core/rig/poses';
 import { qaxis,qmul,qrot, type Q } from '../src/core/anim/quat';
 const lib=await nodeLibrary();
@@ -26,7 +27,7 @@ for(const rig of ['game','game_lite','full']as const)for(const restPose of ['A',
   }
   if(c.loop){const a=pos(id,0),b=pos(id,c.duration);assert.ok(Math.max(...a.map((v,j)=>distance(v,b[j])))/scale<.005,label+' '+id+' seam');}checks++;
  }
- for(const id of ['jump','jump_running','punch_low']){const p=pos(id,clipById.get(id)!.duration),idle=pos('idle',0);assert.ok(Math.max(...p.map((v,j)=>distance(v,idle[j])))/scale<.001,label+' '+id+' upright endpoint');}
+ for(const id of ['jump','jump_running','punch_low']){const clip=clipById.get(id)!,p=pos(id,clip.duration),idle=A.positions(A.frame(clipById.get('idle')!,0,{parcelGrounded:!carriesParcel(clip)}));assert.ok(Math.max(...p.map((v,j)=>distance(v,idle[j])))/scale<.001,label+' '+id+' upright endpoint');}
  for(let i=0;i<=20;i++){
   const walk=clipById.get('walk')!,back=pos('walk_back',walk.duration*i/20),forward=pos('walk',walk.duration*(1-i/20));
   assert.ok(Math.max(...back.map((v,j)=>distance(v,forward[j])))/scale<.001,label+' exact reverse walk');

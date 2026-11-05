@@ -7,12 +7,12 @@ import { encodeCharacter } from '../src/app/share';
 import { CLIPS } from '../src/core/anim/clips';
 interface Harness{enabled:boolean;step(name:string,fn:()=>Promise<void>):Promise<void>;evaluate<T=unknown>(js:string):Promise<T>;ready():Promise<void>}
 export async function reviewAnimations(h:Harness){
- if(!h.enabled)return;const {step,evaluate:e,ready}=h,folder='out/animation-improvements';mkdirSync(folder,{recursive:true});
+ if(!h.enabled)return;const {step,evaluate:e,ready}=h,parcelReview=!!process.env.ANIMATION_REVIEW_PARCEL,folder=parcelReview?'out/parcel-movement':'out/animation-improvements';mkdirSync(folder,{recursive:true});
  await ready();
  const offered=await e<string[]>('Array.from(document.getElementById("action").options,o=>o.value)');
  assert.ok(CLIPS.every(c=>offered.includes(c.id)),'Studio does not offer every registered animation');
  assert.ok(await e('!!document.querySelector("#actor-carry option[value=parcel]")'),'Studio parcel selector missing');
- const clips=['walk_back','strafe_left','strafe_right','jump','jump_running','punch_low','laugh','wave','turn_left_45','turn_right_45','turn_left_90','turn_right_90','turn_360','pistol_aim_one_hand','pistol_walk','pistol_run','pistol_sprint','pistol_strafe_left','pistol_strafe_right','rifle_walk','rifle_run','rifle_sprint','rifle_strafe_left','rifle_strafe_right','pick_up','carry_idle','carry_walk','put_down'];
+ const clips=['walk','run','walk_back','strafe_left','strafe_right','jump','jump_running','punch_low','laugh','wave','turn_left_45','turn_right_45','turn_left_90','turn_right_90','turn_360','pistol_aim_one_hand','pistol_walk','pistol_run','pistol_sprint','pistol_strafe_left','pistol_strafe_right','rifle_walk','rifle_run','rifle_sprint','rifle_strafe_left','rifle_strafe_right','pick_up','carry_idle','carry_walk','put_down'];
  for(const [label,body]of [['game',{}],['full-t',{rig:'full',restPose:'T',gender:0,height:.3,weight:.38}],['broad',{weight:.85,muscle:.9,height:.85}]]as const){
   await step('Animation review '+label,async()=>{
    await ready();
@@ -23,7 +23,7 @@ export async function reviewAnimations(h:Harness){
     const clip=CLIPS.find(c=>c.id===id)!;
     // Rebuild only when the equipped weapon changes; ordinary clip review reuses the character.
     const weapon=id.startsWith('rifle')?'rifle':id.startsWith('pistol')?'pistol':'none';
-    const carry=['pick_up','put_down','carry_idle','carry_walk'].includes(id)?'parcel':'none';
+    const carry=parcelReview||['pick_up','put_down','carry_idle','carry_walk'].includes(id)?'parcel':'none';
     const equipment=weapon+carry;
     if(equipment!==equipped){
      const recipe=encodeCharacter({...DEFAULT_PARAMS,...body,rig:body.rig??'game',restPose:body.restPose??'A',detail:'medium',hair:'none',outfit:'none',underwear:true,carry,weapon});
@@ -39,6 +39,18 @@ export async function reviewAnimations(h:Harness){
      frames.forEach((url,i)=>writeFileSync(`${dir}/${String(i).padStart(3,'0')}.png`,Buffer.from(url.split(',')[1],'base64')));
     }
     console.log('Rendered',label,id);
+   }
+   if(parcelReview){
+    await e(`(async()=>{const p=structuredClone(studio.project);p.actors[0].beats=[['walk',2,true],['put_down',3.4,false],['idle',1,false],['walk',2,true],['walk_back',2,true],['pick_up',3.4,false],['run',2,true]].map(([clip,duration,move],i)=>({id:'sequence-'+i,clip,duration,move}));await studio.setProject(p);})()`);await ready();
+    const sample=(t:number)=>e<{box:number[];hand:number[];actor:number[]}>(`(()=>{const s=studio.scene;s.render(studio.project,${t});const a=s.actor,v=a.group.position.clone(),bone=name=>a.mesh.skeleton.bones.find(b=>b.name===name).getWorldPosition(v.clone()).toArray(),L=bone(${JSON.stringify(body.rig==='full'?'wrist.L':'LeftHand')}),R=bone(${JSON.stringify(body.rig==='full'?'wrist.R':'RightHand')});return {box:bone('Parcel'),hand:L.map((x,i)=>(x+R[i])/2),actor:a.group.position.toArray()};})()`);
+    const held=await sample(1),dropped=await sample(6),away=await sample(8),back=await sample(10.5),carried=await sample(14.5);
+    const distance=(a:number[],b:number[])=>Math.hypot(...a.map((v,i)=>v-b[i]));
+    assert.ok(distance(held.box,held.hand)<.12,label+' walk does not hold parcel');
+    assert.ok(distance(carried.box,carried.hand)<.12,label+' run does not hold parcel after pickup');
+    assert.ok(distance(dropped.box,away.box)<.001&&distance(dropped.actor,away.actor)>.3,label+' dropped parcel follows actor');
+    assert.ok(distance(away.box,back.box)<.001,label+' parcel moved before re-pickup contact');
+    await sample(1);assert.ok(distance((await sample(8)).box,away.box)<.001,label+' parcel changes when seeking');
+    console.log('OK parcel timeline',label,'walk, drop, walk away, return, pickup, run and out-of-order seeking');
    }
   });
  }
