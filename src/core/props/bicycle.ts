@@ -61,7 +61,7 @@ export class Bicycle {
     const thighs: [V, V][] = [];
     let lowHips = Infinity;
     for (let k = 0; k < n; k++) {
-      const j = joints(rig, animator.positions(animator.frame(clip, (k / n) * clip.duration)));
+      const j = joints(rig, animator.positions(animator.frame(clip, (k / n) * clip.duration,{weaponPose:'hidden'})));
       if (!j.hips || !j.hl || !j.hr || !j.bl || !j.br) throw new Error('rig without hands or feet');
       hips.add(j.hips);
       lowHips = Math.min(lowHips, j.hips.y);

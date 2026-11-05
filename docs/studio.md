@@ -190,3 +190,19 @@ Character assets and motion capture keep their usual terms. Hosting, the speech 
 Choose **Board…**, the matching riding/driving action, then **Alight from…** from the animation search. There are 26 entry/exit actions across all ten vehicles, including driver/passenger roles for all three cars. Use the full clip duration for entry/exit and keep **Move through set** off; those actions contain their own footwork. Riding can travel at an adjustable speed between them. Car doors and the motorboat’s boarding gate open and close with the action.
 
 The vehicle stays parked after alighting while the actor walks away, and is visible beside an actor waiting in a leading idle beat. Scrubbing, saved JSON, Undo and reloading derive the same parked position from the timeline. One actor retains one active vehicle; return to the parked position before boarding again. LLM Assist includes the complete pairing table, timing and staging instructions. Boarding the motorboat goes to the helm; passengers in the aft seats still need manual staging.
+
+### Armed riding
+
+Choose a weapon in Equipment, then a riding/driving action. In that action’s inspector, **Weapon action** chooses Wield, Aim / present, Fire (pistol/rifle) or Hide weapon; Match animation automatically wields while riding and hides during boarding/alighting. **Aim (°)** sets heading relative to the character: 0 forward, positive left, negative right. The vehicle and riding mechanics stay attached. Canoe/kayak/rowing strokes pause while armed; hidden resumes normal paddling.
+
+The same actor can board with free hands, ride armed, then exit without changing its character recipe. For example, equip `weapon:pistol` once and use these sequential beats:
+
+```json
+[
+  {"clip":"board_motorcycle","duration":3.4,"move":false},
+  {"clip":"ride_motorcycle","duration":3,"move":true,"weaponPose":"fire","weaponYaw":-60},
+  {"clip":"alight_motorcycle","duration":3.4,"move":false}
+]
+```
+
+LLM Assist includes the fields, defaults and restrictions. Pose/direction survive Save/Open, reload and Undo. Fire is a recoil performance; time gunshot effects yourself. There are no automatic projectiles, targets, muzzle flashes or damage. Weapon model selection remains actor-wide; the beat controls its use and visibility.

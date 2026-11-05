@@ -17,7 +17,7 @@ function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number):Fitted {
  const B=A.rig.bones,s=boardingScale(A.rig);
  const index=(n:string)=>B.findIndex(b=>b.name===boneFor(A.rig.type,n));
  const left=index('LeftFoot'),right=index('RightFoot'),handL=index('LeftHand'),handR=index('RightHand');
- const idleActual=A.frame(idleClip,0),endpoint=A.frame(rideClip,0,{vehicleLift:lift}),hipY=(P:Vec3[])=>(P[index('LeftUpLeg')][1]+P[index('RightUpLeg')][1])/2;
+ const idleActual=A.frame(idleClip,0,{weaponPose:'hidden'}),endpoint=A.frame(rideClip,0,{vehicleLift:lift,weaponPose:'hidden'}),hipY=(P:Vec3[])=>(P[index('LeftUpLeg')][1]+P[index('RightUpLeg')][1])/2;
  const idleY=hipY(A.positions(idleActual)),rideY=hipY(A.positions(endpoint)),bindY=(B[index('LeftUpLeg')].head[1]+B[index('RightUpLeg')].head[1])/2;
  const rideReference=rideClip.sample(0).root.ground?Math.min(B[left].head[1],B[right].head[1])-Math.min(...[left,right].map(i=>A.positions(endpoint)[i][1]-rideY))+lift:bindY+(rideClip.sample(0).root.y??0)*s+lift;
  const shift=(f:Frame,dy:number):Frame=>({...f,rot:[...f.rot],rootPos:new Map([...f.rootPos].map(([i,p])=>[i,[p[0],p[1]+dy,p[2]]as Vec3]))});

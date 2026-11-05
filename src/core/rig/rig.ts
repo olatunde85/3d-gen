@@ -26,6 +26,8 @@ export interface Rig {
   bones: RigBone[];
   /** Hands holding something by a handle (a carried bag): their fingers stay closed in every clip. */
   holds?: ('Left' | 'Right')[];
+  /** Equipped model, used by mounted weapon poses; the weapon stays on WeaponR. */
+  weapon?: import('../props/weapons').WeaponId;
 }
 
 export interface RigOptions {

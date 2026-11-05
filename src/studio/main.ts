@@ -23,9 +23,11 @@ import { seatCast } from './seating';
 import { addCastActor, arrangeCast, castArrangement, ARRANGEMENTS, ARRANGEMENT_LABELS, type Arrangement } from './staging';
 import { MUSIC_TRACKS } from './audio/tracks';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
-import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
+import { reconcileWeaponActions,equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 
-import {VEHICLE_FOR_CLIP,VEHICLE_LABELS,type VehicleStyle} from '../core/props/vehicles';
+import {VEHICLE_FOR_CLIP,RIDING_VEHICLES,VEHICLE_LABELS,type VehicleStyle} from '../core/props/vehicles';
+import {defaultWeaponYaw,type WeaponPose} from '../core/anim/riding-weapons';
+import {isFirearm} from '../core/props/weapons';
 
 import {studioTravel,VEHICLE_SPEED} from './motion';
 import {readCharacterSettings} from '../app/character-file';
@@ -116,7 +118,7 @@ function lock() {
     select('blocking').disabled = project.actors.length !== 2;
   }
   input('title').disabled=loading||exporting||importing||!!placementBefore;
-  if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','show-vehicle','vehicle-travel-speed','vehicle-color','vehicle-accentColor','vehicle-seatColor','vehicle-finish','vehicle-variant','actor-x','actor-y','actor-z','actor-yaw','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
+  if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','show-vehicle','beat-weapon-pose','beat-weapon-yaw','vehicle-travel-speed','vehicle-color','vehicle-accentColor','vehicle-seatColor','vehicle-finish','vehicle-variant','actor-x','actor-y','actor-z','actor-yaw','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
   $('deselect-actor').hidden=!characterSelected;
   for(const guard of document.querySelectorAll<HTMLElement>('.select-first'))guard.hidden=characterSelected||loading||exporting||importing;
   for(const hint of document.querySelectorAll<HTMLElement>('.select-first-hint')){hint.hidden=characterSelected;if(characterSelected)hint.classList.remove('urgent');}
@@ -166,7 +168,7 @@ function renderTracks() {
       const el=document.createElement('button');el.className=`beat${(cameraSelection===camera&&(!id||id===selectedActor)&&i===selected)?' selected':''}`;el.dataset.index=String(i);if(id)el.dataset.actor=id;
       el.style.width=`${item.duration/total*100}%`;el.style.flex='0 0 auto';
       const title=document.createElement('strong'),note=document.createElement('small');title.textContent=camera?`${i+1}. ${item.shot==='wide'?'Full body':item.shot==='close'?'Close-up':'Medium'}`:clipById.get(item.clip)!.name;
-      note.textContent=`${Number(item.duration.toFixed(2))}s${camera?' · '+(item.target==='all'?'Cast':`Character ${project.actors.findIndex(a=>a.id===item.target)+1}`):item.move?' · travel':''}`;
+      note.textContent=`${Number(item.duration.toFixed(2))}s${camera?' · '+(item.target==='all'?'Cast':`Character ${project.actors.findIndex(a=>a.id===item.target)+1}`):item.move?' · travel':''}${!camera&&item.weaponPose?' · '+({hold:'wield',aim:'aim',fire:'fire',hidden:'weapon hidden'}[item.weaponPose]):''}`;
       el.append(title,note);el.setAttribute('aria-label',`${label}: ${title.textContent}, ${note.textContent}`);el.setAttribute('aria-pressed',String(el.classList.contains('selected')));
       el.addEventListener('click',()=>{cameraSelection=camera;if(id)selectedActor=id;characterSelected=!!id;selected=i;time=items.slice(0,i).reduce((sum,b)=>sum+b.duration,0);setPlaying(false);renderUI();});blocks.append(el);
     });
@@ -224,7 +226,7 @@ function renderUI() {
   renderTracks();$('beat-title').textContent=cameraSelection?`Camera shot ${selected+1}`:`Character ${ai+1} · action ${selected+1}`;$('shot-count').textContent=`${selected+1} of ${items.length}`;
   $('action-settings').hidden=cameraSelection;$('shot-settings').hidden=!cameraSelection;
   if(cameraSelection){const s=project.shots[selected];select('shot').value=s.shot;input('shot-duration').value=String(s.duration);select('shot-target').replaceChildren(new Option('Entire cast','all'));for(const [i,actor]of project.actors.entries())select('shot-target').append(new Option(`Character ${i+1} · ${actorName(actor)}`,actor.id));select('shot-target').value=s.target;}
-  else{const b=a.beats[selected];renderAnimations();input('beat-duration').value=String(b.duration);input('movement').checked=b.move;const ride=VEHICLE_FOR_CLIP[b.clip];$('vehicle-action-settings').hidden=!ride;input('show-vehicle').checked=b.showVehicle??a.vehicle!=='none';$('vehicle-speed-row').hidden=!ride||!b.move;input('vehicle-travel-speed').value=String(b.travelSpeed??(ride?VEHICLE_SPEED[ride]:1));}
+  else{const b=a.beats[selected];const mounted=!!RIDING_VEHICLES[b.clip];$('weapon-action-settings').hidden=params.weapon==='none';select('beat-weapon-pose').value=b.weaponPose??'auto';for(const option of select('beat-weapon-pose').options)option.disabled=option.value!=='auto'&&option.value!=='hidden'&&(!mounted||option.value==='fire'&&!isFirearm(params.weapon));$('weapon-yaw-row').hidden=!mounted||b.weaponPose==='hidden';input('beat-weapon-yaw').value=String(b.weaponYaw??defaultWeaponYaw(b.clip));renderAnimations();input('beat-duration').value=String(b.duration);input('movement').checked=b.move;const ride=VEHICLE_FOR_CLIP[b.clip];$('vehicle-action-settings').hidden=!ride;input('show-vehicle').checked=b.showVehicle??a.vehicle!=='none';$('vehicle-speed-row').hidden=!ride||!b.move;input('vehicle-travel-speed').value=String(b.travelSpeed??(ride?VEHICLE_SPEED[ride]:1));}
   $('blocking-title').textContent=characterSelected?`Character ${ai+1} placement`:'Character placement';for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).value=String(a[key]);select('blocking').value=castArrangement(project.actors);
   $('cast-staging').hidden=project.actors.length>2;
   $('blocking-hint').textContent=project.actors.length<2?'Add another character to arrange the cast.':`Moves and turns all ${project.actors.length} characters.`;
@@ -269,7 +271,9 @@ async function apply(next: StudioProject, keepHistory=true) {
   if(applied)seatCharacters(true);
   const {width,height}=dimensions();scene.resize(width,height);renderUI();save();return applied;
 }
-function edit(fn:(p:StudioProject)=>void){const next=structuredClone(project);fn(next);return apply(next);}
+function edit(fn:(p:StudioProject)=>void){const next=structuredClone(project);fn(next);
+  for(const actor of next.actors)if(project.actors.find(a=>a.id===actor.id)?.character!==actor.character)reconcileWeaponActions(actor);
+  return apply(next);}
 function undo(){if(loading||exporting||importing||placementBefore||!history.length)return;void apply(parseProject(history.pop()!),false);}
 input('scene-search').placeholder=`Search ${SETS.length} scenes…`;input('animation-search').placeholder='Search…';
 for(const c of SCENE_CATEGORIES)select('scene-category').append(new Option(c,c));
@@ -301,9 +305,11 @@ select('blocking').addEventListener('change',async()=>{
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});
-select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition)b.duration=clipById.get(b.clip)!.duration;b.move=false;delete b.travelSpeed;delete b.showVehicle;const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
+select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition)b.duration=clipById.get(b.clip)!.duration;b.move=false;delete b.travelSpeed;delete b.showVehicle;delete b.weaponPose;delete b.weaponYaw;const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
 input('beat-duration').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].duration=Number(input('beat-duration').value)));
 button('clip-length').addEventListener('click',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.duration=Math.min(12,clipById.get(b.clip)!.duration);}));
+select('beat-weapon-pose').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected],value=select('beat-weapon-pose').value;if(value==='auto')delete b.weaponPose;else b.weaponPose=value as WeaponPose;}));
+input('beat-weapon-yaw').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].weaponYaw=Number(input('beat-weapon-yaw').value);}));
 input('show-vehicle').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].showVehicle=input('show-vehicle').checked;}));
 input('vehicle-travel-speed').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].travelSpeed=Number(input('vehicle-travel-speed').value);}));
 input('movement').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].move=input('movement').checked));
@@ -558,7 +564,7 @@ async function start() {
         project=parseProject(JSON.stringify(pending.project));
         if(recovered){restoreEditor(recovered.editor,recovered.history);resume=recovered.editor;}
         const a=project.actors.find(a=>a.id===pending.actorId);if(!a)throw Error('The selected character is missing.');
-        remember();a.character=code;a.detail=detail;selectedActor=a.id;characterSelected=true;cameraSelection=false;
+        remember();a.character=code;a.detail=detail;reconcileWeaponActions(a);selectedActor=a.id;characterSelected=true;cameraSelection=false;
         project=parseProject(JSON.stringify(project));returned=true;
       }else if(!recovered&&(performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming|undefined)?.type==='reload'&&(localStorage.getItem(STORAGE)||localStorage.getItem('ara.studio.project.v1'))){
         // Recover edits made by older versions that left the original character recipe in the URL.

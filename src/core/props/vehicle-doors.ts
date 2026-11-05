@@ -26,6 +26,7 @@ export function articulateDoors(k:VehicleKit){
  const hip=k.fit.average('hip').y,roof=Math.max(hip+.88*s,...k.fit.samples.map(c=>c.headTop.y+.12*s));
  for(const side of [-1,1]){
   const hinge=v(cx+side*width*.465,(classic?.30:suv?.46:.19)*s,z+front),door=k.component(`Door_${side>0?'left':'right'}`,hinge);
+  const window=k.component(`Window_${side>0?'left':'right'}`,v(),door);
   door.userData.doorSide=side;door.userData.occupantDoor=side===(driver?1:-1);
   const planes:Plane[]=[{axis:'x',value:cx+side*width*.36,sign:side},{axis:'z',value:z+rear,sign:1},{axis:'z',value:z+front,sign:-1},{axis:'y',value:(classic?.29:suv?.45:.17)*s,sign:1},{axis:'y',value:classic?1.0*s:roof-.075*s,sign:-1}];
   k.group.updateMatrixWorld(true);const meshes:T.Mesh[]=[];
@@ -41,7 +42,7 @@ export function articulateDoors(k:VehicleKit){
    }
    geo.dispose();if(!inside.length)continue;
    const bodyGeo=geometry(outside),doorGeo=geometry(inside);doorGeo.translate(-hinge.x,-hinge.y,-hinge.z);
-   k.mesh(doorGeo,mesh.material as T.Material,door);mesh.geometry.dispose();mesh.geometry=bodyGeo;mesh.position.set(0,0,0);mesh.quaternion.identity();mesh.scale.set(1,1,1);
+   k.mesh(doorGeo,mesh.material as T.Material,mesh.material===k.glass?window:door);mesh.geometry.dispose();mesh.geometry=bodyGeo;mesh.position.set(0,0,0);mesh.quaternion.identity();mesh.scale.set(1,1,1);
   }
  }
 }

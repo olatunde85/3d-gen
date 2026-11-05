@@ -17,7 +17,7 @@ export class RiderFit{
   this.samples=Array.from({length:24},(_,i)=>this.at(i*clip.duration/24));
  }
  at(time:number):Contacts{
-  return this.fromFrame(this.animator.frame(this.clip,time,{vehicleLift:this.lift}));
+  return this.fromFrame(this.animator.frame(this.clip,time,{vehicleLift:this.lift,weaponPose:'hidden'}));
  }
  fromFrame(f:Frame):Contacts{
   const positions=this.animator.positions(f),B=this.rig.bones;
