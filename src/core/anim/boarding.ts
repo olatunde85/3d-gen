@@ -48,7 +48,7 @@ function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number):Fitted {
   // Left stirrup, rise over the saddle, swing the right leg behind the cantle, settle.
   add(.18,.78,0,-.12,0,12,standFeet[0],[.64,.13,-.27],.65);
   add(.35,.61,.08,-.10,.25,20,finalL,[.80,.04,-.15],1);
-  add(.53,.19,dy+.17,-.05,.65,14,finalL,[.14,1.68,-.56],1);
+  add(.53,.19,dy+.17,-.05,.65,14,finalL,[.14,1.46,-.66],1);
   add(.70,0,dy+.09,0,.9,7,finalL,[-.55,1.00,-.30],1);
   add(.86,0,dy,0,1,0,finalL,finalR,1);
  }else if(rideId==='ride_bicycle'||rideId==='ride_motorcycle'){
@@ -111,6 +111,13 @@ export function boardingFrame(A:Animator,clip:Clip,time:number,idle:Clip,ride:Cl
   const world:Q[]=[];A.rig.bones.forEach((bone,j)=>world[j]=bone.parent<0?frame.rot[j]:qmul(world[bone.parent],frame.rot[j]));
   const orientation=qslerp(f.idleWorld[i],world[i],smooth((target[1]/f.scale-.12)/.18));
   A.pinLimb(frame,side,'leg',target,swing?[-.8,-1,.2]:[side==='Left'?.3:-.3,.12,1],orientation);
+  if(swing){
+   // A raised foot follows its shin. Holding the shoe upright in world space while the
+   // calf swings over the saddle folds/twists the ankle and collapses its skinned vertices.
+   // Retain floor contact as the foot lands, then release the ankle during the leg swing.
+   const airborne=smooth((target[1]/f.scale-.16)/.16);
+   frame.rot[i]=qslerp(frame.rot[i],unconstrained[i],airborne);
+  }
  }
  const support=mix(a.hand,b.hand,w),arrive=smooth((p-.76)/.24);
  for(const [side,i,j]of [['Left',f.handL,0],['Right',f.handR,1]]as const){

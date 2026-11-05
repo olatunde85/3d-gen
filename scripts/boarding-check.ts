@@ -7,6 +7,7 @@ import {Animator} from '../src/core/anim/evaluate';
 import {clipById,CLIPS} from '../src/core/anim/clips';
 import {VEHICLE_FOR_CLIP,vehicleLift,DEFAULT_VEHICLE_STYLE} from '../src/core/props/vehicles';
 import {boardingStand,boardingScale} from '../src/core/props/vehicle-actions';
+import {boneFor} from '../src/core/rig/poses';
 import {Vehicle} from '../src/core/props/vehicle';
 import {studioTravel} from '../src/studio/motion';
 import {newProject,parseProject,timelineAt} from '../src/studio/project';
@@ -19,6 +20,7 @@ for(const rig of smoke?['game']as const:['game','game_lite','full']as const)for(
  const ch=await buildHuman(lib,{...DEFAULT_PARAMS,...body,rig,restPose,detail:'low',hair:'none',outfit:'none',carry:'none',weapon:'none',vehicle:'auto',faceShapes:false}),B=ch.rig!.bones,A=new Animator(ch.rig!),s=Math.max(...B.flatMap(b=>[b.head[1],b.tail[1]]))/1.8;
  const feet=B.flatMap((b,i)=>/^(Left|Right)(Foot|ToeBase|Toe_End)$|^(foot|toe\d-\d)\.[LR]$/.test(b.name)?[i]:[]);
  const idle=A.positions(A.frame(clipById.get('idle')!,0)),floor=Math.min(...feet.map(i=>idle[i][1]));
+ const rightFoot=B.findIndex(b=>b.name===boneFor(rig,'RightFoot'));
  for(const c of clips){
   const meta=c.vehicleTransition!,id=VEHICLE_FOR_CLIP[c.id],lift=vehicleLift(id,s),ride=clipById.get(meta.ride)!,target=A.positions(A.frame(ride,0,{vehicleLift:lift}));
   assert.equal(studioTravel(c.id),undefined,'entry must not drive through the scene');
@@ -29,6 +31,10 @@ for(const rig of smoke?['game']as const:['game','game_lite','full']as const)for(
   for(let i=0;i<=90;i++){
    const f=A.frame(c,c.duration*i/90,{vehicleLift:lift}),p=A.positions(f);
    assert.ok(f.rot.every(q=>q.every(Number.isFinite)&&Math.abs(Math.hypot(...q)-1)<1e-5));assert.ok(!f.scale,'no skeleton scaling');
+   if(['ride_bicycle','ride_motorcycle','ride_horse'].includes(meta.ride)){
+    const dot=Math.abs(f.rot[rightFoot].reduce((sum,x,d)=>sum+x*A.restLocal[rightFoot][d],0));
+    assert.ok(2*Math.acos(Math.min(1,dot))*180/Math.PI<45,`${rig} ${c.id} ankle folds against its shin`);
+   }
    // Every joint keeps its bind offset: no stretched limbs or collapsed split segments.
    for(let j=0;j<B.length;j++)if(B[j].parent>=0)assert.ok(Math.abs(gap(p[j],p[B[j].parent])-gap(B[j].head,B[B[j].parent].head))<1e-6,`${c.id} ${B[j].name} changes limb length`);
    min=Math.min(min,...feet.map(j=>(p[j][1]-floor)/s));
