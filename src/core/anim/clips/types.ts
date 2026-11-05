@@ -66,7 +66,7 @@ export interface Sample {
   mocap?: import('../mocap').MocapSample;
   /** Blend the solved pose toward another sample's (w: 0 = this pose, 1 = the other), e.g. easing a
    * captured clip into a keyframed rest pose. */
-  blend?: { sample: Sample; w: number };
+  blend?: { sample: Sample; w: number; /** Keep interpolated feet from sinking below the floor. */ ground?: boolean };
 }
 
 export type ClipCategory = 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction';

@@ -1,6 +1,6 @@
-/** Walk and run engine (shared by the locomotion and shooter clips), strafes and turns. */
-import { type Ch, type Clip, type Sample } from './types';
-import { cyc, fingers, side, smoother } from './helpers';
+/** Procedural low gait for crouch locomotion; upright movement uses recorded.ts. */
+import { type Ch, type Sample } from './types';
+import { cyc, fingers, side } from './helpers';
 
 export interface Gait {
   thigh: number[];
@@ -62,67 +62,4 @@ export function gait(g: Gait, p: number, reverse = false): Sample {
   fingers(out, g === RUN ? 25 : 12);
   // Walking keeps the stance foot planted; running has a flight phase so it uses its own bob.
   return { bones: out, root: g === RUN ? { y: bob(ph) } : { ground: true } };
-}
-
-export function turn(id: string, name: string, angle: number): Clip {
-  const steps = Math.max(1, Math.round(Math.abs(angle) / 45));
-  const duration = 0.55 + Math.abs(angle) / 180 * 0.85;
-  const leadSide = angle > 0 ? 'Left' : 'Right';
-  const other = angle > 0 ? 'Right' : 'Left';
-  return {
-    id, name, category: 'Turns', duration, loop: false,
-    sample: (t) => {
-      const u = t / duration;
-      const turnAmt = smoother((u - 0.05) / 0.85);
-      const lead = Math.sin(Math.min(1, u / 0.6) * Math.PI); // upper body leads the turn
-      const out: Record<string, Ch> = {
-        Spine1: [2, angle * 0.06 * lead, 0],
-        Spine2: [0, angle * 0.05 * lead, 0],
-        Head: [0, Math.max(-25, Math.min(25, angle * 0.18 * lead)), 0],
-      };
-      // Alternating steps, starting with the leg on the turning side.
-      let bob = 0;
-      const lift: Record<string, number> = { Left: 0, Right: 0 };
-      for (let i = 0; i < steps; i++) {
-        const a = 0.05 + (i / steps) * 0.85, b = 0.05 + ((i + 1) / steps) * 0.85;
-        if (u > a && u < b) {
-          const s = Math.sin(((u - a) / (b - a)) * Math.PI);
-          lift[i % 2 === 0 ? leadSide : other] = s;
-          bob = -0.012 * s;
-        }
-      }
-      side(out, 'UpLeg', [24 * lift.Left, 0, 0], [24 * lift.Right, 0, 0]);
-      side(out, 'Leg', [-45 * lift.Left - 4, 0, 0], [-45 * lift.Right - 4, 0, 0]);
-      side(out, 'Foot', [12 * lift.Left, 0, 0], [12 * lift.Right, 0, 0]);
-      side(out, 'Arm', [6 * lift.Right, 0, 4], [6 * lift.Left, 0, 4]);
-      side(out, 'ForeArm', [14, 0, 0], [14, 0, 0]);
-      fingers(out, 14);
-      return { bones: out, root: { yaw: angle * turnAmt, y: bob, ground: true } };
-    },
-  };
-}
-
-export function strafe(dirLeft: boolean): Clip {
-  const lead = dirLeft ? 'Left' : 'Right', trail = dirLeft ? 'Right' : 'Left';
-  return {
-    id: dirLeft ? 'strafe_left' : 'strafe_right', name: dirLeft ? 'Strafe left' : 'Strafe right', category: 'Locomotion',
-    duration: 0.9, loop: true, travel: [dirLeft ? 1.1 : -1.1, 0, 0],
-    sample: (t) => {
-      const p = t / 0.9;
-      const out: Record<string, Ch> = {};
-      const legs: Record<string, { out: number; thigh: number; knee: number }> = {
-        [lead]: { out: cyc([0, 10, 16, 12, 8, 6, 3, 0])(p), thigh: cyc([0, 10, 8, 0, 0, 0, 0, 0])(p), knee: cyc([-4, -28, -20, -6, -4, -4, -4, -4])(p) },
-        [trail]: { out: cyc([0, -2, -4, -5, -7, -2, 3, 2])(p), thigh: cyc([0, 0, 0, 0, 6, 12, 6, 0])(p), knee: cyc([-4, -4, -4, -4, -8, -28, -20, -6])(p) },
-      };
-      side(out, 'UpLeg', [legs.Left.thigh, 0, legs.Left.out], [legs.Right.thigh, 0, legs.Right.out]);
-      side(out, 'Leg', [legs.Left.knee, 0, 0], [legs.Right.knee, 0, 0]);
-      side(out, 'Foot', [-legs.Left.knee * 0.3, 0, -legs.Left.out * 0.5], [-legs.Right.knee * 0.3, 0, -legs.Right.out * 0.5]);
-      side(out, 'Arm', [8, 0, 6], [8, 0, 6]);
-      side(out, 'ForeArm', [25, 0, 0], [25, 0, 0]);
-      out.Spine = [4, 0, (dirLeft ? -1 : 1) * 2 * Math.sin(p * Math.PI * 2)];
-      out.Head = [-2, 0, 0];
-      fingers(out, 14);
-      return { bones: out, root: { ground: true } };
-    },
-  };
 }

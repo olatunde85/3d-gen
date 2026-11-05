@@ -82,8 +82,9 @@ export function weaponPanel(ctx: Ctx) {
 /** Bags, with the chosen bag's finish and colours. */
 export function carryPanel(ctx: Ctx) {
   const { store } = ctx;
-  const row = selectRow(ctx, 'Bag', CARRIED.map((c) => [c, CARRY_LABELS[c]]), () => store.params.carry, (v) => {
+  const row = selectRow(ctx, 'Carry', CARRIED.map((c) => [c, CARRY_LABELS[c]]), () => store.params.carry, (v) => {
     store.set({ carry: v as CarryId });
+    if(v==='parcel'&&store.params.rig!=='none')ctx.playClip('carry_idle');
     store.emit('sync');
   });
   return el('div', {}, row, styleControls(ctx, () => (store.params.carry === 'none' ? '' : store.params.carry)));

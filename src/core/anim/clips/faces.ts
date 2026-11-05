@@ -114,6 +114,12 @@ const FACES: Record<string, FaceFn> = {
   rifle_crouch_aim: AIM,
   rifle_crouch_walk: AIM,
   pistol_aim: AIM,
+  pistol_aim_one_hand: AIM,
+  pistol_walk: AIM,
+  pistol_run: AIM,
+  pistol_sprint: AIM,
+  pistol_strafe_left: AIM,
+  pistol_strafe_right: AIM,
   pistol_fire: AIM,
   throw_grenade: keyed([0, 0.4, 0.6, 1], { mouthPress: [0, 0.6, 0.6, 0], ...both('browDownLeft', 'browDownRight', [0, 0.4, 0.4, 0]) }),
 

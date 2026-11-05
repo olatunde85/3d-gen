@@ -2,9 +2,10 @@
  * Props carried in the left hand (bags), modelled in metres in a "carry frame": origin at the
  * grip (where the handles pass through the fingers), +Y up, +Z the character's forward, +X the
  * character's left (away from the body for the left hand). The prop hangs straight down along -Y.
- * human.ts fits this frame to the hand in the relaxed arms-down pose and binds it to the hand bone.
+ * human.ts fits bags to the relaxed hand. The parcel uses a separate rigid root in its centre,
+ * following the two wrists during pickup/carry/put-down instead of hanging from a handle.
  */
-import { cord, loftRings, merge, orientOutward, v3 } from '../garments/ring';
+import { cord, frameOf, loftRings, merge, orientOutward, roundedBox, v3 } from '../garments/ring';
 import { makePattern, shade, type Pattern, type TexOut } from '../garments/textures';
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
@@ -14,9 +15,9 @@ import type { Material } from '../mesh';
  * Bags: carried in the hand (built here), or worn (the backpack, a garment with slot 'bag', built
  * with the clothes).
  */
-export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack'] as const;
+export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel'] as const;
 export type CarryId = (typeof CARRIED)[number];
-export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack' };
+export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel' };
 /** Bags worn on the body rather than carried in the hand. */
 export const WORN_BAGS: readonly CarryId[] = ['backpack'];
 
@@ -34,6 +35,7 @@ export const CARRY_STYLES: Record<Exclude<CarryId, 'none' | 'backpack'>, { patte
   straw_tote: { patterns: ['straw'], color: '#cfae74', color2: '#8a6a3a', colorLabels: ['Straw', 'Trim'] },
   handbag: { patterns: ['nappa', 'patent', 'leather'], color: '#ece3d3', color2: '#d9b25a', colorLabels: ['Leather', 'Hardware'] },
   briefcase: { patterns: ['nappa', 'leather'], color: '#3a2214', color2: '#c9a45a', colorLabels: ['Leather', 'Hardware'] },
+  parcel: {patterns:['solid'],color:'#ae8550',color2:'#c7a776',colorLabels:['Cardboard','Packing tape']},
 };
 
 /** A carried bag's style from the params' saved styles (falling back to its defaults). */
@@ -46,6 +48,21 @@ export function carryStyle(id: keyof typeof CARRY_STYLES, styles: Record<string,
 export interface CarryPart {
   mesh: PolyMesh;
   material: Material;
+}
+
+/** Reference dimensions: matches the two-hand interaction grip (metres at 1.8 m height). */
+export const PARCEL_SIZE:Vec3=[.42,.32,.34];
+export const PARCEL_REST:Vec3=[0,.16,.58];
+function parcel(st:BagStyle):CarryPart[]{
+  const box=(centre:Vec3,half:Vec3)=>roundedBox(frameOf(centre,[0,0,1],[0,1,0]),half,0);
+  const paper:Material={name:'Parcel cardboard',color:st.color,roughness:.94,metalness:0,alpha:'opaque',doubleSided:false};
+  const material=(name:string,color:string,roughness:number):Material=>({...paper,name,color,roughness});
+  const tape=merge([box([0,.161,0],[.035,.001,.171]),box([0,0,.171],[.035,.16,.001]),box([0,0,-.171],[.035,.16,.001])])!;
+  const ink=merge([box([.11,.045,.173],[.055,.002,.0005]),...Array.from({length:11},(_,i)=>box([.065+i*.008,-.015,.173],[i%3===0?.002:.001,.025,.0005]))])!;
+  return [{mesh:box([0,0,0],PARCEL_SIZE.map(x=>x/2)as Vec3),material:paper},
+    {mesh:tape,material:material('Parcel packing tape',st.color2,.6)},
+    {mesh:box([.11,.02,.172],[.075,.06,.0005]),material:material('Parcel shipping label','#ece8dc',.85)},
+    {mesh:ink,material:material('Parcel label ink','#30302c',.9)}];
 }
 
 /** Registers a generated texture and returns its file name (see GCtx.texture). */
@@ -218,6 +235,8 @@ export function buildCarry(id: CarryId, texture: TextureFn, styles: Parameters<t
       return handbag(texture, carryStyle(id, styles));
     case 'briefcase':
       return briefcase(texture, carryStyle(id, styles));
+    case 'parcel':
+      return parcel(carryStyle(id,styles));
     default:
       return [];
   }

@@ -56,12 +56,14 @@ export function checkInteractions(rig: Rig, label: string, fail: (message: strin
     }
     if (c.loop) {
       if (gap(at(c.id, 0), at(c.id, c.duration)) / scale > 0.001) fail(`${label}: ${c.id} loop seam`);
-    } else if (c.id !== 'pick_up') {
+    } else if (c.id !== 'pick_up'&&c.id!=='put_down') {
       if (gap(at(c.id, 0), at(c.id, c.duration)) / scale > 0.001) fail(`${label}: ${c.id} does not return to rest`);
     }
   }
   const pickup = clipById.get('pick_up')!, walk = clipById.get('carry_walk')!, source = clipById.get('walk')!;
   if (gap(at('pick_up', pickup.duration), at('carry_idle', 0)) > 0.001) fail(`${label}: pickup -> carry idle pops`);
+  if (gap(at('put_down',0),at('carry_idle',0))>.001)fail(`${label}: carry idle -> put down pops`);
+  if (gap(at('put_down',clipById.get('put_down')!.duration),at('pick_up',0))>.001)fail(`${label}: put down does not return upright`);
   for (const side of ['Left', 'Right'] as const) {
     const hand = at('pick_up', 1.5)[idx(`${side}Hand`)];
     const target = pickup.sample(1.5).ik![side]!.pos.map((v) => v * scale);

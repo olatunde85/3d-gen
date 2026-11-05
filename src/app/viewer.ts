@@ -276,6 +276,7 @@ export class Viewer {
         };
       }
     }
+    if(this.clip)this.animator.placeParcel(frame,this.clip,t,this.rootMotion);
     this.lastFrame = frame;
     // Follow travelling characters with the camera target.
     if (this.rootMotion && this.clip?.travel) {

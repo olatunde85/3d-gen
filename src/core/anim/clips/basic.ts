@@ -1,7 +1,6 @@
-/** Idle, walking backwards and the crouch stance (walk and run are motion capture: see mocap-data.ts). */
+/** Idle and crouch stance (recorded locomotion is in recorded.ts). */
 import { type Ch, type Clip } from './types';
 import { fingers, side } from './helpers';
-import { gait, WALK } from './gait';
 
 export const idle: Clip = {
   id: 'idle', name: 'Idle', category: 'Idle & stance', duration: 3.2, loop: true,
@@ -21,11 +20,6 @@ export const idle: Clip = {
     fingers(out, 14);
     return { bones: out, root: { x: 0.008 * Math.sin(a * 0.5), y: 0.002 * Math.sin(a), ground: true } };
   },
-};
-
-export const walkBack: Clip = {
-  id: 'walk_back', name: 'Walk backwards', category: 'Locomotion', duration: 1.25, loop: true, travel: [0, 0, -1.0],
-  sample: (t) => gait({ ...WALK, arm: WALK.arm.map((x) => x * 0.6), spineLean: -4 }, t / 1.25, true),
 };
 
 export const crouch: Clip = {

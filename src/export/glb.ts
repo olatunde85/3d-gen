@@ -166,7 +166,7 @@ export function exportGLB(
       ibm.set([Rt[0], Rt[1], Rt[2], 0, Rt[3], Rt[4], Rt[5], 0, Rt[6], Rt[7], Rt[8], 0, t[0], t[1], t[2], 1], i * 16);
     });
     accessors.push({ bufferView: addView(bytes(ibm)), componentType: FLOAT, count: B.length, type: 'MAT4' });
-    skins = [{ name: 'Armature', joints: B.map((_, i) => first + i), inverseBindMatrices: accessors.length - 1, skeleton: roots[0] }];
+    skins = [{ name: 'Armature', joints: B.map((_, i) => first + i), inverseBindMatrices: accessors.length - 1, skeleton: roots.length===1?roots[0]:1 }];
 
     // Animations: one glTF animation per clip, rotation channels per bone + root translation.
     for (const c of clips) {

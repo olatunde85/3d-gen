@@ -8,6 +8,7 @@ import type { ActorTrack, StudioProject } from './project';
 import { Bicycle, BICYCLE_CLIP } from '../app/bicycle';
 import { boneFor } from '../core/rig/poses';
 import { timelineAt } from './project';
+import { parcelStateAt } from './parcel';
 import type { Seat } from './sets/builder';
 import { hipsAt, isSeated, nearestSeat, seatedAt, SEAT_REACH, type Sitter } from './seating';
 
@@ -88,18 +89,24 @@ export class StudioActor {
     const at = timelineAt(project, time, track), b = track.beats[at.index], clip = clipById.get(b.clip)!;
     const faceTime = time + Math.max(0, project.actors.indexOf(track)) * 0.83;
     const local = clip.loop ? at.phase % clip.duration : Math.min(at.phase, clip.duration);
-    let frame = this.animator.frame(clip, local, { faceTime });
+    const parcel=parcelStateAt(track,at.time);
+    let frame = this.animator.frame(clip, local, { faceTime,parcelGrounded:parcel.grounded });
     if (at.index && at.local < 0.3 && (track.beats[at.index - 1].clip !== b.clip || !clip.loop)) {
       const previous = track.beats[at.index - 1], fromClip = clipById.get(previous.clip)!;
       const prior = timelineAt(project, Math.max(0, at.start - 0.000001), track);
       const priorPhase = prior.phase + 0.000001;
       const fromTime = fromClip.loop ? priorPhase % fromClip.duration : Math.min(priorPhase, fromClip.duration);
-      const from = this.animator.frame(fromClip, fromTime, { faceTime });
+      const from = this.animator.frame(fromClip, fromTime, { faceTime,parcelGrounded:parcelStateAt(track,prior.time).grounded });
       const w = at.local / 0.3, ease = w * w * (3 - 2 * w);
       const rootPos = new Map(frame.rootPos);
       for (const [i, p] of rootPos) { const q = from.rootPos.get(i)!; rootPos.set(i, p.map((v, d) => q[d] + (v - q[d]) * ease) as [number, number, number]); }
       const a = new THREE.Quaternion(), c = new THREE.Quaternion();
       frame = { ...frame, rootPos, morph: frame.morph?.map((v, i) => (from.morph?.[i] ?? v) + (v - (from.morph?.[i] ?? v)) * ease), rot: frame.rot.map((q, i) => a.set(...from.rot[i]).slerp(c.set(...q), ease).toArray() as [number, number, number, number]) };
+    }
+    this.animator.placeParcel(frame,clip,local,false,parcel.grounded);
+    if(parcel.grounded&&parcel.releasedAt!==undefined){
+      const index=this.character.rig!.bones.findIndex(b=>b.name==='Parcel'),position=frame.rootPos.get(index);
+      if(position){const dropped=timelineAt(project,parcel.releasedAt,track);frame.rootPos.set(index,[position[0]+(dropped.x-at.x)*this.scale,position[1],position[2]+(dropped.z-at.z)*this.scale]);}
     }
     return frame;
   }

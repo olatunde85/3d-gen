@@ -28,13 +28,17 @@ export const MOCAP_TAKES: MocapTake[] = [
   // CMU has sidesteps to the right only; the left one is the mirror image.
   { id: 'strafe_right', take: '41_02', loop: true, cut: { start: 4.0, loopSearch: [0.7, 1.4] } },
   { id: 'strafe_left', take: '41_02', loop: true, cut: { start: 4.0, loopSearch: [0.7, 1.4] }, mirror: true },
-  { id: 'jump', take: '02_04', loop: false, cut: { start: 0.25, end: 2.35 } },
+  { id: 'jump', take: '02_04', loop: false, cut: { start: 0.1, end: 2.9, neutral:[2.6,3.4] } },
   { id: 'cry', take: '79_72', loop: true, cut: { start: 2.0, loopSearch: [2.5, 4.0], neutral: [0, 0.5] } },
   // Sitting on a chair: two cuts of one take, sharing a reference while seated so they chain, with
   // the standing start as the origin (Stand up is Sit down in reverse, so it ends back there).
   { id: 'sit_down', take: '113_15', loop: false, cut: { start: 0.9, end: 2.9, ref: 3.5, origin: 0.9, neutral: [6.0, 6.6] }, ground: true },
   { id: 'sit_idle', take: '113_15', loop: true, cut: { start: 2.9, loopSearch: [1.0, 1.7], ref: 3.5, origin: 0.9, neutral: [6.0, 6.6] }, ground: true },
-  { id: 'punch_low', take: '02_05', loop: false, cut: { start: 10.85, end: 12.4 }, hands: 'fist' },
+  { id: 'punch_low', take: '02_05', loop: false, cut: { start: 12.55, end: 14.6, neutral:[14.1,14.6] }, hands: 'fist' },
+  // Recorded turn-in-place, including foot plants and weight transfer. Mirroring keeps the same
+  // performance for right turns. Smaller turns adapt the quarter-turn heading, not the foot gait.
+  ...([45,90]as const).flatMap(angle=>[false,true].map((mirror):MocapTake=>({id:`turn_${mirror?'right':'left'}_${angle}`,take:'69_17',loop:false,mirror,cut:{start:.6,end:2.5,ref:.6,origin:.6,neutral:[.3,.7],turn:mirror?-angle:angle}}))),
+  {id:'turn_360',take:'69_17',loop:false,cut:{start:.6,end:7.8,ref:.6,origin:.6,neutral:[.3,.7],turn:360}},
 ];
 
 /** Where setup-assets downloads each take: cgspeed's BVH conversion, mirrored on GitHub (zip per take). */
@@ -48,4 +52,5 @@ export const MOCAP_FILES: Record<string, string> = {
   '41_02': 'Sequence-040-045/41/Data/41_02.zip',
   '79_72': 'Sequence-076-080/79/Data/79_72.zip',
   '113_15': 'Sequence-113-128/113/Data/113_15.zip',
+  '69_17':'Sequence-060-075/69/Data/69_17.zip',
 };

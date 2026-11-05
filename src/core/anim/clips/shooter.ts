@@ -1,7 +1,8 @@
 /** Shooter set: rifle and pistol holds, firing, reload, grenade, death. */
 import { type Ch, type Clip, type HandTarget, type Sample } from './types';
 import { fingers, grip, lerp3, side, track, v } from './helpers';
-import { gait, RUN, strafe, WALK, type Gait } from './gait';
+import { gait, WALK, type Gait } from './gait';
+import { armLayer, pace, recordedWalk, recordedRun, recordedStrafeLeft, recordedStrafeRight, walkBack } from './recorded';
 
 // --- Shooter (rifle) -----------------------------------------------------------------------
 // Hands are placed by IK in chest space; the weapon itself is supplied by the game
@@ -84,13 +85,19 @@ function rifleLoop(id: string, name: string, duration: number, legs: (t: number)
 
 const still = () => null;
 const gaitOf = (g: Gait, d: number, reverse = false) => (t: number) => gait(g, t / d, reverse);
-const strafeLegs = (left: boolean) => {
-  const c = strafe(left);
-  return (t: number) => c.sample(t);
-};
-const RIFLE_WALK: Gait = { ...WALK, arm: WALK.arm.map(() => 0), pelvisYaw: 3 };
-const RIFLE_RUN: Gait = { ...RUN, arm: RUN.arm.map(() => 0), pelvisYaw: 5, spineLean: 8 };
 const CROUCH_WALK: Gait = { ...WALK, thigh: WALK.thigh.map((x) => x * 0.8), knee: WALK.knee.map((x) => x * 0.6), bob: WALK.bob.map(() => 0) };
+
+function armedMotion(id:string,name:string,base:Clip,h:Sample['ik'],kind:'rifle'|'pistol',aiming:boolean):Clip{
+  const sides=(['Left','Right']as const).filter(side=>h?.[side]);
+  return {...base,id,name,category:'Shooter',sample:t=>{
+    const s=armLayer(base.sample(t),sides);
+    if(kind==='rifle')rifleUpper(s.bones,aiming);else pistolUpper(s.bones,aiming);
+    // A free support arm keeps its recorded swing and relaxed fingers during a pistol sprint.
+    if(!h?.Left)for(const key of Object.keys(s.bones))if(key.startsWith('LeftHand'))delete s.bones[key];
+    return {...s,ik:h,gaze:[0,0]};
+  }};
+}
+const SPRINT_GAIT=pace(recordedRun,.82);
 
 const rifleFire = (auto: boolean): Clip => ({
   id: auto ? 'rifle_fire_auto' : 'rifle_fire', name: auto ? 'Rifle fire (full auto)' : 'Rifle fire (single)', category: 'Shooter',
@@ -209,10 +216,27 @@ const pistolFire: Clip = {
   },
 };
 
+const pistolOneHand:Clip={
+  ...pistolAim,id:'pistol_aim_one_hand',name:'Pistol aim (one hand)',sample:t=>{
+    const s=pistolAim.sample(t);
+    for(const key of Object.keys(s.bones))if(key.startsWith('LeftHand'))delete s.bones[key];
+    side(s.bones,'Arm',[0,0,3],[0,0,0]);side(s.bones,'ForeArm',[12,0,0],[0,0,0]);
+    s.bones.Spine1=[0,0,0];s.bones.Neck=[0,0,0];s.bones.Head=[0,0,0];
+    return {...s,ik:{Right:{...PISTOL_AIM.Right,pos:v(-.2,.04,.5)}},gaze:[0,0]};
+  },
+};
+const PISTOL_SPRINT:Sample['ik']={Right:{...PISTOL_READY.Right,pos:v(-.21,-.36,.17)}};
+
 export const PISTOL: Clip[] = [
   pistolIdle,
   pistolAim,
   pistolFire,
+  pistolOneHand,
+  armedMotion('pistol_walk','Pistol walk',recordedWalk,PISTOL_AIM,'pistol',true),
+  armedMotion('pistol_run','Pistol run',recordedRun,PISTOL_READY,'pistol',false),
+  armedMotion('pistol_sprint','Pistol sprint',SPRINT_GAIT,PISTOL_SPRINT,'pistol',false),
+  armedMotion('pistol_strafe_left','Pistol strafe left',recordedStrafeLeft,PISTOL_AIM,'pistol',true),
+  armedMotion('pistol_strafe_right','Pistol strafe right',recordedStrafeRight,PISTOL_AIM,'pistol',true),
 ];
 
 export const RIFLE: Clip[] = [
@@ -221,12 +245,12 @@ export const RIFLE: Clip[] = [
   rifleFire(false),
   rifleFire(true),
   reload,
-  rifleLoop('rifle_walk', 'Rifle walk (aiming)', 1.1, gaitOf(RIFLE_WALK, 1.1), AIM, true, [0, 0, 1.3]),
-  rifleLoop('rifle_walk_back', 'Rifle walk back (aiming)', 1.25, gaitOf(RIFLE_WALK, 1.25, true), AIM, true, [0, 0, -1.0]),
-  rifleLoop('rifle_strafe_left', 'Rifle strafe left (aiming)', 0.9, strafeLegs(true), AIM, true, [1.1, 0, 0]),
-  rifleLoop('rifle_strafe_right', 'Rifle strafe right (aiming)', 0.9, strafeLegs(false), AIM, true, [-1.1, 0, 0]),
-  rifleLoop('rifle_run', 'Rifle run', 0.72, gaitOf(RIFLE_RUN, 0.72), READY, false, [0, 0, 3.4]),
-  rifleLoop('rifle_sprint', 'Rifle sprint', 0.62, gaitOf({ ...RIFLE_RUN, spineLean: 16, thigh: RUN.thigh.map((x) => x * 1.15) }, 0.62), SPRINT, false, [0, 0, 5.2]),
+  armedMotion('rifle_walk','Rifle walk (aiming)',recordedWalk,AIM,'rifle',true),
+  armedMotion('rifle_walk_back','Rifle walk back (aiming)',walkBack,AIM,'rifle',true),
+  armedMotion('rifle_strafe_left','Rifle strafe left (aiming)',recordedStrafeLeft,AIM,'rifle',true),
+  armedMotion('rifle_strafe_right','Rifle strafe right (aiming)',recordedStrafeRight,AIM,'rifle',true),
+  armedMotion('rifle_run','Rifle run',recordedRun,READY,'rifle',false),
+  armedMotion('rifle_sprint','Rifle sprint',SPRINT_GAIT,SPRINT,'rifle',false),
   rifleLoop('rifle_crouch_aim', 'Crouch aim idle', 2.5, still, AIM, true, undefined, true),
   rifleLoop('rifle_crouch_walk', 'Crouch walk (aiming)', 1.2, gaitOf(CROUCH_WALK, 1.2), AIM, true, [0, 0, 0.8], true),
   grenade,

@@ -9,7 +9,7 @@ export const wave: Clip = {
   sample: (t) => {
     const a = (t / 1.6) * Math.PI * 2;
     const sw = Math.sin(a * 2); // two waves per loop
-    const out: Record<string, Ch> = { Head: [0, -12, 4], Neck: [0, -4, 0], Spine1: [0, -6, -3], Spine2: [-2, 0, -2] };
+    const out: Record<string, Ch> = { Head: [0, 0, 0], Neck: [0, 0, 0], Spine1: [0, 0, 0], Spine2: [0, 0, 0] };
     side(out, 'Shoulder', [0, 0, 0], [0, 0, 12]);
     side(out, 'Arm', [2, 0, 3], [0, 0, 0]);
     side(out, 'ForeArm', [12, 0, 0], [0, 0, 0]);
@@ -19,6 +19,7 @@ export const wave: Clip = {
     return {
       bones: out,
       root: { ground: true },
+      gaze: [0, 0],
       ik: {
         // Hand beside the head, forearm upright; the wave comes from the shoulder and wrist.
         Right: { pos: v(-0.36 - 0.05 * sw, 0.16, 0.06), pole: v(-0.6, -1, -0.2), dir: v(-0.25 * sw, 1, 0.05), palm: v(0, 0, 1) },
@@ -60,9 +61,9 @@ export const cheer: Clip = {
 
 /** Laughing: the body bounces with each "ha", the head tips back, a hand on the belly. */
 export const laugh: Clip = {
-  id: 'laugh', name: 'Laugh', category: 'Emotes', duration: 2.4, loop: true,
+  id: 'laugh', name: 'Laugh', category: 'Emotes', duration: 4.8, loop: true,
   sample: (t) => {
-    const a = (t / 2.4) * Math.PI * 2;
+    const a = (t / 4.8) * Math.PI * 2;
     const ha = Math.abs(Math.sin(a * 6)); // six laughs per loop
     const out: Record<string, Ch> = {
       Spine: [-4 + 4 * ha, 0, 0], Spine1: [-3 + 3 * ha, 0, 0], Spine2: [-2, 0, 0],
