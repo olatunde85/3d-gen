@@ -8,6 +8,8 @@ import { exportFBX } from './fbx';
 import { exportGLB } from './glb';
 import { exportOBJ } from './obj';
 import { exportClipName, planExport, stemOf, type ExportPlan, type ExportSettings, type PlannedFile } from './plan';
+import {Vehicle} from '../core/props/vehicle';
+import {vehicleFor,vehicleLift} from '../core/props/vehicles';
 
 export * from './plan';
 
@@ -90,6 +92,7 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
   done = 0;
   const textures = await loadTextures(lib, ch);
   const animator = ch.rig ? new Animator(ch.rig, ch.face) : null;
+  const riderScale=ch.rig?Math.max(...ch.rig.bones.flatMap(b=>[b.head[1],b.tail[1]]))/1.8:1;
   const baked = new Map<string, BakedClip>();
   const bake = (ids: string[]): BakedClip[] =>
     ids.map((id) => {
@@ -97,7 +100,8 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
       if (!b) {
         const c = clipById.get(id)!;
         progress(`Baking ${c.name}`);
-        b = { name: exportClipName(id, plan.settings), loop: c.loop, ...animator!.bake(c, 30, { rootMotion: plan.settings.rootMotion }) };
+        const vehicle=vehicleFor(ch.params.vehicle,id);
+        b = { name: exportClipName(id, plan.settings), loop: c.loop, ...animator!.bake(c, 30, { rootMotion: plan.settings.rootMotion,vehicleLift:vehicle?vehicleLift(vehicle,riderScale):0 }) };
         baked.set(id, b);
       }
       return b;
@@ -118,6 +122,15 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
       if (f.path === 'LICENSE.txt') return strToU8(LICENSE);
       return extras.previewPng ?? new Uint8Array();
     }
+    if(f.kind==='vehicle'){
+      const vehicle=new Vehicle(f.vehicleId!,ch.rig!,animator!,clipById.get(f.vehicleClip!)!,ch.params.vehicleStyle);
+      try{
+        const {mesh,rig,bake}=vehicle.asset(),name=`${stem}_${f.vehicleId}`;
+        if(f.format==='obj'){const {obj,mtl}=exportOBJ(mesh,name,`${name}.mtl`);return{[`${name}.obj`]:strToU8(obj),[`${name}.mtl`]:strToU8(mtl)};}
+        const write=f.format==='glb'?exportGLB:exportFBX,clips=f.clips.length?[{...bake(),name:exportClipName(f.vehicleClip!,plan.settings)}]:[];
+        return write(mesh,name,new Map(),f.rigged?rig:undefined,clips,{});
+      }finally{vehicle.dispose();}
+    }
     const write = f.format === 'glb' ? exportGLB : exportFBX;
     if (f.kind === 'prop') return write(weaponPropMesh(ch)!, `${stem}_${ch.weapon!.id}`, new Map(), undefined, [], {});
     const mesh = plan.files.some((x) => x.kind === 'prop') ? meshWithoutWeapon(ch) : ch.mesh;
@@ -135,6 +148,7 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
     if (f.path === 'preview.png' && !extras.previewPng) continue;
     const data = build(f);
     if (f.kind === 'obj') folder.obj = data as Zippable;
+    else if(f.kind==='vehicle'&&f.format==='obj')folder[f.path.replace(/\/$/,'')]=data as Zippable;
     else folder[f.path] = data instanceof Uint8Array && /\.(glb|png)$/.test(f.path) ? [data, { level: 0 }] : (data as Uint8Array);
   }
   progress('Compressing zip');

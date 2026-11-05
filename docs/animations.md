@@ -1,6 +1,6 @@
 # Animations
 
-There are 84 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 88 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -52,17 +52,30 @@ Interaction hands use chest-space IK; the pickup reach uses floor-space targets 
 
 ## Vehicles and props
 
-The vehicle clips animate the rider only, like the shooter set: your game supplies the vehicle and parents the character to its seat.
-- **Car, passenger and boat:** the feet stay on the floor at seat height.
-- **Bicycle, motorcycle and horse:** the hips stay at saddle height. For an average adult, that's about 0.93 m on a bicycle, 0.78 m on a motorcycle and 1.4 m on a horse.
-- **Hands:** placed by IK on the controls (wheel at 9 and 3, handlebars, reins, paddle, oars), so they fit every body shape.
+Choose a riding or driving **animation** to add its matching vehicle automatically, in both the builder and Studio. There is no separate model selector. Use **Drive modern sports car / Sit (sports car passenger)** or **Drive SUV / Sit (SUV passenger)** for the enclosed cars. **Show vehicle** controls visibility; in Studio it applies to the selected action. Ten procedural models cover thirteen vehicle actions.
 
-**Bicycle prop:** under *Props*, choose *Ride: Bicycle*. It plays Ride bicycle and shows a bicycle fitted to the character, measured from the clip:
-- the saddle under the hips and the grips in the closed fists
-- the frame clear of the thighs
-- the wheels and pedals turning in time with the feet
+| Vehicle | Compatible clips | Moving components |
+| --- | --- | --- |
+| Bicycle | `ride_bicycle` | Wheels, crank and level pedals |
+| Classic convertible | `drive_car`, `sit_passenger` | Wheels and driver steering wheel |
+| Modern sports car | `drive_sports_car`, `sit_sports_car_passenger` | Wheels and driver steering wheel |
+| SUV | `drive_suv`, `sit_suv_passenger` | Wheels and driver steering wheel |
+| Motorcycle | `ride_motorcycle` | Wheels and handlebars |
+| Horse | `ride_horse` | Diagonal trot, tail, reins and stirrups |
+| Canoe | `paddle_canoe` | Single-bladed paddle |
+| Kayak | `paddle_kayak` | Double-bladed paddle with continuous side changes |
+| Rowing boat | `row_boat` | Two oars passing through the rowlocks |
+| Motorboat | `drive_boat` | Helm wheel and outboard propeller; two aft passenger seats |
 
-The hands are pinned to the bar, so they hold it firmly while the body pedals. The bicycle is a preview prop for now and isn't included in exports.
+Body/coat, trim/mane and seats/tack colours, paint finish and classic/sport variants are saved in `vehicleStyle`. The coupe has a rounded two-door cabin, solid rear pillars, a split grille and alloy wheels. The SUV has an upright five-door cabin, separate rounded rectangular windows, circular LED headlights, flared arches, running boards and a rear spare wheel. Choosing one with untouched colours applies its teal coupe or red SUV factory appearance; edited colours are preserved. Fitting measures the rider’s existing hips, palms, knees, feet and headroom; it never stretches limbs or changes the original rider pose. Car and boat fittings raise the complete rider onto their cabin/deck floor. The clips still work without a vehicle, using their original grounding.
+
+Exports include a **separate vehicle prop** by default when a ride is selected; turn this off in the export panel if you only need the rider. GLB/FBX can contain the matching animated controls, wheels and tack as rigid joints; OBJ is static. Animated exports include props for selected vehicle clips. In static or rigged mode, the builder uses the currently previewed vehicle action to choose and fit the prop. Driver and passenger car clips have separately fitted assets.
+
+Place the rider and vehicle at the **same origin and transform**, and play their matching clips together. Rider animation exports include the fitted cabin/deck elevation whenever a compatible vehicle is selected. Static and rigged-only characters remain in their bind pose until a riding/driving clip is applied. To supply your own game vehicle, uncheck Show vehicle and use the original rider animations with your seat transform.
+
+The larger motorboat has room for the helm operator and two passengers. Stage passengers with **Sit (passenger)** and **Show vehicle** unchecked, using placement/elevation so they share the helm’s boat. At reference scale, the seat centres are x ±0.52 m, z −1.30 m and deck y +0.32 m relative to the helm actor; rotate and scale these offsets with the boat. Similar-sized characters fit best.
+
+In Studio, enable **Move through the set** on a vehicle action and optionally set **Travel speed (m/s)**. The whole rider/vehicle group travels together while the original animation cadence stays the same; wheels roll with the distance travelled. Turning the option off keeps it in place. Movement follows actor yaw and is centred on its placement, like walking. Matching passenger actions need the same travel speed and timing to stay aboard. Travel does not add navigation, road collision, mounting, dismounting, automatic shared seating or water simulation. In Studio, review clearance against set furniture and other actors. Use Carry: None and Weapon: None for unobstructed vehicle performances.
 
 ## Weapons
 

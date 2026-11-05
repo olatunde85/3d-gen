@@ -7,6 +7,7 @@ import type { Ctx } from './context';
 import { color, none, picker, selectRow, thumb } from './controls';
 import { el } from './dom';
 import { styleControls } from './sidebar-clothing';
+import {VEHICLE_FINISHES,VEHICLE_VARIANTS,VEHICLE_FOR_CLIP,vehicleStyleForChoice,type VehicleStyle} from '../../core/props/vehicles';
 
 export function hairPanel(ctx: Ctx) {
   const { store } = ctx;
@@ -93,10 +94,23 @@ export function carryPanel(ctx: Ctx) {
 /** Vehicle props, shown with their riding clip. */
 export function vehiclePanel(ctx: Ctx) {
   const { store } = ctx;
-  const row = selectRow(ctx, 'Ride', [['none', 'None'], ['bicycle', 'Bicycle']], () => store.params.vehicle, (v) => {
-    store.set({ vehicle: v as 'none' | 'bicycle' });
-    if (v === 'bicycle' && store.params.rig !== 'none') ctx.playClip('ride_bicycle');
+  let currentClip='',hiddenByUser=false;
+  const visible=el('input',{type:'checkbox',ariaLabel:'Show vehicle'});
+  const row=el('label',{className:'acc'},visible,'Show vehicle');
+  visible.addEventListener('change',()=>{hiddenByUser=!visible.checked;store.set({vehicle:visible.checked?'auto':'none'});store.emit('sync');});
+  store.on('clip',id=>{
+    currentClip=id;const ride=VEHICLE_FOR_CLIP[id];
+    if(ride&&!hiddenByUser){const next=vehicleStyleForChoice(ride,store.params.vehicleStyle);if(store.params.vehicle!=='auto'||JSON.stringify(next)!==JSON.stringify(store.params.vehicleStyle))store.set({vehicle:'auto',vehicleStyle:next});}
+    store.emit('sync');
   });
-  const note = el('div', { className: 'hint', textContent: 'Shown while the matching animation plays (Bicycle: Ride bicycle), fitted to the character. Preview only for now.' });
-  return el('div', {}, row, note);
+  const style=el('div',{}),set=<K extends keyof VehicleStyle>(key:K,value:VehicleStyle[K])=>store.set({vehicleStyle:{...store.params.vehicleStyle,[key]:value}});
+  for(const [key,label]of [['color','Body / coat'],['accentColor','Trim / mane'],['seatColor','Seats / tack']]as const){
+    const input=el('input',{type:'color',ariaLabel:`Vehicle ${label}`});input.addEventListener('change',()=>set(key,input.value));
+    store.on('sync',()=>input.value=store.params.vehicleStyle[key]);input.value=store.params.vehicleStyle[key];
+    style.append(el('label',{className:'ctl wide'},el('span',{textContent:label}),input));
+  }
+  for(const [key,values]of [['finish',VEHICLE_FINISHES],['variant',VEHICLE_VARIANTS]]as const)style.append(selectRow(ctx,key==='finish'?'Finish':'Style',values.map(id=>[id,id[0].toUpperCase()+id.slice(1)]),()=>store.params.vehicleStyle[key],value=>set(key,value as never)));
+  const show=()=>{visible.checked=store.params.vehicle!=='none';row.hidden=!VEHICLE_FOR_CLIP[currentClip];style.hidden=!VEHICLE_FOR_CLIP[currentClip]||store.params.vehicle==='none';};store.on('sync',show);show();
+  const note = el('div', { className: 'hint', textContent: 'Choose a riding or driving animation to add its vehicle automatically. Appearance is editable here; vehicle selection follows the animation.' });
+  return el('div', {}, row,style,note);
 }

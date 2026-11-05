@@ -187,6 +187,12 @@ export function exportGLB(
           samplers.push({ input, output: accessors.length - 1, interpolation: 'LINEAR' });
           channels.push({ sampler: samplers.length - 1, target: { node: first + i, path: 'translation' } });
         }
+        if(c.frames.some(f=>f.scale?.has(i))){
+          const values=Float32Array.from(c.frames.flatMap(f=>f.scale?.get(i)??[1,1,1]));
+          accessors.push({bufferView:addView(bytes(values)),componentType:FLOAT,count:c.frames.length,type:'VEC3'});
+          samplers.push({input,output:accessors.length-1,interpolation:'LINEAR'});
+          channels.push({sampler:samplers.length-1,target:{node:first+i,path:'scale'}});
+        }
       });
       // Facial blend-shape weights, one value per shape per frame.
       if (mesh.morphs && !meshless && c.frames[0]?.morph) {

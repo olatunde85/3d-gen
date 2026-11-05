@@ -15,11 +15,11 @@ src/core/
   mesh.ts      MeshData (multi-material, triangles + original polygons)
   garments/    procedural clothing (shells, hull rings, generated fabrics)
   looks/       tattoos + stubble/shaved scalps (skin overlay), procedural hairstyles, beards, earrings
-  props/       weapons (rifle, pistol, sword, knife)
+  props/       weapons, carried bags/parcel, fitted procedural vehicles and animated rigid prop exports
   rig/         skeletons, auto-skinning, T-pose, WeaponR socket
   anim/        clips, motion-capture retargeting, and the shared evaluator (FK, arm IK, grounding)
 src/export/    glb.ts, fbx.ts (binary writer), obj.ts, plan.ts, index.ts (bundling)
-src/app/       three.js viewer, bicycle prop, generation worker
+src/app/       three.js viewer, generation worker
   ui/          the app's UI, one module per part (sidebar, animation bar, export panel, share dialog,
                header), wired together in main.ts through the store's events (ui/store.ts)
 src/studio/    scene recipes, fixed-time direction, procedural sets, video encoding and Studio UI

@@ -18,6 +18,8 @@ export interface Frame {
   rot: Q[];
   /** Local position of root bones (parent = -1); other bones keep their rest offsets. */
   rootPos: Map<number, Vec3>;
+  /** Optional relative scales for articulated props (rider clips keep unit scale). */
+  scale?:Map<number,Vec3>;
   /** Facial blend-shape weights (0..1, in the character's face-shape order), when it has face shapes. */
   morph?: number[];
 }
@@ -295,12 +297,13 @@ export class Animator {
    * `faceTime`: blink and glance on this continuous clock (seconds) instead of at fixed times inside
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
-  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean } = {}): Frame {
+  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number } = {}): Frame {
     const sample=clip.sample(time);
     const carried=this.parcel>=0&&!opts.parcelGrounded&&carriesParcel(clip)?parcelHold(sample):sample;
     const s = this.holding(this.withEyes(carried, clip, time, opts.faceTime));
     const frame = this.frameOf(s, clip, time, opts);
     this.placeParcel(frame,clip,time,opts.rootMotion,opts.parcelGrounded);
+    if(opts.vehicleLift)for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
   }
@@ -727,7 +730,7 @@ export class Animator {
   }
 
   /** Frames sampled at `fps` over the clip (inclusive end), quaternion signs kept continuous. */
-  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean } = {}): { times: number[]; frames: Frame[] } {
+  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number } = {}): { times: number[]; frames: Frame[] } {
     const n = Math.max(2, Math.round(clip.duration * fps) + 1);
     const times: number[] = [], frames: Frame[] = [];
     for (let f = 0; f < n; f++) {

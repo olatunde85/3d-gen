@@ -500,6 +500,7 @@ export function exportFBX(
         }
         curveNode(boneIds[i], 'Lcl Rotation', 'R', eul);
         if (b.parent < 0) curveNode(boneIds[i], 'Lcl Translation', 'T', c.frames.map((f) => f.rootPos.get(i)!.map((x) => x * CM)));
+        if(c.frames.some(f=>f.scale?.has(i)))curveNode(boneIds[i],'Lcl Scaling','S',c.frames.map(f=>f.scale?.get(i)??[1,1,1]));
       });
       // Facial blend-shape weights (DeformPercent, 0..100) per channel.
       if (channelIds.length && c.frames[0]?.morph)

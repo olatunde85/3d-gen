@@ -151,8 +151,10 @@ const paddleCanoe: Clip = {
   sample: (t) => {
     const p = t / 1.8;
     // Single-blade stroke on the right: catch forward, pull to the hip, lift out, swing forward.
-    const low = loop3([v(-0.34, -0.48, 0.46), v(-0.34, -0.52, 0.2), v(-0.33, -0.5, -0.04), v(-0.3, -0.34, 0.1), v(-0.32, -0.36, 0.36)]);
-    const top = loop3([v(-0.04, 0.04, 0.38), v(-0.08, -0.02, 0.3), v(-0.12, -0.06, 0.2), v(-0.06, 0.06, 0.24), v(-0.03, 0.08, 0.34)]);
+    // Floor-space contacts keep the shaft outside the gunwale throughout the stroke.
+    // Both hands stay on the same rigid paddle; the lower hand clears the right hull.
+    const low = loop3([v(-.55,.60,.60),v(-.55,.58,.35),v(-.54,.60,.10),v(-.52,.81,.20),v(-.53,.80,.55)]);
+    const top = loop3([v(-.13,1.10,.46),v(-.16,1.06,.40),v(-.16,1.04,.31),v(-.10,1.15,.33),v(-.10,1.16,.46)]);
     const twist = cyc([14, 4, -10, -4, 10])(p); // torso winds up for the catch
     const out: Record<string, Ch> = {
       Spine: [10, twist * 0.4, 0], Spine1: [6, twist * 0.6, -3], Spine2: [4, 0, 0], Neck: [-6, -twist * 0.6, 0], Head: [-8, -twist * 0.3, 0],
@@ -165,8 +167,8 @@ const paddleCanoe: Clip = {
       root: { ground: true },
       thumbs: FISTS,
       ik: {
-        Right: { pos: low(p), pole: v(-1, -0.6, -0.5), dir: v(0.5, 0.1, 0.85), palm: v(0.6, 0, -0.5) },
-        Left: { pos: top(p), pole: v(0.6, -1, 0), dir: v(-1, -0.1, 0.3), palm: v(0, -0.6, 1) },
+        Right: { space:'floor',pos: low(p), pole: v(-1, -0.6, -0.5), dir: v(0.5, 0.1, 0.85), palm: v(0.6, 0, -0.5) },
+        Left: { space:'floor',pos: top(p), pole: v(0.6, -1, 0), dir: v(-1, -0.1, 0.3), palm: v(0, -0.6, 1) },
       },
     };
   },
@@ -178,15 +180,9 @@ const paddleKayak: Clip = {
     const p = t / 1.6;
     // Double-bladed paddle: right stroke in the first half, left in the second. The stroke-side
     // hand sweeps low from front to hip while the other pushes forward at shoulder height.
-    const stroke = (q: number): [V3, V3] => {
-      const s = q < 0.5 ? -1 : 1; // -1 = right side stroke
-      const u = (q % 0.5) / 0.5; // 0..1 through this stroke
-      const pull = 0.5 - 0.5 * Math.cos(u * Math.PI);
-      const lowHand = v(0.3 * s, -0.36, 0.48 - 0.44 * pull);
-      const highHand = v(-0.22 * s, -0.08 + 0.04 * Math.sin(u * Math.PI), 0.3 + 0.14 * pull);
-      return s < 0 ? [highHand, lowHand] : [lowHand, highHand]; // [left, right]
-    };
-    const [L, R] = stroke(p);
+    // Closed, smooth hand paths keep the paddle continuous at side changes and the loop seam.
+    const L=loop3([v(.22,-.08,.30),v(.22,-.06,.37),v(.22,-.08,.44),v(.26,-.14,.48),v(.30,-.36,.48),v(.30,-.36,.26),v(.28,-.20,.10),v(.24,-.08,.20)])(p);
+    const R=loop3([v(-.30,-.36,.48),v(-.30,-.36,.26),v(-.28,-.20,.10),v(-.24,-.08,.20),v(-.22,-.08,.30),v(-.22,-.06,.37),v(-.22,-.08,.44),v(-.26,-.14,.48)])(p);
     const twist = 16 * Math.sin(p * Math.PI * 2 + Math.PI / 2) * -1;
     const out: Record<string, Ch> = {
       Spine: [6, twist * 0.4, 0], Spine1: [4, twist * 0.6, 0], Neck: [0, -twist * 0.5, 0], Head: [-4, -twist * 0.4, 0],
@@ -251,4 +247,8 @@ const driveBoat: Clip = {
   },
 };
 
-export const VEHICLES: Clip[] = [driveCar, sitPassenger, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat];
+export const VEHICLES: Clip[] = [driveCar, sitPassenger,
+ {...driveCar,id:'drive_sports_car',name:'Drive modern sports car'},
+ {...sitPassenger,id:'sit_sports_car_passenger',name:'Sit (sports car passenger)'},
+ {...driveCar,id:'drive_suv',name:'Drive SUV'},
+ {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat];

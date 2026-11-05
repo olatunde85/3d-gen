@@ -7,6 +7,7 @@ import { $, el } from './dom';
 
 export function exportPanel(ctx: Ctx): { open: () => void } {
   const { store, viewer, engine } = ctx;
+  const settings=()=>({...store.exportSettings,vehiclePreviewClip:viewer.playing?.id});
   const panel = $('#export-panel');
   const summaryText = $('#export-summary-text');
   const goBtn = $<HTMLButtonElement>('#export-go');
@@ -22,7 +23,7 @@ export function exportPanel(ctx: Ctx): { open: () => void } {
   function render() {
     const current = store.current;
     if (!current) return;
-    const plan = planExport(current, store.exportSettings);
+    const plan = planExport(current, settings());
     summaryText.textContent = plan.summary;
     goBtn.dataset.label = `⬇ ${plan.download}`;
     if (!exportState) goBtn.textContent = goBtn.dataset.label;
@@ -131,6 +132,7 @@ export function exportPanel(ctx: Ctx): { open: () => void } {
         radio('separate', s.weaponFile, 'Separate prop file', (v) => setExport({ weaponFile: v }), { title: 'Character without the weapon + the weapon as its own file, to attach to WeaponR in your engine' })));
     }
 
+    if(current.params.vehicle!=='none')kids.push(check('Include fitted vehicle props as separate files',s.vehicleFile!==false,v=>setExport({vehicleFile:v})));
     // Summary of exactly what will be downloaded
     kids.push(h('You will download'));
     const list = el('ul', { className: 'xp-files' });
@@ -172,9 +174,9 @@ export function exportPanel(ctx: Ctx): { open: () => void } {
     paintButtons();
     try {
       await ctx.whenIdle(); // export the character as currently shown in the controls
-      const plan = planExport(store.current, store.exportSettings);
+      const chosen=settings(),plan = planExport(store.current, chosen);
       const previewPng = plan.zipped ? await viewer.snapshot() : undefined;
-      const file = await engine.export(store.exportSettings, previewPng, (label, frac) => {
+      const file = await engine.export(chosen, previewPng, (label, frac) => {
         exportState = { label: `${label}…`, frac: frac ?? exportState!.frac };
         paintButtons();
       });

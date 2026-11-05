@@ -106,3 +106,5 @@ npm run build:studio-example-gif
 ```
 
 The first command renders the complete example to an ignored MP4 under `out/studio-expansion/`. The second preserves its 30-second timing and creates the compressed GIF under `docs/media/`. Normal site builds use that checked-in asset and do not need to render it again.
+
+Vehicle validation: `npm run test:vehicles` checks fitting across body shapes, rigs and bind poses and loads animated GLB/FBX props through real importers. `npm run test:studio -- --vehicles` exercises vehicle controls, recovery, deterministic scrubbing and GPU disposal, and writes visual reviews under `out/vehicles/`. Vehicles use local procedural geometry; they require no external downloads.

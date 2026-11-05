@@ -13,6 +13,8 @@ import { buildHuman } from '../core/human';
 import { DEFAULT_PARAMS, PRESETS, type HumanParams } from '../core/params';
 import { DEFAULT_EXPORT, exportClipName, planExport, runExport } from '../export';
 
+import {vehicleFor,vehicleLift} from '../core/props/vehicles';
+
 interface Report {
   config: string;
   ok: boolean;
@@ -37,7 +39,7 @@ async function check(lib: AssetLibrary, config: string, p: HumanParams, loopSuff
   log(`${config}: building`);
   const ch = await buildHuman(lib, p);
   log(`${config}: exporting`);
-  const settings = { ...DEFAULT_EXPORT, mode: 'animated' as const, format: 'glb' as const, packaging: 'embedded' as const, clips: CLIPS.map((c) => c.id), loopSuffix };
+  const settings = { ...DEFAULT_EXPORT, mode: 'animated' as const, format: 'glb' as const, packaging: 'embedded' as const, clips: CLIPS.map((c) => c.id), loopSuffix,vehicleFile:false };
   const file = await runExport(lib, ch, planExport(ch, settings));
   const buf = file.data.buffer.slice(file.data.byteOffset, file.data.byteOffset + file.data.byteLength) as ArrayBuffer;
   log(`${config}: loading GLB (${(buf.byteLength / 1e6).toFixed(1)} MB)`);
@@ -81,7 +83,8 @@ async function check(lib: AssetLibrary, config: string, p: HumanParams, loopSuff
     for (const f of [0, Math.round(frames / 3), Math.round((2 * frames) / 3), c.loop ? frames - 1 : frames]) {
       const t = Math.min(f / 30, c.duration);
       mixer.setTime(t);
-      const want = animator.frame(c, t);
+      const id=vehicleFor(ch.params.vehicle,c.id),scale=Math.max(...rig.bones.flatMap(b=>[b.head[1],b.tail[1]]))/1.8;
+      const want = animator.frame(c, t,{vehicleLift:id?vehicleLift(id,scale):0});
       bones.forEach((b, i) => {
         const q = new THREE.Quaternion(...want.rot[i]);
         const err = (b.quaternion.angleTo(q) * 180) / Math.PI;
@@ -130,10 +133,11 @@ async function check(lib: AssetLibrary, config: string, p: HumanParams, loopSuff
     const lib = await new AssetLibrary(fetchSource('/assets/')).init();
     const base = { ...DEFAULT_PARAMS, ...PRESETS['The Adventurer'] };
     const reports = [
+      await check(lib,'game rig, fitted vehicle cabin/deck heights',{...base,vehicle:'auto',carry:'none',weapon:'none'},false),
       await check(lib, 'game rig, A-pose', { ...base, rig: 'game', restPose: 'A' }, false),
       await check(lib, 'game rig, T-pose, angry, -loop names', { ...base, rig: 'game', restPose: 'T', faceBones: true, expression: 'angry' }, true),
       await check(lib, 'lite rig', { ...base, rig: 'game_lite' }, false),
-      await check(lib, 'full MakeHuman rig', { ...base, rig: 'full' }, false),
+      await check(lib, 'full MakeHuman rig, fitted SUV', { ...base, rig: 'full',vehicle:'suv',carry:'none',weapon:'none' }, false),
       await check(lib, 'game rig, parcel and pistol', { ...base, rig: 'game', carry:'parcel',weapon:'pistol' }, false),
       await check(lib, 'full T-pose, parcel and rifle', { ...base, rig:'full',restPose:'T',carry:'parcel',weapon:'rifle' }, false),
     ];

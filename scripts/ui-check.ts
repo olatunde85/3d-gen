@@ -4,8 +4,9 @@
  * any page error. Catches UI wiring mistakes that the core tests can't see.
  *   npm run test:ui          (set CHROME=/path/to/chrome if not on macOS default)
  */
+import {unzipSync} from 'fflate';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import {mkdirSync,writeFileSync,existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, normalize } from 'node:path';
@@ -218,6 +219,28 @@ try {
     await evaluate(`(() => { const s = document.querySelector('.anim-search'); s.value = 'jump land'; s.dispatchEvent(new Event('input')); s.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); })()`);
     await waitFor("document.querySelector('.anim-browse span').textContent === 'Jump land'", 'the clip to play', 5000);
     await evaluate("document.querySelector('.anim-close').click()");
+  });
+  await step('vehicle animations choose their props and keep custom styling without a second selector',async()=>{
+    if(await evaluate(`!![...document.querySelectorAll('#controls .ctl')].find(c=>c.querySelector('span')?.textContent==='Ride')`))throw Error('Conflicting ride selector remains');
+    const before=await statsNow();await evaluate("document.querySelector('.anim-browse').click()");await evaluate(`(()=>{const s=document.querySelector('.anim-search');s.value='Drive modern sports car';s.dispatchEvent(new Event('input'));s.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);await builtAfter(before,'automatic fitted coupe');await evaluate("document.querySelector('.anim-close').click()");
+    if(!await evaluate(`JSON.parse(localStorage.getItem('3dgen.human')).vehicle==='auto'`))throw Error('Vehicle does not follow the action');
+    const previous=await statsNow();await evaluate(`(()=>{const color=document.querySelector('input[aria-label="Vehicle Body / coat"]');color.value='#176a80';color.dispatchEvent(new Event('change'));})()`);await builtAfter(previous,'vehicle colour');
+    if(!await evaluate(`JSON.parse(localStorage.getItem('3dgen.human')).vehicleStyle.color==='#176a80'`))throw Error('Vehicle style not saved');
+    mkdirSync('out/vehicles',{recursive:true});const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync('out/vehicles/builder-car.png',Buffer.from(data,'base64'));
+    await evaluate("document.querySelector('#export-summary').click()");await waitFor("!document.querySelector('#export-panel').hidden",'vehicle export plan');await evaluate(`document.querySelector('#export-panel .xp-card').click()`);
+    if(!await evaluate(`document.querySelector('#export-panel').textContent.includes('sports_car_driver')`))throw Error('Static vehicle missing from preview export plan');
+    await evaluate(`(()=>{window.__vehicleFile=null;window.__vehicleAnchor=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download&&this.href.startsWith('blob:'))fetch(this.href).then(r=>r.arrayBuffer()).then(buffer=>{const bytes=new Uint8Array(buffer);let text='';for(let i=0;i<bytes.length;i+=32768)text+=String.fromCharCode(...bytes.subarray(i,i+32768));window.__vehicleFile=btoa(text)});else window.__vehicleAnchor.call(this);};document.querySelector('#export-panel .xp-go').click();})()`);
+    await waitFor('!!window.__vehicleFile','static vehicle download',240000);const bytes=await evaluate<string>('window.__vehicleFile');const keys=Object.keys(unzipSync(Buffer.from(bytes,'base64')));if(!keys.some(k=>k.includes('sports_car_driver')))throw Error('Worker export omitted the preview vehicle');await evaluate('HTMLAnchorElement.prototype.click=window.__vehicleAnchor');
+    await evaluate("document.querySelector('#export-panel .xp-close').click()");const original=await statsNow();await evaluate(`(()=>{const c=document.querySelector('input[aria-label="Show vehicle"]');c.checked=false;c.dispatchEvent(new Event('change'));})()`);await builtAfter(original,'hiding the vehicle');
+  });
+  await step('character settings download, reopen exactly and reject invalid files',async()=>{
+    await evaluate(`(()=>{window.__settings=null;const original=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download.endsWith('.ara-character.json'))fetch(this.href).then(r=>r.text()).then(text=>window.__settings={text,name:this.download});else original.call(this);};document.querySelector('#save-character').click();})()`);
+    await waitFor('!!window.__settings','character settings download');const saved=await evaluate<string>('window.__settings.text');const original=await evaluate<string>("localStorage.getItem('3dgen.human')");
+    if(!await evaluate(`JSON.parse(window.__settings.text).kind==='ara-character'&&JSON.stringify(JSON.parse(window.__settings.text).params)===localStorage.getItem('3dgen.human')`))throw Error('Settings download differs from character');
+    await evaluate(`(()=>{const name=document.getElementById('name');name.value='Temporary edit';name.dispatchEvent(new Event('input'));})()`);await evaluate(`(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(saved)}],'character.json',{type:'application/json'}));const e=document.querySelector('#character-settings-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);await waitFor("document.getElementById('character-file-status').textContent.startsWith('Opened ')&&!document.getElementById('status').classList.contains('show')",'opening character settings');if(await evaluate<string>("document.getElementById('name').value")!==JSON.parse(saved).params.name)throw Error('Saved name was not restored');
+    if(await evaluate<string>("localStorage.getItem('3dgen.human')")!==original)throw Error('Settings changed on reopen');
+    await evaluate(`(()=>{const dt=new DataTransfer();dt.items.add(new File(['{bad'],'bad.json',{type:'application/json'}));const e=document.querySelector('#character-settings-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);await waitFor("document.querySelector('#character-file-status').textContent.includes('complete JSON')",'invalid character rejection');
+    if(await evaluate<string>("localStorage.getItem('3dgen.human')")!==original)throw Error('Invalid settings changed character');
   });
   await step('export panel opens and closes', async () => {
     await evaluate("document.querySelector('#export-summary').click()");

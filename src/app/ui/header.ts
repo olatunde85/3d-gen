@@ -1,10 +1,20 @@
 /** Header: presets, name, seed and randomize; and the viewport's view toggles. */
 import { DEFAULT_PARAMS, PRESETS, randomParams } from '../../core/params';
 import type { Ctx } from './context';
+import {characterSettings,characterSettingsName,readCharacterSettings} from '../character-file';
 import { $ } from './dom';
 
 export function header(ctx: Ctx): void {
   const { store, cat, viewer } = ctx;
+  const fileInput=$<HTMLInputElement>('#character-settings-file'),status=$('#character-file-status');
+  $('#save-character').addEventListener('click',async()=>{
+    await ctx.whenIdle();const url=URL.createObjectURL(new Blob([characterSettings(store.params)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download=characterSettingsName(store.params.name);link.click();setTimeout(()=>URL.revokeObjectURL(url),60_000);status.textContent='Character settings saved. Import this file to add them to Studio.';
+  });
+  $('#open-character').addEventListener('click',()=>fileInput.click());
+  fileInput.addEventListener('change',async()=>{const file=fileInput.files?.[0];if(!file)return;
+    try{if(file.size>100_000)throw Error('Use a character JSON smaller than 100 KB.');const params=readCharacterSettings(await file.text(),cat);store.replaceAll(params);status.textContent=`Opened ${params.name||'your character'}.`;}
+    catch(error){status.textContent=(error as Error).message;}finally{fileInput.value='';}
+  });
   const presetSel = $<HTMLSelectElement>('#preset');
   presetSel.append(new Option('Presets…', ''));
   for (const name of Object.keys(PRESETS)) presetSel.append(new Option(name, name));

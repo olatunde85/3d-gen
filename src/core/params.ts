@@ -2,6 +2,7 @@ import type { Catalog } from './assets';
 import { rng } from './math';
 import type { RigType } from './rig/skeletons';
 import { CARRIED, type CarryId } from './props/carry';
+import { DEFAULT_VEHICLE_STYLE, VEHICLE_CHOICES, sanitizeVehicleStyle, type VehicleChoice, type VehicleStyle } from './props/vehicles';
 import { WEAPONS, type WeaponId } from './props/weapons';
 import { EARRINGS, FACIAL_HAIR, TATTOOS, type EarringId, type FacialHairId, type Metal, type TattooId } from './looks';
 import { EXPRESSIONS, type ExpressionId } from './face';
@@ -78,8 +79,9 @@ export interface HumanParams {
   weapon: WeaponId;
   /** A bag carried in the left hand. */
   carry: CarryId;
-  /** A vehicle prop shown with its riding clip (preview only for now). */
-  vehicle: 'none' | 'bicycle';
+  /** Fitted vehicle prop, shown with compatible riding clips and exported separately. */
+  vehicle: VehicleChoice;
+  vehicleStyle:VehicleStyle;
   /** Resting facial expression (applied in the viewer and in every exported clip). */
   expression: ExpressionId;
   /** Export facial blend shapes (expressions, blinking). Off: the expression is baked into the mesh. */
@@ -138,6 +140,7 @@ export const DEFAULT_PARAMS: HumanParams = {
   weapon: 'none',
   carry: 'none',
   vehicle: 'none',
+  vehicleStyle:DEFAULT_VEHICLE_STYLE,
   expression: 'neutral',
   faceShapes: true,
   speechShapes: true,
@@ -505,7 +508,8 @@ export function sanitizeParams(raw: unknown, base: HumanParams = DEFAULT_PARAMS)
   out.restPose = oneOf(src.restPose, ['A', 'T'] as const, base.restPose);
   out.weapon = oneOf(src.weapon, WEAPONS, base.weapon);
   out.carry = oneOf(src.carry, CARRIED, base.carry);
-  out.vehicle = oneOf(src.vehicle, ['none', 'bicycle'] as const, base.vehicle);
+  out.vehicle = oneOf(src.vehicle, VEHICLE_CHOICES, base.vehicle);
+  out.vehicleStyle=sanitizeVehicleStyle(src.vehicleStyle??base.vehicleStyle);
   out.facialHair = oneOf(src.facialHair, FACIAL_HAIR, base.facialHair);
   out.earrings = oneOf(src.earrings, EARRINGS, base.earrings);
   out.earringMetal = oneOf(src.earringMetal, ['gold', 'silver'] as const, base.earringMetal);

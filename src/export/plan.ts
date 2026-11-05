@@ -9,6 +9,7 @@ import type { Character } from '../core/human';
 import { triangleCount } from '../core/mesh';
 import { RIG_LABELS } from '../core/rig/skeletons';
 import { WEAPON_LABELS } from '../core/props/weapons';
+import {VEHICLE_IDS,VEHICLE_FOR_CLIP,VEHICLE_CLIP,VEHICLE_LABELS,vehicleFor,isCar,isPassengerClip,type VehicleId} from '../core/props/vehicles';
 
 export type ExportMode = 'static' | 'rigged' | 'animated';
 export type FormatChoice = 'glb' | 'fbx' | 'obj' | 'all';
@@ -28,6 +29,10 @@ export interface ExportSettings {
   loopSuffix: boolean;
   /** Held weapon: 'held' = in the hand, skinned to the WeaponR bone; 'separate' = its own prop file. */
   weaponFile: 'held' | 'separate';
+  /** Include fitted vehicles as independent prop assets. Defaults to true. */
+  vehicleFile?: boolean;
+  /** Builder preview action used to fit a static/rigged vehicle prop. */
+  vehiclePreviewClip?:string;
 }
 
 /** Clip name as written into exported files. */
@@ -45,6 +50,7 @@ export const DEFAULT_EXPORT: ExportSettings = {
   rootMotion: false,
   loopSuffix: false,
   weaponFile: 'held',
+  vehicleFile: true,
 };
 
 export const MODE_LABELS: Record<ExportMode, { title: string; blurb: string }> = {
@@ -56,7 +62,10 @@ export const MODE_LABELS: Record<ExportMode, { title: string; blurb: string }> =
 export interface PlannedFile {
   /** Path inside the zip (or the download name for single files). */
   path: string;
-  kind: 'model' | 'clip' | 'obj' | 'meta' | 'prop';
+  kind: 'model' | 'clip' | 'obj' | 'meta' | 'prop' | 'vehicle';
+  vehicleId?: VehicleId;
+  /** Fitting pose, including static and rigged vehicle exports. */
+  vehicleClip?: string;
   format?: 'glb' | 'fbx' | 'obj';
   rigged: boolean;
   /** Clip ids baked into this file. */
@@ -150,6 +159,22 @@ export function planExport(ch: Character, s: ExportSettings): ExportPlan {
           desc: `${clip.name} · ${clip.duration.toFixed(1)} s ${clip.loop ? 'loop' : 'one-shot'}${s.rootMotion && clip.travel ? ' · root motion' : ''} · ${s.clipMesh ? 'with mesh' : 'skeleton only'}`,
         });
       }
+  }
+  if(ch.params.vehicle!=='none'&&s.vehicleFile!==false){
+    const preview=mode!=='animated'?s.vehiclePreviewClip:undefined;
+    const ids=ch.params.vehicle==='auto'?VEHICLE_IDS.filter(id=>clips.some(c=>VEHICLE_FOR_CLIP[c]===id)||preview&&VEHICLE_FOR_CLIP[preview]===id):[ch.params.vehicle];
+    if(!rig)notes.push('Vehicle props need a character skeleton for fitting. Choose a rig to include them.');
+    else for(const id of ids){
+      const available=clips.filter(c=>vehicleFor(id,c)===id);
+      const matching=isCar(id)?[false,true].map(passenger=>available.find(c=>isPassengerClip(c)===passenger&&VEHICLE_FOR_CLIP[c]===id)??available.find(c=>isPassengerClip(c)===passenger)).filter((c):c is string=>!!c):available;
+      for(const vehicleClip of matching.length?matching:preview&&vehicleFor(id,preview)===id?[preview]:[VEHICLE_CLIP[id]]){
+        const name=isCar(id)?`${id}_${isPassengerClip(vehicleClip)?'passenger':'driver'}`:id;
+        const animated=mode==='animated'&&matching.includes(vehicleClip);
+        for(const format of formats)files.push({path:format==='obj'?`props/${name}/`:`${formats.length>1?format+'/':''}props/${stem}_${name}.${format}`,kind:'vehicle',vehicleId:id,vehicleClip,format,rigged:mode!=='static'&&format!=='obj',clips:animated&&format!=='obj'?[vehicleClip]:[],meshless:false,desc:`${VEHICLE_LABELS[id]} · fitted separate prop${animated&&format!=='obj'?` · animated ${clipById.get(vehicleClip)!.name} controls`:' · static appearance'}`});
+      }
+    }
+    if(rig&&ids.length)notes.push('Vehicle props use the same origin as the rider. Keep both transforms aligned and play their matching clips together. Car and boat clips include the fitted cabin/deck height. Static and rigged-only characters remain in their bind pose until a riding/driving clip is applied.');
+    if(ch.params.vehicle==='auto'&&!ids.length)notes.push('Match animation includes vehicles for selected riding/driving clips. Play a vehicle action in the builder, or select a specific vehicle in the character recipe, to export a static or rigged vehicle prop.');
   }
   if (mode === 'animated' && s.rootMotion && clips.some((c) => clipById.get(c)!.travel))
     notes.push('Root motion on: walk/run/strafe clips move the hips forward or sideways instead of playing in place.');
