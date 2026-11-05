@@ -16,6 +16,7 @@ import { checkStudioAudio } from './studio-audio-check';
 import { checkStudioEffects } from './studio-effects-check';
 import { checkStudioTour } from './studio-tour-check';
 import { checkStudioShortcuts } from './studio-shortcut-check';
+import { checkStudioNewProject } from './studio-new-project-check';
 import { captureStudioExample } from './studio-example-capture';
 import { TOUR_STORAGE_KEY } from '../src/studio/tour-content';
 
@@ -29,6 +30,7 @@ const CHROME = process.env.CHROME ?? [
 ].find(existsSync);
 if (!CHROME) throw new Error('No Chrome, Chromium or Edge found: set CHROME=/path/to/browser');
 
+const newProjectOnly=process.argv.includes('--new-project');
 const audioOnly=process.argv.includes('--audio'),castOnly=process.argv.includes('--cast'),effectsOnly=process.argv.includes('--sfx'),tourOnly=process.argv.includes('--tour'),keysOnly=process.argv.includes('--keys'),exampleOnly=process.argv.includes('--example');
 if(castOnly||effectsOnly)process.env.STUDIO_AUDIO_CHECK='1';
 if(audioOnly&&!existsSync(join(process.env.STUDIO_TTS_FIXTURE??'out/studio-speech-model','onnx/vocoder.onnx')))throw Error('Run npm run setup:studio-speech first, or set STUDIO_TTS_FIXTURE to the pinned model directory.');
@@ -112,7 +114,7 @@ const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
 const assistOnly=process.argv.includes('--assist');
-async function step(name:string,fn:()=>Promise<void>){if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+async function step(name:string,fn:()=>Promise<void>){if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -272,7 +274,7 @@ try{
   await evaluate("document.querySelectorAll('.cast-member')[0].click()");
   for(const [width,height]of [[1366,768],[1280,720]]){
    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pause(300);
-   const clipped=await evaluate<string[]>(`(()=>{const ids=['open-text','open-assist','load-project','save-project','open-export','title','scene-search','scene-category','character','actor-weapon','actor-carry','timeline-selection','action','beat-duration','actor-x','actor-y','actor-z','actor-yaw','blocking','camera','landscape','portrait','caption','scrub','play'];return ids.filter(id=>{const r=document.getElementById(id).getBoundingClientRect();return r.width<=0||r.height<=0||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth})})()`);
+   const clipped=await evaluate<string[]>(`(()=>{const ids=['open-text','open-assist','new-project','load-project','save-project','open-export','title','scene-search','scene-category','character','actor-weapon','actor-carry','timeline-selection','action','beat-duration','actor-x','actor-y','actor-z','actor-yaw','blocking','camera','landscape','portrait','caption','scrub','play'];return ids.filter(id=>{const r=document.getElementById(id).getBoundingClientRect();return r.width<=0||r.height<=0||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth})})()`);
    if(clipped.length)throw Error(`${width}×${height} clipped: ${clipped.join(', ')}`);await shot(`compact-${width}`);
   }
   await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});await pause();
@@ -512,6 +514,7 @@ try{
   if(b.actors[1].detail!=='high')throw Error('Character detail lost on return');await shot('mixed-rig-cast');
  });
  await captureStudioExample({enabled:exampleOnly,step,evaluate,ready,pause,folder});
+ await checkStudioNewProject({enabled:newProjectOnly,step,evaluate,waitFor,ready,pause,shot,send,folder});
  await checkStudioShortcuts({enabled:keysOnly,step,evaluate,waitFor,ready,pause,send});
  await checkStudioTour({enabled:tourOnly,step,evaluate,waitFor,ready,pause,shot,send});
  await checkFiveCast({enabled:castOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});

@@ -6,7 +6,7 @@ import { decodeCharacter } from '../app/share';
 import { StudioActor } from './actor';
 import { StudioScene } from './scene';
 import { exportMovie, supportsMp4, audioCodec } from './export';
-import { CAST, MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, durationOf, newProject, parseProject, presetCode, shotAt, timelineAt, trackDuration, type ActorTrack, type StudioProject } from './project';
+import { CAST, MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, blankProject, durationOf, newProject, parseProject, presetCode, shotAt, timelineAt, trackDuration, type ActorTrack, type StudioProject } from './project';
 import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
 import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations';
 import { orbitControls } from './orbit';
@@ -381,11 +381,45 @@ button('add-beat').addEventListener('click',()=>void edit(p=>{const a=p.actors.f
 button('add-shot').addEventListener('click',()=>void edit(p=>{const d=Math.min(3,MAX_DURATION-p.shots.reduce((s,b)=>s+b.duration,0));if(d<0.1||p.shots.length>=MAX_SHOTS)return;p.shots.push({id:beatId(),duration:d,shot:'wide',target:'all'});cameraSelection=true;selected=p.shots.length-1;}));
 button('remove-beat').addEventListener('click',()=>void edit(p=>{const items=cameraSelection?p.shots:p.actors.find(a=>a.id===selectedActor)!.beats;if(items.length>1)items.splice(selected,1);selected=Math.max(0,selected-1);}));
 for(const [id,offset]of [['earlier',-1],['later',1]]as const)button(id).addEventListener('click',()=>void edit(p=>{const items=cameraSelection?p.shots:p.actors.find(a=>a.id===selectedActor)!.beats,to=selected+offset;if(to<0||to>=items.length)return;[items[selected],items[to]]=[items[to],items[selected]];selected=to;}));
-button('save-project').addEventListener('click',async()=>{save();button('save-project').disabled=true;try{
+async function saveProject():Promise<boolean>{save();button('save-project').disabled=true;try{
   if(project.audio.speech.some(c=>c.asset))download(await audioProjectBundle(project),`${filename()}.ara-studio.zip`);
   else download(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),`${filename()}.ara-studio.json`);
-  notify('Editable project saved, including attached audio.');
-}catch(error){notify((error as Error).message);}finally{lock();}});
+  notify('Editable project saved, including attached audio.');return true;
+}catch(error){notify((error as Error).message);return false;}finally{lock();}}
+button('save-project').addEventListener('click',()=>void saveProject());
+const newProjectDialog=$<HTMLDialogElement>('new-project-dialog');
+button('new-project').addEventListener('click',()=>{
+  if(loading||exporting||importing||placementBefore||document.querySelector('dialog[open]'))return;
+  setPlaying(false);saveSession();$('new-project-message').textContent='';newProjectDialog.showModal();
+});
+button('cancel-new-project').addEventListener('click',()=>newProjectDialog.close());
+newProjectDialog.addEventListener('cancel',event=>{if(importing)event.preventDefault();});
+async function startNewProject(keepCopy:boolean){
+  if(loading||exporting||importing||placementBefore)return;
+  importing=true;lock();
+  for(const id of ['cancel-new-project','confirm-new-project','save-new-project'])button(id).disabled=true;
+  $('new-project-message').textContent=keepCopy?'Saving your current film…':'Preparing a fresh project…';
+  try{
+    if(keepCopy&&!await saveProject()){$('new-project-message').textContent=$('notice').textContent;return;}
+    if(!await apply(blankProject())){$('new-project-message').textContent=$('notice').textContent;return;}
+    selectedActor=project.actors[0].id;selected=0;characterSelected=true;cameraSelection=false;time=0;repeat=true;clickToPlace=false;titleEditing=false;
+    for(const id of ['scene-search','scene-category','animation-search','animation-category'])input(id).value='';
+    button('repeat').classList.add('on');button('repeat').setAttribute('aria-pressed','true');
+    button('place-actor').setAttribute('aria-pressed','false');button('place-actor').textContent='Click to place';$('film').classList.remove('click-placement');
+    assist.restore({});textEditor.select('');soundEditor.select('');
+    if(movieUrl)URL.revokeObjectURL(movieUrl);movieUrl='';renderedRecipe='';movieInfo='';speechToFix=undefined;
+    const preview=$<HTMLVideoElement>('export-preview');preview.removeAttribute('src');preview.load();preview.hidden=true;
+    $('download-film').removeAttribute('href');$('download-film').hidden=true;
+    try{sessionStorage.removeItem(HANDOFF);}catch{/* Optional builder handover. */}
+    const hash=new URLSearchParams(location.hash.slice(1));for(const key of ['c','detail','studioReturn'])hash.delete(key);historyReplaceHash(hash.toString());
+    renderUI();newProjectDialog.close();$('film').focus({preventScroll:true});
+    for(const element of document.querySelectorAll('.library,.inspector,#set-list,.timeline-scroll'))element.scrollTop=element.scrollLeft=0;
+    notify('New project ready. Undo brings back your previous film.');
+  }catch(error){$('new-project-message').textContent=(error as Error).message;}
+  finally{importing=false;for(const id of ['cancel-new-project','confirm-new-project','save-new-project'])button(id).disabled=false;lock();saveSession();}
+}
+button('confirm-new-project').addEventListener('click',()=>void startNewProject(false));
+button('save-new-project').addEventListener('click',()=>void startNewProject(true));
 button('load-project').addEventListener('click',()=>input('project-file').click());
 async function importStudioProject(source: string | File): Promise<boolean> {
   if(loading||exporting||importing||placementBefore)return false;

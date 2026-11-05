@@ -17,6 +17,8 @@ Replay it from **Quick tour of Studio** in the left panel, or press **?** with t
 
 Use the top-bar **Undo** for any edit, including moves, camera changes and the title. **Space** plays or pauses.
 
+To start afresh, click **New** in the top bar. Choose **Save & start new** to download the current project (including attached speech), or **Start new** to replace it immediately. **Cancel** keeps your film. A new project has one idle character, one wide camera shot and no text or sound; it saves on this device as usual. **Undo** brings the previous film back, including after a reload.
+
 ## Find a location
 
 Search **50 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City** and **Outdoors**. They include executive and open-plan offices, a boardroom, a classroom, a newsroom, bedrooms, a living room, a kitchen, beaches, pools, a hotel lobby, a café, a forest trail and a harbour.

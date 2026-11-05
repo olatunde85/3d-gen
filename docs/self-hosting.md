@@ -85,6 +85,7 @@ The speech runtime (about 14 MiB, single-threaded, no cross-origin isolation hea
 ```bash
 npm run test:studio:model         # project format, validation, timelines and seating
 npm run test:studio               # every set, the editor, LLM Assist, recovery, MP4 export and the builder round trip
+npm run test:studio -- --new-project # fresh projects, save-first downloads, recordings, Undo and mobile controls
 npm run test:studio -- --cast     # five characters, arrangements, framing and an MP4 with music
 npm run test:studio -- --sfx      # sound-effect timing, mixing, editing and export
 npm run setup:studio-speech       # caches the speech model once, for the next suite
