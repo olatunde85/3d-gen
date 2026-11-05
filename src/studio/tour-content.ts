@@ -33,6 +33,6 @@ export const TOUR_STEPS:readonly TourStep[] = [
   {title:'Start with an idea',demo:'assist',targets:['#open-assist'],
     body:'LLM Assist gives you a guide to take to your AI assistant. Paste or open its JSON, review, then Build film. Try an example loads the five-character warehouse film, including its original voices. Undo brings your previous film back.'},
   {title:'Play, save, share',demo:'export',targets:['#save-project','#open-export'],
-    body:'Preview with Space, expand with F, and undo with Ctrl/⌘ + Z while the preview is focused. Edit the title at the top. Save project keeps an editable copy and its recordings; Export film creates your MP4. Replay this tour from the left panel whenever you need it.',
+    body:'Preview with Space, expand with F, and undo with Ctrl/⌘ + Z while the preview is focused. Edit the title at the top. Save project keeps an editable copy and its recordings; New starts a fresh film, with the option to save first. Export film creates your MP4. Replay this tour from the left panel whenever you need it.',
     keys:[{keys:['Space'],label:'Play / pause'},{keys:['F'],label:'Expand / show editor'},{keys:['Ctrl / ⌘','Z'],label:'Undo'}]},
 ];

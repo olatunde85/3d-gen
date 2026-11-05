@@ -1067,6 +1067,13 @@ dialog h2 {
   line-height: 1.7;
 }
 
+.new-project-actions { display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:22px; }
+@media(max-width:650px) {
+  .topbar .file-tools { flex:0 0 100%;flex-wrap:wrap;justify-content:flex-start; }
+  .new-project-actions { flex-direction:column-reverse; }
+  .new-project-actions button { width:100%; }
+}
+
 #export-message {
   font-size: 12px;
   color: var(--gold);

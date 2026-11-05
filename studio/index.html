@@ -14,7 +14,7 @@
     <span class="prototype">EARLY PREVIEW</span>
     <div id="project-name" class="project-heading"><label class="sr-only" for="title">Film title</label><input id="title" maxlength="60" type="text" placeholder="Untitled film" title="Edit film title" autocomplete="off" /><span id="save-status">Saved on this device</span></div>
     <nav class="file-tools" aria-label="Project">
-      <button id="undo" title="Undo last edit (Ctrl/Cmd+Z)" aria-label="Undo last edit" disabled>↶</button><button id="open-assist" title="Create a film with your AI assistant">LLM Assist</button><button id="load-project" title="Open an Ara Studio project">Open</button><button id="save-project" title="Save an editable project file">Save project</button>
+      <button id="undo" title="Undo last edit (Ctrl/Cmd+Z)" aria-label="Undo last edit" disabled>↶</button><button id="open-assist" title="Create a film with your AI assistant">LLM Assist</button><button id="new-project" title="Start a new project" aria-haspopup="dialog">New</button><button id="load-project" title="Open an Ara Studio project">Open</button><button id="save-project" title="Save an editable project file">Save project</button>
       <button class="export-button" id="open-export"><span aria-hidden="true">↗</span> Export film</button>
     </nav>
   </header>
@@ -101,6 +101,13 @@
   </div>
   <div id="notice" class="notice" role="status" aria-live="polite"></div>
   <input id="project-file" type="file" accept=".json,.zip,application/json,application/zip" hidden />
+  <dialog id="new-project-dialog" aria-labelledby="new-project-title" aria-describedby="new-project-description">
+    <span class="eyebrow">ARA STUDIO / NEW PROJECT</span>
+    <h2 id="new-project-title">Start a new project?</h2>
+    <p id="new-project-description" class="export-description">Start with a fresh set, one character and an empty soundtrack. This replaces the film saved on this device. Save a copy first to keep it; Undo can also bring it back.</p>
+    <p id="new-project-message" class="export-description" role="status"></p>
+    <div class="new-project-actions"><button id="cancel-new-project" autofocus>Cancel</button><button id="confirm-new-project">Start new</button><button id="save-new-project" class="export-button">Save &amp; start new</button></div>
+  </dialog>
   <dialog id="sound-dialog" aria-labelledby="sound-title">
     <div class="dialog-top"><span class="eyebrow">THE SOUNDTRACK</span><button id="sound-close" class="icon-button" aria-label="Close sound editor">✕</button></div>
     <h2 id="sound-title">Speech, music &amp; effects</h2><p class="export-description">Direct dialogue, choose music, and time sound effects to the action. The mix is included in your film.</p>
