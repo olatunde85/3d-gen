@@ -1,6 +1,6 @@
 # Animations
 
-There are 77 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 84 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -8,10 +8,10 @@ There are 77 clips. The character loads playing **Idle**. The animation bar at t
 | Locomotion | Walk, Slouch walk, Model walk (catwalk), Run, Walk backwards, Strafe left/right (loops; in place, or with root motion) |
 | Sitting & lying | Sit down, Sit idle, Stand up (on a chair; Idle → Sit down → Sit idle → Stand up → Idle chain without a jump); Lie down, Sleep (on the back; they chain into Get up (from back)) |
 | Actions | Jump, Fall, Punch, Low punch, Hit reaction (one-shots); Jump start, Jump (in air) (loop), Jump land and Running jump, split for engine character controllers; sword idle (guard), sword slash, sword block |
-| Interaction | Pick up (ground), Use / press, Open door, Push (one-shots); Carry idle and Carry walk (loops) |
+| Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push (one-shots); Carry idle and Carry walk (loops) |
 | Emotes | Wave, Cheer, Laugh, Cry, Talk (loops) |
-| Turns | Left/right 45° and 90°, full 360° (one-shots: hip yaw with stepping feet) |
-| Shooter | Pistol idle (low ready), aim and fire. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade. |
+| Turns | Left/right 45° and 90°, full 360° (recorded turn-in-place steps at 2× speed) |
+| Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade. |
 | Reactions | Hit from front / back / left / right, knockdown, death (fall forward), death (fall backward), get up (from back), get up (from front) (one-shots). Knockdown ends where Get up (from back) starts, and Death (fall forward) ends where Get up (from front) starts, so they chain without a pop |
 | Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm) (loops) |
 
@@ -20,8 +20,9 @@ Feet are grounded automatically (crouch, landing, steps), and switching clips in
 ## Motion capture
 
 These clips are recorded performances from the [CMU motion capture database](http://mocap.cs.cmu.edu), retargeted onto each character:
-- Walk, Slouch walk, Run and Strafe left/right (Carry walk reuses the recorded Walk with a two-hand IK layer; Model walk is the recorded Walk with the legs closed, so the feet land on one line and the swinging leg passes round the standing one)
-- Jump and Low punch
+- Walk, Walk backwards (the same performance reversed), Slouch walk, Run and Strafe left/right. Strafes keep their recorded feet and pelvis with a more upright upper body. Carry walk and armed locomotion reuse these recordings with arm IK layers; Model walk uses the recorded Walk with the legs closed.
+- All five turns use CMU 69_17's recorded turn-in-place steps. Right turns mirror the performance; 45° turns adapt the quarter-turn heading. The full turn preserves the recorded sequence of four quarter-turns. The named angles are exact and finish standing in the new direction. All turns play at twice the captured speed: 0.95 seconds for 45°/90° turns and 3.6 seconds for a full turn.
+- Jump and Low punch, including their recovery. Jump, Running jump and Low punch finish in the upright Idle pose instead of holding a crouch.
 - Cry
 - Sit down and Sit idle (Stand up is Sit down in reverse)
 
@@ -35,18 +36,19 @@ The takes and cuts are listed in `scripts/mocap-takes.ts`. `npm run build-mocap`
 
 ## Interaction
 
-The **Interaction** category contains six clips. They animate the character; your game supplies the box, button, door or other object.
+The **Interaction** category contains seven clips. Choose **Carry: Box / parcel** to include a fitted box for pickup and carry. Your game supplies other interaction objects such as buttons and doors.
 
 - **Pick up (ground)** (3.4 s): look down, reach forward, squat with the hands clear of the knees, close both hands on a low object, then lift with the legs. Grip at about 1.5 s; the clip ends in the first pose of **Carry idle**, so the two chain without a pop.
+- **Put down / drop (ground)** (3.4 s): the matching reverse of pickup. Start holding the parcel, lower it to the floor around 1.6 s, release it, then return upright. Chain Carry idle/walk → Put down → Idle. The parcel stays on the floor after release.
 - **Use / press** (1.65 s): reach with the right hand, press with the extended index finger around 0.88 s, then retract.
 - **Open door** (2.8 s): reach for a handle on the right, turn the latch around 1.0 s, pull through a 32° arc, release and return. The door hinge is to the character's right, so the pull clears the torso. Animate your door to match the handle path; this is a pull-open action.
 - **Push** (2.6 s): reach with both open palms, brace in a staggered stance and drive forward, then recover. The main effort is between 1.15 and 1.65 s.
 - **Carry idle** (3.6 s loop): a balanced two-hand hold with restrained breathing.
 - **Carry walk**: the existing recorded Walk with a cadence about 15% slower, retaining its footfalls, hip motion and stride distance. The arms use IK instead of swinging; both wrists stay at the sides of the same object. Root motion travels the recorded stride distance per loop; turn it off when your controller supplies movement.
 
-The carry clips hold a roughly 40 cm-wide object in front of the torso. Wrist targets are 46 cm apart, with fingers forward and palms facing inward (scaled to the character's height). Parent your prop to a hand or drive it from the midpoint of the two wrists. These clips do not add a box to the character or export an interaction prop. The existing handbag and briefcase props remain one-hand accessories.
+The carry clips hold a roughly 40 cm-wide object in front of the torso. Wrist targets are 46 cm apart, with fingers forward and palms facing inward (scaled to the character's height). The **Box / parcel** is 42 × 32 × 34 cm at reference height, with configurable cardboard/tape colours and a shipping label. It rests on the floor until pickup contact, then lifts and follows both wrists; pickup ends exactly at Carry idle's box position. Chain those actions to keep it held. Its rigid **Parcel** bone and mesh export in GLB/FBX/OBJ; GLB and FBX also contain its animation. Set **Weapon: None** for the two-hand grip. Other actions leave the parcel on the floor; use Put down / drop to return it to the ground. Arbitrary set props are not grabbed automatically. With your own box, drive its centre from the two wrists. Handbags and briefcases remain one-hand accessories.
 
-Interaction hands use chest-space IK; the pickup reach uses floor-space targets that account for the body’s grounding offset while it squats. The door hand follows the forearm with a small latch twist, avoiding a forced sideways wrist bend. Actions ease in from and back to the relaxed pose, except pickup, which ends holding the object. Timings are authoring references for game events, not an automatic object-attachment system.
+Interaction hands use chest-space IK; the pickup reach uses floor-space targets that account for the body’s grounding offset while it squats. The door hand follows the forearm with a small latch twist, avoiding a forced sideways wrist bend. Actions ease in from and back to the relaxed pose, except pickup, which ends holding the object, and put-down, which starts there. The parcel stays part of the character rig; independently moving or detaching a dropped box needs game-side object handling. Timings are authoring references for game events, not automatic interaction with set props.
 
 ## Vehicles and props
 
@@ -64,7 +66,11 @@ The hands are pinned to the bar, so they hold it firmly while the body pedals. T
 
 ## Weapons
 
-**Bags:** under *Props*, *Bag* picks a straw tote, a structured handbag or a leather briefcase (carried in the left hand, bound to the hand bone, its fingers closed round the handle in every clip) or a canvas backpack (worn). Each bag has its own colours: the straw and trim of the tote; the leather (smooth, patent on the handbag, or grained) and hardware of the handbag and briefcase; and the canvas and accent of the backpack.
+Pistol walk, run, sprint and left/right strafes use recorded locomotion beneath their weapon holds. **Pistol aim (one hand)** keeps the free arm relaxed. Rifle walk, backwards walk, run, sprint and strafes use the same recorded mechanics; sprint retimes the recorded run, including root velocity, to preserve stride distance. Crouch walk retains its separate low gait.
+
+Wave keeps the head and eyes facing forward. Laugh plays at half speed (4.8 seconds per loop), with matching facial timing.
+
+**Bags:** under *Props*, *Carry* picks a straw tote, a structured handbag or a leather briefcase (carried in the left hand, bound to the hand bone, its fingers closed round the handle in every clip) or a canvas backpack (worn). Each bag has its own colours: the straw and trim of the tote; the leather (smooth, patent on the handbag, or grained) and hardware of the handbag and briefcase; and the canvas and accent of the backpack.
 
 Pick an assault rifle, pistol, sword or combat knife under *Props*. It's held in the right hand on the `WeaponR` socket (see [Rigging](rigging.md#weapon-socket)), and the viewer switches to the matching idle.
 

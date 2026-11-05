@@ -5,7 +5,7 @@
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
 import { compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
 import { archFeet, buildGarments, dressing, genTexture, outfitsUsed } from './garments';
-import { buildCarry, WORN_BAGS } from './props/carry';
+import { buildCarry, PARCEL_REST, WORN_BAGS } from './props/carry';
 import type { Vec3 } from './math';
 import { applyTPose, baseSkin, placeBones, quatOf, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
 import { socketBone, type HandJoints } from './rig/socket';
@@ -467,11 +467,11 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     const sizeK = ((maxBodyY - minY) * DM) / 1.8;
     bones.push(socketBone(hand, handIdx, sizeK));
     // A bag carried in the hand: that hand's fingers close round its handle.
-    rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
+    rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && p.carry!=='parcel' && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
 
     // Carried bag: hangs straight down from the left hand with the arms relaxed at the sides (the
     // animation rest pose), and is bound rigidly to the hand bone.
-    if (p.carry !== 'none') {
+    if (p.carry !== 'none'&&p.carry!=='parcel') {
       const a = new Animator(rig);
       const hand = a.relaxedBone('LeftHand'), mid = a.relaxedBone('LeftHandMiddle1');
       const hi = bones.findIndex((b) => b.name === (p.rig === 'full' ? 'wrist.L' : 'LeftHand'));
@@ -496,9 +496,22 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
       }
     }
 
+    // A parcel has its own rigid root, so pickup can leave it on the floor until the grip and
+    // carry can drive it from both wrists. The same bone and motion are exported to game engines.
+    if(p.carry==='parcel'){
+      const index=bones.length,head=PARCEL_REST.map(v=>v*sizeK)as Vec3;
+      bones.push({name:'Parcel',parent:-1,head,tail:[head[0],head[1]+.1*sizeK,head[2]],rot:[1,0,0,0,1,0,0,0,1]});
+      for(const cp of buildCarry('parcel',(key,make)=>genTexture(lib,key,make),p.garmentStyles)){
+        const positions=cp.mesh.positions.map((v,i)=>v*sizeK+head[i%3]);
+        const n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);
+        for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}
+        out.push([{...cp.mesh,positions,skin:{j,w}},cp.material]);
+      }
+    }
+
     // Weapon: modelled in its own frame, mapped onto the socket and fitted to its reference pose.
     if (p.weapon && p.weapon !== 'none') {
-      const socket = bones.length - 1;
+      const socket = bones.findIndex(b=>b.name==='WeaponR');
       let fitRot: Q = [0, 0, 0, 1];
       let supportZ = 0.3;
       const ref = p.weapon === 'rifle' ? 'rifle_aim' : p.weapon === 'pistol' ? 'pistol_aim' : null;

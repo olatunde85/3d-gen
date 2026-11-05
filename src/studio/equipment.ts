@@ -11,7 +11,7 @@ export function equipActor(actor: Pick<ActorTrack, 'character' | 'detail'>, slot
     if (!WEAPONS.includes(value as WeaponId)) throw new Error('Choose an available weapon.');
     params.weapon = value as WeaponId;
   } else {
-    if (!CARRIED.includes(value as CarryId)) throw new Error('Choose an available bag.');
+    if (!CARRIED.includes(value as CarryId)) throw new Error('Choose an available carried prop.');
     params.carry = value as CarryId;
   }
   return encodeCharacter(params);

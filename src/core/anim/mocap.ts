@@ -178,6 +178,8 @@ export interface MocapOptions {
   legSpread?: number;
   /** Degrees the swinging leg turns out at the hip as it passes the other (closed legs' feet clear each other). */
   swing?: number;
+  /** Adapt a recorded turn's unwrapped heading to an exact angle, retaining its recorded steps. */
+  turn?: number;
 }
 
 export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
@@ -249,6 +251,19 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
   for (const P of poses) {
     P.world = P.world.map((q) => qmul(turn, q));
     P.hips = qrot(turn, P.hips);
+  }
+  if(o.turn!==undefined){
+    const angles:number[]=[];let previous=0,total=0;
+    for(let f=f0;f<=f1;f++){
+      const fw=qrot(poses[f].world[0],[0,0,1]),heading=Math.atan2(fw[0],fw[2])*180/Math.PI;
+      if(f>f0)total+=((heading-previous+540)%360)-180;
+      angles.push(total);previous=heading;
+    }
+    if(Math.abs(total)<10)throw Error(`Take ${o.take} has no usable turn.`);
+    for(let f=f0;f<=f1;f++){
+      const delta=qaxis([0,1,0],angles[f-f0]*(o.turn/total-1));
+      poses[f].world=poses[f].world.map(q=>qmul(delta,q));
+    }
   }
   // In place: remove the straight-line travel between the first and last frame.
   // (With a reference, hips are placed relative to it instead.)

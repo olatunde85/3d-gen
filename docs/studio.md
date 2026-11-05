@@ -34,7 +34,7 @@ Changing the set keeps your cast, performances, camera shots and title. Every se
   - **Arrow keys** move the selected character 0.1 m, relative to your view. With the preview focused, hold **Ctrl** (or **Command ⌘** on Mac) with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m. **Shift** is also supported as an alternative. Selecting a character focuses the preview. Releasing the modifier completes the move even if the browser misses the arrow-key release.
   - The placement fields set the exact position, facing and height.
 - **Arrange the group:** **Stage the cast** on the right applies **Side by side**, **Conversation** or **Facing each other** when there are exactly **two characters**; no individual selection is needed. It is hidden for casts of three to five, which you place individually, and disabled until a second character is added. The dropdown shows a matching arrangement until you change the placement manually, and Undo or reload restores that display from the actual positions. Seated characters continue to fit the set’s seats.
-- **Equipment:** under **Equipment**, give the selected character a weapon (rifle, pistol, sword or knife) or a bag (straw tote, handbag, briefcase or backpack).
+- **Equipment:** under **Equipment**, give the selected character a weapon (rifle, pistol, sword or knife) or choose **Carry** for a bag or **Box / parcel**. Use Weapon: None with the parcel, then Pick up, Carry idle or Carry walk to lift and hold it, then Put down / drop to release it on the ground. The box follows both hands and is included in the film.
 - **Edit in the builder:** **Character builder** opens the selected character for editing. The builder's **Studio** button brings you back with only that character changed. Save your project first if your browser blocks session storage.
 
 Removing a character also tidies up camera shots and captions that pointed at them. Their recordings and sound effects stay, assigned to the narrator.
@@ -43,7 +43,7 @@ Removing a character also tidies up camera shots and captions that pointed at th
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **77 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **84 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. There's no collision detection, so characters will walk through walls, furniture and each other. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
 - **Props:** a bicycle appears for the cycling clip, and weapon clips use the character's equipment. Other vehicles aren't created, and hands don't grab set props or other characters.

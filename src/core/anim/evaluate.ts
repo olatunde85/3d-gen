@@ -9,6 +9,7 @@ import { boneFor } from '../rig/poses';
 import { boneFrame, quatOf, type Rig } from '../rig/rig';
 import { clipById, type Ch, type Clip, type HandTarget, type Sample } from './clips';
 import { fist } from './clips/helpers';
+import { PARCEL_REST } from '../props/carry';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
 
 export interface Frame {
@@ -127,6 +128,8 @@ export class Animator {
   private idx = new Map<string, number>();
   private feet: number[];
   private restFootY: number;
+  private recoveryFeet:number[];
+  private recoveryFloor:number;
   private restWorld: Q[];
   private animRest: Q[];
   private names: (string | null)[];
@@ -238,6 +241,8 @@ export class Animator {
     }
     this.feet = B.map((_, i) => i).filter((i) => /^(Left|Right)(Foot|ToeBase|Toe_End)$/.test(this.names[i] ?? '') || /^(foot|toe\d-\d)\.[LR]$/.test(B[i].name));
     this.restFootY = Math.min(...this.feet.map((i) => B[i].head[1]));
+    this.recoveryFeet=[...new Set([...this.feet,...B.flatMap((b,i)=>/^(Left|Right)Toe_End$/.test(b.name)?[i]:[])])];
+    this.recoveryFloor=Math.min(...this.recoveryFeet.map(i=>B[i].head[1]));
     this.socket = B.findIndex((b) => b.name === 'WeaponR');
   }
 
@@ -290,8 +295,23 @@ export class Animator {
   frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number } = {}): Frame {
     const s = this.holding(this.withEyes(clip.sample(time), clip, time, opts.faceTime));
     const frame = this.frameOf(s, clip, time, opts);
+    this.placeParcel(frame,clip,time,opts.rootMotion);
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
+  }
+
+  /** A rigid, level box: on the floor before pickup, then between the two solved wrists. */
+  private placeParcel(frame:Frame,clip:Clip,time:number,rootMotion=false){
+    const index=this.rig.bones.findIndex(b=>b.name==='Parcel');if(index<0)return;
+    const scale=this.scale,rest=PARCEL_REST.map((v,d)=>v*scale+(rootMotion&&clip.travel?clip.travel[d]*time*scale:0))as Vec3;
+    if(!['pick_up','put_down','carry_idle','carry_walk'].includes(clip.id)){frame.rot[index]=QI;frame.rootPos.set(index,rest);return;}
+    const pos=this.positions(frame),left=this.idx.get('LeftHand'),right=this.idx.get('RightHand');if(left===undefined||right===undefined)return;
+    const L=pos[left],R=pos[right],x=norm([L[0]-R[0],0,L[2]-R[2]]),z:Vec3=[-x[2],0,x[0]];
+    const centre=L.map((v,d)=>(v+R[d])/2+z[d]*.06*scale-(d===1?.02*scale:0))as Vec3;
+    const pickupTime=clip.id==='put_down'?clip.duration-time:time;
+    const progress=['pick_up','put_down'].includes(clip.id)?smooth((pickupTime-1.8)/.5):1;
+    frame.rootPos.set(index,rest.map((v,d)=>v+(centre[d]-v)*progress)as Vec3);
+    frame.rot[index]=qslerp(QI,quatOf([x[0],0,x[2],0,1,0,z[0],0,z[2]]),progress);
   }
 
   /**
@@ -357,7 +377,16 @@ export class Animator {
         const q = b.rootPos.get(i) ?? p;
         rootPos.set(i, [p[0] + (q[0] - p[0]) * w, p[1] + (q[1] - p[1]) * w, p[2] + (q[2] - p[2]) * w]);
       }
-      return { ...a, rot: a.rot.map((r, i) => qslerp(r, b.rot[i], w)), rootPos };
+      const frame={ ...a, rot: a.rot.map((r, i) => qslerp(r, b.rot[i], w)), rootPos };
+      if(s.blend.ground&&this.feet.length){
+        // Interpolated rotations do not trace straight joint paths: even two grounded endpoint
+        // poses can put an intermediate foot below the floor. Correct after the solved blend.
+        const positions=this.positions(frame),target=this.positions(b);
+        const floor=Math.min(this.recoveryFloor,...this.recoveryFeet.map(i=>target[i][1]));
+        const low=Math.min(...this.recoveryFeet.map(i=>positions[i][1])),lift=Math.max(0,floor-low);
+        if(lift)for(const [i,p]of rootPos)rootPos.set(i,[p[0],p[1]+lift,p[2]]);
+      }
+      return frame;
     }
     const left = s.ik?.Left;
     if (left?.support && !opts.noSupport && this.socket >= 0) {

@@ -134,6 +134,8 @@ async function check(lib: AssetLibrary, config: string, p: HumanParams, loopSuff
       await check(lib, 'game rig, T-pose, angry, -loop names', { ...base, rig: 'game', restPose: 'T', faceBones: true, expression: 'angry' }, true),
       await check(lib, 'lite rig', { ...base, rig: 'game_lite' }, false),
       await check(lib, 'full MakeHuman rig', { ...base, rig: 'full' }, false),
+      await check(lib, 'game rig, parcel and pistol', { ...base, rig: 'game', carry:'parcel',weapon:'pistol' }, false),
+      await check(lib, 'full T-pose, parcel and rifle', { ...base, rig:'full',restPose:'T',carry:'parcel',weapon:'rifle' }, false),
     ];
     out.textContent = JSON.stringify({ ok: reports.every((r) => r.ok), reports }, null, 1);
   } catch (e) {

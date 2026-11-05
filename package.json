@@ -34,6 +34,7 @@
     "test": "tsx scripts/selftest.ts",
     "setup-assets": "tsx scripts/setup-assets.ts",
     "build-assets": "tsx scripts/build-assets.ts",
+    "test:animations": "tsx scripts/animation-improvement-check.ts",
     "test:gltf": "tsx scripts/gltf-check.ts",
     "build-mocap": "tsx scripts/build-mocap.ts",
     "test:ui": "tsx scripts/ui-check.ts",

@@ -101,7 +101,9 @@ export const jumpRunning: Clip = {
     // Left: push-off leg, extends behind. Right: drive knee up, reaches forward to land.
     side(out, 'UpLeg', [k([10, -18, -24, -6, 10]), 0, 3], [k([10, 70, 52, 24, 10]), 0, 3]);
     side(out, 'Leg', [k([-30, -8, -40, -70, -30]), 0, 0], [k([-30, -95, -30, -22, -30]), 0, 0]);
-    side(out, 'Foot', [k([0, -30, -10, 10, 0]), 0, 0], [k([0, 10, 0, 18, 0]), 0, 0]);
+    // Flat at the starting stance and touchdown; toe-down belongs to the airborne leg,
+    // otherwise the original crouched start drove the toe tips below the floor.
+    side(out, 'Foot', [k([20, 20, -10, 10, 20]), 0, 0], [k([20, 10, 0, -2, 20]), 0, 0]);
     // Arms opposite the legs: right arm back with the left leg pushing, left arm drives forward.
     side(out, 'Arm', [k([10, 55, 70, 30, 10]), 0, k([6, 12, 20, 10, 6])], [k([10, -35, -20, 20, 10]), 0, k([6, 10, 18, 8, 6])]);
     side(out, 'ForeArm', [k([60, 70, 45, 60, 60]), 0, 0], [k([60, 40, 30, 70, 60]), 0, 0]);

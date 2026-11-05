@@ -107,7 +107,7 @@ const screenActor=parseProject(JSON.stringify({...valid,actors:[{...valid.actors
 console.log('Timed text: legacy migration, actor/screen anchors, duration, colours, SRT round trip and invalid cues passed.');
 console.log('Editor recovery: valid film, bounded selection/time, unfinished Assist drafts, stale actor ids and damaged Undo entries passed.');
 console.log(`LLM Assist: full live catalogues, ${Object.keys(PRESETS).length} presets, equipment, canonical/v1/fenced import, schema and invalid responses passed (${guide.length} guide characters).`);
-console.log('Studio model: 50 locations, 77 animations, v1 migration, independent tracks, held ends, camera subjects and invalid files passed.');
+console.log(`Studio model: 50 locations, ${CLIPS.length} animations, v1 migration, independent tracks, held ends, camera subjects and invalid files passed.`);
 
 const actors=new Set(['host','narrator']);
 assert.deepEqual(parseAudio(undefined,actors),defaultAudio());assert.deepEqual(migrated.audio,defaultAudio());

@@ -154,4 +154,8 @@ export const push: Clip = {
   },
 };
 
-export const INTERACTIONS: Clip[] = [pickUp, usePress, openDoor, push, carryIdle, carryWalk];
+/** The matching controlled drop: lower the box, release it on the ground, then stand upright. */
+export const putDown:Clip={...pickUp,id:'put_down',name:'Put down / drop (ground)',
+  sample:t=>pickUp.sample(Math.max(0,Math.min(pickUp.duration,pickUp.duration-t))),
+};
+export const INTERACTIONS: Clip[] = [pickUp, putDown, usePress, openDoor, push, carryIdle, carryWalk];
