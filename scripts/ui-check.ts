@@ -169,6 +169,28 @@ try {
     await tap('act:surprise');
     await builtAfter(before, 'the surprise build');
   });
+  await step('Quick build vehicles pair animations, simplify styling and read back Detailed edits',async()=>{
+    const saved=()=>evaluate<{vehicle:string;vehicleStyle:{color:string;variant:string;finish:string}}>("JSON.parse(localStorage.getItem('3dgen.human'))");
+    let before=await statsNow();await tap('vehicle:sports_car');await builtAfter(before,'Quick sports car');
+    await waitFor(`${quick('vehicle:sports_car')}.ariaPressed==='true' && !!${quick('action:board_sports_car')} && !!${quick('action:alight_sports_car')}`,'sports car actions',3000);
+    if((await saved()).vehicle!=='auto')throw Error('Quick vehicle locks the model instead of following the animation');
+    for(const key of ['vehicleColour:red','vehicleVariant:sport','vehicleFinish:matte']){before=await statsNow();await tap(key);await builtAfter(before,key);}
+    const styled=await saved();if(styled.vehicleStyle.color!=='#b0211f'||styled.vehicleStyle.variant!=='sport'||styled.vehicleStyle.finish!=='matte')throw Error('Quick vehicle style not saved');
+    before=await statsNow();await tap('vehicle:horse');await builtAfter(before,'Quick horse');
+    await waitFor(`${quick('vehicle:horse')}.ariaPressed==='true' && !!${quick('action:board_horse')}`,'horse actions',3000);
+    if(await evaluate(`!!${quick('vehicleFinish:matte')}`))throw Error('Horse shows vehicle paint finish');
+    if((await saved()).vehicleStyle.color!=='#b0211f')throw Error('Vehicle switch overwrites custom colours');
+    before=await statsNow();await tap('vehicle:kayak');await builtAfter(before,'Quick kayak');
+    await tap('action:board_kayak');await waitFor(`${quick('action:board_kayak')}.ariaPressed==='true' && ${quick('vehicle:kayak')}.ariaPressed==='true'`,'kayak boarding',3000);
+    await tap('action:paddle_kayak');await waitFor(`${quick('action:paddle_kayak')}.ariaPressed==='true'`,'kayak paddling',3000);
+    // A change in Detailed must be shown in Quick without discarding trim or seat colours.
+    await evaluate("document.querySelector('#quick [data-k=\"fine:vehicle\"]').click()");
+    before=await statsNow();await evaluate(`(()=>{const e=document.querySelector('input[aria-label="Vehicle Body / coat"]');e.value='#345678';e.dispatchEvent(new Event('change'))})()`);await builtAfter(before,'Detailed vehicle colour');
+    await evaluate("[...document.querySelectorAll('.mode-switch button')].find(b=>b.textContent.includes('Quick build')).click()");
+    await waitFor(`${quick('vehicle:kayak')}.ariaPressed==='true' && document.querySelector('#quick [data-step=vehicle] input[type=color]').value==='#345678'`,'Quick vehicle colour readback',3000);
+    mkdirSync('out/vehicles',{recursive:true});await evaluate("document.querySelector('#quick [data-step=vehicle]').scrollIntoView({block:'start'})");const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync('out/vehicles/quick-build.png',Buffer.from(data,'base64'));
+    before=await statsNow();await tap('vehicle:none');await builtAfter(before,'On foot');await waitFor(`${quick('vehicle:none')}.ariaPressed==='true' && !${quick('vehicleFinish:matte')}`,'vehicle removed',3000);
+  });
   await step('switching to Detailed shows every control', async () => {
     await evaluate("[...document.querySelectorAll('.mode-switch button')].find((b) => b.textContent.includes('Detailed')).click()");
     await waitFor("document.body.dataset.mode === 'detailed' && getComputedStyle(document.querySelector('#controls')).display !== 'none' && getComputedStyle(document.querySelector('#quick')).display === 'none'", 'Detailed', 3000);

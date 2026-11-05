@@ -10,6 +10,8 @@ import { EXPRESSIONS, EXPRESSION_LABELS, type ExpressionId } from '../../core/fa
 import { ageToYears, DEFAULT_PARAMS, PRESETS, type HumanParams } from '../../core/params';
 import { CARRIED, CARRY_LABELS, type CarryId } from '../../core/props/carry';
 import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons';
+import {VEHICLE_IDS,VEHICLE_LABELS,VEHICLE_CLIP,RIDING_VEHICLES,vehicleFor,vehicleStyleForChoice,type VehicleId} from '../../core/props/vehicles';
+import {VEHICLE_TRANSITIONS,ridingClip} from '../../core/props/vehicle-actions';
 
 export type Patch = Partial<HumanParams>;
 export type Gender = 'man' | 'woman';
@@ -373,14 +375,27 @@ export const HELD: Option[] = WEAPONS.map((w) => ({ id: w, label: w === 'none' ?
 
 // --- Motion ---------------------------------------------------------------------------------
 
+export const VEHICLES: Option[] = [{ id: 'none', label: 'On foot' }, ...VEHICLE_IDS.map(id => ({ id, label: VEHICLE_LABELS[id] }))];
+/** Quick choices follow the playing action rather than locking out other vehicle animations. */
+export const vehicleOf = (p: HumanParams, clip: string) => vehicleFor(p.vehicle, clip);
+export function vehiclePatch(p: HumanParams, id: VehicleId): Patch {
+  return { vehicle: 'auto', vehicleStyle: vehicleStyleForChoice(id, p.vehicleStyle), rig: p.rig === 'none' ? 'game' : p.rig, animations: true };
+}
+export const vehicleActions = (id: VehicleId, clip = VEHICLE_CLIP[id]) => {
+  const ride = RIDING_VEHICLES[ridingClip(clip)] === id ? ridingClip(clip) : VEHICLE_CLIP[id];
+  const transition = VEHICLE_TRANSITIONS.find(([, action]) => action === ride)?.[0];
+  return transition ? [`board_${transition}`, ride, `alight_${transition}`] : [ride];
+};
+
 /** Clips to try, and more for whatever is in hand. */
-export function actions(p: HumanParams): Option[] {
+export function actions(p: HumanParams, clip = 'idle'): Option[] {
   const base = ['idle', 'walk', 'model_walk', 'run', 'wave', 'talk', 'laugh', 'cheer', 'sit_idle', 'jump', 'punch'];
   const held: Record<string, string[]> = {
     pistol: ['pistol_idle', 'pistol_aim', 'pistol_fire'], rifle: ['rifle_idle', 'rifle_aim', 'rifle_fire_auto', 'rifle_walk', 'rifle_reload'],
     sword: ['sword_idle', 'sword_slash', 'sword_block'], knife: [],
   };
-  return [...base, ...(held[p.weapon] ?? [])].map((id) => ({ id, label: '' }));
+  const vehicle = vehicleOf(p, clip);
+  return [...base, ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));
 }
 
 // --- Summary --------------------------------------------------------------------------------
