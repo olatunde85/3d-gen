@@ -6,7 +6,7 @@ import { defaultAudio, parseAudio, type FilmAudio } from './audio/schema';
 import { parseTextCues, type TextCue } from './text';
 import { sceneById, type SetId } from './catalog';
 import {studioTravel} from './motion';
-import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,type VehicleChoice} from '../core/props/vehicles';
+import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES,type VehicleChoice} from '../core/props/vehicles';
 export { SETS, type SetId } from './catalog';
 export const ACTIONS = CLIPS.map(c => c.id);
 export type Action = string;
@@ -79,7 +79,7 @@ export function parseProject(text: string): StudioProject {
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
       const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,6,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
-      if(speed!==undefined&&!VEHICLE_FOR_CLIP[clip])throw Error('Travel speed is only available for vehicle actions.');
+      if(speed!==undefined&&!RIDING_VEHICLES[clip])throw Error('Travel speed is only available for riding/driving actions.');
       return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: b.move && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}) };
     });
     if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');

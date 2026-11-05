@@ -74,8 +74,9 @@ export class StudioScene {
     const at = shotAt(project, time), beat = at.shot;
     for (const track of project.actors) this.actors.get(track.id)?.pose(project, time, track, this.set?.seats);
     const subjects = project.actors.filter(a => beat.target === 'all' || a.id === beat.target).map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a);
+    const position=(a:StudioActor)=>beat.shot==='wide'?a.group.position:a.stagePosition;
     const h = Math.max(1.6, ...subjects.map(a => a.height)), center = new THREE.Vector3();
-    for (const a of subjects) center.add(a.group.position); if(subjects.length)center.multiplyScalar(1/subjects.length);
+    for (const a of subjects) center.add(position(a)); if(subjects.length)center.multiplyScalar(1/subjects.length);
     const u = at.progress, eased = u * u * (3 - 2 * u);
     let angle = (project.template === 'courtyard' ? -0.32 : project.template === 'runway' ? 0.1 : 0.24) + THREE.MathUtils.degToRad(project.view.azimuth);
     if (project.camera === 'orbit') angle += (eased - 0.5) * 0.6;
@@ -83,7 +84,7 @@ export class StudioScene {
     const targetY = center.y + h * { wide: 0.51, medium: 0.7, close: 0.88 }[beat.shot];
     const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     let extent = 0, depth = 0;
-    for(const a of subjects){const dx=a.group.position.x-center.x,dz=a.group.position.z-center.z;
+    for(const a of subjects){const dx=position(a).x-center.x,dz=position(a).z-center.z;
       extent=Math.max(extent,Math.abs(dx*Math.cos(angle)-dz*Math.sin(angle))+a.height*0.29);
       depth=Math.max(depth,Math.abs(dx*Math.sin(angle)+dz*Math.cos(angle)));
     }
@@ -149,7 +150,7 @@ export class StudioScene {
   /** Preview-only: a ring with a dark outline at the feet and a name tag above the head, legible on any set. */
   private drawSelection(ctx: CanvasRenderingContext2D) {
     const actor=this.selectionId?this.actors.get(this.selectionId):undefined;if(!actor)return;
-    const W=this.canvas.width,H=this.canvas.height,origin=actor.group.position,radius=actor.height*.3;
+    const W=this.canvas.width,H=this.canvas.height,origin=actor.stagePosition,radius=actor.height*.3;
     // Sized for the screen, whatever the film's resolution or the preview's size.
     const u=Math.max(W/1280,W/(this.canvas.clientWidth||W)),gold='#f4c78f',ink='rgba(10,12,16,.8)';
     const project=(p:THREE.Vector3)=>{p.project(this.camera);return{x:(p.x+1)*W/2,y:(1-p.y)*H/2,z:p.z};};

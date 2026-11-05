@@ -165,12 +165,13 @@ export function planExport(ch: Character, s: ExportSettings): ExportPlan {
     const ids=ch.params.vehicle==='auto'?VEHICLE_IDS.filter(id=>clips.some(c=>VEHICLE_FOR_CLIP[c]===id)||preview&&VEHICLE_FOR_CLIP[preview]===id):[ch.params.vehicle];
     if(!rig)notes.push('Vehicle props need a character skeleton for fitting. Choose a rig to include them.');
     else for(const id of ids){
-      const available=clips.filter(c=>vehicleFor(id,c)===id);
-      const matching=isCar(id)?[false,true].map(passenger=>available.find(c=>isPassengerClip(c)===passenger&&VEHICLE_FOR_CLIP[c]===id)??available.find(c=>isPassengerClip(c)===passenger)).filter((c):c is string=>!!c):available;
+      const available=clips.filter(c=>ch.params.vehicle==='auto'?VEHICLE_FOR_CLIP[c]===id:vehicleFor(id,c)===id);
+      const matching=isCar(id)?[false,true].map(passenger=>available.find(c=>isPassengerClip(c)===passenger&&VEHICLE_FOR_CLIP[c]===id&&!clipById.get(c)!.vehicleTransition)??available.find(c=>isPassengerClip(c)===passenger)).filter((c):c is string=>!!c):available.slice(0,1);
       for(const vehicleClip of matching.length?matching:preview&&vehicleFor(id,preview)===id?[preview]:[VEHICLE_CLIP[id]]){
         const name=isCar(id)?`${id}_${isPassengerClip(vehicleClip)?'passenger':'driver'}`:id;
         const animated=mode==='animated'&&matching.includes(vehicleClip);
-        for(const format of formats)files.push({path:format==='obj'?`props/${name}/`:`${formats.length>1?format+'/':''}props/${stem}_${name}.${format}`,kind:'vehicle',vehicleId:id,vehicleClip,format,rigged:mode!=='static'&&format!=='obj',clips:animated&&format!=='obj'?[vehicleClip]:[],meshless:false,desc:`${VEHICLE_LABELS[id]} · fitted separate prop${animated&&format!=='obj'?` · animated ${clipById.get(vehicleClip)!.name} controls`:' · static appearance'}`});
+        const actions=available.filter(c=>!isCar(id)||isPassengerClip(c)===isPassengerClip(vehicleClip));
+        for(const format of formats)files.push({path:format==='obj'?`props/${name}/`:`${formats.length>1?format+'/':''}props/${stem}_${name}.${format}`,kind:'vehicle',vehicleId:id,vehicleClip,format,rigged:mode!=='static'&&format!=='obj',clips:animated&&format!=='obj'?actions:[],meshless:false,desc:`${VEHICLE_LABELS[id]} · fitted separate prop${animated&&format!=='obj'?` · ${actions.length} matching vehicle animation${actions.length===1?'':'s'}`:' · static appearance'}`});
       }
     }
     if(rig&&ids.length)notes.push('Vehicle props use the same origin as the rider. Keep both transforms aligned and play their matching clips together. Car and boat clips include the fitted cabin/deck height. Static and rigged-only characters remain in their bind pose until a riding/driving clip is applied.');

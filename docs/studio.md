@@ -43,7 +43,7 @@ Removing a character also tidies up camera shots and captions that pointed at th
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **88 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **114 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. There's no collision detection, so characters will walk through walls, furniture and each other. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
 - **Props:** vehicle models follow the selected riding/driving action automatically. Dedicated modern sports-car and SUV actions sit alongside the classic car, bicycle, motorcycle, horse, canoe, kayak, rowboat and motorboat performances. The selected action’s **Show vehicle** checkbox controls visibility; **Vehicle appearance** in Equipment edits colours, finish and styling. There is no separate model dropdown.
@@ -184,3 +184,9 @@ Each character's performance is directed on its own, on a shared clock.
 - **Video:** [Mediabunny](https://mediabunny.dev/) (MPL 2.0) encodes the MP4. Every build includes its licence and source in `third-party/mediabunny/`, linked from the export dialog.
 
 Character assets and motion capture keep their usual terms. Hosting, the speech model and the Studio tests are covered in [Self-hosting](self-hosting.md#studio).
+
+### Entering and leaving vehicles
+
+Choose **Board…**, the matching riding/driving action, then **Alight from…** from the animation search. There are 26 entry/exit actions across all ten vehicles, including driver/passenger roles for all three cars. Use the full clip duration for entry/exit and keep **Move through set** off; those actions contain their own footwork. Riding can travel at an adjustable speed between them. Car doors and the motorboat’s boarding gate open and close with the action.
+
+The vehicle stays parked after alighting while the actor walks away, and is visible beside an actor waiting in a leading idle beat. Scrubbing, saved JSON, Undo and reloading derive the same parked position from the timeline. One actor retains one active vehicle; return to the parked position before boarding again. LLM Assist includes the complete pairing table, timing and staging instructions. Boarding the motorboat goes to the helm; passengers in the aft seats still need manual staging.

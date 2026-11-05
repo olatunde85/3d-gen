@@ -6,6 +6,8 @@ export function searchAnimations(query: string, category = '') {
   return CLIPS.filter(c => (!category || c.category === category) && words.every(w => `${c.name} ${c.id} ${c.id.replace(/_/g,'')} ${c.category}`.toLowerCase().includes(w)));
 }
 export function actionNote(id: string, weapon?: string, seats?: number) {
+  const transition=clipById.get(id)?.vehicleTransition;
+  if(transition)return `${transition.direction==='board'?'Boards':'Leaves'} the ${VEHICLE_LABELS[VEHICLE_FOR_CLIP[id]].toLowerCase()}. Use the full clip length with movement off. ${transition.direction==='board'?`Follow with ${clipById.get(transition.ride)!.name}.`:'Ends upright beside the parked vehicle.'} Keep the entry side clear.`;
   if (['sit_down','sit_idle','stand_up'].includes(id)) return seats === 0
     ? 'This set has nothing to sit on. Choose a set with chairs, sofas or benches, or the character sits on thin air.'
     : 'Sits on the set’s furniture: Studio moves the character to the nearest free seat (chair, sofa, bench or stool).';

@@ -10,6 +10,8 @@ import {vehicleFor,vehicleLift,VEHICLE_FOR_CLIP,type VehicleChoice} from '../cor
 import { boneFor } from '../core/rig/poses';
 import { timelineAt } from './project';
 import { parcelStateAt } from './parcel';
+import {vehicleStateAt} from './vehicle-state';
+import {ridingClip,boardingScale} from '../core/props/vehicle-actions';
 import type { Seat } from './sets/builder';
 import { hipsAt, isSeated, nearestSeat, seatedAt, SEAT_REACH, type Sitter } from './seating';
 
@@ -20,6 +22,9 @@ export class StudioActor {
   readonly scale: number;
   readonly height: number;
   framingPadding = 0;
+  private blockingOffset = new THREE.Vector3();
+  /** Camera/selection follow authored entry footwork as well as the actor's travel track. */
+  get stagePosition(){return this.group.localToWorld(this.blockingOffset.clone());}
   private bones: THREE.Bone[];
   private sittingHips?: [number, number, number];
   private ride?:Vehicle;
@@ -94,12 +99,17 @@ export class StudioActor {
     const parcel=parcelStateAt(track,at.time),id=vehicleFor(this.vehicleChoice(track,b),clip.id);
     const lift=id?vehicleLift(id,this.scale):0;
     let frame = this.animator.frame(clip, local, { faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift });
-    if (!VEHICLE_FOR_CLIP[b.clip]&&!VEHICLE_FOR_CLIP[track.beats[Math.max(0,at.index-1)].clip]&&at.index && at.local < 0.3 && (track.beats[at.index - 1].clip !== b.clip || !clip.loop)) {
+    const offsetParked=(f:Frame,t:number)=>{const parked=vehicleStateAt(project,t,track),s=boardingScale(this.character.rig!);if(parked?.parked)for(const [i,p]of f.rootPos)f.rootPos.set(i,[p[0]+parked.offset[0]*s,p[1],p[2]+parked.offset[1]*s]);};
+    offsetParked(frame,time);
+    const previousClip=clipById.get(track.beats[Math.max(0,at.index-1)].clip)!,fromVehicle=VEHICLE_FOR_CLIP[previousClip.id],toVehicle=VEHICLE_FOR_CLIP[clip.id];
+    const blend=(!fromVehicle&&!toVehicle)||(!toVehicle&&previousClip.vehicleTransition?.direction==='alight')||(!fromVehicle&&clip.vehicleTransition?.direction==='board')||(clip.vehicleTransition?.direction==='alight'&&ridingClip(previousClip.id)===clip.vehicleTransition.ride);
+    if (blend&&at.index && at.local < 0.3 && (track.beats[at.index - 1].clip !== b.clip || !clip.loop)) {
       const previous = track.beats[at.index - 1], fromClip = clipById.get(previous.clip)!;
       const prior = timelineAt(project, Math.max(0, at.start - 0.000001), track);
       const priorPhase = prior.phase + 0.000001;
       const fromTime = fromClip.loop ? priorPhase % fromClip.duration : Math.min(priorPhase, fromClip.duration);
       const from = this.animator.frame(fromClip, fromTime, { faceTime,parcelGrounded:parcelStateAt(track,prior.time).grounded,vehicleLift:vehicleFor(this.vehicleChoice(track,previous),fromClip.id)?vehicleLift(vehicleFor(this.vehicleChoice(track,previous),fromClip.id)!,this.scale):0 });
+      offsetParked(from,prior.time);
       const w = at.local / 0.3, ease = w * w * (3 - 2 * w);
       const rootPos = new Map(frame.rootPos);
       for (const [i, p] of rootPos) { const q = from.rootPos.get(i)!; rootPos.set(i, p.map((v, d) => q[d] + (v - q[d]) * ease) as [number, number, number]); }
@@ -120,8 +130,14 @@ export class StudioActor {
     for (const [i, p] of frame.rootPos) this.bones[i].position.set(...p);
     frame.morph?.forEach((w, i) => { if (this.mesh.morphTargetInfluences) this.mesh.morphTargetInfluences[i] = w; });
     const at = timelineAt(project, time, track);
+    const state=vehicleStateAt(project,time,track);
+    this.blockingOffset.set(0,0,0);
+    if(state?.parked||clipById.get(track.beats[at.index].clip)?.vehicleTransition){
+      const root=this.character.rig!.bones.findIndex(b=>b.name===boneFor(this.character.rig!.type,'Hips')),p=frame.rootPos.get(root),rest=this.character.rig!.bones[root];
+      if(p)this.blockingOffset.set(p[0]-rest.head[0],0,p[2]-rest.head[2]);
+    }
     this.place(this.group, track, at);
-    this.props(track,track.beats[at.index],frame,at.phase,at.z*this.scale);
+    this.props(project,time,track,frame);
     this.group.position.y += this.seatLift(project, track, seats, track.beats[at.index].clip, at.phase);
     this.group.updateMatrixWorld(true);
   }
@@ -149,11 +165,11 @@ export class StudioActor {
     object.position.set(track.x + (at.x * Math.cos(yaw) + at.z * Math.sin(yaw)) * this.scale, track.y, track.z + (-at.x * Math.sin(yaw) + at.z * Math.cos(yaw)) * this.scale);
   }
   private vehicleChoice(track:ActorTrack,b:Beat):VehicleChoice{return (b.showVehicle??track.vehicle!=='none')?'auto':'none';}
-  private props(track:ActorTrack,b:Beat,frame:Frame,phase:number,distance:number){
-    const clip=b.clip,id=vehicleFor(this.vehicleChoice(track,b),clip),key=id?`${id}:${clip}`:'';
+  private props(project:StudioProject,time:number,track:ActorTrack,frame:Frame){
+    const state=vehicleStateAt(project,time,track),clip=state?.clip,id=state?.visible&&clip?VEHICLE_FOR_CLIP[clip.id]:undefined,key=id?`${id}:${ridingClip(clip!.id)}`:'';
     if(key!==this.rideKey){if(this.ride){this.group.remove(this.ride.group);this.ride.dispose();this.ride=undefined;}this.rideKey=key;
-      if(id){this.ride=new Vehicle(id,this.character.rig!,this.animator,clipById.get(clip)!,this.character.params.vehicleStyle);this.group.add(this.ride.group);}}
-    if(this.ride){this.ride.update(phase%clipById.get(clip)!.duration,frame,distance);const size=this.ride.bounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}else this.framingPadding=0;
+      if(id){this.ride=new Vehicle(id,this.character.rig!,this.animator,clip!,this.character.params.vehicleStyle);this.group.add(this.ride.group);}}
+    if(this.ride&&state&&clip){this.ride.group.position.set(state.x*this.scale,0,state.z*this.scale);this.ride.update(clip.loop?state.phase%clip.duration:Math.min(state.phase,clip.duration),state.parked?undefined:frame,state.distance*this.scale,clip,state.parked);const size=this.ride.bounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}else this.framingPadding=0;
   }
   detach() { this.group.removeFromParent(); }
   dispose() { this.ride?.dispose();this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());

@@ -19,6 +19,7 @@ import { checkStudioShortcuts } from './studio-shortcut-check';
 import { checkStudioNewProject } from './studio-new-project-check';
 import {reviewVehicles} from './vehicle-review';
 import { reviewAnimations } from './animation-review';
+import {reviewBoarding} from './boarding-review';
 import { CLIPS } from '../src/core/anim/clips';
 import { captureStudioExample } from './studio-example-capture';
 import { TOUR_STORAGE_KEY } from '../src/studio/tour-content';
@@ -34,6 +35,7 @@ const CHROME = process.env.CHROME ?? [
 if (!CHROME) throw new Error('No Chrome, Chromium or Edge found: set CHROME=/path/to/browser');
 
 const vehiclesOnly=process.argv.includes('--vehicles');
+const boardingOnly=process.argv.includes('--boarding');
 const animationReviewOnly=process.argv.includes('--animation-review');
 const newProjectOnly=process.argv.includes('--new-project');
 const audioOnly=process.argv.includes('--audio'),castOnly=process.argv.includes('--cast'),effectsOnly=process.argv.includes('--sfx'),tourOnly=process.argv.includes('--tour'),keysOnly=process.argv.includes('--keys'),exampleOnly=process.argv.includes('--example');
@@ -119,7 +121,7 @@ const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
 const assistOnly=process.argv.includes('--assist');
-async function step(name:string,fn:()=>Promise<void>){if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+async function step(name:string,fn:()=>Promise<void>){if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -520,6 +522,7 @@ try{
  });
  await captureStudioExample({enabled:exampleOnly,step,evaluate,ready,pause,folder});
  await reviewVehicles({enabled:vehiclesOnly,step,evaluate,ready,change,send});
+ await reviewBoarding({enabled:boardingOnly,step,evaluate,ready,send});
  await reviewAnimations({enabled:animationReviewOnly,step,evaluate,ready});
  await checkStudioNewProject({enabled:newProjectOnly,step,evaluate,waitFor,ready,pause,shot,send,folder});
  await checkStudioShortcuts({enabled:keysOnly,step,evaluate,waitFor,ready,pause,send});

@@ -301,7 +301,7 @@ select('blocking').addEventListener('change',async()=>{
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});
-select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.clip=select('action').value;b.move=false;delete b.travelSpeed;delete b.showVehicle;const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
+select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition)b.duration=clipById.get(b.clip)!.duration;b.move=false;delete b.travelSpeed;delete b.showVehicle;const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
 input('beat-duration').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].duration=Number(input('beat-duration').value)));
 button('clip-length').addEventListener('click',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.duration=Math.min(12,clipById.get(b.clip)!.duration);}));
 input('show-vehicle').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].showVehicle=input('show-vehicle').checked;}));
@@ -381,7 +381,7 @@ for(const [id,slot]of [['actor-weapon','weapon'],['actor-carry','carry']]as cons
 orbitControls($<HTMLCanvasElement>('film'),()=>project.view,()=>!loading&&!exporting&&!importing,()=>{remember();setPlaying(false);},v=>{project.view=v;dirty=true;$('view-readout').textContent=`${Math.round(v.azimuth)}° · ${v.zoom.toFixed(1)}×`;},()=>{lock();save();},{
   pick:(x,y)=>{setPlaying(false);scene.render(project,time);return scene.pickActor(x,y);},
   select:id=>{characterSelected=true;selectedActor=id;cameraSelection=false;selected=timelineAt(project,time,actorTrack()).index;setPlaying(false);renderUI();},
-  selected:()=>{if(!characterSelected)return;const a=actorTrack(),rendered=scene.actors.get(a.id);if(!rendered)return;const p=rendered.group.position.clone().project(scene.camera),r=scene.canvas.getBoundingClientRect();return{id:a.id,x:a.x,y:a.y,z:a.z,worldX:rendered.group.position.x,worldZ:rendered.group.position.z,screenX:r.left+(p.x+1)*r.width/2,screenY:r.top+(1-p.y)*r.height/2};},
+  selected:()=>{if(!characterSelected)return;const a=actorTrack(),rendered=scene.actors.get(a.id);if(!rendered)return;const position=rendered.stagePosition,p=position.clone().project(scene.camera),r=scene.canvas.getBoundingClientRect();return{id:a.id,x:a.x,y:a.y,z:a.z,worldX:position.x,worldZ:position.z,screenX:r.left+(p.x+1)*r.width/2,screenY:r.top+(1-p.y)*r.height/2};},
   deselect:clearSelection,
   nudge:(key,modified)=>{
     if(!characterSelected)return false;

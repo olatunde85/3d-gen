@@ -1,6 +1,6 @@
 # Animations
 
-There are 88 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 114 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -13,7 +13,7 @@ There are 88 clips. The character loads playing **Idle**. The animation bar at t
 | Turns | Left/right 45° and 90°, full 360° (recorded turn-in-place steps at 2× speed) |
 | Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade. |
 | Reactions | Hit from front / back / left / right, knockdown, death (fall forward), death (fall backward), get up (from back), get up (from front) (one-shots). Knockdown ends where Get up (from back) starts, and Death (fall forward) ends where Get up (from front) starts, so they chain without a pop |
-| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm) (loops) |
+| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm) (loops); plus 26 boarding/alighting one-shots |
 
 Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
 
@@ -52,14 +52,14 @@ Interaction hands use chest-space IK; the pickup reach uses floor-space targets 
 
 ## Vehicles and props
 
-Choose a riding or driving **animation** to add its matching vehicle automatically, in both the builder and Studio. There is no separate model selector. Use **Drive modern sports car / Sit (sports car passenger)** or **Drive SUV / Sit (SUV passenger)** for the enclosed cars. **Show vehicle** controls visibility; in Studio it applies to the selected action. Ten procedural models cover thirteen vehicle actions.
+Choose a riding or driving **animation** to add its matching vehicle automatically, in both the builder and Studio. There is no separate model selector. Use **Drive modern sports car / Sit (sports car passenger)** or **Drive SUV / Sit (SUV passenger)** for the enclosed cars. **Show vehicle** controls visibility; in Studio it applies to the selected action. Ten procedural models cover thirteen riding/driving actions, plus 26 boarding/alighting actions, including both car occupant roles.
 
 | Vehicle | Compatible clips | Moving components |
 | --- | --- | --- |
 | Bicycle | `ride_bicycle` | Wheels, crank and level pedals |
-| Classic convertible | `drive_car`, `sit_passenger` | Wheels and driver steering wheel |
-| Modern sports car | `drive_sports_car`, `sit_sports_car_passenger` | Wheels and driver steering wheel |
-| SUV | `drive_suv`, `sit_suv_passenger` | Wheels and driver steering wheel |
+| Classic convertible | `drive_car`, `sit_passenger` | Wheels, hinged doors and driver steering wheel |
+| Modern sports car | `drive_sports_car`, `sit_sports_car_passenger` | Wheels, hinged doors and driver steering wheel |
+| SUV | `drive_suv`, `sit_suv_passenger` | Wheels, hinged doors and driver steering wheel |
 | Motorcycle | `ride_motorcycle` | Wheels and handlebars |
 | Horse | `ride_horse` | Diagonal trot, tail, reins and stirrups |
 | Canoe | `paddle_canoe` | Single-bladed paddle |
@@ -75,7 +75,7 @@ Place the rider and vehicle at the **same origin and transform**, and play their
 
 The larger motorboat has room for the helm operator and two passengers. Stage passengers with **Sit (passenger)** and **Show vehicle** unchecked, using placement/elevation so they share the helm’s boat. At reference scale, the seat centres are x ±0.52 m, z −1.30 m and deck y +0.32 m relative to the helm actor; rotate and scale these offsets with the boat. Similar-sized characters fit best.
 
-In Studio, enable **Move through the set** on a vehicle action and optionally set **Travel speed (m/s)**. The whole rider/vehicle group travels together while the original animation cadence stays the same; wheels roll with the distance travelled. Turning the option off keeps it in place. Movement follows actor yaw and is centred on its placement, like walking. Matching passenger actions need the same travel speed and timing to stay aboard. Travel does not add navigation, road collision, mounting, dismounting, automatic shared seating or water simulation. In Studio, review clearance against set furniture and other actors. Use Carry: None and Weapon: None for unobstructed vehicle performances.
+In Studio, enable **Move through the set** on a vehicle action and optionally set **Travel speed (m/s)**. The whole rider/vehicle group travels together while the original animation cadence stays the same; wheels roll with the distance travelled. Turning the option off keeps it in place. Movement follows actor yaw and is centred on its placement, like walking. Matching passenger actions need the same travel speed and timing to stay aboard. Travel does not add navigation, road collision, automatic shared seating or water simulation. Add the explicit boarding/alighting actions for entry/exit. In Studio, review clearance against set furniture and other actors. Use Carry: None and Weapon: None for unobstructed vehicle performances.
 
 ## Weapons
 
@@ -101,3 +101,11 @@ Pick an assault rifle, pistol, sword or combat knife under *Props*. It's held in
 In the exports, GLB has one glTF animation per clip (30 fps, rotation channels plus root translation), and FBX has one AnimationStack (take) per clip. `scripts/blender_anim_check.py` imports the files into Blender and renders key frames of every action.
 
 To add a clip, see [CONTRIBUTING.md](../CONTRIBUTING.md#adding-an-animation).
+
+### Boarding and alighting
+
+Search **Board** or **Alight** under Vehicles. Every vehicle has a one-shot pair; the convertible, coupe and SUV have separate driver/passenger pairs. The motorboat opens its side boarding gate. Entry starts upright beside the vehicle, moves over the saddle or gunwale or through a hinged car door, and ends in that rig’s fitted riding pose. Exit follows the reverse path and finishes upright. Limbs retain their original lengths on all three rigs and both bind poses.
+
+Use **Board SUV → Drive SUV → Alight from SUV**, for example. Give each entry/exit its full clip length with movement off; use optional movement/speed only on the riding beat. A whole riding loop makes the cleanest join into exit. In Studio, the vehicle remains parked after exit while the actor walks away. Leading idle beats are positioned beside the vehicle before boarding. To board again, return the actor to the same place. This is authored choreography, not navigation or a reach-to-any-vehicle system. The motorboat pair boards its helm; aft passengers are staged separately.
+
+Human clips and matching prop animations export together in GLB/FBX. Each fitted vehicle/occupant role is one prop file, containing its selected riding and door animations. Keep human and vehicle origins aligned, play matching clips together, and preserve the authored lateral root movement even when optional locomotion root motion is off.

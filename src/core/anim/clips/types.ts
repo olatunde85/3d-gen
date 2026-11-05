@@ -77,6 +77,8 @@ export interface Clip {
   category: ClipCategory;
   duration: number;
   loop: boolean;
+  /** Fitted, non-looping entry/exit, solved against this rig's actual riding pose. */
+  vehicleTransition?: import('../../props/vehicle-actions').VehicleTransition;
   /** Root-motion velocity (metres/second at 1.8 m height, character frame: +X left, +Z forward). */
   travel?: [number, number, number];
   sample(t: number): Sample;

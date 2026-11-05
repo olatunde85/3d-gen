@@ -9,7 +9,7 @@ import { fall, hit, jumpAir, jumpLand, jumpRunning, jumpStart, punch } from './a
 import { cheer, laugh, talk, wave } from './emotes';
 import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
-import { VEHICLES } from './vehicles';
+import { VEHICLES, BOARDING } from './vehicles';
 import { INTERACTIONS } from './interaction';
 import { REACTIONS } from './reactions';
 import { withFaces } from './faces';
@@ -84,6 +84,7 @@ export const CLIPS: Clip[] = withFaces(
     ...MELEE,
     ...RIFLE,
     ...VEHICLES,
+    ...BOARDING,
   ],
 );
 

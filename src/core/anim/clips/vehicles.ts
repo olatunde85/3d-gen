@@ -1,6 +1,8 @@
 /** Vehicle riders: car, passenger, bicycle, motorcycle, horse, canoe, kayak, rowing, boat helm. */
 import { type Ch, type Clip, type HandTarget } from './types';
 import { cyc, fingers, fist, FISTS, grip, normV, side, v } from './helpers';
+import { VEHICLE_TRANSITIONS } from '../../props/vehicle-actions';
+import { idle } from './basic';
 
 // The rider only: the game supplies the vehicle and attaches the character to its seat.
 // Seated clips keep the feet on the floor (car, boats); bike and horse clips hold the hips at
@@ -252,3 +254,11 @@ export const VEHICLES: Clip[] = [driveCar, sitPassenger,
  {...sitPassenger,id:'sit_sports_car_passenger',name:'Sit (sports car passenger)'},
  {...driveCar,id:'drive_suv',name:'Drive SUV'},
  {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat];
+
+/** Exact contact poses are fitted by Animator, shared by previews and exports. */
+export const BOARDING: Clip[] = VEHICLE_TRANSITIONS.flatMap(([id, ride, name, duration]) =>
+ (['board','alight'] as const).map(direction => ({
+  id:`${direction}_${id}`, name: `${direction==='board'?'Board':'Alight from'} ${name}`,
+  category:'Vehicles' as const, duration, loop:false, vehicleTransition:{ride,direction}, sample:()=>idle.sample(0),
+ })),
+);

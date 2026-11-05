@@ -127,7 +127,7 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
       try{
         const {mesh,rig,bake}=vehicle.asset(),name=`${stem}_${f.vehicleId}`;
         if(f.format==='obj'){const {obj,mtl}=exportOBJ(mesh,name,`${name}.mtl`);return{[`${name}.obj`]:strToU8(obj),[`${name}.mtl`]:strToU8(mtl)};}
-        const write=f.format==='glb'?exportGLB:exportFBX,clips=f.clips.length?[{...bake(),name:exportClipName(f.vehicleClip!,plan.settings)}]:[];
+        const write=f.format==='glb'?exportGLB:exportFBX,clips=f.clips.map(id=>({...bake(clipById.get(id)!),name:exportClipName(id,plan.settings)}));
         return write(mesh,name,new Map(),f.rigged?rig:undefined,clips,{});
       }finally{vehicle.dispose();}
     }

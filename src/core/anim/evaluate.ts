@@ -12,6 +12,7 @@ import { fist } from './clips/helpers';
 import { PARCEL_REST } from '../props/carry';
 import { carriesParcel, parcelHold } from './clips/interaction';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
+import {boardingFrame} from './boarding';
 
 export interface Frame {
   /** Local rotation per bone (relative to its parent), as exported / applied to three.js bones. */
@@ -301,11 +302,30 @@ export class Animator {
     const sample=clip.sample(time);
     const carried=this.parcel>=0&&!opts.parcelGrounded&&carriesParcel(clip)?parcelHold(sample):sample;
     const s = this.holding(this.withEyes(carried, clip, time, opts.faceTime));
-    const frame = this.frameOf(s, clip, time, opts);
+    const frame = clip.vehicleTransition
+      ? boardingFrame(this,clip,time,clipById.get('idle')!,clipById.get(clip.vehicleTransition.ride)!,opts.vehicleLift??0)
+      : this.frameOf(s, clip, time, opts);
     this.placeParcel(frame,clip,time,opts.rootMotion,opts.parcelGrounded);
-    if(opts.vehicleLift)for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
+    if(opts.vehicleLift&&!clip.vehicleTransition)for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
+  }
+
+  /** Pin an existing solved limb without changing any bone offset or scale. Handles split full-rig chains. */
+  pinLimb(frame:Frame,side:'Left'|'Right',kind:'arm'|'leg',target:Vec3,pole:Vec3,endOrientation?:Q){
+    const B=this.rig.bones,names=kind==='leg'?['UpLeg','Leg','Foot']:['Arm','ForeArm','Hand'];
+    const [upper,lower,end]=names.map(n=>this.idx.get(side+n)!);
+    const world=()=>{const q:Q[]=[];B.forEach((b,i)=>q[i]=b.parent<0?frame.rot[i]:qmul(q[b.parent],frame.rot[i]));return q;};
+    const initial=world(),P=this.positions(frame),S=P[upper],endRotation=endOrientation??initial[end];
+    const L1=dist(B[upper].head,B[lower].head),L2=dist(B[lower].head,B[end].head),dir=norm(sub3(target,S));
+    const d=Math.max(Math.abs(L1-L2)+1e-5,Math.min(dist(target,S),(L1+L2)*.9999));
+    const along=(L1*L1-L2*L2+d*d)/(2*d),height=Math.sqrt(Math.max(0,L1*L1-along*along));
+    const dot=pole.reduce((v,x,i)=>v+x*dir[i],0),perp=norm(pole.map((x,i)=>x-dot*dir[i])as Vec3);
+    const joint=S.map((x,i)=>x+dir[i]*along+perp[i]*height)as Vec3,reachable=S.map((x,i)=>x+dir[i]*d)as Vec3;
+    const aim=(index:number,next:number,to:Vec3)=>{const q=world(),p=this.positions(frame),current=sub3(p[next],p[index]);
+      const rotation=qmul(qfromTo(current,sub3(to,p[index])),q[index]);frame.rot[index]=B[index].parent<0?rotation:qmul(qconj(q[B[index].parent]),rotation);};
+    aim(upper,lower,joint);aim(lower,end,reachable);
+    const q=world();frame.rot[end]=qmul(qconj(q[B[end].parent]),endRotation);
   }
 
   /** A rigid, level box: on the floor before pickup, then between the two solved wrists. */

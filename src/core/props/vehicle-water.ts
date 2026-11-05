@@ -55,8 +55,12 @@ export function buildWatercraft(k:VehicleKit){
    k.box(v(x*s,1.27*s,H.z-1.62*s),v(.34*s,.16*s,.11*s),k.seat);
   }
   k.box(v(0,.62*s,H.z-1.43*s),v(1.76*s,.16*s,.62*s),k.paint);
-  for(const side of [-1,1])for(const zz of [-1.55,-.6,.35,1.35])k.tube(v(side*beam*.44,height,z+zz*s),v(side*beam*.44,height+.25*s,z+zz*s),.012*s,k.trim);
-  for(const side of [-1,1])k.tube(v(side*beam*.44,height+.25*s,z-1.55*s),v(side*beam*.44,height+.25*s,z+1.35*s),.014*s,k.trim);
+  for(const side of [-1,1])for(const zz of side===1?[-1.55,-.95,.05,.35,1.35]:[-1.55,-.6,.35,1.35])k.tube(v(side*beam*.44,height,z+zz*s),v(side*beam*.44,height+.25*s,z+zz*s),.012*s,k.trim);
+  for(const side of [-1,1])for(const [a,b]of side===1?[[-1.55,-.95],[.05,1.35]]:[[-1.55,1.35]])k.tube(v(side*beam*.44,height+.25*s,z+a*s),v(side*beam*.44,height+.25*s,z+b*s),.014*s,k.trim);
+  // A real opening at the boarding side: the actor steps over the gunwale, not through a rail.
+  const gate=k.component('Boarding_gate',v(beam*.44,height+.25*s,z+.05*s));
+  k.tube(v(),v(0,0,-s),.014*s,k.trim,gate);k.tube(v(0,0,-s),v(0,-.25*s,-s),.012*s,k.trim,gate);
+  k.box(v(0,-.035*s,-.96*s),v(.035*s,.04*s,.07*s),k.dark,gate);
   const engine=k.component('Outboard',v(0,.48*s,z-length*.49));k.ellipsoid(v(),v(.19*s,.23*s,.19*s),k.paint,engine);k.tube(v(0,-.14*s,0),v(0,-.38*s,0),.055*s,k.dark,engine);
   const prop=k.component('Propeller',v(0,-.35*s,0),engine);for(const a of [0,2.094,4.188]){const m=k.ellipsoid(v(Math.cos(a)*.085*s,Math.sin(a)*.085*s,0),v(.10*s,.03*s,.018*s),k.trim,prop);m.rotation.z=a;}
   k.updates.push((_,t)=>{prop.rotation.z=t/k.fit.clip.duration*Math.PI*24;});return;
