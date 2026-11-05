@@ -43,10 +43,13 @@ Removing a character also tidies up camera shots and captions that pointed at th
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **84 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **88 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. There's no collision detection, so characters will walk through walls, furniture and each other. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
-- **Props:** a bicycle appears for the cycling clip, and weapon clips use the character's equipment. Other vehicles aren't created, and hands don't grab set props or other characters.
+- **Props:** vehicle models follow the selected riding/driving action automatically. Dedicated modern sports-car and SUV actions sit alongside the classic car, bicycle, motorcycle, horse, canoe, kayak, rowboat and motorboat performances. The selected action’s **Show vehicle** checkbox controls visibility; **Vehicle appearance** in Equipment edits colours, finish and styling. There is no separate model dropdown.
+- **Vehicle travel:** enable **Move through the set** on the selected action and adjust **Travel speed (m/s)**. The complete vehicle and rider move together, facing the actor’s yaw; wheel rotation follows distance. Stage a clear route and review it before export: walls, furniture and other actors do not stop vehicles. There is no pathfinding or water simulation. The enlarged motorboat has two aft passenger seats: use Sit (passenger) with Show vehicle unchecked, and manual placement/elevation (see the animation guide). Match passenger travel speeds and timings when the boat moves.
+- **Custom cast:** in the builder, **Save character** downloads a small `.ara-character.json` with all editable settings; **Open character** reopens it. In Studio, **+ Custom** imports that file as another cast member, preserving the existing characters and film. Custom characters count toward the five-character limit, can be edited via Character builder, survive reload, and can be removed with Undo.
+
 - **Camera shots:** full-body, medium or close framing, on the **whole cast** or **one character**.
 - **Limits:** up to **16 actions per character**, **12 camera shots** and **60 seconds** per film. Each item lasts 0.1–12 seconds.
 

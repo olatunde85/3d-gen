@@ -20,6 +20,7 @@ import { SOUND_EFFECTS } from '../src/studio/audio/effects-catalog';
 import { addCastActor, arrangeCast, castArrangement, ARRANGEMENTS } from '../src/studio/staging';
 import { CLIPS } from '../src/core/anim/clips';
 import { seatCast, seatedAt, hipsAt, type Sitter } from '../src/studio/seating';
+import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP} from '../src/core/props/vehicles';
 const catalog=JSON.parse(readFileSync(new URL('../public/assets/catalog.json',import.meta.url),'utf8'))as Catalog;
 const parseStudioInput=(text:string)=>parseInput(text,catalog);
 assert.equal(SETS.length,50);assert.equal(new Set(SETS.map(s=>s.id)).size,50);assert.equal(SCENE_CATEGORIES.length,6);
@@ -178,3 +179,17 @@ for(const sound of SOUND_EFFECTS)assert.ok(guide.includes(sound.id));assert.ok(g
 const fxSession=readEditorSession(JSON.stringify({version:1,project:fxFilm,editor:{sound:{open:true,tab:'effects',selectedEffect:'fx-0'}}}));
 assert.equal(fxSession?.editor.sound.tab,'effects');assert.equal(fxSession?.editor.sound.selectedEffect,'fx-0');
 console.log('Sound effects: legacy defaults, timing/trim/speed, actor references, cap, invalid cues, LLM catalogue/schema, explicit collision limits and recovery passed.');
+
+for(const vehicle of VEHICLE_CHOICES){const input=structuredClone(assisted)as unknown as {actors:Record<string,unknown>[]};input.actors[0].vehicle=vehicle;input.actors[0].params={vehicleStyle:{color:'#176a80',finish:'gloss'}};const p=parseStudioInput(JSON.stringify(input));assert.equal(p.actors[0].vehicle,vehicle==='none'?'none':'auto');assert.equal(decodeCharacter(p.actors[0].character,p.actors[0].detail)!.vehicleStyle.color,'#176a80');assert.deepEqual(parseProject(JSON.stringify(p)),p);}
+assert.throws(()=>parseStudioInput(JSON.stringify({...assisted,actors:[{...assisted.actors[0],vehicle:'spaceship'}]})));
+for(const [clip,id]of Object.entries(VEHICLE_FOR_CLIP)){assert.ok(guide.includes('"'+clip+'"'));assert.ok(guide.includes('"'+id+'"'));}
+console.log('Studio vehicle Assist: matching catalogue, explicit visibility, styles, saved projects and strict imports passed.');
+
+// Vehicle paths are optional, continuous, centred and support explicit speed without retiming.
+for(const clip of Object.keys(VEHICLE_FOR_CLIP)){
+ const p=newProject();p.actors[0].beats=[{...beat(clip,2,true),travelSpeed:1.1},beat('idle',1)];const parsed=parseProject(JSON.stringify(p));assert.equal(parsed.actors[0].beats[0].move,true);const a=timelineAt(parsed,0),b=timelineAt(parsed,2),c=timelineAt(parsed,3);assert.ok(Math.abs(Math.abs(b.z-a.z)-2.2)<1e-6);assert.equal(c.z,b.z);
+}
+const legacyVehicle=newProject();legacyVehicle.actors[0].vehicle='suv';legacyVehicle.actors[0].beats=[beat('drive_car',3)];const migratedVehicle=parseProject(JSON.stringify(legacyVehicle));assert.equal(migratedVehicle.actors[0].beats[0].clip,'drive_suv');assert.equal(migratedVehicle.actors[0].vehicle,'auto');migratedVehicle.actors[0].beats[0].clip='ride_bicycle';assert.equal(parseProject(JSON.stringify(migratedVehicle)).actors[0].beats[0].clip,'ride_bicycle');
+for(const travelSpeed of [0,7,'fast'])assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{clip:'drive_suv',duration:2,move:true,travelSpeed}]}]})));
+assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{clip:'walk',duration:2,move:true,travelSpeed:1}]}]})));
+console.log('Vehicle travel: all actions, speed validation, held endings, legacy model migration and animation authority passed.');

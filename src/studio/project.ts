@@ -5,13 +5,15 @@ import { decodeCharacter, encodeCharacter } from '../app/share';
 import { defaultAudio, parseAudio, type FilmAudio } from './audio/schema';
 import { parseTextCues, type TextCue } from './text';
 import { sceneById, type SetId } from './catalog';
+import {studioTravel} from './motion';
+import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,type VehicleChoice} from '../core/props/vehicles';
 export { SETS, type SetId } from './catalog';
 export const ACTIONS = CLIPS.map(c => c.id);
 export type Action = string;
 export type Shot = 'wide' | 'medium' | 'close';
 export type CameraMove = 'locked' | 'orbit' | 'dolly';
-export interface Beat { id: string; clip: Action; duration: number; move: boolean }
-export interface ActorTrack { id: string; character: string; detail: Detail; x: number; y: number; z: number; yaw: number; beats: Beat[] }
+export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;showVehicle?:boolean }
+export interface ActorTrack { id: string; character: string; detail: Detail; x: number; y: number; z: number; yaw: number; beats: Beat[];vehicle?:VehicleChoice }
 export interface CameraShot { id: string; duration: number; shot: Shot; target: string }
 export interface View { azimuth: number; elevation: number; zoom: number }
 export interface StudioProject {
@@ -71,11 +73,17 @@ export function parseProject(text: string): StudioProject {
     if (typeof a.id !== 'string' || !/^[a-zA-Z0-9_-]{1,50}$/.test(a.id) || ids.has(a.id) || ['all','camera'].includes(a.id)) throw new Error('Character IDs must be unique.'); ids.add(a.id);
     if (!member(a.detail, ['low', 'medium', 'high']) || typeof a.character !== 'string' || !decodeCharacter(a.character, a.detail)) throw new Error('Invalid character recipe or detail.');
     if (!Array.isArray(a.beats) || !a.beats.length || a.beats.length > MAX_ACTIONS) throw new Error(`Use one to ${MAX_ACTIONS} actions per character.`);
+    const inherited=decodeCharacter(a.character,a.detail)!.vehicle,legacy=a.vehicle??inherited;
+    const migrate=(clip:string)=>a.vehicle!=='auto'&&(legacy==='sports_car'||legacy==='suv')?(clip==='drive_car'?(legacy==='suv'?'drive_suv':'drive_sports_car'):clip==='sit_passenger'?(legacy==='suv'?'sit_suv_passenger':'sit_sports_car_passenger'):clip):clip;
     const beats = a.beats.map((rawBeat, j) => { const b = record(rawBeat);
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
-      return { id: `a${i}-${j}`, clip: b.clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: b.move && !!clipById.get(b.clip)?.travel };
+      const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,6,'vehicle travel speed');
+      if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
+      if(speed!==undefined&&!VEHICLE_FOR_CLIP[clip])throw Error('Travel speed is only available for vehicle actions.');
+      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: b.move && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}) };
     });
-    return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -12, 12, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -12, 12, 'character Z'), yaw: number(a.yaw, -180, 180, 'character rotation'), beats };
+    if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');
+    return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -12, 12, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -12, 12, 'character Z'), yaw: number(a.yaw, -180, 180, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
   });
   if (!Array.isArray(p.shots) || !p.shots.length || p.shots.length > MAX_SHOTS) throw new Error(`Use one to ${MAX_SHOTS} camera shots.`);
   const shots = p.shots.map((raw, i): CameraShot => { const s = record(raw);
@@ -97,7 +105,7 @@ export interface TimelinePoint { index: number; time: number; local: number; pha
 export function timelineAt(p: StudioProject, time: number, actor = p.actors[0]): TimelinePoint {
   const t = Math.max(0, Math.min(trackDuration(actor), time));
   let start = 0, x = 0, z = 0, index = actor.beats.length - 1;
-  const travel = (b: Beat, axis: 0 | 2) => b.move ? clipById.get(b.clip)?.travel?.[axis] ?? 0 : 0;
+  const travel = (b: Beat, axis: 0 | 2) => b.move ? studioTravel(b.clip,b.travelSpeed)?.[axis] ?? 0 : 0;
   for (let i = 0; i < actor.beats.length; i++) { const b = actor.beats[i]; if (t < start + b.duration || i === actor.beats.length - 1) { index = i; break; }
     x += travel(b, 0) * b.duration; z += travel(b, 2) * b.duration; start += b.duration; }
   const b = actor.beats[index], local = t - start;

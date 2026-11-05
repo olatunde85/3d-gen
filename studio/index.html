@@ -26,12 +26,16 @@
       <label class="sr-only" for="scene-category">Scene category</label><select id="scene-category"><option value="">All locations</option></select>
       <div id="set-list" class="set-list" aria-label="Scene results"></div><p id="scene-empty" hidden>No matching scenes. Try another search.</p>
       <div class="section-heading cast-heading"><span>02 / THE CAST <small id="cast-count">1 / 5</small></span><a id="edit-character" href="../app/" title="Edit this character in Ara 3D Gen">Character builder ↗</a></div>
-      <div id="cast-roster" class="cast-roster" aria-label="Characters"></div><div class="cast-actions"><button id="add-actor">+ Add character</button><button id="remove-actor" hidden>Remove</button></div>
+      <div id="cast-roster" class="cast-roster" aria-label="Characters"></div><div class="cast-actions"><button id="add-actor">+ Add character</button><button id="add-custom-actor" title="Add custom character settings saved from Ara 3D Gen">+ Custom</button><input id="custom-character-file" type="file" accept=".json,application/json" hidden /><button id="remove-actor" hidden>Remove</button></div>
       <label class="sr-only" for="character">Choose a character</label><select id="character"></select>
 <p id="cast-status" class="cast-status" aria-live="polite"></p>
       <section class="equipment-panel" id="equipment-settings">
         <h2 id="equipment-title">Equipment</h2>
         <div class="form-row"><div><label for="actor-weapon">Weapon</label><select id="actor-weapon"></select></div><div><label for="actor-carry">Carry</label><select id="actor-carry"></select></div></div>
+        <details id="vehicle-appearance"><summary>Vehicle appearance</summary>
+          <div class="form-row"><div><label for="vehicle-color">Body / coat</label><input id="vehicle-color" type="color"></div><div><label for="vehicle-accentColor">Trim / mane</label><input id="vehicle-accentColor" type="color"></div><div><label for="vehicle-seatColor">Seats / tack</label><input id="vehicle-seatColor" type="color"></div></div>
+          <div class="form-row"><div><label for="vehicle-finish">Finish</label><select id="vehicle-finish"><option>matte</option><option>satin</option><option>gloss</option></select></div><div><label for="vehicle-variant">Style</label><select id="vehicle-variant"><option>classic</option><option>sport</option></select></div></div>
+        </details><p id="vehicle-note" class="hint"></p>
       </section>
       <div class="studio-help"><button id="open-tour" class="tour-launch" title="Take the Studio tour (?)"><span aria-hidden="true">▶</span><span>Quick tour of Studio</span><kbd aria-hidden="true">?</kbd></button></div>
       <a class="help-link" href="../docs/studio/">A short guide to Studio <span>↗</span></a>
@@ -70,6 +74,7 @@
           <label class="sr-only" for="action">Performance <span id="animation-count"></span></label><select id="action"></select>
           <p id="action-note" class="setting-hint"></p>
           <div class="form-row timing-row"><div class="duration-value"><label class="sr-only" for="beat-duration">Seconds</label><input id="beat-duration" type="number" min="0.1" max="12" step="0.1" /><span>sec</span></div><button id="clip-length" class="text-button">Original timing</button></div>
+          <div id="vehicle-action-settings" hidden><label class="check-label"><input id="show-vehicle" type="checkbox" /><span>Show vehicle</span></label><div id="vehicle-speed-row" hidden><label for="vehicle-travel-speed">Travel speed (m/s)</label><input id="vehicle-travel-speed" type="number" min="0.1" max="6" step="0.1" /></div></div>
           <label class="check-label"><input id="movement" type="checkbox" /><span>Move through the set</span></label>
         </div>
         <div id="shot-settings" hidden>
