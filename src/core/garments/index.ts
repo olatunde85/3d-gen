@@ -28,7 +28,7 @@ export interface Dressing {
 /**
  * What the character actually wears. Topless and bottomless (no underwear)
  * are adult-only (18+): younger female characters always get a top, and every
- * under-18 character keeps underwear.
+ * under-18 character keeps underwear (briefs, except under a floor-length gown, which covers them).
  */
 export function dressing(p: HumanParams): Dressing {
   // An outfit set dresses its own top and bottom, sharing the set's pattern and colours.
@@ -42,7 +42,7 @@ export function dressing(p: HumanParams): Dressing {
   const jacketId = set ? (set.jacket ?? 'none') : p.jacket;
   const jacket = pieces && garmentById.get(jacketId)?.slot === 'jacket' ? jacketId : undefined;
   const styles = set ? setStyles(set, p.garmentStyles) : p.garmentStyles;
-  if (pieces && !bottom && underwear) bottom = 'briefs';
+  if (pieces && !bottom && underwear && !(top && garmentById.get(top)?.fullLength)) bottom = 'briefs';
   if (pieces && !top && p.gender < 0.5 && minor) top = 'tank_top';
   return {
     top,

@@ -8,7 +8,7 @@ import type { Material } from '../mesh';
 import { ageToYears, type HumanParams } from '../params';
 import { beardCards, boxBraids, buzzCards, cornrows, hairLayers, isProceduralHair, spikes, type HeadCtx } from './hair';
 import { mouthShadeLayer } from './mouth';
-import { earrings, metalMaterial } from './jewelry';
+import { earringPearls, earrings, metalMaterial } from './jewelry';
 import { baseBody, paintOverlay, overlaySurface, type Layer } from './overlay';
 import { tattooLayers } from './tattoos';
 import { braidTexture, hairCardTexture, spikeTexture } from './textures';
@@ -163,5 +163,7 @@ export async function buildLooks(lib: AssetLibrary, i: LooksInput): Promise<Look
   const ear = p.earrings ?? 'none';
   const rings = merge(earrings(ear, base, i.coords, i.normals));
   if (rings) out.jewelry.push([rings, metalMaterial(p.earringMetal ?? 'gold')]);
+  const drops = merge(earringPearls(ear, base, i.coords, i.normals));
+  if (drops) out.jewelry.push([drops, { name: 'Earring pearls', color: '#f4efe4', roughness: 0.16, metalness: 0.1, alpha: 'opaque', doubleSided: false }]);
   return out;
 }

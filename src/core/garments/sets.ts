@@ -91,5 +91,11 @@ export const OUTFIT_SETS: OutfitSet[] = [
     id: 'set_pastel_suit', label: 'Pastel suit & tropical shirt', top: 'camp_shirt', jacket: 'suit_jacket', bottom: 'suit_trousers', accessories: ['gold_chains', 'aviators', 'watch_gold'], shoes: 'loafers',
     patterns: ['linen', 'suiting', 'solid'], color: '#e9b7c0', color2: '#f3d6db',
   },
+  {
+    id: 'set_wedding_gown', label: 'Wedding gown & veil', top: 'wedding_gown', bottom: 'none', accessories: ['bridal_veil', 'pearl_necklace'], shoes: 'heels',
+  },
+  {
+    id: 'set_cocktail_dress', label: 'Red cocktail dress (short)', top: 'cocktail_dress', bottom: 'none', accessories: [], shoes: 'heels',
+  },
 ];
 export const setById = new Map(OUTFIT_SETS.map((x) => [x.id, x]));

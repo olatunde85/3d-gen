@@ -72,11 +72,12 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
     if (!bodyCache.has(k)) bodyCache.set(k, hullRing(body, hplane(b, k * cm(0.5)), { slab: cm(0.8), samples: 128, offset: off + (g.worn ? cm(0.4) : 0) }));
     return bodyCache.get(k)!;
   };
+  // Where the loop rests at each point round the neck: going down from the narrowest point until
+  // the body (or the top worn over it) reaches out that far.
+  const radius: number[] = [], rest: number[] = [];
   for (let i = 0; i < N; i++) {
     const a = -Math.PI + (2 * Math.PI * i) / N;
     const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)];
-    // The loop's radius here, and where it rests: going down from the narrowest point until the
-    // body (or the top worn over it) reaches out that far.
     // (Inside a collar: snug on the neck.)
     const rT = (rayRing(neckRing, [c[0], yN, c[2]], dir) ?? cm(6)) * (inside ? 1.0 : 1.15) + off;
     // Never higher than just above the base of the neck (a slim neck widens early).
@@ -88,6 +89,19 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
       yRest = y;
       if (rb >= rT) break;
     }
+    radius.push(rT);
+    rest.push(yRest);
+  }
+  // A strand doesn't follow every hollow of the collarbones: it hangs from where it rests at the
+  // back and sides in one smooth curve. Smooth the resting line widely round the loop.
+  for (let it = 0; it < 60; it++) {
+    const prev = [...rest];
+    for (let i = 0; i < N; i++) rest[i] = (prev[(i + N - 1) % N] + 2 * prev[i] + prev[(i + 1) % N]) / 4;
+  }
+  for (let i = 0; i < N; i++) {
+    const a = -Math.PI + (2 * Math.PI * i) / N;
+    const dir: Vec3 = [Math.sin(a), 0, Math.cos(a)];
+    const rT = radius[i], yRest = rest[i];
     // Only the front hangs lower, onto the chest.
     const front = Math.max(0, Math.cos(a)) ** 1.6;
     const y = yRest - drop * front ** 1.4;
@@ -112,8 +126,10 @@ function strand(g: GCtx, drop: number, spread = 1, inside = false): { ring: Vec3
         const r2 = rayRing(h, [c[0], y, c[2]], d2), cur = Math.hypot(p[0] - c[0], p[2] - c[2]);
         if (r2 !== null && r2 > cur && r2 < cur + cm(3)) p = [c[0] + d2[0] * r2, y, c[2] + d2[2] * r2];
       }
-      if (g.worn && !inside) {
+      if (g.worn && !inside && front < 0.3) {
         // Where the top lies above the line (its collar and shoulders), lift it onto the fabric.
+        // Not across the front: there it lies on the top anyway, and a neckline's edge under the
+        // hanging strand would kink it.
         let top = -Infinity;
         for (const q of g.worn) if (Math.abs(q[0] - p[0]) < cm(1) && Math.abs(q[2] - p[2]) < cm(1) && q[1] < p[1] + cm(3)) top = Math.max(top, q[1]);
         if (top > p[1] - off) p = [p[0], top + off, p[2]];

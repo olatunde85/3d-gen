@@ -31,6 +31,8 @@ export interface GarmentDef {
   patterns: Pattern[];
   /** What the two colours are called in the UI (default Colour / Accent). */
   colorLabels?: [string, string];
+  /** A floor-length dress: it covers everything briefs would, so none are added under it. */
+  fullLength?: boolean;
   /** Only worn as part of an outfit set (not listed with the separate pieces), e.g. a suit's shirt front. */
   setOnly?: boolean;
   color: string;
@@ -70,6 +72,12 @@ export interface GPart {
    * nearer the hips or torso so it doesn't follow a single leg or arm.
    */
   skinAt?: Float32Array;
+  /**
+   * Skin as a mix (instead of `skinAt`): each entry's weights are looked up at its own positions
+   * and mixed in by its per-vertex amount. Long cloth uses it to share smoothly between the hips
+   * and both legs, which a single lookup can only do by jumping from one leg to the other.
+   */
+  skinMix?: { at: Float32Array; amount: Float32Array }[];
 }
 
 export interface FittedOutfit {

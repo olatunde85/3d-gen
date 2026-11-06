@@ -3,7 +3,7 @@
  * lashes, hair, clothes, shoes, hat) + skeleton, as one multi-material mesh.
  */
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
-import { compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
+import { blendInfluences, compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
 import { archFeet, buildGarments, dressing, genTexture, outfitsUsed } from './garments';
 import { buildCarry, PARCEL_REST, WORN_BAGS } from './props/carry';
 import type { Vec3 } from './math';
@@ -386,8 +386,23 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     const mat = toMaterial(outfit.material!);
     parts.push([hd ? subdivide(m) : m, { ...mat, name: 'Outfit', color: tint(mat.color, p.outfitTint) }]);
   }
+  /** Skin mixed from several lookups (see GPart.skinMix). */
+  const mixedSkin = (m: PolyMesh, mix: NonNullable<(typeof gparts)[number]['skinMix']>): PolyMesh => {
+    if (!bskin) return m;
+    const skins = mix.map((e) => skinOf({ ...m, ref: undefined, positions: e.at }, 8).skin!);
+    const n = m.positions.length / 3, j = new Uint16Array(n * 4), w = new Float32Array(n * 4), acc = new Map<number, number>();
+    for (let i = 0; i < n; i++) {
+      acc.clear();
+      skins.forEach((sk, e) => {
+        const f = mix[e].amount[i];
+        if (f > 0) for (let q = 0; q < 4; q++) if (sk.w[i * 4 + q]) acc.set(sk.j[i * 4 + q], (acc.get(sk.j[i * 4 + q]) ?? 0) + sk.w[i * 4 + q] * f);
+      });
+      blendInfluences(acc, j, w, i * 4);
+    }
+    return { ...m, skin: { j, w } };
+  };
   for (const g of gparts) {
-    const m = g.skinAt ? { ...skinOf({ ...g.mesh, positions: g.skinAt }, 8), positions: g.mesh.positions } : skinOf(g.mesh, g.smooth ? 4 : 8);
+    const m = g.skinMix ? mixedSkin(g.mesh, g.skinMix) : g.skinAt ? { ...skinOf({ ...g.mesh, positions: g.skinAt }, 8), positions: g.mesh.positions } : skinOf(g.mesh, g.smooth ? 4 : 8);
     parts.push([hd && g.smooth ? subdivide(m) : m, g.material]);
     if (g.ground) groundParts.push(g.mesh);
   }
