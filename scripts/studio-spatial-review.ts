@@ -10,6 +10,31 @@ export async function checkSpatialReview(h:Harness){
   await change('assist-reference','church');assert.ok(await e("document.querySelector('#assist-guide').value.includes('\"location\":{\"id\":\"church\"')"));
   await e("document.querySelector('#assist-context').checked=true;document.querySelector('#assist-context').dispatchEvent(new Event('change',{bubbles:true}))");assert.ok(await e("document.querySelector('#assist-guide').value.includes('\"accuracy\":\"fitted-bodies\"')&&document.querySelector('#assist-guide').value.includes('\"measurements\"')&&document.querySelector('#assist-guide').value.includes('\"boardingScale\":'+studio.scene.actor.vehicleBody.boardingScale)"));
  });
+ await step('Spatial location thumbnails browse horizontally by category and expand before selection',async()=>{
+  assert.ok(await e("document.querySelector('#assist-reference').type==='hidden'&&!document.querySelector('select#assist-reference')&&document.querySelector('#assist-location-category').options.length===7"));
+  assert.equal(await e("document.querySelectorAll('[data-reference-choice]').length"),66);
+  assert.ok(await e("(()=>{const g=document.querySelector('[data-r=reference-gallery]');return g.scrollWidth>g.clientWidth&&g.clientHeight<200&&g.scrollHeight<=g.clientHeight+1})()"));
+  await e("Promise.all([...document.querySelectorAll('[data-reference-choice] img')].map(i=>{i.loading='eager';return i.decode()}))");
+  assert.ok(await e("[...document.querySelectorAll('[data-reference-choice] img')].every(i=>i.naturalWidth===480&&i.naturalHeight===300)"));
+  await e("window.__beforeLocationBrowse=JSON.stringify(studio.project);document.querySelector('[data-r=reference-next]').click()");await pause(500);assert.ok(await e("document.querySelector('[data-r=reference-gallery]').scrollLeft>0"));
+  await change('assist-location-category','Homes');assert.ok(await e("[...document.querySelectorAll('[data-reference-choice]:not([hidden])')].every(b=>b.querySelector('.ai-reference-card-category').textContent==='Homes')"));
+  await e("document.querySelector('#assist-location-search').value='hospital';document.querySelector('#assist-location-search').dispatchEvent(new Event('input',{bubbles:true}))");assert.ok(await e("!document.querySelector('[data-r=reference-empty]').hidden"));
+  await change('assist-location-category','');assert.equal(await e("document.querySelectorAll('[data-reference-choice]:not([hidden])').length"),1);
+  await e("document.querySelector('[data-reference-choice=hospital-room]').click();document.querySelector('[data-r=reference-viewer-image]').decode()");
+  assert.ok(await e("document.querySelector('#assist-location-preview').open&&document.querySelector('#assist-reference').value==='church'&&document.querySelector('[data-r=reference-viewer-image]').naturalWidth===960"));
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  assert.ok(await e("!document.querySelector('#assist-location-preview').open&&document.querySelector('#assist-dialog').open&&document.querySelector('#assist-reference').value==='church'"));
+  await e("document.querySelector('[data-reference-choice=hospital-room]').click();document.querySelector('[data-r=reference-viewer-use]').click()");
+  assert.ok(await e("document.querySelector('#assist-reference').value==='hospital-room'&&document.querySelector('[data-r=reference-preview]').getAttribute('src').endsWith('/hospital-room.webp')&&document.querySelector('#assist-guide').value.includes('\"location\":{\"id\":\"hospital-room\"')&&!document.querySelector('#assist-location-preview').open"));
+  await e("document.querySelector('#assist-location-search').value='';document.querySelector('#assist-location-search').dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-reference-choice]').focus()");
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});assert.equal(await e("document.activeElement.dataset.referenceChoice"),'runway');
+  await change('assist-location-category','Leisure');await shot('llm-location-strip');
+  await change('assist-location-category','');await e("document.querySelector('[data-reference-choice=harbour]').click();document.querySelector('[data-r=reference-viewer-image]').decode()");await shot('llm-location-expanded');await e("document.querySelector('[data-r=reference-viewer-close]').click()");
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  assert.ok(await e("document.querySelector('#assist-dialog').scrollWidth<=document.querySelector('#assist-dialog').clientWidth"));await e("document.querySelector('[data-r=reference-picker]').scrollIntoView({block:'start'})");await shot('llm-location-strip-mobile');
+  await e("document.querySelector('[data-reference-choice=harbour]').click()");assert.ok(await e("document.querySelector('#assist-location-preview').scrollWidth<=document.querySelector('#assist-location-preview').clientWidth"));await shot('llm-location-expanded-mobile');await e("document.querySelector('[data-r=reference-viewer-close]').click()");
+  await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});assert.ok(await e("JSON.stringify(studio.project)===__beforeLocationBrowse"));await change('assist-reference','church');
+ });
  await step('Spatial review warns about whole-path conflicts and exports fitted transition positions',async()=>{
   await e("document.querySelector('#assist-json').value=JSON.stringify(studio.project);document.querySelector('#assist-json').dispatchEvent(new Event('input',{bubbles:true}))");assert.ok(await e("!!document.querySelector('.ai-staging-notes')&&document.querySelector('.ai-staging-notes').textContent.includes('water')"));assert.ok(!await e("document.querySelector('#assist-create').disabled"));await e("document.querySelector('#assist-close').click();document.querySelector('#open-staging').click()");
   for(let n=0;n<100&&!await e("!!document.querySelector('#staging-map svg')");n++)await pause(100);

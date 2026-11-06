@@ -4,6 +4,7 @@
  */
 import './panel.css';
 import { extractJson, fixRequest, hadSurroundingText } from './extract';
+import {referencePickerMarkup,setupReferencePicker,type ReferenceChoice} from './reference-picker';
 
 export interface AssistDraft { brief: string; json: string; context: boolean; open: boolean; guideOpen: boolean; reference?:string }
 
@@ -24,7 +25,7 @@ export interface AssistConfig<T> {
   parse(json: string): T;
   describe(value: T): { headline: string; facts: string[]; warnings?:string[] };
   /** Optional machine-readable reference beside the guide (Studio location maps). */
-  reference?:{label:string;choices:{id:string;name:string}[];current():string;file(id:string):{name:string;text:string};all?:{name:string;text():string}};
+  reference?:{label:string;choices:ReferenceChoice[];current():string;file(id:string):{name:string;text:string};all?:{name:string;text():string}};
   revisionContext?(value:T):string;
   example(): unknown;
   /** Applies the result; throws a readable error if it can't. */
@@ -62,7 +63,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         <label class="sr-only" for="${id}-brief">Describe your ${noun}</label>
         <textarea id="${id}-brief" class="ai-brief" data-r="brief" rows="4" maxlength="6000" placeholder="${html(cfg.placeholder)}"></textarea>
         <label class="ai-check"><input type="checkbox" id="${id}-context" data-r="context" /><span>${html(cfg.contextLabel)}</span></label>
-        ${cfg.reference?`<label for="${id}-reference">${html(cfg.reference.label)}</label><select id="${id}-reference" data-r="reference">${cfg.reference.choices.map(c=>`<option value="${html(c.id)}">${html(c.name)}</option>`).join('')}</select><div class="ai-row"><button class="ai-btn" id="${id}-save-map" data-r="save-reference">Save map .json</button>${cfg.reference.all?'<button class="ai-link" data-r="save-all-references">All location maps</button>':''}</div><p class="ai-note">The guide includes this set’s full staging map. Choose the location you want to film.</p>`:''}
+        ${cfg.reference?`${referencePickerMarkup(id,cfg.reference.label,cfg.reference.choices)}<div class="ai-row"><button class="ai-btn" id="${id}-save-map" data-r="save-reference">Save map .json</button>${cfg.reference.all?'<button class="ai-link" data-r="save-all-references">All location maps</button>':''}</div><p class="ai-note">The guide includes this set’s full staging map. Choose the location you want to film.</p>`:''}
 
         <div class="ai-step"><span class="ai-num">2</span><h3>Get the ${noun} JSON</h3></div>
         <div class="ai-pane">
@@ -101,9 +102,10 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   let preparationController:AbortController|undefined;
 
   // ---- Drafts ----
-  const reference=cfg.reference?$<HTMLSelectElement>('reference'):undefined;
+  const reference=cfg.reference?$<HTMLInputElement>('reference'):undefined;
   let referenceChosen=false;
   if(reference)reference.value=cfg.reference!.current();
+  const renderReference=reference?setupReferencePicker(reference,cfg.reference!.choices):()=>{};
   const state = (): AssistDraft => ({ brief: brief.value, json: draft.value, context: context.checked, open: dialog.open, guideOpen: details.open,...(reference&&referenceChosen?{reference:reference.value}:{}) });
   const persist = () => {
     clearTimeout(saveTimer);
@@ -166,7 +168,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
 
   // ---- Busy state ----
   function lock() {
-    for (const el of dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement>('button,input,textarea')) el.disabled = building;
+    for (const el of dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('button,input,select,textarea')) el.disabled = building;
     build.disabled = building || preparing || !parsed;
     dialog.setAttribute('aria-busy', String(building||preparing));
     renderPreparation();
@@ -213,7 +215,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     $('copy-status').textContent = `Saved ${cfg.guideFile}. Attach it to your assistant's chat.`;
   });
   const saveReference=(file:{name:string;text:string})=>{const url=URL.createObjectURL(new Blob([file.text],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60_000);};
-  reference?.addEventListener('change',()=>{referenceChosen=true;staleGuide();schedule();});
+  reference?.addEventListener('change',()=>{referenceChosen=true;renderReference();staleGuide();schedule();});
   if(cfg.reference){$('save-reference').addEventListener('click',()=>saveReference(cfg.reference!.file(reference!.value)));if(cfg.reference.all)$('save-all-references').addEventListener('click',()=>saveReference({name:cfg.reference!.all!.name,text:cfg.reference!.all!.text()}));}
   details.addEventListener('toggle', () => { if (details.open && dialog.open) refreshGuide(); schedule(); });
 
@@ -278,6 +280,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   async function open() {
     if (!await cfg.canOpen()) return;
     if(reference&&!referenceChosen)reference.value=cfg.reference!.current();
+    renderReference();
     // A context-based guide reflects the current state, which may have changed since it was made.
     guideStale = true; check();
     if (!dialog.open) dialog.showModal();
@@ -290,7 +293,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     draft.value = typeof d.json === 'string' ? d.json.slice(0, 200_000) : '';
     context.checked = d.context === true; details.open = d.guideOpen === true;
     if(reference&&cfg.reference!.choices.some(c=>c.id===d.reference)){reference.value=d.reference!;referenceChosen=true;}
-    guideStale = true; check();
+    renderReference();guideStale = true; check();
   }
 
   if (cfg.storageKey) try {

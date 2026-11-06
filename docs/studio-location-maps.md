@@ -57,4 +57,6 @@ Checks are advisory against static scenery and conservative body/prop envelopes.
 
 `npm run build:studio-maps` regenerates data from real recipes before material batching. The production build does this too. Node skips canvas painting while preserving geometry, transforms and registered seats. Shorelines and furniture coordinates are not independently hand-maintained.
 
+After changing a set's appearance, run `npm run build:studio-thumbnails` with Chrome available. This photographs the actual empty sets into compressed 480×300 thumbnail and 960×600 expanded-preview WebP files. These static assets are committed; ordinary production builds do not require Chrome. The modal loads the smaller images lazily and full previews on demand.
+
 `npm run test:studio:spatial` checks committed data against the recipes, every reference lane/start, continuous path tests and fitted transfers. `node --import tsx scripts/studio-check.ts --spatial` covers downloads, review, reload and mobile layout in Chrome.

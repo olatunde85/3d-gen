@@ -29,7 +29,7 @@ export function setupAssist(editor: AssistEditor) {
     contextLabel: 'Start from my current film (to revise it)',
     guideFile: 'ara-studio-llm-guide.txt',
     guide: (brief, current, location) => generateAssistGuide(editor.catalog(), brief, current ? editor.project() : undefined,location as SetId|undefined,current?filmContext():undefined),
-    reference:{label:'Location for this film',choices:SETS.map(s=>({id:s.id,name:s.name})),current:()=>editor.project().template,
+    reference:{label:'Location for this film',choices:SETS.map(s=>({id:s.id,name:s.name,category:s.category,description:s.subtitle,tags:s.tags,thumbnail:import.meta.env.BASE_URL+'studio-location-thumbs/'+s.id+'.webp',preview:import.meta.env.BASE_URL+'studio-location-previews/'+s.id+'.webp'})),current:()=>editor.project().template,
       file:id=>({name:`ara-studio-${id}-map.json`,text:JSON.stringify(locationMapFile(id as SetId),null,2)}),all:{name:'ara-studio-all-location-maps.json',text:()=>JSON.stringify(allLocationMapsFile())}},
     parse: json => parseStudioInput(json, editor.catalog()),
     describe: describeAssistProject,
