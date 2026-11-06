@@ -4,7 +4,7 @@ import type {LocationMap,Rect,SpatialPose,VehicleEnvelope} from './spatial-types
 const pose=(x:number,z:number,yaw=0):SpatialPose=>({x,y:0,z,yaw});
 export function populateStaging(map:LocationMap,envelopes:Record<string,VehicleEnvelope>){
  const car:Rect=[Math.min(...['car','sports_car','suv','motorcycle'].map(id=>envelopes[id].bounds[0])),Math.min(...['car','sports_car','suv','motorcycle'].map(id=>envelopes[id].bounds[1])),Math.max(...['car','sports_car','suv','motorcycle'].map(id=>envelopes[id].bounds[2])),Math.max(...['car','sports_car','suv','motorcycle'].map(id=>envelopes[id].bounds[3]))];
- const verify=(mode:'pedestrian'|'ground-vehicle'|'boat',start:SpatialPose,end:SpatialPose,bounds:Rect,margin:number)=>!spatialConflict(map,hull([...footprint(start,bounds,margin),...footprint(end,bounds,margin)]),mode,0,mode==='pedestrian'?2.2:2.8);
+ const verify=(mode:'pedestrian'|'ground-vehicle'|'boat',start:SpatialPose,end:SpatialPose,bounds:Rect,margin:number)=>!spatialConflict(map,hull([...footprint(start,bounds,margin),...footprint(end,bounds,margin)]),mode,0,mode==='pedestrian'?2.2:2.8,[],{boatEdgeTolerance:0});
  for(const mode of ['pedestrian','ground-vehicle','boat']as const){
   if(mode==='boat'&&!map.water.length)continue;if(mode==='ground-vehicle'&&map.bounds[2]-map.bounds[0]<30)continue;
   const bounds:Rect=mode==='pedestrian'?[-.3,-.3,.3,.3]:mode==='boat'?envelopes.motorboat.bounds:car,margin=mode==='pedestrian'?.15:.25;

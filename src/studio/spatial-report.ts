@@ -5,7 +5,7 @@ import {boardingStand,ridingClip} from '../core/props/vehicle-actions';
 import {durationOf,timelineAt,type StudioProject,type ActorTrack} from './project';
 import {VehicleStage,type VehicleBody,type StagedActor} from './vehicle-stage';
 import {locationMap,VEHICLE_ENVELOPES} from './spatial-maps';
-import {footprint,hull,spatialConflict,type Polygon} from './spatial-geometry';
+import {footprint,hull,spatialConflict,BOAT_EDGE_TOLERANCE,type Polygon} from './spatial-geometry';
 import {isSeated} from './seating';
 import type {LocationMap,SpatialPose,VehicleEnvelope,Rect} from './spatial-types';
 
@@ -41,6 +41,7 @@ export function stagingReport(project:StudioProject,bodies:ReadonlyMap<string,Sp
  const report:StagingReport={kind:'ara-studio-staging-report',version:1,template:project.template,accuracy:fitted?'fitted-bodies':'reference-body',measurements,issues:[],transitions:[],notes:[
   fitted?'Uses the loaded characters’ real rig scale and fitted vehicle bounds.':'Provisional: uses reference scale=1. Build the film, then use Check staging for the loaded characters’ real scale and vehicle bounds.',
   'Advisory geometry checks do not move actors, prevent collisions or implement pathfinding. Rectangular prop/body envelopes are conservative; review tight contacts visually.',
+  `Boats allow ${BOAT_EDGE_TOLERANCE*100} cm of rectangular-envelope overlap at shorelines/docks. Static obstacles, map limits and land-actor water checks retain their normal clearance.`,
   'Every action boundary is reported on both sides. Straight path spans use swept footprints, not just endpoints. Boarding footwork and helicopter altitude are sampled at 30 fps.',
   'Static set geometry, land/water and parked vehicles are checked; automatic avoidance, animated hand/foot collision, person-to-person collision and prop-to-prop collision are not simulated.',
   'Seated clips snap to registered furniture; their body-versus-seat overlap is intentional and not an obstacle failure. Other walking parts of a seated track still need review.'
@@ -83,7 +84,7 @@ export function stagingReport(project:StudioProject,bodies:ReadonlyMap<string,Sp
    if(!v.visible)continue;const next=b.vehicles.get(v.id)!;const body=bodies.get(v.owner.id),scale=body?.scale??1,raw=body?.envelope?.(v.model),reference=VEHICLE_ENVELOPES[v.model];
    const bounds=raw?.bounds??reference.bounds.map(n=>n*scale)as Rect,height=raw?raw.top-raw.bottom:(reference.top-reference.bottom)*scale;
    const mode=watercraft(v.model)?'boat':v.model==='helicopter'&&Math.min(v.y,next.y)>.15?'air':'ground-vehicle';
-   check(`vehicle:${v.id}`,mode,v,next,bounds,height,watercraft(v.model)?.015:.08,t0,t1);
+   check(`vehicle:${v.id}`,mode,v,next,bounds,height,watercraft(v.model)?0:.08,t0,t1);
   }
   for(const track of project.actors){const state=a.actor(track),beat=track.beats[timelineAt(project,t0+1e-8,track).index],transition=clipById.get(beat.clip)?.vehicleTransition;
    if(isSeated(beat.clip))continue;if(state.vehicle&&!transition)continue;

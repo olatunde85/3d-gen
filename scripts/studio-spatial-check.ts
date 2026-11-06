@@ -24,8 +24,8 @@ for(const map of LOCATION_MAPS){
  assert.ok(map.bounds.every(Number.isFinite));assert.ok(map.bounds[0]<map.bounds[2]&&map.bounds[1]<map.bounds[3]);
  for(const s of map.seats)assert.ok([s.x,s.y,s.z,s.yaw].every(Number.isFinite));
  for(const r of map.routes){const models=r.mode==='pedestrian'?['pedestrian']:r.mode==='boat'?['motorboat']:['car','sports_car','suv','motorcycle'];for(const model of models){const rect:Rect=model==='pedestrian'?[-.3,-.3,.3,.3]:VEHICLE_ENVELOPES[model].bounds;
-  assert.equal(spatialConflict(map,hull([...footprint(r.start,rect,r.clearance),...footprint(r.end,rect,r.clearance)]),r.mode,0,r.mode==='pedestrian'?2.2:2.8),undefined,`${map.id}/${r.id}/${model}`);}}
- for(const start of map.starts)for(const model of start.models){const rect:Rect=model==='pedestrian'?[-.3,-.3,.3,.3]:VEHICLE_ENVELOPES[model].bounds;assert.equal(spatialConflict(map,footprint(start.pose,rect,start.clearance),start.mode,0,start.mode==='pedestrian'?2.2:2.8),undefined,`${map.id} starting ${model}`);}
+  assert.equal(spatialConflict(map,hull([...footprint(r.start,rect,r.clearance),...footprint(r.end,rect,r.clearance)]),r.mode,0,r.mode==='pedestrian'?2.2:2.8,[],{boatEdgeTolerance:0}),undefined,`${map.id}/${r.id}/${model}`);}}
+ for(const start of map.starts)for(const model of start.models){const rect:Rect=model==='pedestrian'?[-.3,-.3,.3,.3]:VEHICLE_ENVELOPES[model].bounds;assert.equal(spatialConflict(map,footprint(start.pose,rect,start.clearance),start.mode,0,start.mode==='pedestrian'?2.2:2.8,[],{boatEdgeTolerance:0}),undefined,`${map.id} starting ${model}`);}
  for(let i=0;i<map.starts.length;i++)for(let j=i+1;j<map.starts.length;j++)assert.ok(Math.hypot(map.starts[i].pose.x-map.starts[j].pose.x,map.starts[i].pose.z-map.starts[j].pose.z)>=3,`${map.id} separated starts`);
 }
 for(const [id,shore]of [['harbour',-7.5],['beach',-3.5],['sunset-beach',-3.5],['mountain-lake',-9],['campsite',-14]]as const)assert.equal(locationMap(id).water[0][3],shore);
@@ -47,10 +47,30 @@ const overpass={...empty,water:[],obstacles:[{bounds:[-5,-5,5,5]as Rect,bottom:5
 const deck=footprint(p(0,0,45),[-1,-4,1,4]);assert.equal(spatialConflict(empty,footprint(p(0,0),rect),'pedestrian',0,2,[deck]),undefined);assert.equal(spatialConflict(empty,footprint(p(4,0),rect),'pedestrian',0,2,[deck])?.code,'ground-in-water','deck exemption cannot make nearby water into land');
 const docked={...empty,regions:[{id:'dock',kind:'dock' as const,bounds:[-1,-7,1,7]as Rect,y:0}]};assert.equal(spatialConflict(docked,footprint(p(0,0),rect),'pedestrian'),undefined);assert.equal(spatialConflict(docked,footprint(p(0,0),rect),'boat')?.code,'boat-on-land');
 console.log('Continuous footprints: interior water, thin walls, dock overrides, oriented deck support and overpass heights passed.');
+// A practical docking allowance must not hide an inland boat or a dock crossed mid-path.
+const boatRect:Rect=[-1,-2,1,2];
+assert.equal(spatialConflict(empty,footprint(p(4.1,0),boatRect),'boat'),undefined,'10 cm bank-edge overlap allowed');
+assert.equal(spatialConflict(empty,footprint(p(4.15,0),boatRect),'boat'),undefined,'15 cm bank-edge boundary allowed');
+assert.equal(spatialConflict(empty,footprint(p(4.3,0),boatRect),'boat')?.code,'boat-on-land','30 cm bank overlap still warns');
+assert.equal(spatialConflict(empty,footprint(p(4.1,0),boatRect),'boat',0,2,[],{boatEdgeTolerance:0})?.code,'boat-on-land','reference route verification stays strict');
+assert.equal(spatialConflict(docked,footprint(p(1.9,0),boatRect),'boat'),undefined,'10 cm dock-edge overlap allowed');
+assert.equal(spatialConflict(docked,footprint(p(1.7,0),boatRect),'boat')?.code,'boat-on-land','30 cm dock overlap still warns');
+const diagonal=5-3/Math.sqrt(2);assert.equal(spatialConflict(empty,footprint(p(diagonal+.1,0,45),boatRect),'boat'),undefined,'rotated corner graze allowed');assert.equal(spatialConflict(empty,footprint(p(diagonal+.4,0,45),boatRect),'boat')?.code,'boat-on-land','rotated deep intrusion still warns');
+const passing=hull([...footprint(p(-3,0),[-.4,-.5,.4,.5]),...footprint(p(3,0),[-.4,-.5,.4,.5])]);assert.equal(spatialConflict(docked,passing,'boat')?.code,'boat-on-land','safe endpoints cannot excuse crossing the dock');
+assert.equal(spatialConflict(empty,footprint(p(10,0),[-.1,-.1,.1,.1]),'boat')?.code,'boat-on-land','small footprints must not vanish with tolerance');
+assert.equal(spatialConflict(empty,footprint(p(4.1,0),boatRect).reverse(),'boat'),undefined,'both polygon windings behave identically');
+assert.equal(spatialConflict(narrow,crossing,'boat')?.code,'boat-on-land');
+const boatObstacle={...empty,obstacles:[{bounds:[3.95,-.1,4.05,.1]as Rect,bottom:0,top:2}]};assert.equal(spatialConflict(boatObstacle,footprint(p(3,0),boatRect),'boat')?.code,'obstacle','obstacle clearance is not relaxed');
+assert.equal(spatialConflict(empty,footprint(p(4.9,0),rect),'ground-vehicle')?.code,'ground-in-water','land vehicles retain strict water checks');
+console.log('Docking tolerance: minor bank/dock/rotated contact allowed; deep intrusion, mid-path dock crossings, tiny boats and obstacles still warn.');
+
 
 const land=newProject('harbour');land.actors[0].beats=[beat('drive_car',6,true)];Object.assign(land.actors[0],{x:20,y:0,z:0,yaw:180});const result=stagingReport(land);
 assert.equal(result.accuracy,'reference-body');assert.ok(result.issues.some(i=>i.code==='ground-in-water'));assert.equal(result.transitions[0].from.z,14.4);assert.equal(result.transitions[0].to.z,-14.4);
 const boat=newProject('harbour');boat.actors[0].beats=[beat('idle',2),beat('board_motorboat',2),beat('drive_boat',3,true)];assert.ok(stagingReport(boat).issues.some(i=>i.entity.startsWith('vehicle:')&&i.start===0),'future boat must already be checked at frame zero');
+const dockWait=newProject('harbour'),waitingActor=dockWait.actors[0];Object.assign(waitingActor,{x:1.2+VEHICLE_ENVELOPES.motorboat.bounds[2]-.1,z:-12,yaw:180});waitingActor.beats=[beat('board_motorboat',2),beat('drive_boat',7.6),beat('drive_boat',7.6)];for(const b of waitingActor.beats)b.vehicleId='escape_boat';
+assert.ok(!stagingReport(dockWait).issues.some(i=>i.entity==='vehicle:escape_boat'),'minor contact should not produce a film-long warning');waitingActor.x-=.2;const deepDock=stagingReport(dockWait).issues.find(i=>i.entity==='vehicle:escape_boat');assert.ok(deepDock);assert.equal(deepDock.start,0);assert.equal(deepDock.end,17.2);assert.ok(deepDock.message.includes('15 cm'));
+assert.equal(locationMapFile('harbour').validation.boatEdgeTolerance,.15);
 const start=newProject('harbour');start.actors[0].beats=[beat('run',3,true),beat('idle',1),beat('walk',2,true)];placeStart(start,start.actors[0].id,{x:10,z:20});const initial=new VehicleStage(start,0,new Map()).actor(start.actors[0]);assert.ok(Math.hypot(initial.x-10,initial.z-20)<1e-8);
 const original=JSON.stringify(start);stagingReport(start);assert.equal(JSON.stringify(start),original,'checks must not change the film');
 assert.ok(describeAssistProject(land).warnings.length>0);

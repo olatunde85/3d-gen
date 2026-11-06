@@ -23,6 +23,7 @@ import {VEHICLE_IDS} from '../core/props/vehicles';
 import type {SetId} from './catalog';
 import {locationMapFile,locationMapIndex} from './spatial-maps';
 import {stagingReport,type StagingReport} from './spatial-report';
+import {BOAT_EDGE_TOLERANCE} from './spatial-geometry';
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 function fields(value: Record<string, unknown>, allowed: string[], path: string) {
@@ -160,6 +161,7 @@ USER'S BRIEF
 ${brief.trim() || '[Describe the film you want here.]'}
 
 SPATIAL-STAGING REQUIREMENT
+Boat shoreline/dock warnings allow ${BOAT_EDGE_TOLERANCE*100} cm of inset on the conservative rectangular envelope to avoid minor docking-contact warnings. Map boundaries, land/water geometry and verified routes remain unchanged; plan clear routes instead of relying on the allowance. Larger overlaps, travel across land/docks, and static-obstacle conflicts still warn. The pasted-JSON review uses estimated reference-size boats; Check staging after Build uses fitted boats.
 Before generating a film, calculate the world-space position AND facing direction of each moving actor at EVERY action transition, including both sides of an entry/exit. Validate the COMPLETE swept path and the complete vehicle/body footprint against the selected location's land, water and obstacle boundaries, not just the first frame. Ground vehicles and running/walking characters must remain on navigable land; boats must remain in navigable water. Check parked/waiting props too. Stop vehicles before the end of a verified lane and keep all entry/exit intervals stationary. Do not infer that a large floor under a water surface is navigable land. No automatic pathfinding or physical collision prevention runs during playback.
 
 The guide includes a compact index for EVERY location, then the FULL machine-readable staging map for ${selected}. If you choose another location, request its map (LLM Assist > Location for this film > Save map .json), or the All location maps file, before authoring any route whose geometry is unavailable. Identify the uncertainty; never invent safe coordinates. A verified lane is a geometric reference corridor, not a traffic law, collision simulation or permission to extend the route indefinitely. A set without a verified dock does not have a verified boat boarding point. Pools are water surfaces, not automatically navigable boat routes.
@@ -255,7 +257,7 @@ export function describeAssistProject(project: StudioProject) {
   const spatial=stagingReport(project);
   return {
     headline: `${project.title || 'Untitled film'} · ${sceneById.get(project.template)!.name}`,
-    warnings:spatial.issues.length?[...spatial.issues.slice(0,5).map(i=>`${i.entity}, ${i.start}–${i.end}s: ${i.message}.`),'Reference-body findings: Build film, then use Check staging for fitted characters. This check does not fix or block movement.']:[],
+    warnings:spatial.issues.length?[...spatial.issues.slice(0,5).map(i=>`${i.entity}, ${i.start}–${i.end}s: ${i.message}.`),'Estimated reference-size check. Build film, then use Check staging for your actual character and vehicle sizes. Findings do not block movement.']:[],
     facts: [names.join(' + '), `${durationOf(project)} seconds`, count(project.shots.length, 'shot'),
       count(project.actors.reduce((sum, a) => sum + a.beats.length, 0), 'action'),
       ...(project.texts.length ? [count(project.texts.length, 'text cue')] : []),
