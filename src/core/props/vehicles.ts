@@ -1,13 +1,13 @@
 /** Shared vehicle IDs and styling. Geometry and fitting live in vehicle.ts. */
-export const VEHICLE_IDS=['bicycle','car','sports_car','suv','motorcycle','horse','canoe','kayak','rowboat','motorboat']as const;
+export const VEHICLE_IDS=['bicycle','car','sports_car','suv','motorcycle','horse','canoe','kayak','rowboat','motorboat','helicopter']as const;
 export type VehicleId=typeof VEHICLE_IDS[number];
 export const VEHICLE_CHOICES=['none','auto',...VEHICLE_IDS]as const;
 export type VehicleChoice=typeof VEHICLE_CHOICES[number];
-export const VEHICLE_LABELS:Record<VehicleChoice,string>={none:'None',auto:'Match animation',bicycle:'Bicycle',car:'Classic convertible',sports_car:'Modern sports car',suv:'SUV',motorcycle:'Motorcycle',horse:'Horse',canoe:'Canoe',kayak:'Kayak',rowboat:'Rowing boat',motorboat:'Motorboat'};
+export const VEHICLE_LABELS:Record<VehicleChoice,string>={none:'None',auto:'Match animation',bicycle:'Bicycle',car:'Classic convertible',sports_car:'Modern sports car',suv:'SUV',motorcycle:'Motorcycle',horse:'Horse',canoe:'Canoe',kayak:'Kayak',rowboat:'Rowing boat',motorboat:'Motorboat',helicopter:'Helicopter / chopper'};
 import {TRANSITION_BY_CLIP,ridingClip} from './vehicle-actions';
-export const RIDING_VEHICLES:Readonly<Record<string,VehicleId>>={ride_bicycle:'bicycle',drive_car:'car',sit_passenger:'car',drive_sports_car:'sports_car',sit_sports_car_passenger:'sports_car',drive_suv:'suv',sit_suv_passenger:'suv',ride_motorcycle:'motorcycle',ride_horse:'horse',paddle_canoe:'canoe',paddle_kayak:'kayak',row_boat:'rowboat',drive_boat:'motorboat'};
+export const RIDING_VEHICLES:Readonly<Record<string,VehicleId>>={ride_bicycle:'bicycle',drive_car:'car',sit_passenger:'car',drive_sports_car:'sports_car',sit_sports_car_passenger:'sports_car',drive_suv:'suv',sit_suv_passenger:'suv',ride_motorcycle:'motorcycle',ride_horse:'horse',paddle_canoe:'canoe',paddle_kayak:'kayak',row_boat:'rowboat',drive_boat:'motorboat',fly_helicopter:'helicopter'};
 export const VEHICLE_FOR_CLIP:Readonly<Record<string,VehicleId>>={...RIDING_VEHICLES,...Object.fromEntries(Object.entries(TRANSITION_BY_CLIP).map(([id,t])=>[id,RIDING_VEHICLES[t.ride]]))};
-export const VEHICLE_CLIP:Record<VehicleId,string>={bicycle:'ride_bicycle',car:'drive_car',sports_car:'drive_sports_car',suv:'drive_suv',motorcycle:'ride_motorcycle',horse:'ride_horse',canoe:'paddle_canoe',kayak:'paddle_kayak',rowboat:'row_boat',motorboat:'drive_boat'};
+export const VEHICLE_CLIP:Record<VehicleId,string>={bicycle:'ride_bicycle',car:'drive_car',sports_car:'drive_sports_car',suv:'drive_suv',motorcycle:'ride_motorcycle',horse:'ride_horse',canoe:'paddle_canoe',kayak:'paddle_kayak',rowboat:'row_boat',motorboat:'drive_boat',helicopter:'fly_helicopter'};
 export const VEHICLE_FINISHES=['matte','satin','gloss']as const;
 export const VEHICLE_VARIANTS=['classic','sport']as const;
 export interface VehicleStyle{color:string;accentColor:string;seatColor:string;finish:typeof VEHICLE_FINISHES[number];variant:typeof VEHICLE_VARIANTS[number]}
@@ -17,6 +17,7 @@ export function vehicleStyleForChoice(choice:VehicleChoice,style:VehicleStyle):V
  const untouched=Object.entries(DEFAULT_VEHICLE_STYLE).every(([key,value])=>style[key as keyof VehicleStyle]===value);
  if(!untouched)return {...style};
  if(choice==='sports_car')return {color:'#168c9b',accentColor:'#aeb9c5',seatColor:'#20252c',finish:'gloss',variant:'sport'};
+ if(choice==='helicopter')return {color:'#344f5b',accentColor:'#c0c8c6',seatColor:'#252d32',finish:'satin',variant:'classic'};
  if(choice==='suv')return {color:'#b71f2b',accentColor:'#34383e',seatColor:'#20252c',finish:'gloss',variant:'classic'};
  return {...style};
 }
@@ -33,4 +34,4 @@ export function vehicleFor(choice:VehicleChoice,clip:string):VehicleId|undefined
  const id=VEHICLE_FOR_CLIP[clip];return choice==='auto'?id:choice===id?id:isCar(choice)&&id==='car'?choice:undefined;
 }
 /** Raised cabin/deck floors. Bicycle, motorcycle and horse already have their authored saddle height. */
-export function vehicleLift(id:VehicleId,scale:number){return ({car:.32,sports_car:.12,suv:.50,canoe:.15,kayak:.15,rowboat:.15,motorboat:.32,bicycle:0,motorcycle:0,horse:0}[id])*scale;}
+export function vehicleLift(id:VehicleId,scale:number){return ({car:.32,sports_car:.12,suv:.50,canoe:.15,kayak:.15,rowboat:.15,motorboat:.32,helicopter:.52,bicycle:0,motorcycle:0,horse:0}[id])*scale;}

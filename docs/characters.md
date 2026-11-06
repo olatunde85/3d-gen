@@ -14,7 +14,7 @@ The sidebar has two modes, switched at its top. The app remembers which one you 
   4. **Colours:** fabric and colours for whatever the outfit lets you change, plus a custom colour.
   5. **Hair & face:** hairstyle, hair colour, facial hair, eyes and expression.
   6. **Extras:** glasses, hats, jewellery, earrings, tattoos, a bag and something to hold.
-  7. **Vehicle:** pick one of ten vehicles to preview its matching riding/driving action. Choose a body/coat colour, Standard/Sport style and finish; Detailed has trim/mane and seat/tack colours. On foot returns to idle without a vehicle. Vehicle selection follows the active animation, including choices made in the animation bar.
+  7. **Vehicle:** pick one of eleven vehicles to preview its matching riding/driving action. Choose a body/coat colour, Standard/Sport style and finish; Detailed has trim/mane and seat/tack colours. On foot returns to idle without a vehicle. Vehicle selection follows the active animation, including choices made in the animation bar.
   8. **Action:** play an animation, including moves for what's in hand and boarding/riding/alighting for the current vehicle.
 - **Ready-made characters:** start from any preset, then change anything.
 - **Never stuck:**

@@ -3,6 +3,7 @@ import * as T from 'three';
 import {mergeVehicleParts} from './vehicle-merge';
 import {Bicycle} from './bicycle';
 import {buildCar,buildMotorcycle} from './vehicle-land';
+import {buildHelicopter} from './vehicle-helicopter';
 import {buildWatercraft} from './vehicle-water';
 import {buildHorse} from './vehicle-horse';
 import {RiderFit,VehicleKit,v} from './vehicle-kit';
@@ -23,7 +24,7 @@ export class Vehicle{
   this.fit=new RiderFit(rig,animator,reference,id);this.lift=this.fit.lift;
   if(id==='bicycle'){this.bicycle=new Bicycle(rig,animator,reference,sanitizeVehicleStyle(style));this.group=this.bicycle.group;this.group.userData.component=true;}
   else{const k=this.kit=new VehicleKit(sanitizeVehicleStyle(style),this.fit);this.group=k.group;
-   if(isCar(id)){buildCar(k);articulateDoors(k);}else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else buildWatercraft(k);
+   if(isCar(id)){buildCar(k);articulateDoors(k);}else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else if(id==='helicopter')buildHelicopter(k);else buildWatercraft(k);
   }
   mergeVehicleParts(this.group);this.update(0);
  }
