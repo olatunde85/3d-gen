@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type {SetBuilder} from '../builder';
-import {basin,bench,block,door,exteriorBounds,fence,glow,METAL,ring,shell,toilet,tower,WHITE,windowPanel} from './details';
+import {surfaceBlock,basin,bench,block,door,exteriorBounds,fence,glow,METAL,ring,shell,toilet,tower,WHITE,windowPanel} from './details';
 export function hospital(b:SetBuilder){
  shell(b,'#c8d8d4','#adbeb9');windowPanel(b,-3.6,-5.44,2.8,2.3);door(b,3.9,-5.43,'WARD 04','#6f9295');
  // Wheeled adjustable bed: separate mattress, backrest, rails and pillow.
@@ -46,17 +46,17 @@ export function prisonCell(b:SetBuilder){
  for(let x=-4.1;x<=-2.9;x+=.2)block(b,[.025,.7,.04],[x,3.2,-5.34],METAL);glow(b,[1.6,.05,.22],[0,3.6,-2],'#d7e2d0',.8);
 }
 export function prisonYard(b:SetBuilder){
- b.floor('#939e94');block(b,[12,.012,360],[0,-.003,0],'#a4aba1');
+ b.floor('#939e94');surfaceBlock(b,'yard-access-path','walkway',[12,.012,360],[0,-.003,0],'#a4aba1');
  for(const side of [-1,1]){b.wall(72,5.5,[0,2.75,side*38],'#9aa39b',side<0?0:Math.PI);fence(b,side*36,0,76,5,Math.PI/2);tower(b,side*16,-29);}
  for(let x=-33;x<=33;x+=3){const coil=ring(b,.3,.015,[x,5.75,-38],METAL);coil.rotation.y=Math.PI/2;}block(b,[70,.025,.025],[0,5.8,-38],METAL);
  for(const x of [-12,12]){bench(b,x,-4,2.4,'#8c9389',x<0?Math.PI/2:-Math.PI/2);block(b,[7,.05,.05],[x,2.8,-8],METAL);for(const dx of [-3.5,3.5])block(b,[.08,2.8,.08],[x+dx,1.4,-8],METAL);}
  // A separate exercise court, not a raised obstruction on the main access path.
- block(b,[12,.014,18],[-21,.003,-8],'#7d8d7c');for(const x of [-26.5,-15.5])block(b,[.06,.018,17],[x,.015,-8],'#dbded0');for(const z of [-16.5,.5])block(b,[11,.018,.06],[-21,.015,z],'#dbded0');
+ surfaceBlock(b,'exercise-court','court',[12,.014,18],[-21,.003,-8],'#7d8d7c');for(const x of [-26.5,-15.5])block(b,[.06,.018,17],[x,.015,-8],'#dbded0');for(const z of [-16.5,.5])block(b,[11,.018,.06],[-21,.015,z],'#dbded0');
  for(const x of [-30,30]){block(b,[.18,6,.18],[x,3,-24],METAL);glow(b,[1.2,.3,.18],[x,6,-24],'#d8e1d4',.8);}
  for(const z of [-110,-70,70,110])for(const side of [-1,1])block(b,[18,5.5,16],[side*25,2.75,z],'#a2aaa0');exteriorBounds(b);
 }
 export function military(b:SetBuilder){
- b.floor('#9da08b');block(b,[10,.016,360],[0,-.003,0],'#7c8178');block(b,[70,.012,8],[0,-.003,-36],'#7c8178');
+ b.floor('#9da08b');surfaceBlock(b,'base-access-road','road',[10,.016,360],[0,-.003,0],'#7c8178');surfaceBlock(b,'base-cross-road','road',[70,.012,8],[0,-.003,-36],'#7c8178');
  for(const x of [-18,18]){fence(b,x,-15,26,3);tower(b,x<0?-31:31,-16);}
  block(b,[3.2,2.8,3],[7.5,1.4,-14],'#738275');windowPanel(b,7.5,-12.46,2,.8,1.8);b.label('CHECKPOINT  /  STOP',[0,4,-16],4.3,'#e4e6cf','#495e52');for(const x of [-5,5])block(b,[.18,4,.18],[x,2,-16],METAL);block(b,[10,.18,.18],[0,4.1,-16],METAL);
  for(const side of [-1,1])for(const z of [-55,45,100]){const x=side*23;block(b,[12,3.2,10],[x,1.6,z],'#7d8975');const roof=block(b,[13,.2,11],[x,3.3,z],'#5a685d');roof.rotation.z=side*.05;door(b,x,z+5.02,'BARRACKS','#485d54',1.3);for(const dx of [-4,4])windowPanel(b,x+dx,z+5.03,1.4,.8,1.9);}
@@ -78,7 +78,7 @@ export function church(b:SetBuilder){
  for(const x of [-6.5,6.5])for(const z of [-6,-1,4]){block(b,[.5,5.6,.5],[x,2.8,z],'#b6aa8f');block(b,[.7,.2,.7],[x,5.6,z],'#b6aa8f');}
  for(const x of [-1,1]){b.cylinder(.055,.32,[x,1.21,-6],WHITE);glow(b,[.025,.07,.025],[x,1.4,-6],'#edcb83',1.3);}
  // Aisle runner is flush; decorative beams leave the camera free to orbit into the cutaway.
- block(b,[2.8,.012,11],[0,.002,0],'#827369');b.label('PEACE  /  WELCOME',[0,4.65,-7.94],3.2,'#806844','#c6bca3');
+ surfaceBlock(b,'church-aisle','walkway',[2.8,.012,11],[0,.002,0],'#827369');b.label('PEACE  /  WELCOME',[0,4.65,-7.94],3.2,'#806844','#c6bca3');
 }
 export function elevator(b:SetBuilder){
  shell(b,'#929e9e','#59666a',5,4.8,3.15);

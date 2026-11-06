@@ -20,6 +20,10 @@ import {VEHICLE_TRANSITIONS} from '../core/props/vehicle-actions';
 import {studioTravel,VEHICLE_SPEED,MAX_TRAVEL_SPEED,STAGE_LIMIT} from './motion';
 import {VEHICLE_SEATS,seatsForVehicle} from './vehicle-seats';
 import {VEHICLE_IDS} from '../core/props/vehicles';
+import type {SetId} from './catalog';
+import {locationMapFile,locationMapIndex} from './spatial-maps';
+import {stagingReport,type StagingReport} from './spatial-report';
+import {BOAT_EDGE_TOLERANCE} from './spatial-geometry';
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 function fields(value: Record<string, unknown>, allowed: string[], path: string) {
@@ -147,13 +151,37 @@ export function projectForAssist(project:StudioProject){
     return {...actor,character:params?{kind:'ara-character',version:1,params}:character};
   })};
 }
-export function generateAssistGuide(catalog:Catalog,brief = '', current?: StudioProject): string {
+export function generateAssistGuide(catalog:Catalog,brief = '', current?: StudioProject,location?:SetId,currentStaging?:StagingReport): string {
   const json = (value: unknown) => JSON.stringify(value, null, 2);
+  const selected=location??current?.template??'portrait';
   return `ARA STUDIO — LLM ASSIST GUIDE (project version 2)
 You are directing a short 3D film in Ara Studio. Turn the user's brief into ONE complete JSON project that can be pasted or opened in Studio. Return only the JSON object: no code, comments, ellipses or invented capabilities. Use the exact IDs below. If the brief requires an unsupported capability, explain the limitation and suggest an achievable alternative before generating the project.
 
 USER'S BRIEF
 ${brief.trim() || '[Describe the film you want here.]'}
+
+SPATIAL-STAGING REQUIREMENT
+Boat shoreline/dock warnings allow ${BOAT_EDGE_TOLERANCE*100} cm of inset on the conservative rectangular envelope to avoid minor docking-contact warnings. Map boundaries, land/water geometry and verified routes remain unchanged; plan clear routes instead of relying on the allowance. Larger overlaps, travel across land/docks, and static-obstacle conflicts still warn. The pasted-JSON review uses estimated reference-size boats; Check staging after Build uses fitted boats.
+Before generating a film, calculate the world-space position AND facing direction of each moving actor at EVERY action transition, including both sides of an entry/exit. Validate the COMPLETE swept path and the complete vehicle/body footprint against the selected location's land, water and obstacle boundaries, not just the first frame. Ground vehicles and running/walking characters must remain on navigable land; boats must remain in navigable water. Check parked/waiting props too. Stop vehicles before the end of a verified lane and keep all entry/exit intervals stationary. Do not infer that a large floor under a water surface is navigable land. No automatic pathfinding or physical collision prevention runs during playback.
+
+The guide includes a compact index for EVERY location, then the FULL machine-readable staging map for ${selected}. If you choose another location, request its map (LLM Assist > Location for this film > Save map .json), or the All location maps file, before authoring any route whose geometry is unavailable. Identify the uncertainty; never invent safe coordinates. A verified lane is a geometric reference corridor, not a traffic law, collision simulation or permission to extend the route indefinitely. A set without a verified dock does not have a verified boat boarding point. Pools are water surfaces, not automatically navigable boat routes.
+
+COORDINATES AND TRAVEL CALCULATION
+All map poses and bounds are world metres; rect=[minX,minZ,maxX,maxZ], yaw in degrees, 0=+Z, 90=+X, 180=-Z, -90=-X. Seats are [x,y,z,yaw], y=seat-top height. Land is map.bounds minus all water rectangles, plus walkable dock overlays. Regions mark exact rendered walkway/road/court/dock edges; obstacles are conservative geometry envelopes with bottom/top heights. Remain within map.bounds even though the actor placement fields allow ±${STAGE_LIMIT}. Static floor colour outside those bounds does not certify a route. Keep ordinary actor.y=0: raising a character does not make water into ground. Helicopter flight is checked in 3D against obstacle heights; takeoff/landing still require clear ground.
+
+Actor x/z are the CENTRE of the complete enabled local travel, NOT the start. For each beat i let v_i be the catalogue local travel (vehicle speed override applied) if move:true, otherwise [0,0,0]. Let D=sum(v_i*duration_i) over the actor's ENTIRE timeline. At time t the nominal local displacement is cumulativeTravel(t)-D/2. With rig scale s and yaw a: worldX=actor.x+s*(localX*cos(a)+localZ*sin(a)); worldZ=actor.z+s*(-localX*sin(a)+localZ*cos(a)). To start at world S, solve actor.xz=S+R(a)*(s*D/2). Final nominal position is actor.xz+R(a)*(s*D/2). Never recompute the centre per beat. Adding later travel shifts earlier nominal positions. Rowboat velocity points local -Z. Visual turn clips animate the skeleton; they DO NOT rotate the actor's travel axes or change its authored yaw between beats. Do not invent per-beat x/z/yaw or waypoints.
+
+Vehicle/doorway offsets then modify that nominal path: boardingStand is measured in anatomical boardingScale b (distinct from rig scale s), and passengers use the OPERATOR's vehicle transform. A first board starts at the vehicle origin + R(a)*boardingStand*b. An alight ends at that same doorway offset from the last vehicle origin; that offset is carried into the following ground span. For the next NEW vehicle, Studio places its waiting origin at the end of the preceding ground span minus R(a)*boardingStand*b. It exists there from time zero. Reusing a vehicleId returns to its last parked position; ground spans are adjusted to connect the real doorways, so their direction can differ from nominal travel. Passengers inherit the host's full motion; do not apply their own centred path or offset them by hand. These offsets require re-evaluating the whole track after edits. Use Check staging in Studio to export actual fitted-body transition positions and issues; a reference-scale calculation is provisional until reviewed with the loaded cast.
+
+BOAT BOARDING CONTRACT
+Motorboat operator boardingStand=[1.62,-0.42] in local X/Z, scaled by b. The map's harbour anchor has an on-land approach, exact standing gate pose, a separate waiting boat origin and a verified water departure. Follow all four. Reference anchors/vehicle envelopes use s=b=1; custom bodies require re-checking dock reach and footprint. The harbour shoreline is z=-7.5 (land toward +Z, water toward -Z); its pier extends into water and is the only verified boarding anchor. For the east-pier anchor, yaw=180, stand=(0.85,0,-11.5), waiting motorboat origin=(2.47,0,-11.92), departure=(2.47,0,-45). Solve actor origin from its full timeline: do not paste the stand coordinate into actor.x/z. A motorcycle → alight → run → board_motorboat sequence must leave the motorcycle on land, end its run at the pier gate, keep the future boat fully in water from frame zero, and depart along the verified water lane. Add drive_boat move:false if another passenger is still boarding; shared entries use the same gate and must be staggered. No automatic docking, turning, shoreline following or bank-to-bank route is supplied.
+
+ALL LOCATION MAP INDEX (compact JSON; seats=[x,y,z,yaw]; full obstacles and verified lane endpoints are in the selected map/file)
+${JSON.stringify(locationMapIndex())}
+
+SELECTED LOCATION STAGING MAP — reference data only, do not add it to film JSON
+${JSON.stringify(locationMapFile(selected))}
+${current?`\nCURRENT FILM STAGING REPORT — measurements apply to these unchanged character recipes only; changed/new characters need a fresh fitted check\n${JSON.stringify(currentStaging??stagingReport(current))}`:''}
 
 CAPABILITIES AND STAGING
 - One location per project, ${MAX_ACTORS} characters maximum. Choose from the complete location and animation catalogues below; you cannot generate new geometry, sets or clips.
@@ -161,7 +189,7 @@ CAPABILITIES AND STAGING
 - Looping clips repeat; one-shot clips play once and hold their final pose. Use catalogue duration for original clip timing. Consecutive identical looping beats continue their phase. Animation playback speed and blending are fixed; vehicle travelSpeed controls only movement through the set.
 - Pistol performances include pistol_walk, pistol_run, pistol_sprint, pistol_strafe_left/right and pistol_aim_one_hand; equip weapon:pistol. Rifle walk/run/sprint/strafe retain the recorded gait under their weapon hold. Walk backwards is the recorded Walk played in reverse. Laugh runs at half its previous speed. All recorded turns run at 2x speed (0.95 seconds for 45/90 degrees, 3.6 seconds for 360). Use the catalogue duration.
 - Equip carry:parcel and weapon:none for a two-hand box. Ordinary walk, run, backwards/slouch/model walk, strafes, turns, idle, talk and laugh automatically keep it between the hands, preserving the original gait and speed; carry_idle/carry_walk remain available. Pickup starts on the floor and lifts after contact; put_down takes 3.4 seconds and places the box on the floor around 1.6 seconds. After put_down, Studio keeps it on the ground as the character walks away, until a later pick_up. Stage the character back at the box before pickup; it is not an automatic navigation or reach-to-object system. Pickup grip is around 1.5 seconds and lifting begins around 1.8 seconds. Other performances (combat, jumps, gestures, sitting/lying and vehicles) use their original arm poses and do not support this carry layer; use carry:none for those. No transfers between characters or grabbing arbitrary set props. Scale and stage the character normally; do not add separate box geometry or attachment fields.
-- move:true enables travel on locomotion AND vehicle clips with a catalogue travel vector. For vehicles only, optional travelSpeed 0.1..${MAX_TRAVEL_SPEED} overrides their default metres per second. The complete vehicle and rider move together; stationary actions keep move:false. This does not retime the riding performance. Other clips use move:false. Travel vectors are metres per second at reference character height in local [X,Y,Z], scaled to character height and rotated by yaw. The whole travel path is centred around actor x/z. For static staging use move:false. Yaw 0 faces +Z; positive yaw turns toward +X. X/Z are horizontal metres; Y is elevation. Actor placement stays constant apart from enabled animation travel. Keep actors apart and in clear performance space. There is NO obstacle collision detection, navigation mesh, pathfinding or stop-at-wall logic: characters can walk through bricks, walls, tables, other props or other actors. The guide cannot enforce an unobstructed path. Use move:false when a clear route cannot be staged, and review travelling clips before export.
+- move:true enables travel on locomotion AND vehicle clips with a catalogue travel vector. For vehicles only, optional travelSpeed 0.1..${MAX_TRAVEL_SPEED} overrides their default metres per second. The complete vehicle and rider move together; stationary actions keep move:false. This does not retime the riding performance. Other clips use move:false. Travel vectors are metres per second at reference character height in local [X,Y,Z], scaled to character height and rotated by yaw. The whole travel path is centred around actor x/z. For static staging use move:false. Yaw 0 faces +Z; positive yaw turns toward +X. X/Z are horizontal metres; Y is elevation. Actor placement stays constant apart from enabled animation travel. Keep actors apart and in clear performance space. Check staging reports conservative land/water/obstacle conflicts over the whole film, but playback has no physical collision response, navigation mesh, pathfinding or stop-at-wall logic. Reports are advisory; movement can still pass through geometry until the film is corrected. Use move:false when a clear route cannot be staged, and review travelling clips before export.
 - Design each character inside the film JSON: use actor.params alone to build from defaults, or actor.preset plus actor.params to inherit a preset and override its appearance. The shared character-building instructions and complete parameter schema below apply to these params. You can also paste an entire character-builder response into actor.character: {"kind":"ara-character","version":1,"preset":"The Adventurer","params":{"name":"Custom explorer","ageYears":34}}. A raw builder .params.json object is also accepted in actor.character. No separate builder visit is required.
 - Existing encoded actor.character strings still work. Add actor.params to override that existing character; never invent or edit an encoded string yourself. Do not combine preset and character, or put params both inside a character object and on its actor. Omitted fields inherit from the selected preset/existing recipe, or defaults when neither is provided. Supplied arrays/maps replace the inherited values, so include all desired entries. actor.detail (low/medium/high) always overrides embedded params.detail. Top-level actor.weapon/carry override equipment in the character specification; omit them to retain it, use none to remove it.
 - Studio needs an animated rig: rig none is rendered with the game rig, and animations are enabled for Studio performances. All other supported body, face, skin, hair, clothing, colours, modifiers and rig options use the builder specification below. Character parameters belong only inside params or a character specification; placement x/y/z/yaw and performance beats stay on the actor.
@@ -186,7 +214,7 @@ CAPABILITIES AND STAGING
 
 COMPLETE LOCATION CATALOGUE
 Use template as a location ID. Staging notes describe the actual floor plan and are guidance, not additional project fields.
-${json(SETS.map(s => ({ id: s.id, name: s.name, category: s.category, mood: s.mood, description: s.subtitle,...(s.staging?{staging:s.staging}:{}) })))}
+${JSON.stringify(SETS.map(s => ({ id: s.id, name: s.name, category: s.category, mood: s.mood, description: s.subtitle,...(s.staging?{staging:s.staging}:{}) })))}
 
 COMPLETE CHARACTER PRESET CATALOGUE
 ${json(Object.keys(PRESETS))}
@@ -226,8 +254,10 @@ export function describeAssistProject(project: StudioProject) {
   const names = project.actors.map(a => decodeCharacter(a.character, a.detail)?.name || a.id);
   const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   const speech = project.audio.speech.length,effects=project.audio.effects.length, music = project.audio.music.track !== 'none' && !project.audio.muted;
+  const spatial=stagingReport(project);
   return {
     headline: `${project.title || 'Untitled film'} · ${sceneById.get(project.template)!.name}`,
+    warnings:spatial.issues.length?[...spatial.issues.slice(0,5).map(i=>`${i.entity}, ${i.start}–${i.end}s: ${i.message}.`),'Estimated reference-size check. Build film, then use Check staging for your actual character and vehicle sizes. Findings do not block movement.']:[],
     facts: [names.join(' + '), `${durationOf(project)} seconds`, count(project.shots.length, 'shot'),
       count(project.actors.reduce((sum, a) => sum + a.beats.length, 0), 'action'),
       ...(project.texts.length ? [count(project.texts.length, 'text cue')] : []),

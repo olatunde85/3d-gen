@@ -10,7 +10,7 @@ The sidebar has two modes, switched at its top. The app remembers which one you 
 - **Steps:**
   1. **Body:** gender, age, build and height.
   2. **Heritage:** African, Asian, Caucasian or mixed. This also sets the skin, face and eye colour.
-  3. **Outfit:** 28 styles, from everyday wear and suits to uniforms, traditional dress, warriors and beachwear. Each has a picture.
+  3. **Outfit:** 30 styles, from everyday wear and suits to uniforms, bridal/evening wear, traditional dress, warriors and beachwear. Each has a picture.
   4. **Colours:** fabric and colours for whatever the outfit lets you change, plus a custom colour.
   5. **Hair & face:** hairstyle, hair colour, facial hair, eyes and expression.
   6. **Extras:** glasses, hats, jewellery, earrings, tattoos, a bag and something to hold.
@@ -28,6 +28,8 @@ The sidebar has two modes, switched at its top. The app remembers which one you 
 Quick build always reflects the current character, however it was made: in Detailed, from a preset or from a shared link. An outfit it doesn't offer shows as the character's own.
 
 **Detailed** has every slider and setting, described in the rest of this page.
+
+**Bridal & evening** in Quick build includes the red cocktail dress and wedding gown, with garment thumbnails. Both also appear under **Clothing** in Detailed. The wedding outfit includes its veil, pearl necklace and heels; the cocktail dress includes heels. Quick build explains the existing gender and age requirements when an option is unavailable.
 
 ## Character LLM Assist
 

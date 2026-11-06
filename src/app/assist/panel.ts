@@ -4,8 +4,9 @@
  */
 import './panel.css';
 import { extractJson, fixRequest, hadSurroundingText } from './extract';
+import {referencePickerMarkup,setupReferencePicker,type ReferenceChoice} from './reference-picker';
 
-export interface AssistDraft { brief: string; json: string; context: boolean; open: boolean; guideOpen: boolean }
+export interface AssistDraft { brief: string; json: string; context: boolean; open: boolean; guideOpen: boolean; reference?:string }
 
 export interface AssistConfig<T> {
   /** An existing empty <dialog> to fill, or one is created. */
@@ -20,9 +21,12 @@ export interface AssistConfig<T> {
   contextLabel: string;
   guideFile: string;
   /** The full guide for an AI chat, with the brief and optionally the current state embedded. */
-  guide(brief: string, current: boolean): string;
+  guide(brief: string, current: boolean, reference?:string): string;
   parse(json: string): T;
-  describe(value: T): { headline: string; facts: string[] };
+  describe(value: T): { headline: string; facts: string[]; warnings?:string[] };
+  /** Optional machine-readable reference beside the guide (Studio location maps). */
+  reference?:{label:string;choices:ReferenceChoice[];current():string;file(id:string):{name:string;text:string};all?:{name:string;text():string}};
+  revisionContext?(value:T):string;
   example(): unknown;
   /** Applies the result; throws a readable error if it can't. */
   build(value: T): Promise<void>;
@@ -59,6 +63,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         <label class="sr-only" for="${id}-brief">Describe your ${noun}</label>
         <textarea id="${id}-brief" class="ai-brief" data-r="brief" rows="4" maxlength="6000" placeholder="${html(cfg.placeholder)}"></textarea>
         <label class="ai-check"><input type="checkbox" id="${id}-context" data-r="context" /><span>${html(cfg.contextLabel)}</span></label>
+        ${cfg.reference?`${referencePickerMarkup(id,cfg.reference.label,cfg.reference.choices)}<div class="ai-row"><button class="ai-btn" id="${id}-save-map" data-r="save-reference">Save map .json</button>${cfg.reference.all?'<button class="ai-link" data-r="save-all-references">All location maps</button>':''}</div><p class="ai-note">The guide includes this set’s full staging map. Choose the location you want to film.</p>`:''}
 
         <div class="ai-step"><span class="ai-num">2</span><h3>Get the ${noun} JSON</h3></div>
         <div class="ai-pane">
@@ -97,7 +102,11 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   let preparationController:AbortController|undefined;
 
   // ---- Drafts ----
-  const state = (): AssistDraft => ({ brief: brief.value, json: draft.value, context: context.checked, open: dialog.open, guideOpen: details.open });
+  const reference=cfg.reference?$<HTMLInputElement>('reference'):undefined;
+  let referenceChosen=false;
+  if(reference)reference.value=cfg.reference!.current();
+  const renderReference=reference?setupReferencePicker(reference,cfg.reference!.choices):()=>{};
+  const state = (): AssistDraft => ({ brief: brief.value, json: draft.value, context: context.checked, open: dialog.open, guideOpen: details.open,...(reference&&referenceChosen?{reference:reference.value}:{}) });
   const persist = () => {
     clearTimeout(saveTimer);
     if (cfg.storageKey) try { localStorage.setItem(cfg.storageKey, JSON.stringify(state())); } catch { /* Drafts are a convenience. */ }
@@ -107,7 +116,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   // ---- Guide ----
   const refreshGuide = () => {
     if (!guideStale) return guide.value;
-    guide.value = cfg.guide(brief.value, context.checked); guideStale = false;
+    guide.value = cfg.guide(brief.value, context.checked,reference?.value); guideStale = false;
     $('copy-status').textContent = `About ${tokens(Math.round(guide.value.length / 4))} tokens. Use a capable model for the best results.`;
     return guide.value;
   };
@@ -123,10 +132,10 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   function showResult() {
     result.className = 'ai-result';
     if (parsed) {
-      const { headline, facts } = cfg.describe(parsed);
+      const { headline, facts, warnings=[] } = cfg.describe(parsed);
       result.classList.add('ok');
       result.innerHTML = `<p class="ai-result-title"><span aria-hidden="true">${preparing?'…':'✓'}</span> ${preparing?'Preparing dialogue voices':'Ready to build'}</p><p class="ai-headline">${html(headline)}</p>
-        <ul class="ai-facts">${facts.map(f => `<li>${html(f)}</li>`).join('')}</ul>${cleaned ? '<p class="ai-note">Found the JSON in the reply and ignored the text around it.</p>' : ''}`;
+        <ul class="ai-facts">${facts.map(f => `<li>${html(f)}</li>`).join('')}</ul>${warnings.length?`<div class="ai-staging-notes"><b>Staging needs review</b><ul>${warnings.map(w=>`<li>${html(w)}</li>`).join('')}</ul><button class="ai-btn" data-r="fix-staging">Copy staging fix request</button></div>`:''}${cleaned ? '<p class="ai-note">Found the JSON in the reply and ignored the text around it.</p>' : ''}`;
     } else if (error) {
       result.classList.add('error');
       result.innerHTML = `<p class="ai-result-title"><span aria-hidden="true">!</span> Needs a fix</p><p class="ai-error-text"></p>
@@ -159,7 +168,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
 
   // ---- Busy state ----
   function lock() {
-    for (const el of dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement>('button,input,textarea')) el.disabled = building;
+    for (const el of dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('button,input,select,textarea')) el.disabled = building;
     build.disabled = building || preparing || !parsed;
     dialog.setAttribute('aria-busy', String(building||preparing));
     renderPreparation();
@@ -167,6 +176,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
 
   // ---- Optional automatic preparation ----
   function renderPreparation(){
+    if(!cfg.prepare)return;
     $('preparation').hidden=!preparationText;
     $('preparation-status').textContent=preparationText;
     $('preparation-cancel').hidden=!preparing;$('preparation-retry').hidden=!preparationRetry;
@@ -190,8 +200,8 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
       }
     },300);
   }
-  $('preparation-cancel').addEventListener('click',()=>{stopPreparation('Speech generation stopped. Completed voices have been kept.');showResult();persist();});
-  $('preparation-retry').addEventListener('click',queuePreparation);
+  $('preparation-cancel')?.addEventListener('click',()=>{stopPreparation('Speech generation stopped. Completed voices have been kept.');showResult();persist();});
+  $('preparation-retry')?.addEventListener('click',queuePreparation);
 
   // ---- Chat route ----
   $('copy').addEventListener('click', async () => {
@@ -204,6 +214,9 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     a.href = url; a.download = cfg.guideFile; a.click(); setTimeout(() => URL.revokeObjectURL(url), 60_000);
     $('copy-status').textContent = `Saved ${cfg.guideFile}. Attach it to your assistant's chat.`;
   });
+  const saveReference=(file:{name:string;text:string})=>{const url=URL.createObjectURL(new Blob([file.text],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60_000);};
+  reference?.addEventListener('change',()=>{referenceChosen=true;renderReference();staleGuide();schedule();});
+  if(cfg.reference){$('save-reference').addEventListener('click',()=>saveReference(cfg.reference!.file(reference!.value)));if(cfg.reference.all)$('save-all-references').addEventListener('click',()=>saveReference({name:cfg.reference!.all!.name,text:cfg.reference!.all!.text()}));}
   details.addEventListener('toggle', () => { if (details.open && dialog.open) refreshGuide(); schedule(); });
 
   // ---- Review ----
@@ -214,6 +227,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
       try { await navigator.clipboard.writeText(fixRequest(error, noun)); status.textContent = 'Fix request copied. Send it in the same chat, then paste the new reply here.'; }
       catch { status.textContent = fixRequest(error, noun); }
     }
+    if(r==='fix-staging'&&parsed){const warnings=cfg.describe(parsed).warnings??[],text=`Revise the film JSON to resolve these spatial-staging findings. Use the selected location map, calculate every transition and validate the entire path. Preserve the rest of the film. Return complete importable JSON.\n\n${warnings.join('\n')}\n\nLOCATION REFERENCE\n${cfg.revisionContext?.(parsed)??''}\n\nCURRENT JSON\n${draft.value}`;try{await navigator.clipboard.writeText(text);(e.target as HTMLElement).textContent='Fix request copied';}catch{guide.value=text;details.open=true;guide.focus();guide.select();}}
   });
   $('paste').addEventListener('click', async () => {
     try {
@@ -265,6 +279,8 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
 
   async function open() {
     if (!await cfg.canOpen()) return;
+    if(reference&&!referenceChosen)reference.value=cfg.reference!.current();
+    renderReference();
     // A context-based guide reflects the current state, which may have changed since it was made.
     guideStale = true; check();
     if (!dialog.open) dialog.showModal();
@@ -276,7 +292,8 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     brief.value = typeof d.brief === 'string' ? d.brief.slice(0, 6000) : '';
     draft.value = typeof d.json === 'string' ? d.json.slice(0, 200_000) : '';
     context.checked = d.context === true; details.open = d.guideOpen === true;
-    guideStale = true; check();
+    if(reference&&cfg.reference!.choices.some(c=>c.id===d.reference)){reference.value=d.reference!;referenceChosen=true;}
+    renderReference();guideStale = true; check();
   }
 
   if (cfg.storageKey) try {

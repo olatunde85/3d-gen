@@ -5,6 +5,8 @@
  *   npm run test:ui          (set CHROME=/path/to/chrome if not on macOS default)
  */
 import {unzipSync} from 'fflate';
+import {buildGownThumbnails} from './builder-gown-thumbnails';
+const gownsOnly=process.argv.includes('--gowns');
 import { spawn } from 'node:child_process';
 import {mkdirSync,writeFileSync,existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -96,6 +98,7 @@ async function waitFor(js: string, what: string, ms = 120000): Promise<void> {
 // --- The checks -------------------------------------------------------------------------------
 const results: [string, boolean, string?][] = [];
 async function step(name: string, fn: () => Promise<void>) {
+  if(gownsOnly&&!/loads and builds|^Gown /.test(name))return;
   try {
     await fn();
     results.push([name, true]);
@@ -113,11 +116,12 @@ try {
   ({ sessionId: session } = await send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true }, false));
   await send('Runtime.enable');
   await send('Page.enable');
-  await send('Page.navigate', { url: 'http://localhost:4398/app/' });
+  await send('Page.navigate', { url: 'http://localhost:4398/app/'+(gownsOnly?'#demo':'') });
 
   await step('loads and builds a character', async () => {
     await waitFor("document.querySelector('#loading')?.hidden === true && !!document.querySelector('#stats').textContent", 'the first character');
   });
+  await buildGownThumbnails({enabled:gownsOnly,step,evaluate,waitFor,send});
   // Quick build: new visitors start there.
   const quick = (k: string) => `document.querySelector('#quick [data-k="${k}"]')`;
   const tap = async (k: string) => evaluate(`${quick(k)}.click()`);

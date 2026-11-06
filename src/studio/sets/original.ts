@@ -28,6 +28,7 @@ export function createOriginalSet(id: 'portrait' | 'runway' | 'courtyard'): Stud
   const floorMat = material(palette.floor, id === 'runway' ? 0.3 : 0.9);
   if (id === 'courtyard') floorMat.map = stoneTexture('#d3c9b5');
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000).rotateX(-Math.PI / 2), floorMat); floor.receiveShadow = true; floor.position.y = -0.008; group.add(floor);
+  if(id==='runway')group.userData.spatialRegions=[{id:'runway',kind:'walkway',bounds:[-.825,-35,.825,35],y:0}];
   if (id === 'portrait') {
     // Quiet architectural framing, outside the character's walking corridor.
     const plaster = material('#c6c0b4'), dark = material('#97958b');
