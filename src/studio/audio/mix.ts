@@ -41,11 +41,11 @@ export async function renderSoundtrack(project:StudioProject,signal?:AbortSignal
   }
   await addSoundEffects(ctx,project.audio.effects,master,signal);
   const music=project.audio.music;
-  if(music.track!=='none'&&music.volume>0){const gain=ctx.createGain(),step=.02,steps=Math.ceil(duration/step);const curve=new Float32Array(steps+1);
+  if(music.track!=='none'&&music.volume>0&&(music.start??0)<duration){const start=music.start??0,end=Math.min(duration,start+(music.duration??duration)),length=end-start;const gain=ctx.createGain(),step=.02,steps=Math.ceil(duration/step);const curve=new Float32Array(steps+1);
     for(let i=0;i<curve.length;i++){const t=i/steps*duration;let duck=1;
       if(music.ducking)for(const cue of speech)if(cue.volume>0){const before=(t-(cue.start-.12))/.12,after=(cue.start+cue.duration+.35-t)/.35;duck=Math.min(duck,1-.7*Math.max(0,Math.min(1,before,after)));}
-      const fadeIn=music.fadeIn?Math.min(1,t/music.fadeIn):1,fadeOut=music.fadeOut?Math.min(1,(duration-t)/music.fadeOut):1;curve[i]=music.volume*duck*Math.max(0,Math.min(fadeIn,fadeOut));}
-    gain.gain.setValueCurveAtTime(curve,0,duration);gain.connect(master);await addMusic(ctx,music.track,duration,gain,signal);
+      const fadeIn=music.fadeIn?Math.min(1,(t-start)/music.fadeIn):1,fadeOut=music.fadeOut?Math.min(1,(end-t)/music.fadeOut):1;curve[i]=music.volume*duck*Math.max(0,Math.min(fadeIn,fadeOut));}
+    gain.gain.setValueCurveAtTime(curve,0,duration);gain.connect(master);await addMusic(ctx,music.track,length,gain,signal,start);
   }
   signal?.throwIfAborted();const rendered=await ctx.startRendering();signal?.throwIfAborted();
   // A final common gain preserves the mix while preventing clipping from overlapping recordings.

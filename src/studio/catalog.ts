@@ -51,7 +51,7 @@ const entries = [
   ['campsite', 'Lakeside campsite', 'Outdoors', 'landscape', 'sunset', 'A canvas tent, logs and a quiet campfire.'],
   ['desert-outpost', 'Desert outpost', 'Outdoors', 'landscape', 'sunset', 'Wind-shaped dunes, a shelter and supply crates.'],
   ['mountain-lake', 'Mountain lake', 'Outdoors', 'landscape', 'day', 'A rocky shore, water and mountain silhouettes.'],
-  ['sports-court', 'Basketball court', 'Outdoors', 'garden', 'day', 'Court markings, hoops and perimeter fencing.'],
+  ['sports-court', 'Basketball court', 'Outdoors', 'garden', 'day', 'A basketball court beside a clear walking path, with hoops and room to pass.'],
   ['harbour', 'Harbour promenade', 'Outdoors', 'yacht', 'sunset', 'Mooring posts, a waterside rail and boats beyond.'],
 ] as const;
 export type SetId = typeof entries[number][0];
@@ -62,6 +62,7 @@ export const SETS: SceneDefinition[] = entries.map(([id, name, category, family,
   accent: mood === 'night' ? '#51617e' : mood === 'sunset' ? '#c39468' : family === 'pool' || family === 'beach' ? '#67a9b4' : '#a79d88',
 }));
 export const sceneById = new Map(SETS.map(s => [s.id, s]));
+export const isOutdoorScene=(id:SetId)=>{const s=sceneById.get(id)!;return s.category==='Outdoors'||['beach','pool','garden','landscape','yacht','street'].includes(s.family)||['street-cafe','restaurant-terrace','rooftop-bar','train-platform'].includes(id);};
 export const SCENE_CATEGORIES = [...new Set(SETS.map(s => s.category))];
 export function searchScenes(query: string, category = '') {
   const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);

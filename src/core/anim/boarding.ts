@@ -13,7 +13,7 @@ interface Key {p:number;x:number;z:number;y:number;pose:number;lean:number;L:Vec
 interface Fitted {keys:Key[];frames:Frame[];idle:Frame;ride:Frame;endpoint:Frame;scale:number;floorShift:number;endShift:number;floor:number;floorJoints:number[];left:number;right:number;handL:number;handR:number;hands:[Vec3,Vec3];idleWorld:Q[];ridePositions:Vec3[];centres:Vec3[];hips:[number,number]}
 const cache=new WeakMap<Animator,Map<string,Fitted>>();
 
-function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number):Fitted {
+function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number,choreography=rideClip.id,stand?:[number,number]):Fitted {
  const B=A.rig.bones,s=boardingScale(A.rig);
  const index=(n:string)=>B.findIndex(b=>b.name===boneFor(A.rig.type,n));
  const left=index('LeftFoot'),right=index('RightFoot'),handL=index('LeftHand'),handR=index('RightHand');
@@ -25,8 +25,8 @@ function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number):Fitted {
  // then restore the original grounding as a uniform translation, keeping all leg mechanics identical.
  const idle=shift(idleActual,bindY-idleY),ride=shift(endpoint,rideReference-rideY),ip=A.positions(idle),rp=A.positions(ride);
  const floorShift=idleY-bindY,endShift=rideY-rideReference;
- const ref=(p:Vec3)=>p.map(x=>x/s) as Vec3,feet=[ref(rp[left]),ref(rp[right])],rideId=rideClip.id;
- const [standX,standZ]=boardingStand(rideId),sign=Math.sign(standX),side=(p:Vec3):Vec3=>[p[0]*sign,p[1],p[2]];
+ const ref=(p:Vec3)=>p.map(x=>x/s) as Vec3,feet=[ref(rp[left]),ref(rp[right])],rideId=choreography;
+ const [standX,standZ]=stand??boardingStand(rideId),sign=Math.sign(standX),side=(p:Vec3):Vec3=>[p[0]*sign,p[1],p[2]];
  const standFeet=[ref(ip[left]),ref(ip[right])].map(p=>[p[0]+standX,p[1],p[2]+standZ] as Vec3);
  const hips:[number,number]=[index('LeftUpLeg'),index('RightUpLeg')],centre=(P:Vec3[])=>lerp(P[hips[0]],P[hips[1]],.5);
  const root=centre(ip),rroot=centre(rp),dy=(rroot[1]-root[1])/s;
@@ -92,9 +92,9 @@ function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number):Fitted {
  return {keys,frames,idle,ride,endpoint,scale:s,floorShift,endShift,floor,floorJoints,left,right,handL,handR,hands,idleWorld,ridePositions:rp,centres,hips};
 }
 
-export function boardingFrame(A:Animator,clip:Clip,time:number,idle:Clip,ride:Clip,lift:number):Frame {
+export function boardingFrame(A:Animator,clip:Clip,time:number,idle:Clip,ride:Clip,lift:number,choreography=ride.id,stand?:[number,number]):Frame {
  let entries=cache.get(A);if(!entries){entries=new Map();cache.set(A,entries);}
- const key=`${ride.id}:${lift}`;let fitted=entries.get(key);if(!fitted){fitted=fit(A,idle,ride,lift);entries.set(key,fitted);}
+ const key=`${ride.id}:${lift}:${choreography}:${stand?.join(',')??''}`;let fitted=entries.get(key);if(!fitted){fitted=fit(A,idle,ride,lift,choreography,stand);if(entries.size>=32)entries.delete(entries.keys().next().value!);entries.set(key,fitted);}
  const f=fitted,p=boardProgress(clip.vehicleTransition!,time,clip.duration);
  // Endpoints are exact, including the rig's root offset and local rotations.
  if(p>=1)return {rot:[...f.endpoint.rot],rootPos:new Map(f.endpoint.rootPos)};
@@ -107,7 +107,7 @@ export function boardingFrame(A:Animator,clip:Clip,time:number,idle:Clip,ride:Cl
  if(p<=0){for(const [i,pos]of frame.rootPos)frame.rootPos.set(i,[pos[0],pos[1]+f.floorShift,pos[2]]);return frame;}
  const unconstrained=[...frame.rot],positions=A.positions(frame),foot=(a:Vec3,b:Vec3)=>lerp(a,b,w).map(x=>x*f.scale)as Vec3;
  for(const [side,aFoot,bFoot,i]of [['Left',a.L,b.L,f.left],['Right',a.R,b.R,f.right]]as const){
-  const target=foot(aFoot,bFoot),swing=side==='Right'&&(ride.id==='ride_horse'||ride.id==='ride_bicycle'||ride.id==='ride_motorcycle');
+  const target=foot(aFoot,bFoot),swing=side==='Right'&&(choreography==='ride_horse'||choreography==='ride_bicycle'||choreography==='ride_motorcycle');
   const world:Q[]=[];A.rig.bones.forEach((bone,j)=>world[j]=bone.parent<0?frame.rot[j]:qmul(world[bone.parent],frame.rot[j]));
   const orientation=qslerp(f.idleWorld[i],world[i],smooth((target[1]/f.scale-.12)/.18));
   A.pinLimb(frame,side,'leg',target,swing?[-.8,-1,.2]:[side==='Left'?.3:-.3,.12,1],orientation);

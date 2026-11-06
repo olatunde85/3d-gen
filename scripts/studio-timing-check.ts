@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import {sharedBoatFilm} from './fixtures/studio-shared-vehicles';
+import {blankProject,beat,durationOf,newActor,parseProject} from '../src/studio/project';
+import {resizeTimelineClip,clipWindow,type TimelineClip} from '../src/studio/timeline-resize';
+const p=blankProject();p.actors[0].beats=[beat('idle',2),beat('wave',3),beat('idle',4)];p.shots=[{id:'one',shot:'wide',target:'all',duration:3},{id:'two',shot:'close',target:'all',duration:6}];
+p.texts=[{id:'text',text:'Hello',style:'subtitle',anchor:'screen',start:2,duration:3,x:.5,y:.9,size:28,color:'#ffffff',background:'#000000'}];
+p.audio.speech=[{source:'tts',id:'voice',name:'Speech',actor:'narrator',text:'Hello',voice:'F1',start:2,duration:3,offset:.2,speed:1,volume:1,pan:0,effect:'natural'}];
+p.audio.effects=[{id:'engine',name:'Engine',sound:'car-engine',start:2,duration:3,loop:true,offset:1,speed:1.5,volume:.8,pan:0}];p.audio.music.track='spy-mission';
+const before=JSON.stringify(p),action:TimelineClip={kind:'action',actor:p.actors[0].id,index:1};
+let changed=resizeTimelineClip(p,action,'end',1);assert.deepEqual(changed.actors[0].beats.map(b=>b.duration),[2,4,4]);assert.equal(durationOf(changed),10);
+changed=resizeTimelineClip(p,action,'start',1);assert.deepEqual(changed.actors[0].beats.map(b=>b.duration),[3,2,4]);assert.equal(clipWindow(changed,action).start+clipWindow(changed,action).duration,5);
+changed=resizeTimelineClip(p,action,'start',100);assert.deepEqual(changed.actors[0].beats.map(b=>b.duration),[4.9,.1,4]);
+assert.deepEqual(resizeTimelineClip(p,{...action,index:0},'start',1).actors[0].beats.map(b=>b.duration),[2,3,4]);
+assert.equal(resizeTimelineClip(p,action,'end',-100).actors[0].beats[1].duration,.1);
+assert.equal(resizeTimelineClip(p,action,'end',100).actors[0].beats[1].duration,12);
+for(const ref of [{kind:'text',id:'text'},{kind:'speech',id:'voice'},{kind:'effect',id:'engine'}]as const){
+ const left=clipWindow(resizeTimelineClip(p,ref,'start',1),ref);assert.deepEqual(left,{start:3,duration:2});
+ const right=clipWindow(resizeTimelineClip(p,ref,'end',1),ref);assert.deepEqual(right,{start:2,duration:4});
+ const bounded=clipWindow(resizeTimelineClip(p,ref,'end',100),ref);assert.equal(bounded.start+bounded.duration,60);
+ assert.equal(clipWindow(resizeTimelineClip(p,ref,'start',-100),ref).start,0);
+}
+changed=resizeTimelineClip(p,{kind:'effect',id:'engine'},'end',-100);assert.equal(changed.audio.effects[0].duration,.01);assert.equal(changed.audio.effects[0].offset,1);assert.equal(changed.audio.effects[0].loop,true);
+changed=resizeTimelineClip(p,{kind:'music'},'start',2);assert.deepEqual(clipWindow(changed,{kind:'music'}),{start:2,duration:7});
+changed=resizeTimelineClip(p,{kind:'music'},'end',2);assert.equal(durationOf(changed),11);
+const camera=resizeTimelineClip(p,{kind:'camera',index:1},'start',1);assert.deepEqual(camera.shots.map(s=>s.duration),[4,5]);
+p.actors.push(newActor(undefined,'medium','other'));assert.deepEqual(resizeTimelineClip(p,action,'end',1).actors[1],parseProject(JSON.stringify(p)).actors[1]);p.actors.pop();assert.equal(JSON.stringify(p),before,'source snapshots must remain immutable');
+assert.throws(()=>resizeTimelineClip(p,action,'end',NaN));
+console.log('Timeline timing: ripple/rolling edits, absolute cue edges, music windows, source trims, frame limits and immutable history passed.');
+
+const boat=parseProject(JSON.stringify(sharedBoatFilm()));assert.throws(()=>resizeTimelineClip(boat,{kind:'action',actor:boat.actors[0].id,index:1},'end',-7),'Trimming may not move a vehicle during passenger boarding');
+console.log('Timeline vehicle trims preserve shared boarding constraints.');
+
+const lateMusic=structuredClone(p);lateMusic.audio.music.start=10;assert.throws(()=>parseProject(JSON.stringify(lateMusic)));lateMusic.audio.music.duration=2;assert.equal(durationOf(parseProject(JSON.stringify(lateMusic))),12);
+
+const full=blankProject();full.actors[0].beats=[beat('idle',11/3),...Array.from({length:5},()=>beat('idle',10)),beat('idle',19/3)];assert.equal(durationOf(full),60);const roll=resizeTimelineClip(full,{kind:'action',actor:full.actors[0].id,index:1},'start',.1);assert.equal(durationOf(roll),60,'Fractional source timing must not overflow a full film when rolling a boundary');

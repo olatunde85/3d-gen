@@ -10,6 +10,8 @@ import { CAST, MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, b
 import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
 import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations';
 import { orbitControls } from './orbit';
+import {timelineHandles} from './timeline-handles';
+import {clipWindow} from './timeline-resize';
 import { parseStudioInput } from './assist';
 import { resolveTextActor } from './text';
 import { setupTextEditor } from './text-ui';
@@ -29,7 +31,8 @@ import {VEHICLE_FOR_CLIP,RIDING_VEHICLES,VEHICLE_LABELS,type VehicleStyle} from 
 import {defaultWeaponYaw,type WeaponPose} from '../core/anim/riding-weapons';
 import {isFirearm} from '../core/props/weapons';
 
-import {studioTravel,VEHICLE_SPEED} from './motion';
+import {studioTravel,VEHICLE_SPEED,STAGE_LIMIT} from './motion';
+import {vehicleCatalog,vehicleKey,assignVehicle,availableVehicleSeats,seatsForVehicle,SEAT_LABELS,type VehicleSeat} from './vehicle-seats';
 import {readCharacterSettings} from '../app/character-file';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -45,7 +48,7 @@ let engine: Engine, lib: AssetLibrary;
 let speechToFix:string|undefined;
 let movieUrl = '', renderedRecipe = '', movieInfo = '', noticeTimer = 0, capabilityToken = 0;
 let controller: AbortController | undefined;
-let clickToPlace=false,importing=false,placementBefore:string|undefined;
+let clickToPlace=false,importing=false,placementBefore:string|undefined,timelineDragBefore:string|undefined;
 const history: string[] = [], builtRecipes = new Map<string, string>();
 const pendingSpeech=()=>project.audio.muted?[]:project.audio.speech.filter(c=>c.volume>0&&!c.asset);
 const actorTrack = () => project.actors.find(a => a.id === selectedActor) ?? project.actors[0];
@@ -69,7 +72,7 @@ function saveSession():boolean {
   clearTimeout(sessionTimer);sessionTimer=0;
   if(loading||importing)return false; // Never replace the last complete film with a model build in progress.
   try {
-    const savedProject=placementBefore?JSON.parse(placementBefore) as StudioProject:project;
+    const before=timelineDragBefore??placementBefore;const savedProject=before?JSON.parse(before) as StudioProject:project;
     localStorage.setItem(SESSION_KEY,JSON.stringify({version:1,project:savedProject,editor:editorState(),history}));
     localStorage.setItem(STORAGE,JSON.stringify(savedProject));
     lastSessionSave=performance.now();$('save-status').textContent='Saved on this device';return true;
@@ -95,7 +98,7 @@ window.addEventListener('pagehide',()=>{saveSession();setPlaying(false);});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveSession();});
 function setPlaying(on: boolean) {
   const token=++playToken;soundtrack.stop();soundEditor.stop();preparingSound=false;
-  playing=on&&!loading&&!exporting&&!importing&&!placementBefore;
+  playing=on&&!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore;
   if(playing&&time>=durationOf(project)-.001)time=0;
   if(playing&&hasAudio(project.audio)){
     preparingSound=true;
@@ -106,8 +109,8 @@ function setPlaying(on: boolean) {
   button('play').textContent=playing?'Ⅱ':'▶';button('play').setAttribute('aria-label',playing?'Pause film':'Play film');dirty=true;
 }
 function lock() {
-  for (const e of document.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('.workspace button,.workspace input,.workspace select,.file-tools button')) e.disabled = loading || exporting || importing || !!placementBefore;
-  if (!loading && !exporting && !importing && !placementBefore) {
+  for (const e of document.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>('.workspace button,.workspace input,.workspace select,.file-tools button')) e.disabled = loading || exporting || importing || !!placementBefore || !!timelineDragBefore;
+  if (!loading && !exporting && !importing && !placementBefore && !timelineDragBefore) {
     const items = cameraSelection ? project.shots : actorTrack().beats;
     button('undo').disabled = !history.length; button('remove-beat').disabled = items.length === 1;
     button('earlier').disabled = selected === 0; button('later').disabled = selected === items.length - 1;
@@ -115,20 +118,33 @@ function lock() {
     button('add-shot').disabled = project.shots.length >= MAX_SHOTS || project.shots.reduce((s, b) => s + b.duration, 0) > MAX_DURATION - 0.1;
     button('add-actor').disabled = button('add-custom-actor').disabled = project.actors.length >= MAX_ACTORS;
     input('movement').disabled = !studioTravel(actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)].clip);
+    const current=actorTrack().beats[Math.min(selected,actorTrack().beats.length-1)],passenger=(current.vehicleSeat??'operator')!=='operator';
+    if(passenger){input('movement').disabled=true;input('show-vehicle').disabled=true;input('vehicle-travel-speed').disabled=true;}
     select('blocking').disabled = project.actors.length !== 2;
   }
-  input('title').disabled=loading||exporting||importing||!!placementBefore;
-  if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','show-vehicle','beat-weapon-pose','beat-weapon-yaw','vehicle-travel-speed','vehicle-color','vehicle-accentColor','vehicle-seatColor','vehicle-finish','vehicle-variant','actor-x','actor-y','actor-z','actor-yaw','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
+  input('title').disabled=loading||exporting||importing||!!placementBefore||!!timelineDragBefore;
+  if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','show-vehicle','beat-vehicle','beat-vehicle-seat','beat-weapon-pose','beat-weapon-yaw','vehicle-travel-speed','vehicle-color','vehicle-accentColor','vehicle-seatColor','vehicle-finish','vehicle-variant','actor-x','actor-y','actor-z','actor-yaw','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
   $('deselect-actor').hidden=!characterSelected;
   for(const guard of document.querySelectorAll<HTMLElement>('.select-first'))guard.hidden=characterSelected||loading||exporting||importing;
   for(const hint of document.querySelectorAll<HTMLElement>('.select-first-hint')){hint.hidden=characterSelected;if(characterSelected)hint.classList.remove('urgent');}
-  $('edit-character').setAttribute('aria-disabled',String(!characterSelected||loading||exporting||importing||!!placementBefore));
+  $('edit-character').setAttribute('aria-disabled',String(!characterSelected||loading||exporting||importing||!!placementBefore||!!timelineDragBefore));
   $('edit-character').tabIndex=characterSelected?0:-1;
+  for(const pinned of document.querySelectorAll<HTMLButtonElement>('[data-pinned]'))pinned.disabled=true;
   $('loading').hidden = !loading;
 }
 function dimensions(size = 720) { return project.aspect === 'landscape' ? { width: Math.round(size * 16 / 9), height: size } : { width: size, height: Math.round(size * 16 / 9) }; }
+function renderCameraControls(){
+  const active=shotAt(project,time),v=active.shot.view??project.view;
+  $('view-readout').textContent=`${active.shot.view||active.shot.camera?`Shot ${active.index+1}`:'Film'} · ${Math.round(v.azimuth)}° · ${v.zoom.toFixed(1)}×`;
+  if(cameraSelection){const shot=project.shots[selected],view=shot.view??project.view;
+    input('shot-custom-camera').checked=!!shot.view||!!shot.camera;$('shot-camera-settings').hidden=!input('shot-custom-camera').checked;
+    for(const key of ['azimuth','elevation','zoom']as const)if(document.activeElement!==input(`shot-${key}`))input(`shot-${key}`).value=String(Number(view[key].toFixed(3)));
+    select('shot-camera').value=shot.camera??project.camera;
+  }
+}
+function seekSelectedShot(){time=project.shots.slice(0,selected).reduce((sum,s)=>sum+s.duration,0);setPlaying(false);}
 function renderPosition() {
-  const total = durationOf(project);
+  const total = durationOf(project);renderCameraControls();
   $('timecode').replaceChildren(document.createTextNode(codeTime(time) + ' '));
   const rest = document.createElement('span'); rest.textContent = `/ ${codeTime(total)}`; $('timecode').append(rest);
   input('scrub').value = String(time); $('playhead').style.left = `${time / total * 100}%`;
@@ -158,6 +174,21 @@ function renderAnimations() {
   for(const category of ANIMATION_CATEGORIES){const group=document.createElement('optgroup');group.label=category;for(const c of clips.filter(c=>c.category===category))group.append(new Option(c.name,c.id));if(group.children.length)picker.append(group);}
   picker.value=b.clip;$('animation-count').textContent=`${clips.length} / ${CLIPS.length}`;$('action-note').textContent=actionNote(b.clip,decodeCharacter(actorTrack().character,actorTrack().detail)?.weapon,loading?undefined:scene.seatsFor(project).length);$('action-note').title=$('action-note').textContent||'';
 }
+function renderVehicleLinks(actor:ActorTrack){
+ const b=actor.beats[Math.min(selected,actor.beats.length-1)],model=VEHICLE_FOR_CLIP[b.clip];if(!model)return;
+ const picker=select('beat-vehicle'),catalog=vehicleCatalog(project),source=catalog.get(vehicleKey(actor,b));
+ picker.replaceChildren(new Option('Own vehicle',''));
+ for(const entry of catalog.values())if(entry.model===model&&(entry.actor.id===actor.id||seatsForVehicle(model).length>1))picker.append(new Option(`${entry.actor.id===actor.id?'This vehicle':`Share · Character ${project.actors.indexOf(entry.actor)+1} · ${actorName(entry.actor)}`} · ${VEHICLE_LABELS[model]}${entry.beat.vehicleId?` · ${entry.id}`:''}`,entry.id));
+ picker.value=b.vehicleId??'';
+ const guest=source?.actor.id!==actor.id&&!!b.vehicleId,seats=guest?seatsForVehicle(model).filter(s=>s!=='operator'):['operator']as const;
+ const free=b.vehicleId?availableVehicleSeats(project,actor.id,selected,b.vehicleId):[];
+ select('beat-vehicle-seat').replaceChildren(...seats.map(s=>{const o=new Option(SEAT_LABELS[s],s);o.disabled=guest&&!free.includes(s);return o;}));select('beat-vehicle-seat').value=b.vehicleSeat??'operator';
+ $('vehicle-link-note').textContent=guest?'Entry, ride and exit use this seat on the shared vehicle. Travel follows its driver automatically.':'Vehicles wait in the set before boarding and remain parked after exit. Link other characters to this vehicle to add passengers.';
+}
+function renderTiming(){
+  const total=durationOf(project);input('scrub').max=String(total);$('duration-label').textContent=`${Number(total.toFixed(2))} seconds`;
+  $('ruler').replaceChildren();for(let i=0;i<=4;i++){const tick=document.createElement('span');tick.textContent=`${Number((total*i/4).toFixed(1))}s`;$('ruler').append(tick);}
+}
 function renderTracks() {
   const total=durationOf(project);$('tracks').replaceChildren();
   const row=(label:string,id:string|undefined,items: {duration:number}[])=>{
@@ -170,7 +201,7 @@ function renderTracks() {
       const title=document.createElement('strong'),note=document.createElement('small');title.textContent=camera?`${i+1}. ${item.shot==='wide'?'Full body':item.shot==='close'?'Close-up':'Medium'}`:clipById.get(item.clip)!.name;
       note.textContent=`${Number(item.duration.toFixed(2))}s${camera?' · '+(item.target==='all'?'Cast':`Character ${project.actors.findIndex(a=>a.id===item.target)+1}`):item.move?' · travel':''}${!camera&&item.weaponPose?' · '+({hold:'wield',aim:'aim',fire:'fire',hidden:'weapon hidden'}[item.weaponPose]):''}`;
       el.append(title,note);el.setAttribute('aria-label',`${label}: ${title.textContent}, ${note.textContent}`);el.setAttribute('aria-pressed',String(el.classList.contains('selected')));
-      el.addEventListener('click',()=>{cameraSelection=camera;if(id)selectedActor=id;characterSelected=!!id;selected=i;time=items.slice(0,i).reduce((sum,b)=>sum+b.duration,0);setPlaying(false);renderUI();});blocks.append(el);
+      el.addEventListener('click',()=>{cameraSelection=camera;if(id)selectedActor=id;characterSelected=!!id;selected=i;time=items.slice(0,i).reduce((sum,b)=>sum+b.duration,0);setPlaying(false);renderUI();});blocks.append(timeline.decorate(el,camera?{kind:'camera',index:i}:{kind:'action',actor:id!,index:i}));
     });
     const length=items.reduce((s,b)=>s+b.duration,0);if(total-length>0.05){const hold=document.createElement('div');hold.className='track-hold';hold.style.flex='1';hold.textContent='Hold';blocks.append(hold);}
     lane.append(blocks);$('tracks').append(lane);
@@ -178,15 +209,15 @@ function renderTracks() {
   row('CAMERA',undefined,project.shots);for(const [i,a]of project.actors.entries())row(`${i+1} · ${actorName(a)}`,a.id,a.beats);
   if(project.texts.length){const lane=document.createElement('div');lane.className='track-lane text-track';const label=document.createElement('div');label.className='track-name';label.textContent='TEXT & SUBTITLES';const blocks=document.createElement('div');blocks.className='text-track-blocks';
     const ends:number[]=[];for(const cue of [...project.texts].sort((a,b)=>a.start-b.start)){let level=ends.findIndex(end=>end<=cue.start);if(level<0)level=ends.length;ends[level]=cue.start+cue.duration;
-      const b=document.createElement('button');b.className='text-beat';b.textContent=cue.text||'Text';b.title=`${cue.style}: ${cue.text} (${cue.start}s–${cue.start+cue.duration}s)`;b.style.left=`${cue.start/total*100}%`;b.style.width=`${cue.duration/total*100}%`;b.style.top=`${Math.min(level,3)*23}px`;b.addEventListener('click',()=>{time=cue.start+.01;setPlaying(false);textEditor.open(cue.id);});blocks.append(b);}
+      const b=document.createElement('button');b.className='text-beat';b.textContent=cue.text||'Text';b.title=`${cue.style}: ${cue.text} (${cue.start}s–${cue.start+cue.duration}s)`;b.style.left=`${cue.start/total*100}%`;b.style.width=`${cue.duration/total*100}%`;b.style.top=`${Math.min(level,3)*23}px`;b.addEventListener('click',()=>{time=cue.start+.01;setPlaying(false);textEditor.open(cue.id);});blocks.append(timeline.decorate(b,{kind:'text',id:cue.id}));}
     blocks.style.height=`${Math.min(4,ends.length)*23}px`;lane.append(label,blocks);$('tracks').append(lane);}
 
   if(project.audio.speech.length||project.audio.music.track!=='none'){
     const lane=document.createElement('div');lane.className='track-lane text-track';const label=document.createElement('div');label.className='track-name';label.textContent=project.audio.muted?'SOUND · MUTED':'SOUND';
     const blocks=document.createElement('div');blocks.className='text-track-blocks';let rows=0;
-    if(project.audio.music.track!=='none'){const music=document.createElement('button');music.className='text-beat music-beat';music.style.width='100%';music.textContent=`Music · ${MUSIC_TRACKS.find(t=>t.id===project.audio.music.track)?.name??project.audio.music.track}`;music.onclick=()=>soundEditor.open();blocks.append(music);rows++;}
+    if(project.audio.music.track!=='none'){const music=document.createElement('button');music.className='text-beat music-beat';music.style.left=`${(project.audio.music.start??0)/total*100}%`;music.style.width=`${(project.audio.music.duration??Math.max(.1,total-(project.audio.music.start??0)))/total*100}%`;music.textContent=`Music · ${MUSIC_TRACKS.find(t=>t.id===project.audio.music.track)?.name??project.audio.music.track}`;music.onclick=()=>soundEditor.open();blocks.append(timeline.decorate(music,{kind:'music'}));rows++;}
     const ends:number[]=[];for(const cue of [...project.audio.speech].sort((a,b)=>a.start-b.start)){let level=ends.findIndex(t=>t<=cue.start);if(level<0)level=ends.length;ends[level]=cue.start+cue.duration;
-      const clip=document.createElement('button');clip.className='text-beat audio-beat';clip.style.left=`${cue.start/total*100}%`;clip.style.width=`${cue.duration/total*100}%`;clip.style.top=`${(rows+Math.min(level,2))*23}px`;clip.textContent=`${cue.asset?'':'○ '}${cue.name}`;clip.title=`${cue.name} · ${cue.effect} · ${cue.start.toFixed(1)}s`;clip.onclick=()=>{time=cue.start;setPlaying(false);soundEditor.open(cue.id);};blocks.append(clip);}
+      const clip=document.createElement('button');clip.className='text-beat audio-beat';clip.style.left=`${cue.start/total*100}%`;clip.style.width=`${cue.duration/total*100}%`;clip.style.top=`${(rows+Math.min(level,2))*23}px`;clip.textContent=`${cue.asset?'':'○ '}${cue.name}`;clip.title=`${cue.name} · ${cue.effect} · ${cue.start.toFixed(1)}s`;clip.onclick=()=>{time=cue.start;setPlaying(false);soundEditor.open(cue.id);};blocks.append(timeline.decorate(clip,{kind:'speech',id:cue.id}));}
     blocks.style.height=`${(rows+Math.min(3,ends.length))*23}px`;lane.append(label,blocks);$('tracks').append(lane);
   }
 
@@ -194,7 +225,7 @@ function renderTracks() {
     const lane=document.createElement('div');lane.className='track-lane text-track';const label=document.createElement('div');label.className='track-name';label.textContent=project.audio.muted?'SOUND EFFECTS · MUTED':'SOUND EFFECTS';
     const blocks=document.createElement('div');blocks.className='text-track-blocks';const ends:number[]=[];
     for(const cue of [...project.audio.effects].sort((a,b)=>a.start-b.start)){let level=ends.findIndex(end=>end<=cue.start);if(level<0)level=ends.length;ends[level]=cue.start+cue.duration;
-      const b=document.createElement('button');b.className='text-beat effect-beat';b.textContent=cue.name;b.title=`${cue.name} · ${cue.start.toFixed(2)}s`;b.style.left=`${cue.start/total*100}%`;b.style.width=`${cue.duration/total*100}%`;b.style.top=`${Math.min(level,2)*23}px`;b.onclick=()=>{time=cue.start;setPlaying(false);soundEditor.openEffects(cue.id);};blocks.append(b);}
+      const b=document.createElement('button');b.className='text-beat effect-beat';b.textContent=cue.name;b.title=`${cue.name} · ${cue.start.toFixed(2)}s`;b.style.left=`${cue.start/total*100}%`;b.style.width=`${cue.duration/total*100}%`;b.style.top=`${Math.min(level,2)*23}px`;b.onclick=()=>{time=cue.start;setPlaying(false);soundEditor.openEffects(cue.id);};blocks.append(timeline.decorate(b,{kind:'effect',id:cue.id}));}
     blocks.style.height=`${Math.min(3,ends.length)*23}px`;lane.append(label,blocks);$('tracks').append(lane);
   }
 
@@ -217,8 +248,7 @@ function renderUI() {
   if(!isPreset)picker.append(new Option(`${params.name||'Your character'} · custom`,'__custom'));
   for(const name of [...CAST,...Object.keys(PRESETS).filter(n=>!CAST.includes(n))])picker.append(new Option(name.replace(/^The /,''),name));picker.value=isPreset?params.name:'__custom';
   $<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:a.character,detail:a.detail})}`;
-  const total=durationOf(project);input('scrub').max=String(total);$('duration-label').textContent=`${Number(total.toFixed(2))} seconds`;
-  $('ruler').replaceChildren();for(let i=0;i<=4;i++){const tick=document.createElement('span');tick.textContent=`${Number((total*i/4).toFixed(1))}s`;$('ruler').append(tick);}
+  renderTiming();
   const choices=select('timeline-selection');choices.replaceChildren();
   const shots=document.createElement('optgroup');shots.label='Camera';project.shots.forEach((s,i)=>shots.append(new Option(`${i+1}. ${s.shot} · ${s.duration}s`,`camera:${i}`)));choices.append(shots);
   for(const [i,actor]of project.actors.entries()){const group=document.createElement('optgroup');group.label=`${i+1} · ${actorName(actor)}`;actor.beats.forEach((b,j)=>group.append(new Option(`${j+1}. ${clipById.get(b.clip)!.name} · ${b.duration}s`,`${actor.id}:${j}`)));choices.append(group);}
@@ -227,16 +257,18 @@ function renderUI() {
   $('action-settings').hidden=cameraSelection;$('shot-settings').hidden=!cameraSelection;
   if(cameraSelection){const s=project.shots[selected];select('shot').value=s.shot;input('shot-duration').value=String(s.duration);select('shot-target').replaceChildren(new Option('Entire cast','all'));for(const [i,actor]of project.actors.entries())select('shot-target').append(new Option(`Character ${i+1} · ${actorName(actor)}`,actor.id));select('shot-target').value=s.target;}
   else{const b=a.beats[selected];const mounted=!!RIDING_VEHICLES[b.clip];$('weapon-action-settings').hidden=params.weapon==='none';select('beat-weapon-pose').value=b.weaponPose??'auto';for(const option of select('beat-weapon-pose').options)option.disabled=option.value!=='auto'&&option.value!=='hidden'&&(!mounted||option.value==='fire'&&!isFirearm(params.weapon));$('weapon-yaw-row').hidden=!mounted||b.weaponPose==='hidden';input('beat-weapon-yaw').value=String(b.weaponYaw??defaultWeaponYaw(b.clip));renderAnimations();input('beat-duration').value=String(b.duration);input('movement').checked=b.move;const ride=VEHICLE_FOR_CLIP[b.clip];$('vehicle-action-settings').hidden=!ride;input('show-vehicle').checked=b.showVehicle??a.vehicle!=='none';$('vehicle-speed-row').hidden=!ride||!b.move;input('vehicle-travel-speed').value=String(b.travelSpeed??(ride?VEHICLE_SPEED[ride]:1));}
+  if(!cameraSelection)renderVehicleLinks(a);
   $('blocking-title').textContent=characterSelected?`Character ${ai+1} placement`:'Character placement';for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).value=String(a[key]);select('blocking').value=castArrangement(project.actors);
   $('cast-staging').hidden=project.actors.length>2;
   $('blocking-hint').textContent=project.actors.length<2?'Add another character to arrange the cast.':`Moves and turns all ${project.actors.length} characters.`;
   $('equipment-title').textContent='Equipment';select('actor-weapon').value=params.weapon;select('actor-carry').value=params.carry;
-  const vehicle=VEHICLE_FOR_CLIP[a.beats[Math.min(selected,a.beats.length-1)].clip];$('vehicle-appearance').hidden=!vehicle||!(a.beats[Math.min(selected,a.beats.length-1)].showVehicle??a.vehicle!=='none');
-  for(const key of ['color','accentColor','seatColor']as const)input(`vehicle-${key}`).value=params.vehicleStyle[key];
-  for(const key of ['finish','variant']as const)select(`vehicle-${key}`).value=params.vehicleStyle[key];
-  $('vehicle-note').textContent=vehicle?`${VEHICLE_LABELS[vehicle]} follows this action. Visibility and travel are on the right.`:'Choose a riding or driving action to add its vehicle.';
+  const currentBeat=a.beats[Math.min(selected,a.beats.length-1)],vehicle=VEHICLE_FOR_CLIP[currentBeat.clip],source=vehicleCatalog(project).get(vehicleKey(a,currentBeat)),shared=source&&source.actor.id!==a.id,vehicleStyle=source?decodeCharacter(source.actor.character,source.actor.detail)!.vehicleStyle:params.vehicleStyle;
+  $('vehicle-appearance').hidden=!vehicle||(!shared&&!(currentBeat.showVehicle??a.vehicle!=='none'));
+  for(const key of ['color','accentColor','seatColor']as const)input(`vehicle-${key}`).value=vehicleStyle[key];
+  for(const key of ['finish','variant']as const)select(`vehicle-${key}`).value=vehicleStyle[key];
+  $('vehicle-note').textContent=vehicle?(shared?`${VEHICLE_LABELS[vehicle]} shared with ${actorName(source.actor)}. Appearance edits apply to the shared vehicle.`:`${VEHICLE_LABELS[vehicle]} follows this action. Visibility and travel are on the right.`):'Choose a riding or driving action to add its vehicle.';
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
-  $('view-readout').textContent=`${Math.round(project.view.azimuth)}° · ${project.view.zoom.toFixed(1)}×`;
+  renderCameraControls();
   for(const aspect of ['landscape','portrait'])button(aspect).setAttribute('aria-pressed',String(project.aspect===aspect));
   const pending=pendingSpeech();$('speech-needed').hidden=!pending.length;$('speech-needed-copy').textContent=`${pending.length===1?'1 dialogue clip is':`${pending.length} dialogue clips are`} ready for a voice.`;
   textEditor.render();soundEditor.render();$('sound-readout').textContent=project.audio.muted?'Sound muted':hasAudio(project.audio)?'Sound on':'Silent film';lock();renderPosition();fitFilm();dirty=true;scheduleSessionSave();
@@ -274,7 +306,24 @@ async function apply(next: StudioProject, keepHistory=true) {
 function edit(fn:(p:StudioProject)=>void){const next=structuredClone(project);fn(next);
   for(const actor of next.actors)if(project.actors.find(a=>a.id===actor.id)?.character!==actor.character)reconcileWeaponActions(actor);
   return apply(next);}
-function undo(){if(loading||exporting||importing||placementBefore||!history.length)return;void apply(parseProject(history.pop()!),false);}
+function undo(){if(loading||exporting||importing||placementBefore||timelineDragBefore||!history.length)return;void apply(parseProject(history.pop()!),false);}
+const timeline=timelineHandles(document.querySelector<HTMLElement>('.timeline-scroll')!,{
+  project:()=>project,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore&&!document.querySelector('dialog[open]'),
+  begin:ref=>{timelineDragBefore=JSON.stringify(project);setPlaying(false);scene.freezeCamera=true;
+    if(ref.kind==='camera'||ref.kind==='action'){cameraSelection=ref.kind==='camera';characterSelected=ref.kind==='action';selected=ref.index;if(ref.kind==='action')selectedActor=ref.actor;}
+    renderUI();
+  },
+  preview:(next,ref)=>{project=next;time=Math.min(time,durationOf(project));dirty=true;renderTiming();renderTracks();renderPosition();
+    const timing=clipWindow(project,ref);if(ref.kind==='camera')input('shot-duration').value=String(Number(timing.duration.toFixed(3)));else if(ref.kind==='action')input('beat-duration').value=String(Number(timing.duration.toFixed(3)));
+    $('key-help').textContent=`${timing.start.toFixed(2)}s – ${(timing.start+timing.duration).toFixed(2)}s · ${timing.duration.toFixed(2)}s · Esc: cancel`;
+    for(const b of $('tracks').querySelectorAll<HTMLButtonElement>('button'))b.disabled=true;
+  },
+  end:cancelled=>{const before=timelineDragBefore;timelineDragBefore=undefined;scene.freezeCamera=false;if(!before)return;
+    if(cancelled)project=JSON.parse(before)as StudioProject;
+    else if(JSON.stringify(project)!==before){history.push(before);if(history.length>30)history.shift();soundtrack.invalidate();}
+    time=Math.min(time,durationOf(project));renderUI();save();
+  },error:notify,
+});
 input('scene-search').placeholder=`Search ${SETS.length} scenes…`;input('animation-search').placeholder='Search…';
 for(const c of SCENE_CATEGORIES)select('scene-category').append(new Option(c,c));
 input('scene-search').addEventListener('input',renderScenes);select('scene-category').addEventListener('change',renderScenes);
@@ -305,23 +354,32 @@ select('blocking').addEventListener('change',async()=>{
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});
-select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition)b.duration=clipById.get(b.clip)!.duration;b.move=false;delete b.travelSpeed;delete b.showVehicle;delete b.weaponPose;delete b.weaponYaw;const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
+select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];const priorModel=VEHICLE_FOR_CLIP[b.clip];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition)b.duration=clipById.get(b.clip)!.duration;b.move=false;delete b.travelSpeed;delete b.showVehicle;delete b.weaponPose;delete b.weaponYaw;if(priorModel!==VEHICLE_FOR_CLIP[b.clip]){delete b.vehicleId;delete b.vehicleSeat;}const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
 input('beat-duration').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].duration=Number(input('beat-duration').value)));
 button('clip-length').addEventListener('click',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.duration=Math.min(12,clipById.get(b.clip)!.duration);}));
 select('beat-weapon-pose').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected],value=select('beat-weapon-pose').value;if(value==='auto')delete b.weaponPose;else b.weaponPose=value as WeaponPose;}));
 input('beat-weapon-yaw').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].weaponYaw=Number(input('beat-weapon-yaw').value);}));
 input('show-vehicle').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].showVehicle=input('show-vehicle').checked;}));
 input('vehicle-travel-speed').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].travelSpeed=Number(input('vehicle-travel-speed').value);}));
+select('beat-vehicle').addEventListener('change',()=>{
+ const id=select('beat-vehicle').value||undefined,source=id?vehicleCatalog(project).get(id):undefined,guest=source&&source.actor.id!==selectedActor,free=id&&guest?availableVehicleSeats(project,selectedActor,selected,id):[];
+ if(guest&&!free.length){notify('All passenger seats are occupied during this sequence. Choose another vehicle or change the timing.');renderUI();return;}
+ void edit(p=>assignVehicle(p,selectedActor,selected,id,guest?free[0]:'operator'));
+});
+select('beat-vehicle-seat').addEventListener('change',()=>void edit(p=>assignVehicle(p,selectedActor,selected,select('beat-vehicle').value||undefined,select('beat-vehicle-seat').value as VehicleSeat)));
 input('movement').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].move=input('movement').checked));
 select('shot').addEventListener('change',()=>void edit(p=>p.shots[selected].shot=select('shot').value as typeof p.shots[number]['shot']));
 select('shot-target').addEventListener('change',()=>void edit(p=>p.shots[selected].target=select('shot-target').value));
 input('shot-duration').addEventListener('change',()=>void edit(p=>p.shots[selected].duration=Number(input('shot-duration').value)));
+input('shot-custom-camera').addEventListener('change',()=>{seekSelectedShot();void edit(p=>{const shot=p.shots[selected];if(input('shot-custom-camera').checked){shot.view=structuredClone(p.view);shot.camera=p.camera;}else{delete shot.view;delete shot.camera;}});});
+for(const key of ['azimuth','elevation','zoom']as const)input(`shot-${key}`).addEventListener('change',()=>{seekSelectedShot();void edit(p=>{const shot=p.shots[selected];shot.view={...(shot.view??p.view),[key]:Number(input(`shot-${key}`).value)};});});
+select('shot-camera').addEventListener('change',()=>{seekSelectedShot();void edit(p=>p.shots[selected].camera=select('shot-camera').value as typeof p.camera);});
 select('camera').addEventListener('change',()=>void edit(p=>p.camera=select('camera').value as typeof p.camera));
 for(const aspect of ['landscape','portrait']as const)button(aspect).addEventListener('click',()=>void edit(p=>p.aspect=aspect));
 input('title').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();input('title').blur();}});
 input('title').addEventListener('blur',()=>titleEditing=false);input('title').addEventListener('input',()=>{if(loading||exporting)return;if(!titleEditing){remember();titleEditing=true;}project.title=input('title').value.slice(0,60);save();lock();dirty=true;});
 input('caption').addEventListener('change',()=>void edit(p=>p.caption=input('caption').checked));
-button('view-reset').addEventListener('click',()=>void edit(p=>p.view={azimuth:0,elevation:0,zoom:1}));
+button('view-reset').addEventListener('click',()=>void edit(p=>{const shot=shotAt(p,time).shot;if(shot.view||shot.camera)shot.view={azimuth:0,elevation:0,zoom:1};else p.view={azimuth:0,elevation:0,zoom:1};}));
 function clearSelection(){
   if(!characterSelected)return false;
   characterSelected=false;cameraSelection=true;selected=shotAt(project,time).index;clickToPlace=false;
@@ -329,7 +387,7 @@ function clearSelection(){
   renderUI();return true;
 }
 button('deselect-actor').addEventListener('click',()=>clearSelection());
-$('stage').addEventListener('pointerdown',e=>{if(e.target!==scene.canvas&&!loading&&!exporting&&!importing&&!placementBefore)clearSelection();});
+$('stage').addEventListener('pointerdown',e=>{if(e.target!==scene.canvas&&!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore)clearSelection();});
 function fitFilm(){
   const stage=$('stage'),frame=stage.querySelector<HTMLElement>('.film-frame')!,style=getComputedStyle(stage);
   const width=stage.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight),height=stage.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom),ratio=project.aspect==='landscape'?16/9:9/16;
@@ -381,10 +439,10 @@ for(const id of WEAPONS)select('actor-weapon').append(new Option(WEAPON_LABELS[i
 for(const id of CARRIED)select('actor-carry').append(new Option(CARRY_LABELS[id],id));
 for(const key of ['color','accentColor','seatColor','finish','variant']as const){
   const control=$<HTMLInputElement|HTMLSelectElement>(`vehicle-${key}`);
-  control.addEventListener('change',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!,params=decodeCharacter(a.character,a.detail)!;params.vehicleStyle={...params.vehicleStyle,[key]:control.value}as VehicleStyle;a.character=encodeCharacter(params);}));
+  control.addEventListener('change',()=>void edit(p=>{const selectedTrack=p.actors.find(a=>a.id===selectedActor)!,b=selectedTrack.beats[Math.min(selected,selectedTrack.beats.length-1)],a=vehicleCatalog(p).get(vehicleKey(selectedTrack,b))?.actor??selectedTrack,params=decodeCharacter(a.character,a.detail)!;params.vehicleStyle={...params.vehicleStyle,[key]:control.value}as VehicleStyle;a.character=encodeCharacter(params);}));
 }
 for(const [id,slot]of [['actor-weapon','weapon'],['actor-carry','carry']]as const)select(id).addEventListener('change',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!;a.character=equipActor(a,slot,select(id).value);}));
-orbitControls($<HTMLCanvasElement>('film'),()=>project.view,()=>!loading&&!exporting&&!importing,()=>{remember();setPlaying(false);},v=>{project.view=v;dirty=true;$('view-readout').textContent=`${Math.round(v.azimuth)}° · ${v.zoom.toFixed(1)}×`;},()=>{lock();save();},{
+orbitControls($<HTMLCanvasElement>('film'),()=>shotAt(project,time).shot.view??project.view,()=>!loading&&!exporting&&!importing&&!timelineDragBefore,()=>{remember();setPlaying(false);},v=>{const shot=shotAt(project,time).shot;if(shot.view||shot.camera)shot.view=v;else project.view=v;dirty=true;renderCameraControls();},()=>{lock();save();},{
   pick:(x,y)=>{setPlaying(false);scene.render(project,time);return scene.pickActor(x,y);},
   select:id=>{characterSelected=true;selectedActor=id;cameraSelection=false;selected=timelineAt(project,time,actorTrack()).index;setPlaying(false);renderUI();},
   selected:()=>{if(!characterSelected)return;const a=actorTrack(),rendered=scene.actors.get(a.id);if(!rendered)return;const position=rendered.stagePosition,p=position.clone().project(scene.camera),r=scene.canvas.getBoundingClientRect();return{id:a.id,x:a.x,y:a.y,z:a.z,worldX:position.x,worldZ:position.z,screenX:r.left+(p.x+1)*r.width/2,screenY:r.top+(1-p.y)*r.height/2};},
@@ -397,12 +455,12 @@ orbitControls($<HTMLCanvasElement>('film'),()=>project.view,()=>!loading&&!expor
     else{const m=scene.camera.matrixWorld.elements,length=Math.hypot(m[8],m[10])||1;
       const dx=key==='ArrowLeft'?-m[0]:key==='ArrowRight'?m[0]:key==='ArrowUp'?-m[8]/length:m[8]/length;
       const dz=key==='ArrowLeft'?-m[2]:key==='ArrowRight'?m[2]:key==='ArrowUp'?-m[10]/length:m[10]/length;
-      a.x=Math.max(-12,Math.min(12,a.x+dx*.1));a.z=Math.max(-12,Math.min(12,a.z+dz*.1));}
+      a.x=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,a.x+dx*.1));a.z=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,a.z+dz*.1));}
     for(const field of ['x','y','z','yaw']as const)input(`actor-${field}`).value=String(Number(a[field].toFixed(3)));dirty=true;return true;
   },
   point:(x,y,elevation)=>scene.groundPoint(x,y,elevation),clickToPlace:()=>clickToPlace,
   begin:()=>{placementBefore=JSON.stringify(project);scene.freezeCamera=true;setPlaying(false);lock();},
-  move:(x,z)=>{const a=actorTrack();a.x=Math.max(-12,Math.min(12,x));a.z=Math.max(-12,Math.min(12,z));input('actor-x').value=String(Number(a.x.toFixed(2)));input('actor-z').value=String(Number(a.z.toFixed(2)));dirty=true;},
+  move:(x,z)=>{const a=actorTrack();a.x=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,x));a.z=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,z));input('actor-x').value=String(Number(a.x.toFixed(2)));input('actor-z').value=String(Number(a.z.toFixed(2)));dirty=true;},
   end:cancelled=>{const before=placementBefore;placementBefore=undefined;scene.freezeCamera=false;if(!before)return;
     if(cancelled)project=JSON.parse(before) as StudioProject;
     else if(JSON.stringify(project)!==before){history.push(before);if(history.length>30)history.shift();const a=actorTrack();a.x=Number(a.x.toFixed(3));a.z=Number(a.z.toFixed(3));save();}
@@ -421,13 +479,13 @@ async function saveProject():Promise<boolean>{save();button('save-project').disa
 button('save-project').addEventListener('click',()=>void saveProject());
 const newProjectDialog=$<HTMLDialogElement>('new-project-dialog');
 button('new-project').addEventListener('click',()=>{
-  if(loading||exporting||importing||placementBefore||document.querySelector('dialog[open]'))return;
+  if(loading||exporting||importing||placementBefore||timelineDragBefore||document.querySelector('dialog[open]'))return;
   setPlaying(false);saveSession();$('new-project-message').textContent='';newProjectDialog.showModal();
 });
 button('cancel-new-project').addEventListener('click',()=>newProjectDialog.close());
 newProjectDialog.addEventListener('cancel',event=>{if(importing)event.preventDefault();});
 async function startNewProject(keepCopy:boolean){
-  if(loading||exporting||importing||placementBefore)return;
+  if(loading||exporting||importing||placementBefore||timelineDragBefore)return;
   importing=true;lock();
   for(const id of ['cancel-new-project','confirm-new-project','save-new-project'])button(id).disabled=true;
   $('new-project-message').textContent=keepCopy?'Saving your current film…':'Preparing a fresh project…';
@@ -454,7 +512,7 @@ button('confirm-new-project').addEventListener('click',()=>void startNewProject(
 button('save-new-project').addEventListener('click',()=>void startNewProject(true));
 button('load-project').addEventListener('click',()=>input('project-file').click());
 async function importStudioProject(source: string | File): Promise<boolean> {
-  if(loading||exporting||importing||placementBefore)return false;
+  if(loading||exporting||importing||placementBefore||timelineDragBefore)return false;
   saveSession();importing=true;setPlaying(false);lock();
   try {
     const bundle=typeof source!=='string'&&(/\.zip$/i.test(source.name)||source.type==='application/zip');
@@ -472,13 +530,13 @@ input('project-file').addEventListener('change',async()=>{
   finally{input('project-file').value='';input('project-file').setAttribute('aria-busy','false');}
 });
 const soundEditor=setupSoundEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,pause:()=>setPlaying(false),
-  canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,edit:(fn,remember=true)=>{const next=structuredClone(project);fn(next);return apply(next,remember);},download,changed:()=>soundtrack.invalidate()});
+  canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,edit:(fn,remember=true)=>{const next=structuredClone(project);fn(next);return apply(next,remember);},download,changed:()=>soundtrack.invalidate()});
 const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
-  canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
+  canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
-const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore,
+const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
   load:next=>importStudioProject(JSON.stringify(next))});
-const tour=setupStudioTour({canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore,begin:()=>{
+const tour=setupStudioTour({canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,begin:()=>{
   const wide=document.querySelector('.workspace')!.classList.contains('wide');setPlaying(false);setWide(false,false);
   return()=>setWide(wide,false);
 }});

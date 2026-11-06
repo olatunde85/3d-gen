@@ -56,7 +56,7 @@
       </div>
       <div class="timeline-resizer" id="timeline-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize the preview and timeline" tabindex="0" title="Drag to give the preview or the timeline more room · double-click to reset"></div>
       <section class="timeline" aria-label="Film timeline">
-        <div class="timeline-heading"><span>THE TIMELINE</span><div><span id="duration-label">9 seconds</span><button id="open-sound">Sound</button><button id="open-effects">Sound effects</button><button id="open-text">Text &amp; subtitles</button><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
+        <div class="timeline-heading"><span title="Drag clip edges to adjust timing · Escape cancels">THE TIMELINE <small class="trim-hint">· drag edges to trim</small></span><div><span id="duration-label">9 seconds</span><button id="open-sound">Sound</button><button id="open-effects">Sound effects</button><button id="open-text">Text &amp; subtitles</button><button id="add-shot">+ Camera shot</button><button id="add-beat">+ Action</button></div></div>
         <div class="timeline-scroll">
           <div class="ruler" id="ruler"></div>
           <div class="timeline-track multi-track"><div id="tracks"></div><div id="playhead" class="playhead"><span></span></div></div>
@@ -75,12 +75,17 @@
           <p id="action-note" class="setting-hint"></p>
           <div id="weapon-action-settings" class="form-row" hidden><div><label for="beat-weapon-pose">Weapon action</label><select id="beat-weapon-pose"><option value="auto">Match animation</option><option value="hold">Wield</option><option value="aim">Aim / present</option><option value="fire">Fire</option><option value="hidden">Hide weapon</option></select></div><div id="weapon-yaw-row" hidden><label for="beat-weapon-yaw">Aim (°)</label><input id="beat-weapon-yaw" type="number" min="-110" max="110" step="5" title="0° forward · positive left · negative right" /></div></div>
           <div class="form-row timing-row"><div class="duration-value"><label class="sr-only" for="beat-duration">Seconds</label><input id="beat-duration" type="number" min="0.1" max="12" step="0.1" /><span>sec</span></div><button id="clip-length" class="text-button">Original timing</button></div>
-          <div id="vehicle-action-settings" hidden><label class="check-label"><input id="show-vehicle" type="checkbox" /><span>Show vehicle</span></label><div id="vehicle-speed-row" hidden><label for="vehicle-travel-speed">Travel speed (m/s)</label><input id="vehicle-travel-speed" type="number" min="0.1" max="6" step="0.1" /></div></div>
+          <div id="vehicle-action-settings" hidden><div class="form-row"><div><label for="beat-vehicle">Vehicle</label><select id="beat-vehicle"></select></div><div id="vehicle-seat-row"><label for="beat-vehicle-seat">Seat</label><select id="beat-vehicle-seat"></select></div></div><p id="vehicle-link-note" class="setting-hint"></p><label class="check-label"><input id="show-vehicle" type="checkbox" /><span>Show vehicle</span></label><div id="vehicle-speed-row" hidden><label for="vehicle-travel-speed">Travel speed (m/s)</label><input id="vehicle-travel-speed" type="number" min="0.1" max="30" step="0.1" /></div></div>
           <label class="check-label"><input id="movement" type="checkbox" /><span>Move through the set</span></label>
         </div>
         <div id="shot-settings" hidden>
           <label for="shot">Framing</label><select id="shot"><option value="wide">Full body</option><option value="medium">Medium</option><option value="close">Close-up</option></select>
           <label for="shot-target">Camera subject</label><select id="shot-target"></select>
+          <label class="check-label"><input id="shot-custom-camera" type="checkbox" /><span>Custom camera for this shot</span></label>
+          <div id="shot-camera-settings" hidden>
+            <div class="form-row"><div><label for="shot-azimuth">Angle (°)</label><input id="shot-azimuth" type="number" min="-180" max="180" step="1" /></div><div><label for="shot-elevation">Elevation (°)</label><input id="shot-elevation" type="number" min="-35" max="65" step="1" /></div></div>
+            <div class="form-row"><div><label for="shot-zoom">Distance ×</label><input id="shot-zoom" type="number" min="0.5" max="3" step="0.05" /></div><div><label for="shot-camera">Movement</label><select id="shot-camera"><option value="locked">Locked-off</option><option value="dolly">Slow push-in</option><option value="orbit">Gentle orbit</option></select></div></div>
+          </div><p class="setting-hint">Custom shots remember their own angle. Orbit or zoom the preview to compose the active shot.</p>
           <label for="shot-duration">Shot duration (seconds)</label><input id="shot-duration" type="number" min="0.1" max="12" step="0.1" />
         </div>
         <div class="beat-tools"><button id="earlier" title="Move this action earlier">← Earlier</button><button id="later" title="Move this action later">Later →</button><button id="remove-beat" class="remove-button">Remove</button></div>
@@ -88,7 +93,7 @@
       <section class="inspector-section" id="blocking-settings">
         <div id="actor-placement-settings">
           <h2 id="blocking-title">Character placement</h2>
-          <div class="form-row coordinate-row"><div><label title="X position in metres" for="actor-x">X</label><input id="actor-x" type="number" min="-12" max="12" step="0.1" /></div><div><label title="Z position in metres" for="actor-z">Z</label><input id="actor-z" type="number" min="-12" max="12" step="0.1" /></div></div>
+          <div class="form-row coordinate-row"><div><label title="X position in metres" for="actor-x">X</label><input id="actor-x" type="number" min="-200" max="200" step="0.1" /></div><div><label title="Z position in metres" for="actor-z">Z</label><input id="actor-z" type="number" min="-200" max="200" step="0.1" /></div></div>
           <div class="form-row coordinate-row"><div><label title="Facing in degrees" for="actor-yaw">Turn°</label><input id="actor-yaw" type="number" min="-180" max="180" step="5" /></div><div><label title="Elevation in metres" for="actor-y">Height</label><input id="actor-y" type="number" min="0" max="3" step="0.05" /></div></div>
         </div>
         <div id="cast-staging">
@@ -97,7 +102,7 @@
         </div>
       </section>
       <section class="inspector-section">
-        <h2>Camera</h2>
+        <h2>Film camera defaults</h2>
         <label class="sr-only" for="camera">Camera movement</label><select id="camera"><option value="locked">Locked-off</option><option value="dolly">Slow push-in</option><option value="orbit">Gentle orbit</option></select>
         <div class="camera-reset"><button id="view-reset" class="text-button">Reset angle</button><output id="view-readout"></output></div>
         <span class="sr-only">Aspect ratio</span><div class="aspect-options" role="group" aria-label="Aspect ratio"><button id="landscape" aria-pressed="true"><span class="aspect-icon landscape-icon"></span>16:9</button><button id="portrait" aria-pressed="false"><span class="aspect-icon portrait-icon"></span>9:16</button></div>
@@ -129,6 +134,7 @@
         </div>
         <div class="sound-music-library">
         <h3>Background music</h3><label class="sr-only" for="sound-music">Music track</label><select id="sound-music"></select><p id="sound-music-credit" class="setting-hint"></p>
+        <label class="check-label"><input id="sound-music-window" type="checkbox" /><span>Custom music timing</span></label><div id="sound-music-timing" class="form-row" hidden><div><label for="sound-music-start">Start (seconds)</label><input id="sound-music-start" type="number" min="0" max="59.9" step="0.01" /></div><div><label for="sound-music-duration">Duration (seconds)</label><input id="sound-music-duration" type="number" min="0.1" max="60" step="0.01" /></div></div>
         <label for="sound-music-volume">Music volume %</label><input id="sound-music-volume" type="number" min="0" max="100" step="1" />
         <div class="form-row"><div><label for="sound-fade-in">Fade in (s)</label><input id="sound-fade-in" type="number" min="0" max="10" step="0.1" /></div><div><label for="sound-fade-out">Fade out (s)</label><input id="sound-fade-out" type="number" min="0" max="10" step="0.1" /></div></div>
         <label class="check-label"><input id="sound-ducking" type="checkbox" checked /><span>Lower music while someone speaks</span></label>
@@ -173,6 +179,7 @@
           <div class="form-row"><div><label for="fx-name">Cue name</label><input id="fx-name" type="text" maxlength="80" /></div><div><label for="fx-sound">Sound effect</label><select id="fx-sound"></select></div></div>
           <label for="fx-actor">Associated character</label><select id="fx-actor"></select><p class="setting-hint">A character label for organization. Pan is set manually; this does not add spatial audio.</p>
           <div class="form-row"><div><label for="fx-start">Start (seconds)</label><input id="fx-start" type="number" min="0" max="59.9" step="0.01" /></div><div><label for="fx-duration">Duration (seconds)</label><input id="fx-duration" type="number" min="0.01" max="60" step="0.01" /></div></div>
+          <label class="check-label"><input id="fx-loop" type="checkbox" /><span>Loop until cue ends</span></label><p class="setting-hint">Repeats from the trim start at the chosen speed.</p>
           <div class="form-row"><div><label for="fx-offset">Trim start (seconds)</label><input id="fx-offset" type="number" min="0" step="0.01" /></div><div><label for="fx-speed">Speed ×</label><input id="fx-speed" type="number" min="0.5" max="2" step="0.05" /></div></div>
           <div class="form-row"><div><label for="fx-volume">Volume %</label><input id="fx-volume" type="number" min="0" max="200" step="5" /></div><div><label for="fx-pan">Pan −100 L / +100 R</label><input id="fx-pan" type="number" min="-100" max="100" step="5" /></div></div>
           <div class="sound-actions"><button id="fx-preview">Preview cue</button><button id="fx-fit">Fit duration</button><button id="fx-duplicate">Duplicate</button><button id="fx-delete">Delete cue</button></div>

@@ -1,4 +1,4 @@
-/** Small recorded one-shots share a bounded decoded cache; timing is deterministic in every output. */
+/** Recorded one-shot and looping cues share a bounded decoded cache; timing is deterministic in every output. */
 import { soundEffectById, type SoundEffectId } from './effects-catalog';
 import type { SoundEffectCue } from './schema';
 const buffers=new Map<string,AudioBuffer>();
@@ -14,7 +14,7 @@ export async function addSoundEffects(ctx:BaseAudioContext,cues:SoundEffectCue[]
   for(const cue of cues){
     if(cue.volume<=0)continue;signal?.throwIfAborted();const buffer=await effectBuffer(ctx,cue.sound,signal);
     if(cue.offset>=buffer.duration)throw Error(`“${cue.name}” starts beyond its recording. Adjust its trim.`);
-    const source=ctx.createBufferSource(),gain=ctx.createGain(),pan=ctx.createStereoPanner();source.buffer=buffer;source.playbackRate.value=cue.speed;pan.pan.value=cue.pan;
+    const source=ctx.createBufferSource(),gain=ctx.createGain(),pan=ctx.createStereoPanner();source.buffer=buffer;source.loop=cue.loop===true;source.loopStart=cue.offset;source.loopEnd=buffer.duration;source.playbackRate.value=cue.speed;pan.pan.value=cue.pan;
     const end=cue.start+cue.duration,fade=Math.min(.002,cue.duration/3);
     gain.gain.setValueAtTime(0,cue.start);gain.gain.linearRampToValueAtTime(cue.volume,cue.start+fade);gain.gain.setValueAtTime(cue.volume,end-fade);gain.gain.linearRampToValueAtTime(0,end);
     source.connect(gain).connect(pan).connect(destination);source.start(cue.start,cue.offset);source.stop(end);

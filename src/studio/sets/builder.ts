@@ -10,6 +10,9 @@ export class SetBuilder {
   constructor(readonly mood: Mood = 'day', readonly surface: 'stone' | 'wood' | 'sand' | 'grass' = 'stone') {}
   private surfaceMaps = new Map<string, THREE.CanvasTexture>();
   readonly group = new THREE.Group();
+  readonly waterAreas:{minX:number;maxX:number;minZ:number;maxZ:number}[]=[];
+  readonly plantExclusions:{minX:number;maxX:number;minZ:number;maxZ:number}[]=[];
+  readonly plantingSites:{x:number;z:number;radius:number}[]=[];
   /** Where characters can sit; seated performances use these instead of conjuring chairs. */
   readonly seats: Seat[] = [];
   seat(x: number, y: number, z: number, yaw = 0) { this.seats.push({ x, y, z, yaw }); }
@@ -233,6 +236,9 @@ export class SetBuilder {
     for (let i = 0; i < 5; i++) { const a = i * 2.4; const leaf = this.ball([0.13, height * 0.4, 0.07], [x + Math.cos(a) * 0.18, height * 0.62, z + Math.sin(a) * 0.18], i % 2 ? '#52674b' : '#728660'); leaf.rotation.z = Math.cos(a) * 0.4; }
   }
   tree(x: number, z: number, height = 5) {
+    const radius=height*.3;
+    if([...this.waterAreas,...this.plantExclusions].some(a=>x+radius>a.minX&&x-radius<a.maxX&&z+radius>a.minZ&&z-radius<a.maxZ))return;
+    this.plantingSites.push({x,z,radius});this.group.userData.plantingSites=this.plantingSites;
     this.cylinder(0.13, height * 0.6, [x, height * 0.3, z], '#75664e');
     for (let i = 0; i < 3; i++) this.ball([height * 0.27, height * 0.25, height * 0.24], [x + Math.sin(i * 2.4) * 0.6, height * (0.65 + i * 0.08), z + Math.cos(i * 2.4) * 0.5], i % 2 ? '#627354' : '#788265');
   }
@@ -252,6 +258,7 @@ export class SetBuilder {
     for (let i = 0; i < 15; i++) { const x = (i - 7) * 2.6, h = 3 + ((i * 7) % 11) * 0.7; this.box([1.6, h, 2], [x, h / 2, z - i % 3 * 2], i % 2 ? '#7e8990' : '#65737f'); }
   }
   water(z = -13, width = 100, depth = 20, color = '#4a9faa') {
+    this.waterAreas.push({minX:-width/2,maxX:width/2,minZ:z-depth/2,maxZ:z+depth/2});this.group.userData.waterAreas=this.waterAreas;
     const m = this.box([width, 0.025, depth], [0, 0.0125, z], color, 0.16, 0.3); m.castShadow = false;
     const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const g=canvas.getContext('2d')!,data=g.createImageData(256,256);
     for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4;data.data[i]=128+Math.round(Math.sin((x+y*.4)*.14)*12);data.data[i+1]=128+Math.round(Math.cos((y-x*.2)*.18)*9);data.data[i+2]=254;data.data[i+3]=255;}

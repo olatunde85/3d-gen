@@ -5,12 +5,13 @@ import type { StudioActor } from './actor';
 import { createSet, disposeSet, type StudioSet } from './sets';
 import { durationOf, shotAt, type StudioProject } from './project';
 import { drawTextCues, resolveTextActor, type TextLayout } from './text';
-import { sceneById } from './catalog';
+import { sceneById,isOutdoorScene } from './catalog';
+import {VehicleStage} from './vehicle-stage';
 
 export class StudioScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly output = document.createElement('canvas');
-  readonly camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.03, 150);
+  readonly camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.03, 1000);
   readonly scene = new THREE.Scene();
   readonly actors = new Map<string, StudioActor>();
   selectionId?: string;
@@ -60,7 +61,7 @@ export class StudioScene {
     if (this.set) disposeSet(this.set.group);
     this.set = createSet(project.template); this.set.group.name = project.template; this.scene.add(this.set.group);
     this.scene.background = new THREE.Color(this.set.background);
-    this.scene.fog = new THREE.Fog(this.set.background, project.template === 'runway' ? 10 : 14, project.template === 'runway' ? 35 : 60);
+    this.scene.fog = new THREE.Fog(this.set.background, isOutdoorScene(project.template)?100:project.template === 'runway' ? 10 : 14, isOutdoorScene(project.template)?450:project.template === 'runway' ? 35 : 60);
     this.renderer.toneMappingExposure = this.set.exposure;
     this.key.color.set(this.set.key); this.rim.color.set(this.set.fill);
     this.key.intensity = project.template === 'runway' ? 3.4 : 3;
@@ -72,14 +73,16 @@ export class StudioScene {
   render(project: StudioProject, time: number) {
     this.updateSet(project);
     const at = shotAt(project, time), beat = at.shot;
-    for (const track of project.actors) this.actors.get(track.id)?.pose(project, time, track, this.set?.seats);
+    const vehicles=new VehicleStage(project,time,new Map([...this.actors].map(([id,actor])=>[id,actor.vehicleBody])));
+    for (const track of project.actors) this.actors.get(track.id)?.pose(project, time, track, this.set?.seats,vehicles);
     const subjects = project.actors.filter(a => beat.target === 'all' || a.id === beat.target).map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a);
-    const position=(a:StudioActor)=>beat.shot==='wide'?a.group.position:a.stagePosition;
+    const position=(a:StudioActor)=>a.stagePosition;
     const h = Math.max(1.6, ...subjects.map(a => a.height)), center = new THREE.Vector3();
     for (const a of subjects) center.add(position(a)); if(subjects.length)center.multiplyScalar(1/subjects.length);
     const u = at.progress, eased = u * u * (3 - 2 * u);
-    let angle = (project.template === 'courtyard' ? -0.32 : project.template === 'runway' ? 0.1 : 0.24) + THREE.MathUtils.degToRad(project.view.azimuth);
-    if (project.camera === 'orbit') angle += (eased - 0.5) * 0.6;
+    const view=beat.view??project.view,cameraMove=beat.camera??project.camera;
+    let angle = (project.template === 'courtyard' ? -0.32 : project.template === 'runway' ? 0.1 : 0.24) + THREE.MathUtils.degToRad(view.azimuth);
+    if (cameraMove === 'orbit') angle += (eased - 0.5) * 0.6;
     const size = { wide: 1.28, medium: 0.82, close: 0.43 }[beat.shot];
     const targetY = center.y + h * { wide: 0.51, medium: 0.7, close: 0.88 }[beat.shot];
     const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
@@ -88,11 +91,14 @@ export class StudioScene {
       extent=Math.max(extent,Math.abs(dx*Math.cos(angle)-dz*Math.sin(angle))+a.height*0.29);
       depth=Math.max(depth,Math.abs(dx*Math.sin(angle)+dz*Math.cos(angle)));
     }
-    let distance = Math.max(h*size/(2*tan),extent/(tan*this.camera.aspect))*project.view.zoom + depth + Math.max(0,...subjects.map(a=>a.framingPadding));
-    if (project.camera === 'dolly') distance *= 1.07 - 0.12 * eased;
-    const elevation=THREE.MathUtils.degToRad(project.view.elevation);
+    let distance = Math.max(h*size/(2*tan),extent/(tan*this.camera.aspect))*view.zoom + depth + Math.max(0,...subjects.map(a=>a.framingPadding));
+    if (cameraMove === 'dolly') distance *= 1.07 - 0.12 * eased;
+    const elevation=THREE.MathUtils.degToRad(view.elevation);
     if(!this.freezeCamera){this.camera.position.set(center.x+Math.sin(angle)*distance*Math.cos(elevation),Math.max(0.12,targetY+h*0.025+Math.sin(elevation)*distance),center.z+Math.cos(angle)*distance*Math.cos(elevation));
     this.camera.lookAt(center.x, targetY, center.z); }
+    // Wide exterior shots need depth precision for paths, water and road markings hundreds of metres away.
+    const near=Math.max(.03,Math.min(.5,this.camera.position.distanceTo(center)/300));
+    if(Math.abs(this.camera.near-near)>.001){this.camera.near=near;this.camera.updateProjectionMatrix();}
     this.key.position.set(center.x + (project.template === 'courtyard' ? -3.5 : 3.2), 6, center.z + 4);
     const shadowExtent=Math.max(5,...subjects.map(a=>a.group.position.distanceTo(center)+2));
     if(Math.abs(this.key.shadow.camera.right-shadowExtent)>0.01){Object.assign(this.key.shadow.camera,{left:-shadowExtent,right:shadowExtent,top:shadowExtent,bottom:-shadowExtent});this.key.shadow.camera.updateProjectionMatrix();}

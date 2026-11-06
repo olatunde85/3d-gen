@@ -14,6 +14,7 @@ import sharp from 'sharp';
 import { checkFiveCast } from './studio-cast-check';
 import { checkStudioAudio } from './studio-audio-check';
 import { checkStudioEffects } from './studio-effects-check';
+import {checkStudioEditing} from './studio-editing-check';
 import { checkStudioTour } from './studio-tour-check';
 import { checkStudioShortcuts } from './studio-shortcut-check';
 import { checkStudioNewProject } from './studio-new-project-check';
@@ -21,6 +22,7 @@ import {reviewVehicles} from './vehicle-review';
 import { reviewAnimations } from './animation-review';
 import {reviewBoarding} from './boarding-review';
 import {reviewArmedRiding} from './armed-riding-review';
+import {reviewVehicleStage} from './studio-vehicle-stage-review';
 import { CLIPS } from '../src/core/anim/clips';
 import { captureStudioExample } from './studio-example-capture';
 import { TOUR_STORAGE_KEY } from '../src/studio/tour-content';
@@ -35,13 +37,16 @@ const CHROME = process.env.CHROME ?? [
 ].find(existsSync);
 if (!CHROME) throw new Error('No Chrome, Chromium or Edge found: set CHROME=/path/to/browser');
 
+const editingOnly=process.argv.includes('--editing');
 const vehiclesOnly=process.argv.includes('--vehicles');
+const outdoorOnly=process.argv.includes('--outdoor');
+const stagingOnly=process.argv.includes('--vehicle-stage')||outdoorOnly;
 const boardingOnly=process.argv.includes('--boarding');
 const armedOnly=process.argv.includes('--armed');
 const animationReviewOnly=process.argv.includes('--animation-review');
 const newProjectOnly=process.argv.includes('--new-project');
 const audioOnly=process.argv.includes('--audio'),castOnly=process.argv.includes('--cast'),effectsOnly=process.argv.includes('--sfx'),tourOnly=process.argv.includes('--tour'),keysOnly=process.argv.includes('--keys'),exampleOnly=process.argv.includes('--example');
-if(castOnly||effectsOnly)process.env.STUDIO_AUDIO_CHECK='1';
+if(castOnly||effectsOnly||editingOnly)process.env.STUDIO_AUDIO_CHECK='1';
 if(audioOnly&&!existsSync(join(process.env.STUDIO_TTS_FIXTURE??'out/studio-speech-model','onnx/vocoder.onnx')))throw Error('Run npm run setup:studio-speech first, or set STUDIO_TTS_FIXTURE to the pinned model directory.');
 if(audioOnly){process.env.STUDIO_AUDIO_CHECK='1';process.env.VITE_STUDIO_TTS_MODEL_URL='/__tts-model';}
 const DIST = join(import.meta.dirname, '../dist');
@@ -123,7 +128,7 @@ const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
 const assistOnly=process.argv.includes('--assist');
-async function step(name:string,fn:()=>Promise<void>){if(armedOnly&&!/^Armed riding /.test(name))return;if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+async function step(name:string,fn:()=>Promise<void>){if(editingOnly&&!/Studio loads|Two characters reuse|^Editing (camera|pointer|text,|looped|new)/.test(name))return;if(outdoorOnly&&!name.startsWith('Outdoor'))return;if(stagingOnly&&!/^(Three occupants|Motorcycle to|Shared |Transfer exports|Outdoor)/.test(name))return;if(armedOnly&&!/^Armed riding /.test(name))return;if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -155,7 +160,7 @@ try{
  await step('Animation search exposes all registered performances',async()=>{
   if(!await evaluate(`document.querySelector("#animation-count").textContent.includes("${CLIPS.length} / ${CLIPS.length}")`))throw Error('Missing animations');
   await search('animation-search','laugh');await change('action','laugh');if(!await evaluate("window.studio.project.actors[0].beats[0].clip==='laugh'"))throw Error('Action search selection');
-  await evaluate("document.querySelector('#clip-length').click()");if(!await evaluate('window.studio.project.actors[0].beats[0].duration===2.4'))throw Error('Clip timing');
+  await evaluate("document.querySelector('#clip-length').click()");if(!await evaluate(`window.studio.project.actors[0].beats[0].duration===${CLIPS.find(c=>c.id==='laugh')!.duration}`))throw Error('Clip timing');
   await evaluate("document.querySelector('#undo').click();document.querySelector('#undo').click()");await search('animation-search','');
   const invalid=await evaluate<string[]>(`(()=>{const p=structuredClone(window.studio.project),a=window.studio.scene.actor,fail=[];for(const option of document.querySelectorAll('#action option')){p.actors[0].beats=[{id:'test',clip:option.value,duration:3,move:false}];for(const t of [0,0.2,0.8]){const f=a.frame(p,t,p.actors[0]);if(f.rot.some(q=>q.some(v=>!Number.isFinite(v))||Math.abs(Math.hypot(...q)-1)>0.001)||[...f.rootPos.values()].some(p=>p.some(v=>!Number.isFinite(v))))fail.push(option.value);}}return fail})()`);
   if(invalid.length)throw Error('Invalid poses: '+invalid.join(','));
@@ -524,6 +529,7 @@ try{
  });
  await captureStudioExample({enabled:exampleOnly,step,evaluate,ready,pause,folder});
  await reviewVehicles({enabled:vehiclesOnly,step,evaluate,ready,change,send});
+ await reviewVehicleStage({enabled:stagingOnly,step,evaluate,ready,change,send});
  await reviewArmedRiding({enabled:armedOnly,step,evaluate,ready,change,send});
  await reviewBoarding({enabled:boardingOnly,step,evaluate,ready,send});
  await reviewAnimations({enabled:animationReviewOnly,step,evaluate,ready});
@@ -531,6 +537,7 @@ try{
  await checkStudioShortcuts({enabled:keysOnly,step,evaluate,waitFor,ready,pause,send});
  await checkStudioTour({enabled:tourOnly,step,evaluate,waitFor,ready,pause,shot,send});
  await checkFiveCast({enabled:castOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
+ await checkStudioEditing({enabled:editingOnly,step,evaluate,waitFor,change,ready,pause,shot,send,folder});
  await checkStudioEffects({enabled:effectsOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
  await checkStudioAudio({enabled:audioOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
  if(errors.length)throw Error(errors.join('\n'));console.log('Studio expansion browser checks passed:',passed.length);

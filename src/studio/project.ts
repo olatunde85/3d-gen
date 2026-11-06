@@ -5,7 +5,8 @@ import { decodeCharacter, encodeCharacter } from '../app/share';
 import { defaultAudio, parseAudio, type FilmAudio } from './audio/schema';
 import { parseTextCues, type TextCue } from './text';
 import { sceneById, type SetId } from './catalog';
-import {studioTravel} from './motion';
+import {studioTravel,MAX_TRAVEL_SPEED,STAGE_LIMIT} from './motion';
+import {VEHICLE_SEATS,validateVehicleLinks,type VehicleSeat} from './vehicle-seats';
 import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES,type VehicleChoice} from '../core/props/vehicles';
 import {WEAPON_POSES,type WeaponPose} from '../core/anim/riding-weapons';
 import {isFirearm} from '../core/props/weapons';
@@ -14,9 +15,9 @@ export const ACTIONS = CLIPS.map(c => c.id);
 export type Action = string;
 export type Shot = 'wide' | 'medium' | 'close';
 export type CameraMove = 'locked' | 'orbit' | 'dolly';
-export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;showVehicle?:boolean;weaponPose?:WeaponPose;weaponYaw?:number }
+export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;showVehicle?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;vehicleId?:string;vehicleSeat?:VehicleSeat }
 export interface ActorTrack { id: string; character: string; detail: Detail; x: number; y: number; z: number; yaw: number; beats: Beat[];vehicle?:VehicleChoice }
-export interface CameraShot { id: string; duration: number; shot: Shot; target: string }
+export interface CameraShot { view?: View; camera?: CameraMove; id: string; duration: number; shot: Shot; target: string }
 export interface View { azimuth: number; elevation: number; zoom: number }
 export interface StudioProject {
   kind: 'ara-studio'; version: 2; title: string; template: SetId; actors: ActorTrack[]; shots: CameraShot[];
@@ -50,13 +51,14 @@ export function blankProject(): StudioProject {
   project.shots=[{id:beatId(),duration:3,shot:'wide',target:'all'}];
   return project;
 }
-export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration),...(p.audio?.speech??[]).map(c=>c.start+c.duration),...(p.audio?.effects??[]).map(c=>c.start+c.duration)) * 30 - 1e-7) / 30;
+export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.audio?.music.track!=='none'&&p.audio?.music.duration!==undefined?(p.audio.music.start??0)+p.audio.music.duration:0,p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration),...(p.audio?.speech??[]).map(c=>c.start+c.duration),...(p.audio?.effects??[]).map(c=>c.start+c.duration)) * 30 - 1e-7) / 30;
 const member = <T extends string>(v: unknown, values: readonly T[]): v is T => typeof v === 'string' && values.includes(v as T);
 function number(v: unknown, min: number, max: number, name: string) {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) throw new Error(`Invalid ${name}.`);
   return v;
 }
 function record(v: unknown): Record<string, unknown> { if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('Choose a valid Ara Studio project.'); return v as Record<string, unknown>; }
+function parseView(raw:unknown):View { const v=record(raw);return {azimuth:number(v.azimuth,-180,180,'camera rotation'),elevation:number(v.elevation,-35,65,'camera elevation'),zoom:number(v.zoom,.5,3,'camera zoom')}; }
 /** Migrate saved v1 films; reject unsupported versions and malformed tracks before building models. */
 export function parseProject(text: string): StudioProject {
   if (text.length > 100_000) throw new Error('Choose a project smaller than 100 KB.');
@@ -79,7 +81,7 @@ export function parseProject(text: string): StudioProject {
     const migrate=(clip:string)=>a.vehicle!=='auto'&&(legacy==='sports_car'||legacy==='suv')?(clip==='drive_car'?(legacy==='suv'?'drive_suv':'drive_sports_car'):clip==='sit_passenger'?(legacy==='suv'?'sit_suv_passenger':'sit_sports_car_passenger'):clip):clip;
     const beats = a.beats.map((rawBeat, j) => { const b = record(rawBeat);
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
-      const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,6,'vehicle travel speed');
+      const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,MAX_TRAVEL_SPEED,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
       if(speed!==undefined&&!RIDING_VEHICLES[clip])throw Error('Travel speed is only available for riding/driving actions.');
       const pose=b.weaponPose,yaw=b.weaponYaw===undefined?undefined:number(b.weaponYaw,-110,110,'mounted weapon direction');
@@ -88,20 +90,24 @@ export function parseProject(text: string): StudioProject {
       const weapon=actorParams.weapon;
       if(pose!==undefined&&pose!=='hidden'&&weapon==='none')throw Error('Equip a weapon before choosing a mounted weapon pose.');
       if(pose==='fire'&&!isFirearm(weapon))throw Error('Only a pistol or rifle can use Fire.');
-      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: b.move && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}) };
+      if(b.vehicleId!==undefined&&(typeof b.vehicleId!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(b.vehicleId)))throw Error('Use a vehicle ID of 1–80 letters, numbers, underscores or hyphens.');
+      if(b.vehicleSeat!==undefined&&!member(b.vehicleSeat,VEHICLE_SEATS))throw Error('Choose a supported vehicle seat.');
+      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: b.move && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}) };
     });
     if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');
-    return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -12, 12, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -12, 12, 'character Z'), yaw: number(a.yaw, -180, 180, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
+    return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -STAGE_LIMIT, STAGE_LIMIT, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -STAGE_LIMIT, STAGE_LIMIT, 'character Z'), yaw: number(a.yaw, -180, 180, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
   });
   if (!Array.isArray(p.shots) || !p.shots.length || p.shots.length > MAX_SHOTS) throw new Error(`Use one to ${MAX_SHOTS} camera shots.`);
   const shots = p.shots.map((raw, i): CameraShot => { const s = record(raw);
     if (!member(s.shot, ['wide', 'medium', 'close']) || typeof s.target !== 'string' || s.target !== 'all' && !ids.has(s.target)) throw new Error('Invalid shot framing or subject.');
-    return { id: `shot-${i}`, duration: number(s.duration, 0.1, 12, 'shot duration'), shot: s.shot, target: s.target };
+    if(s.camera!==undefined&&!member(s.camera,['locked','dolly','orbit']))throw Error('Invalid shot camera movement.');
+    return { ...(s.view===undefined?{}:{view:parseView(s.view)}),...(s.camera===undefined?{}:{camera:s.camera as CameraMove}),id: `shot-${i}`, duration: number(s.duration, 0.1, 12, 'shot duration'), shot: s.shot, target: s.target };
   });
-  const v = record(p.view);
   const result: StudioProject = { kind: 'ara-studio', version: 2, template: p.template as SetId, title: typeof p.title === 'string' ? p.title.trim().slice(0, 60) : '', actors, shots,
-    camera: p.camera, aspect: p.aspect, caption: p.caption === true, texts:parseTextCues(p.texts,ids), audio:parseAudio(p.audio,ids), view: { azimuth: number(v.azimuth, -180, 180, 'camera rotation'), elevation: number(v.elevation, -35, 65, 'camera elevation'), zoom: number(v.zoom, 0.5, 3, 'camera zoom') } };
+    camera: p.camera, aspect: p.aspect, caption: p.caption === true, texts:parseTextCues(p.texts,ids), audio:parseAudio(p.audio,ids), view: parseView(p.view) };
+  const music=result.audio.music;if(music.track!=='none'&&music.duration===undefined&&(music.start??0)>=durationOf(result))throw Error('Music starts beyond the film. Set its duration or move its start earlier.');
   if (durationOf(result) > MAX_DURATION) throw new Error(`Keep films under ${MAX_DURATION} seconds.`);
+  validateVehicleLinks(result);
   return result;
 }
 export function shotAt(p: StudioProject, time: number) {
