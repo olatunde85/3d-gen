@@ -2,6 +2,7 @@
 import { type Ch, type Clip, type HandTarget } from './types';
 import { cyc, fingers, fist, FISTS, grip, normV, side, v } from './helpers';
 import { VEHICLE_TRANSITIONS } from '../../props/vehicle-actions';
+import { TROT, trotBob } from '../../props/horse-gait';
 import { idle } from './basic';
 
 // The rider only: the game supplies the vehicle and attaches the character to its seat.
@@ -125,20 +126,21 @@ const rideMotorcycle: Clip = {
 };
 
 const rideHorse: Clip = {
-  id: 'ride_horse', name: 'Ride horse (trot)', category: 'Vehicles', duration: 0.8, loop: true,
+  id: 'ride_horse', name: 'Ride horse (trot)', category: 'Vehicles', duration: TROT.duration, loop: true,
   sample: (t) => {
-    const ph = (t / 0.8) * Math.PI * 2;
+    const ph = (t / TROT.duration) * Math.PI * 2;
     const post = Math.max(0, Math.sin(ph)); // rising trot: up on every other beat
     const out: Record<string, Ch> = {
       Spine: [8 + 4 * post, 0, 0], Spine1: [4, 0, 0], Neck: [-6, 0, 0], Head: [-6 - 3 * post, 0, 0],
     };
-    // Legs around the horse's barrel, heels down in the stirrups.
+    // Legs around the horse's barrel: lower legs hang against its sides, heels down in the stirrups.
     side(out, 'UpLeg', [42 - 12 * post, 0, 26], [42 - 12 * post, 0, 26]);
-    side(out, 'Leg', [-62 + 22 * post, 0, 0], [-62 + 22 * post, 0, 0]);
+    side(out, 'Leg', [-62 + 22 * post, 0, -36], [-62 + 22 * post, 0, -36]);
     side(out, 'Foot', [16, 0, 0], [16, 0, 0]);
     fist(out);
     const reins = (s: 1 | -1): HandTarget => ({ pos: v(0.09 * s, -0.42 + 0.04 * post, 0.34), pole: v(s, -1, -0.4), dir: v(-0.2 * s, -0.1, 1), palm: v(-s, 0, 0) });
-    return { bones: out, root: { y: 0.42 + 0.1 * post }, thumbs: FISTS, ik: { Left: reins(1), Right: reins(-1) } };
+    // The seat follows the horse's back; posting lifts the rider out of it on one diagonal.
+    return { bones: out, root: { y: 0.42 + 0.1 * post + trotBob(t) }, thumbs: FISTS, ik: { Left: reins(1), Right: reins(-1) } };
   },
 };
 
