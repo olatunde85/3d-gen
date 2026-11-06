@@ -175,7 +175,7 @@ assert.throws(()=>parseAudio({effects:[{id:'same',sound:'body-fall-thump'},{id:'
 assert.throws(()=>parseAudio({effects:Array.from({length:MAX_SOUND_EFFECTS+1},()=>({sound:'body-fall-thump'}))},actors));
 assert.doesNotThrow(()=>parseAudio({effects:Array.from({length:MAX_SOUND_EFFECTS},()=>({sound:'body-fall-thump'}))},actors));
 assert.deepEqual(schema.properties.audio.properties.effects.items.properties.sound.enum,SOUND_EFFECTS.map(s=>s.id));assert.equal(schema.properties.audio.properties.effects.maxItems,MAX_SOUND_EFFECTS);
-for(const sound of SOUND_EFFECTS)assert.ok(guide.includes(sound.id));assert.ok(guide.includes('NO obstacle collision detection'));assert.ok(guide.includes('audio.effects'));assert.ok(guide.includes('Sounds do not add weapons'));
+for(const sound of SOUND_EFFECTS)assert.ok(guide.includes(sound.id));assert.ok(guide.includes('no physical collision response'));assert.ok(guide.includes('audio.effects'));assert.ok(guide.includes('Sounds do not add weapons'));
 const fxSession=readEditorSession(JSON.stringify({version:1,project:fxFilm,editor:{sound:{open:true,tab:'effects',selectedEffect:'fx-0'}}}));
 assert.equal(fxSession?.editor.sound.tab,'effects');assert.equal(fxSession?.editor.sound.selectedEffect,'fx-0');
 console.log('Sound effects: legacy defaults, timing/trim/speed, actor references, cap, invalid cues, LLM catalogue/schema, explicit collision limits and recovery passed.');

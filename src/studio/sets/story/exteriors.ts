@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type {SetBuilder} from '../builder';
-import {beam,bench,block,exteriorBounds,fence,glow,METAL,practical,ring,windowPanel} from './details';
+import {beam,bench,block,surfaceBlock,exteriorBounds,fence,glow,METAL,practical,ring,windowPanel} from './details';
 export function highway(b:SetBuilder){
- b.floor('#969f8c');for(const x of [0,-20]){block(b,[15,.016,600],[x,-.003,0],'#656f70');for(const dx of [-7,7])block(b,[.12,.018,600],[x+dx,.01,0],'#d9d8bb');for(let z=-288;z<300;z+=12)for(const dx of [-2,2])block(b,[.12,.02,5],[x+dx,.012,z],'#dadbc5');}
+ b.floor('#969f8c');for(const x of [0,-20]){surfaceBlock(b,`carriageway-${x}`,'road',[15,.016,600],[x,-.003,0],'#656f70');for(const dx of [-7,7])block(b,[.12,.018,600],[x+dx,.01,0],'#d9d8bb');for(let z=-288;z<300;z+=12)for(const dx of [-2,2])block(b,[.12,.02,5],[x+dx,.012,z],'#dadbc5');}
  block(b,[2,.08,600],[-10,.02,0],'#a7ac9c');for(const x of [-10,9,-29]){block(b,[.14,.3,570],[x,.6,0],METAL);for(let z=-276;z<290;z+=12)block(b,[.08,.75,.08],[x,.35,z],METAL);}
  // Overpass has real clearance over both carriageways, with supports outside traffic lanes.
  block(b,[62,.65,10],[-10,5.7,-55],'#a9b0a5');for(const x of [-38,18])block(b,[1.2,5.4,3],[x,2.7,-55],'#979f96');for(const z of [-59.8,-50.2])block(b,[62,.8,.18],[-10,6.35,z],'#969e95');
@@ -18,7 +18,7 @@ function cityFacade(b:SetBuilder,x:number,z:number,night:boolean,index:number){
  b.at(x+side*4.04,z,x<0?Math.PI/2:-Math.PI/2,()=>{windowPanel(b,x+side*4.04,z,4.2,1.8,1.3);});
 }
 export function neonStreet(b:SetBuilder){
- b.floor('#575f68');block(b,[11,.015,360],[0,-.003,0],'#4c5962',.26);for(const x of [-8,8])block(b,[5,.12,360],[x,.012,0],'#7b858b');
+ b.floor('#575f68');surfaceBlock(b,'street-road','road',[11,.015,360],[0,-.003,0],'#4c5962',.26);for(const x of [-8,8])surfaceBlock(b,`pavement-${x}`,'walkway',[5,.12,360],[x,.012,0],'#7b858b');
  for(let z=-150;z<=150;z+=30)for(const x of [-15,15])cityFacade(b,x,z,true,Math.abs(z/30));
  for(let z=-150;z<=150;z+=12)block(b,[.1,.02,4],[0,.01,z],'#b7a58e');
  // Near signs read from the camera while their supporting posts remain off the roadway.
@@ -30,7 +30,7 @@ export function neonStreet(b:SetBuilder){
  practical(b,'#cc79b9',[-4,3,-8],25,18);practical(b,'#63b1ce',[4,3,-8],25,18);exteriorBounds(b);
 }
 export function alley(b:SetBuilder){
- b.floor('#96938a');block(b,[5.4,.016,360],[0,-.003,0],'#858b85');
+ b.floor('#96938a');surfaceBlock(b,'alley-path','walkway',[5.4,.016,360],[0,-.003,0],'#858b85');
  for(const side of [-1,1]){for(let z=-150;z<=150;z+=30){block(b,[7,7,29],[side*7.6,3.5,z],side<0?'#9b8271':'#8a8e86');for(let y=.45;y<3;y+=.38)block(b,[.012,.018,28],[side*4.09,y,z],'#b1a08c');}
   block(b,[.09,5.6,.09],[side*3.99,2.8,-4],METAL);block(b,[.09,.09,14],[side*3.99,2.8,-4],METAL);
  }
@@ -51,7 +51,7 @@ function stand(b:SetBuilder,x:number,z:number,yaw:number){
  });
 }
 export function stadium(b:SetBuilder){
- b.floor('#81917b');
+ b.floor('#81917b');b.group.userData.spatialRegions=[{id:'football-pitch',kind:'court',bounds:[-34,-52.5,34,52.5],y:0}];
  for(let i=0;i<14;i++)block(b,[68,.012,7.5],[0,-.001,-48.75+i*7.5],i%2?'#698768':'#5f7d60');
  const white='#e4e7d4';for(const x of [-34,34])block(b,[.12,.018,105],[x,.014,0],white);for(const z of [-52.5,0,52.5])block(b,[68,.018,.12],[0,.014,z],white);
  const centre=ring(b,9.15,.06,[0,.023,0],white);centre.rotation.x=Math.PI/2;b.cylinder(.12,.01,[0,.025,0],white);

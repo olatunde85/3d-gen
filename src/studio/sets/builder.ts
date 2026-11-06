@@ -10,6 +10,14 @@ export class SetBuilder {
   constructor(readonly mood: Mood = 'day', readonly surface: 'stone' | 'wood' | 'sand' | 'grass' = 'stone') {}
   private surfaceMaps = new Map<string, THREE.CanvasTexture>();
   readonly group = new THREE.Group();
+  /** Semantic floor overlays, recorded beside the geometry used to render them. */
+  surfaceBox(id:string,kind:'walkway'|'road'|'dock'|'court'|'stage',size:number[],pos:number[],color:string) {
+    const mesh=this.box(size,pos,color);this.markSurface(id,kind,size,pos);return mesh;
+  }
+  markSurface(id:string,kind:'walkway'|'road'|'dock'|'court'|'stage',size:number[],pos:number[]) {
+    const regions=this.group.userData.spatialRegions??=[];
+    regions.push({id,kind,bounds:[pos[0]-size[0]/2,pos[2]-size[2]/2,pos[0]+size[0]/2,pos[2]+size[2]/2],y:0});
+  }
   readonly waterAreas:{minX:number;maxX:number;minZ:number;maxZ:number}[]=[];
   readonly plantExclusions:{minX:number;maxX:number;minZ:number;maxZ:number}[]=[];
   readonly plantingSites:{x:number;z:number;radius:number}[]=[];
@@ -88,6 +96,7 @@ export class SetBuilder {
     const m = this.mesh(this.geometry('label', () => new THREE.PlaneGeometry()), mat, pos, [width, width / 4, 1]); m.castShadow = false; return m;
   }
   room(wall: string, floor: string, windows = [-4, 3]) {
+    this.group.userData.roomBounds={minX:-6,maxX:6,minZ:-5.5,maxZ:5.5};
     this.floor(floor); this.wall(12, 4.5, [0, 2.25, -5.5], wall); this.wall(11, 4.5, [-6, 2.25, 0], wall, Math.PI / 2); this.wall(11, 4.5, [6, 2.25, 0], wall, -Math.PI / 2);
     for (const x of windows) { this.box([2.5, 2.6, 0.06], [x, 2.3, -5.4], this.mood === 'night' ? '#354655' : '#748b96', 0.3); this.box([0.035, 2.6, 0.09], [x, 2.3, -5.34], '#b9c2c6'); this.box([2.5, 0.035, 0.09], [x, 2.3, -5.34], '#b9c2c6'); }
     this.box([12, 0.1, 0.08], [0, 0.05, -5.44], '#a39d90');

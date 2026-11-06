@@ -27,7 +27,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && tsx scripts/build-docs.ts",
+    "build": "npm run build:studio-maps && tsc --noEmit && vite build && tsx scripts/build-docs.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "export": "tsx scripts/export-cli.ts",
@@ -46,6 +46,8 @@
     "test:helicopter": "tsx scripts/helicopter-check.ts && tsx scripts/studio-check.ts --helicopter",
     "test:studio:scenes": "tsx scripts/studio-check.ts --scenes",
     "test:studio:editing": "tsx scripts/studio-timing-check.ts && tsx scripts/studio-check.ts --editing",
+    "build:studio-maps": "tsx scripts/build-studio-maps.ts",
+    "test:studio:spatial": "tsx scripts/build-studio-maps.ts --check && tsx scripts/studio-spatial-check.ts",
     "test:studio:model": "tsx scripts/studio-model-check.ts",
     "test:studio": "tsx scripts/studio-check.ts",
     "build:studio-example-gif": "tsx scripts/build-studio-example-gif.ts",

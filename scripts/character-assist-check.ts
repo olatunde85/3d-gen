@@ -24,7 +24,7 @@ for(const input of ['{bad','null',JSON.stringify({kind:'ara-studio',version:2}),
 console.log(`Character Assist: ${Object.keys(PRESETS).length} preset/params round trips, live catalogues, body ranges, styles, schema and invalid JSON passed (${guide.length} guide characters).`);
 
 for(const vehicle of VEHICLE_CHOICES){const p=parseCharacterInput(JSON.stringify({vehicle,vehicleStyle:{color:'#176a80',accentColor:'#e5ddd0',seatColor:'#393129',finish:'gloss',variant:'sport'}}),cat);assert.equal(p.vehicle,vehicle);assert.equal(p.vehicleStyle.color,'#176a80');assert.deepEqual(parseCharacterInput(JSON.stringify(p),cat),p);}
-for(const params of [{vehicle:'helicopter'},{vehicleStyle:{color:'red'}},{vehicleStyle:{finish:'mirror'}},{vehicleStyle:{variant:'racing'}},{vehicleStyle:{wheels:6}},{vehicleStyle:[]}])assert.throws(()=>parseCharacterInput(JSON.stringify(params),cat));
+for(const params of [{vehicle:'invented_vehicle'},{vehicleStyle:{color:'red'}},{vehicleStyle:{finish:'mirror'}},{vehicleStyle:{variant:'racing'}},{vehicleStyle:{wheels:6}},{vehicleStyle:[]}])assert.throws(()=>parseCharacterInput(JSON.stringify(params),cat));
 console.log('Vehicle Assist: all choices, strict nested colours/finish/style and parameter round trips passed.');
 
 assert.equal(parseCharacterInput(JSON.stringify({vehicle:'sports_car'}),cat).vehicleStyle.color,'#168c9b');

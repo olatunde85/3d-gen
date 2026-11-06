@@ -131,7 +131,7 @@ function coast(b: SetBuilder, s: SceneDefinition) {
 function garden(b: SetBuilder, s: SceneDefinition) {
   b.floor(s.id === 'sports-court' ? '#81968a' : s.id === 'veranda' ? '#a18c70' : '#aaa992');
   if (s.id === 'sports-court') {
-    const cx=9;b.box([10.4,.018,16.4],[cx,.002,0],'#6f8d80');b.group.userData.courtBounds={minX:cx-5,maxX:cx+5,minZ:-8,maxZ:8};b.plantExclusions.push(b.group.userData.courtBounds);
+    const cx=9;b.surfaceBox('basketball-court','court',[10.4,.018,16.4],[cx,.002,0],'#6f8d80');b.group.userData.courtBounds={minX:cx-5,maxX:cx+5,minZ:-8,maxZ:8};b.plantExclusions.push(b.group.userData.courtBounds);
     for (const x of [-5, 5]) b.box([0.04, 0.02, 16], [cx+x, .02, 0], '#e4dbc3'); for (const z of [-8, 0, 8]) b.box([10, 0.02, 0.04], [cx, .02, z], '#e4dbc3');
     for (const z of [-8, 8]) { b.box([0.12, 3.5, 0.12], [cx, 1.75, z], '#727c79'); b.box([1.6, 0.9, 0.09], [cx, 3.2, z], '#deded0'); const hoop = b.mesh(b.geometry('hoop', () => new THREE.TorusGeometry(0.25, 0.025, 8, 24)), b.material('#a76d43'), [cx, 2.9, z + (z < 0 ? 0.35 : -0.35)]); hoop.rotation.x = Math.PI / 2; }
   } else if (s.id === 'wedding-garden') {
@@ -146,7 +146,7 @@ function garden(b: SetBuilder, s: SceneDefinition) {
   } else {
     for (const x of [-3.8, 3.8]) { b.box([1.8, 0.13, 0.5], [x, 0.48, -2], '#8c7b5e'); b.box([1.8, 0.4, 0.08], [x, 0.75, -2.22], '#8c7b5e'); b.seat(x - 0.45, 0.545, -1.98); b.seat(x + 0.45, 0.545, -1.98); for (const dx of [-0.65, 0.65]) b.box([0.12, 0.5, 0.4], [x + dx, 0.25, -2], '#6d7168');
       b.cylinder(0.05, 3.2, [x + 1.4, 1.6, -2.6], '#3c4442'); const glow = b.ball([0.16, 0.16, 0.16], [x + 1.4, 3.25, -2.6], '#f2dfb2'); glow.material = b.material('#f2dfb2', 0.6, 0, 0.8); b.cylinder(0.22, 0.7, [x - 1.3, 0.35, -2.4], '#4f5a52'); }
-    b.box([2.8, 0.01, 25], [0, -0.005, -6], '#c9c4ad');
+    b.surfaceBox('garden-path','walkway',[2.8, 0.01, 25], [0, -0.005, -6], '#c9c4ad');
   }
   for (const [x, z] of [[-6, -6], [6, -5], [-9, -12], [9, -10], [0, -16]]) b.tree(x, z, 4.5 + Math.abs(x) * 0.15);
 }
@@ -203,14 +203,15 @@ function landscape(b: SetBuilder, s: SceneDefinition) {
       for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; b.ball([0.18, 0.1, 0.15], [3 + Math.cos(a) * 0.5, 0.1, -2.5 + Math.sin(a) * 0.5], '#79796c'); }
       const fire = b.mesh(b.geometry('fire', () => new THREE.ConeGeometry(0.2, 0.55, 7)), b.material('#ce9257', 0.8, 0, 1.2), [3, 0.3, -2.5]); fire.castShadow = false;
     } else if (s.id === 'mountain-lake') {const mountains=[];for(let i=0;i<7;i++){const radius=28+i%3*8,height=44+i%3*15,x=(i-3)*60,z=-390;mountains.push({minX:x-radius,maxX:x+radius,minZ:z-radius,maxZ:z+radius});b.mesh(b.geometry('mountain',()=>new THREE.ConeGeometry(1,1,7)),b.material(i%2?'#8e9b94':'#abb0a2'),[x,height/2-.02,z],[radius,height,radius]);}b.group.userData.mountainBounds=mountains;}
-    else b.box([2.7, 0.015, 36], [0, -0.005, -10], '#b7ad92');
+    else b.surfaceBox('forest-path','walkway',[2.7, 0.015, 36], [0, -0.005, -10], '#b7ad92');
   }
 }
 function yacht(b: SetBuilder, s: SceneDefinition) {
   b.floor('#ad9875'); b.water(-167.5, 600, 320, '#659da8');
-  for (let i = -5; i <= 5; i++) { b.box([0.06, 1, 0.06], [i * 1.5, 0.5, -5], '#b6bdb6', 0.3, 0.7); b.box([1.5, 0.045, 0.045], [i * 1.5, 1, -5], '#c6cbc3', 0.3, 0.7); }
+  for (let i = -5; i <= 5; i++) { if(s.id==='harbour'&&Math.abs(i)<=1)continue;const z=s.id==='harbour'?-7.35:-5;b.box([0.06, 1, 0.06], [i * 1.5, 0.5, z], '#b6bdb6', 0.3, 0.7); b.box([1.5, 0.045, 0.045], [i * 1.5, 1, z], '#c6cbc3', 0.3, 0.7); }
+  if(s.id==='harbour')b.surfaceBox('boarding-pier','dock',[2.4,.10,10],[0,-.015,-9],'#ac9675');
   for (const x of [-3.7, 3.7]) {
-    if (s.id === 'harbour') { b.cylinder(0.18, 0.65, [x, 0.33, -2], '#7a7666'); const hull = b.box([1.8, 0.5, 4.5], [x, 0.1, -11], '#d7d6c9'); hull.rotation.y = x * 0.05; b.box([0.8, 0.7, 1.7], [x, 0.7, -11], '#c4cbbb'); }
+    if (s.id === 'harbour') { b.cylinder(0.18, 0.65, [x, 0.33, -2], '#7a7666'); const mooredX=x<0?-9:9,hull = b.box([1.8, 0.5, 4.5], [mooredX, 0.1, -11], '#d7d6c9'); hull.rotation.y = x * 0.05; b.box([0.8, 0.7, 1.7], [mooredX, 0.7, -11], '#c4cbbb'); }
     else { b.box([1.2, 0.4, 2.5], [x, 0.2, -1.8], '#d1cbb6'); b.box([1.1, 0.1, 2.4], [x, 0.46, -1.8], '#dbe1d1'); for (const dz of [-0.6, 0.6]) b.seat(x, 0.51, -1.8 + dz, x < 0 ? Math.PI / 2 : -Math.PI / 2); }
   }
 }
@@ -220,9 +221,9 @@ function studio(b: SetBuilder, s: SceneDefinition) {
   else if (s.id === 'photo-loft') { for (const x of [-3.5, 3.5]) { b.cylinder(0.025, 2.4, [x, 1.2, -0.5], '#424b4d'); b.box([1, 0.85, 0.12], [x, 2.4, -0.5], '#e5e3d4'); } b.wall(6, 3.7, [0, 1.85, -4.4], '#bdad94'); }
   else if (s.id === 'black-box') { for (const x of [-4, 4]) for (const z of [-4, 0, 4]) { const light = b.box([0.05, 2.8, 0.05], [x, 1.4, z], '#d0b68c'); light.material = b.material('#d0b68c', 0.7, 0, 1); } }
 }
-export function createSet(id: SetId): StudioSet {
+export function createSet(id: SetId, options:{compact?:boolean}={}): StudioSet {
   if (id === 'portrait' || id === 'runway' || id === 'courtyard') {
-    const set=createOriginalSet(id);if(id==='courtyard'){const b=new SetBuilder('sunset');extendOutdoor(b,sceneById.get(id)!);b.compact();set.group.add(b.group);set.group.userData.performanceBounds=b.group.userData.performanceBounds;}return set;
+    const set=createOriginalSet(id);if(id==='courtyard'){const b=new SetBuilder('sunset');extendOutdoor(b,sceneById.get(id)!);if(options.compact!==false)b.compact();set.group.add(b.group);set.group.userData.performanceBounds=b.group.userData.performanceBounds;set.group.userData.spatialRegions=b.group.userData.spatialRegions;}return set;
   }
   const s = sceneById.get(id); if (!s) throw new Error('Unknown scene.');
   const surface = s.family==='bedroom'||s.family==='lounge'||s.family==='yacht'?'wood':s.family==='beach'||s.id==='desert-outpost'?'sand':s.family==='landscape'||s.family==='garden'?'grass':'stone';
@@ -231,7 +232,7 @@ export function createSet(id: SetId): StudioSet {
   const story=STORY_SETS[id];if(story)story(b);else{const build=builders[s.family as keyof typeof builders];if(!build)throw Error('Missing scene recipe.');build(b,s);}b.group.name=id;
   if(isOutdoorScene(id)&&!b.group.userData.performanceBounds)extendOutdoor(b,s);
   if(s.mood==='sunset'&&['beach','pool','landscape','yacht','garden'].includes(s.family)){const sun=b.ball([8,8,8],[-120,58,-460],'#efc995'),material=b.material('#efc995',1,0,1);material.fog=false;sun.material=material;sun.castShadow=false;}
-  b.compact();
+  if(options.compact!==false)b.compact();
   const night = s.mood === 'night', sunset = s.mood === 'sunset';
   return { group: b.group, seats: b.seats, background: night ? '#27313e' : sunset ? '#c8b49c' : '#afc5cb', floor: '#b2aa96',
     key: night ? '#e8d2b4' : sunset ? '#ffdfad' : '#fff3de', fill: night ? '#9db7d4' : '#d4e7ef', exposure: night ? 0.95 : 1.06 };

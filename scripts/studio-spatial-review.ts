@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+interface Harness {enabled:boolean;step(name:string,fn:()=>Promise<void>):Promise<void>;evaluate<T=unknown>(js:string):Promise<T>;ready():Promise<void>;change(id:string,value:string):Promise<unknown>;send(method:string,params?:object):Promise<unknown>;pause(ms?:number):Promise<unknown>;shot(name:string):Promise<void>}
+export async function checkSpatialReview(h:Harness){
+ if(!h.enabled)return;const{step,evaluate:e,ready,change,send,pause,shot}=h;
+ await step('Spatial maps guide contains exact harbour geometry and downloadable reference files',async()=>{
+  await ready();await e("(async()=>{const p=structuredClone(studio.project);p.template='harbour';p.actors=p.actors.slice(0,1);Object.assign(p.actors[0],{x:20,y:0,z:0,yaw:180,beats:[{id:'drive',clip:'drive_car',duration:6,move:true}]});p.shots=[{id:'wide',shot:'wide',target:'all',duration:6}];p.caption=false;p.texts=[];p.audio.muted=true;p.audio.speech=[];await studio.setProject(p);document.querySelector('#open-assist').click();})()");await ready();await change('assist-reference','harbour');
+  const guide=await e<string>("document.querySelector('#assist-guide').value");assert.ok(guide.includes('SELECTED LOCATION STAGING MAP'));assert.ok(guide.includes('east-pier-motorboat'));assert.ok(guide.includes('"boarding-pier"'));assert.ok(guide.includes('"water":[[-300,-327.5,300,-7.5]]'));assert.ok(guide.includes('cumulativeTravel(t)-D/2'));
+  await e("(()=>{window.__mapDownloads=[];window.__oldAnchorClick=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download)window.__mapDownloads.push({name:this.download,url:this.href});else __oldAnchorClick.call(this)};document.querySelector('#assist-save-map').click();document.querySelector('[data-r=save-all-references]').click();})()");
+  const files=await e<{name:string;kind:string;locations?:number;location?:string}[]>("Promise.all(__mapDownloads.map(async f=>{const j=await(await fetch(f.url)).json();return{name:f.name,kind:j.kind,locations:j.locations?.length,location:j.location?.id}}))");assert.equal(files[0].location,'harbour');assert.equal(files[1].locations,66);await e('HTMLAnchorElement.prototype.click=__oldAnchorClick');
+  await change('assist-reference','church');assert.ok(await e("document.querySelector('#assist-guide').value.includes('\"location\":{\"id\":\"church\"')"));
+  await e("document.querySelector('#assist-context').checked=true;document.querySelector('#assist-context').dispatchEvent(new Event('change',{bubbles:true}))");assert.ok(await e("document.querySelector('#assist-guide').value.includes('\"accuracy\":\"fitted-bodies\"')&&document.querySelector('#assist-guide').value.includes('\"measurements\"')&&document.querySelector('#assist-guide').value.includes('\"boardingScale\":'+studio.scene.actor.vehicleBody.boardingScale)"));
+ });
+ await step('Spatial review warns about whole-path conflicts and exports fitted transition positions',async()=>{
+  await e("document.querySelector('#assist-json').value=JSON.stringify(studio.project);document.querySelector('#assist-json').dispatchEvent(new Event('input',{bubbles:true}))");assert.ok(await e("!!document.querySelector('.ai-staging-notes')&&document.querySelector('.ai-staging-notes').textContent.includes('water')"));assert.ok(!await e("document.querySelector('#assist-create').disabled"));await e("document.querySelector('#assist-close').click();document.querySelector('#open-staging').click()");
+  for(let n=0;n<100&&!await e("!!document.querySelector('#staging-map svg')");n++)await pause(100);
+  assert.ok(await e("document.querySelector('#staging-dialog').open&&!!document.querySelector('#staging-map svg')"));assert.ok(await e("document.querySelector('.staging-findings').textContent.includes('water')"));
+  await e("window.__mapDownloads=[];HTMLAnchorElement.prototype.click=function(){if(this.download)__mapDownloads.push({name:this.download,url:this.href})};document.querySelector('#staging-save-report').click();document.querySelector('#staging-save-map').click()");
+  const report=await e<{accuracy:string;measurements:Record<string,{scale:number;boardingScale:number;vehicleEnvelopes:object}>;issues:{code:string}[];transitions:{from:{z:number};to:{z:number}}[]}>("fetch(__mapDownloads[0].url).then(r=>r.json())");assert.equal(report.accuracy,'fitted-bodies');assert.ok(Object.values(report.measurements).every(m=>m.scale>0&&m.boardingScale>0&&Object.keys(m.vehicleEnvelopes).length>0));assert.ok(report.issues.some(i=>i.code==='ground-in-water'));assert.ok(report.transitions[0].from.z>10&&report.transitions[0].to.z< -10);await e('HTMLAnchorElement.prototype.click=__oldAnchorClick');
+  await shot('spatial-harbour-review');await e("document.querySelector('#staging-zoom').click()");assert.ok(await e("document.querySelector('#staging-map svg').getAttribute('viewBox').startsWith('-180 -180')"));
+  await e("document.querySelector('[data-issue]').click()");assert.ok(!await e("document.querySelector('#staging-dialog').open"));
+ });
+ await step('Spatial map selector survives reload and the review fits mobile',async()=>{
+  await e("document.querySelector('#open-assist').click();window.dispatchEvent(new Event('pagehide'));window.__spatialReload=true");await send('Page.reload');
+  for(let n=0;n<400&&!await e("!window.__spatialReload&&window.studio?.ready&&document.querySelector('#assist-dialog').open").catch(()=>false);n++)await pause(200);
+  assert.equal(await e("document.querySelector('#assist-reference').value"),'church');await e("document.querySelector('#assist-close').click()");
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await e("document.querySelector('#open-staging').click()");for(let n=0;n<100&&!await e("!!document.querySelector('#staging-map svg')");n++)await pause(100);assert.ok(await e("document.querySelector('#staging-dialog').scrollWidth<=document.querySelector('#staging-dialog').clientWidth&&document.documentElement.scrollWidth<=innerWidth"));await shot('spatial-mobile-review');await e("document.querySelector('#staging-dialog [data-close]').click()");
+  await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});
+ });
+ await step('Spatial harbour map matches the rendered pier and shared Assist still works in the builder',async()=>{
+  await e("(async()=>{const p=structuredClone(studio.project),a=p.actors[0];Object.assign(a,{x:2.47,y:0,z:-11.92,yaw:180,beats:[{id:'board',clip:'board_motorboat',duration:2,move:false},{id:'ride',clip:'drive_boat',duration:3,move:false},{id:'exit',clip:'alight_motorboat',duration:2,move:false}]});await studio.setProject(p);const s=studio.scene;s.freezeCamera=true;s.camera.position.set(14,14,17);s.camera.lookAt(0,0,-6);s.render(studio.project,2.5)})()");await ready();await shot('spatial-harbour-pier');
+  await send('Page.navigate',{url:'http://localhost:4422/app/#demo'});
+  for(let n=0;n<600&&!await e("!!document.querySelector('#loading')?.hidden&&!!window.ara?.store?.current").catch(()=>false);n++)await pause(200);
+  await e("document.querySelector('#character-assist-btn').click()");
+  for(let n=0;n<100&&!await e("!!document.querySelector('#character-assist-dialog')?.open");n++)await pause(100);
+  assert.ok(await e("document.querySelector('#character-assist-dialog').open&&!document.querySelector('#ca-reference')"));
+  await e("document.querySelector('#ca-example').click()");assert.ok(!await e("document.querySelector('#ca-create').disabled"));assert.ok(await e("document.querySelector('#ca-guide').value.includes('CHARACTER')"));await e("document.querySelector('#ca-close').click()");
+ });
+}

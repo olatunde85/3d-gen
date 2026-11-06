@@ -34,6 +34,7 @@ import {isFirearm} from '../core/props/weapons';
 import {studioTravel,VEHICLE_SPEED,STAGE_LIMIT} from './motion';
 import {vehicleCatalog,vehicleKey,assignVehicle,availableVehicleSeats,seatsForVehicle,SEAT_LABELS,type VehicleSeat} from './vehicle-seats';
 import {readCharacterSettings} from '../app/character-file';
+import {setupSpatialReview,fittedSpatialBodies} from './spatial-ui';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const input = (id: string) => $<HTMLInputElement>(id), select = (id: string) => $<HTMLSelectElement>(id), button = (id: string) => $<HTMLButtonElement>(id);
@@ -535,8 +536,9 @@ const soundEditor=setupSoundEditor({project:()=>project,time:()=>time,actor:()=>
 const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
-const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
+const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,bodies:()=>fittedSpatialBodies(scene.actors),canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
   load:next=>importStudioProject(JSON.stringify(next))});
+setupSpatialReview({project:()=>project,actors:()=>scene.actors,canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,pause:()=>setPlaying(false),seek:t=>{time=t;renderPosition();dirty=true;},download});
 const tour=setupStudioTour({canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,begin:()=>{
   const wide=document.querySelector('.workspace')!.classList.contains('wide');setPlaying(false);setWide(false,false);
   return()=>setWide(wide,false);

@@ -92,3 +92,6 @@ dialog.ai-assist::backdrop { background: #080b11bb; backdrop-filter: blur(6px); 
 
 .ai-assist .ai-preparation { padding:10px 12px; border:1px solid var(--ai-line); border-radius:8px; background:var(--ai-raised); margin-bottom:10px; }
 .ai-assist .ai-preparation[hidden] { display:none; }
+.ai-assist .ai-staging-notes { margin-top:12px; padding-top:10px; border-top:1px solid var(--ai-line); color:#d9b77d; font-size:12px; line-height:1.6; }
+.ai-assist .ai-staging-notes ul { padding-left:18px; }
+.ai-assist select { width:100%; margin:5px 0 10px; padding:8px; color:var(--ai-text); background:var(--ai-raised); border:1px solid var(--ai-line); border-radius:6px; }

@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import {SetBuilder} from '../builder';
 export const METAL='#6d7b80',WHITE='#e8e8df',DARK='#283237';
 export function block(b:SetBuilder,size:number[],pos:number[],color:string,roughness=.8){return b.mesh(b.geometry('story-block',()=>new THREE.BoxGeometry()),b.material(color,roughness),pos,size);}
+/** Register the same square-edged floor slab that the renderer uses. */
+export function surfaceBlock(b:SetBuilder,id:string,kind:'walkway'|'road'|'court',size:number[],pos:number[],color:string,roughness=.8){b.markSurface(id,kind,size,pos);return block(b,size,pos,color,roughness);}
 export function glow(b:SetBuilder,size:number[],pos:number[],color:string,intensity=1.4){const m=block(b,size,pos,color);m.material=b.material(color,.45,0,intensity);m.castShadow=false;return m;}
 export function ring(b:SetBuilder,radius:number,tube:number,pos:number[],color:string){return b.mesh(b.geometry(`story-ring:${tube/radius}`,()=>new THREE.TorusGeometry(1,tube/radius,6,48)),b.material(color),pos,[radius,radius,radius]);}
 export function beam(b:SetBuilder,a:number[],c:number[],radius=.025,color=METAL){const start=new THREE.Vector3(...a as [number,number,number]),end=new THREE.Vector3(...c as [number,number,number]),delta=end.clone().sub(start),m=b.cylinder(radius,delta.length(),start.add(end).multiplyScalar(.5).toArray(),color);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());return m;}
