@@ -162,6 +162,24 @@ export function yearsToAge(y: number): number {
 
 export const PRESETS: Record<string, Partial<HumanParams>> = {
   // Newest characters first.
+  // Bride: a strapless ivory satin ball gown with a sweetheart neckline, pearl-beaded bodice and a
+  // chapel train, a sheer fingertip veil on a pearl comb, a pearl necklace, ivory pumps.
+  'The Bride': {
+    gender: 0, age: 0.53, muscle: 0.45, weight: 0.42, height: 0.55, proportions: 0.9, breastSize: 0.55,
+    african: 0.7, asian: 0, caucasian: 0.3, eyes: 'brown', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02',
+    hair: 'bob02', hairTint: '#3a2820', earrings: 'pearl_drops', earringMetal: 'silver', expression: 'happy',
+    outfit: 'set_wedding_gown', shoes: 'heels', accessories: ['bridal_veil', 'pearl_necklace'],
+    garmentStyles: { heels: { pattern: 'nappa', color: '#efe7d8' } },
+  },
+  // Spy on a covert mission: a short red satin halter cocktail dress with a plunging neckline and an
+  // open back, a discreet earpiece and black patent pumps.
+  'The Covert Spy': {
+    gender: 0, age: 0.56, muscle: 0.55, weight: 0.38, height: 0.62, proportions: 0.95, breastSize: 0.6, breastFirmness: 0.65,
+    african: 0.05, asian: 0.1, caucasian: 0.85, eyes: 'green', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02',
+    hair: 'long01', hairTint: '#2a1a14', earrings: 'studs', earringMetal: 'gold', expression: 'determined',
+    outfit: 'set_cocktail_dress', shoes: 'heels', accessories: ['earpiece'],
+    garmentStyles: { heels: { pattern: 'patent', color: '#141416' } },
+  },
   // Professional hitman: slim black suit, white shirt and black tie, black leather gloves, polished
   // oxfords, a steel watch and a discreet earpiece; shaved head, a pistol in hand.
   'The Professional Hitman': {

@@ -5,9 +5,9 @@ import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import type { Material } from '../mesh';
 
-export const EARRINGS = ['none', 'studs', 'small_hoops', 'big_hoops'] as const;
+export const EARRINGS = ['none', 'studs', 'pearl_drops', 'small_hoops', 'big_hoops'] as const;
 export type EarringId = (typeof EARRINGS)[number];
-export const EARRING_LABELS: Record<EarringId, string> = { none: 'None', studs: 'Studs', small_hoops: 'Small hoops', big_hoops: 'Big hoops' };
+export const EARRING_LABELS: Record<EarringId, string> = { none: 'None', studs: 'Studs', pearl_drops: 'Pearl drops', small_hoops: 'Small hoops', big_hoops: 'Big hoops' };
 export const METALS = { gold: '#e0b45a', silver: '#d9dbe0' } as const;
 export type Metal = keyof typeof METALS;
 
@@ -83,12 +83,13 @@ function torus(c: Vec3, axisA: Vec3, axisB: Vec3, R: number, r: number, seg = 24
   return { positions: Float32Array.from(pos), faceSizes: Uint8Array.from(fs), faceVerts: Uint32Array.from(fv), faceUVs: Uint32Array.from(fu), uvs: Float32Array.from(uv) };
 }
 
-function sphere(c: Vec3, r: number, seg = 12, rings = 8): PolyMesh {
+/** A round body of revolution about the vertical: radius `r` (scaled by `w` at each height 0..1 from top to bottom), `h` tall. */
+function sphere(c: Vec3, r: number, seg = 12, rings = 8, h = r, w: (t: number) => number = () => 1): PolyMesh {
   const pos: number[] = [], uv: number[] = [], fs: number[] = [], fv: number[] = [], fu: number[] = [];
   for (let i = 0; i <= rings; i++)
     for (let j = 0; j <= seg; j++) {
       const t = (i / rings) * Math.PI, p = (j / seg) * Math.PI * 2;
-      pos.push(c[0] + r * Math.sin(t) * Math.cos(p), c[1] + r * Math.cos(t), c[2] + r * Math.sin(t) * Math.sin(p));
+      pos.push(c[0] + r * w(i / rings) * Math.sin(t) * Math.cos(p), c[1] + h * Math.cos(t), c[2] + r * w(i / rings) * Math.sin(t) * Math.sin(p));
       uv.push(j / seg, 1 - i / rings);
     }
   for (let i = 0; i < rings; i++)
@@ -102,17 +103,35 @@ function sphere(c: Vec3, r: number, seg = 12, rings = 8): PolyMesh {
   return { positions: Float32Array.from(pos), faceSizes: Uint8Array.from(fs), faceVerts: Uint32Array.from(fv), faceUVs: Uint32Array.from(fu), uvs: Float32Array.from(uv) };
 }
 
+/** Where a stud sits on each lobe: the ball's centre just over half its radius out from the skin. */
+function studCentres(base: Body, coords: Float32Array, normals: Float32Array): Vec3[] {
+  return studVerts(base).map((v) => {
+    const n: Vec3 = [normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]];
+    const l = Math.hypot(...n) || 1;
+    return [0, 1, 2].map((k) => coords[v * 3 + k] + (n[k] / l) * 0.014) as Vec3;
+  });
+}
+
+/**
+ * Pearls of the pearl drops (built apart from the metal): a teardrop pearl hanging straight down
+ * about a centimetre and a half below each lobe, narrow at the top where its cap holds it.
+ */
+export function earringPearls(id: EarringId, base: Body, coords: Float32Array, normals: Float32Array): PolyMesh[] {
+  if (id !== 'pearl_drops') return [];
+  return studCentres(base, coords, normals).map((c) => sphere([c[0], c[1] - 0.17, c[2]], 0.042, 14, 10, 0.06, (t) => 0.62 + 0.38 * Math.sin(Math.PI * Math.min(1, 0.25 + t * 0.85))));
+}
+
 /** Earring meshes (decimetres, morphed body space), or [] for none. */
 export function earrings(id: EarringId, base: Body, coords: Float32Array, normals: Float32Array): PolyMesh[] {
   if (id === 'none') return [];
-  if (id === 'studs')
-    return studVerts(base).map((v) => {
-      const p: Vec3 = [coords[v * 3], coords[v * 3 + 1], coords[v * 3 + 2]];
-      const n: Vec3 = [normals[v * 3], normals[v * 3 + 1], normals[v * 3 + 2]];
-      const l = Math.hypot(...n) || 1;
-      // Seated on the lobe: the ball's centre just over half its radius out from the skin.
-      return sphere([p[0] + (n[0] / l) * 0.014, p[1] + (n[1] / l) * 0.014, p[2] + (n[2] / l) * 0.014], 0.022);
-    });
+  if (id === 'studs') return studCentres(base, coords, normals).map((c) => sphere(c, 0.022));
+  // Pearl drops: a small stud, a short link down to a cap over the pearl's top.
+  if (id === 'pearl_drops')
+    return studCentres(base, coords, normals).flatMap((c) => [
+      sphere(c, 0.017),
+      sphere([c[0], c[1] - 0.05, c[2]], 0.007, 6, 6, 0.04),
+      sphere([c[0], c[1] - 0.105, c[2]], 0.022, 10, 6, 0.012),
+    ]);
   return lobeVerts(base).map((v) => {
     const p: Vec3 = [coords[v * 3], coords[v * 3 + 1], coords[v * 3 + 2]];
     const s = Math.sign(p[0]) || 1;

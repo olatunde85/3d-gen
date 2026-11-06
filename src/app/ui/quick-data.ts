@@ -102,7 +102,7 @@ export interface Style {
   adult?: boolean;
 }
 
-export const STYLE_GROUPS = ['Everyday', 'Work & formal', 'Uniforms & action', 'Traditional', 'Warriors', 'Beach'] as const;
+export const STYLE_GROUPS = ['Everyday', 'Work & formal', 'Uniforms & action', 'Bridal & evening', 'Traditional', 'Warriors', 'Beach'] as const;
 const both = (l: Look) => ({ man: l, woman: l });
 
 export const STYLES: Style[] = [
@@ -124,6 +124,8 @@ export const STYLES: Style[] = [
   { id: 'prisoner', label: 'Prison jumpsuit', phrase: 'in a prison jumpsuit', group: 'Uniforms & action', ...both(fromSet('set_prison_jumpsuit')) },
   { id: 'cyberpunk', label: 'Cyberpunk', phrase: 'in cyberpunk techwear', group: 'Uniforms & action', ...both(fromPreset('The Cyberpunk Hacker')) },
   { id: 'survivor', label: 'Wasteland survivor', phrase: 'in wasteland gear', group: 'Uniforms & action', ...both(fromPreset('The Wasteland Survivor')) },
+  { id: 'wedding', label: 'Wedding gown & veil', phrase: 'in a wedding gown and veil', group: 'Bridal & evening', woman: fromSet('set_wedding_gown'), alt: 'classic' },
+  { id: 'cocktail_dress', label: 'Red cocktail dress', phrase: 'in a short red cocktail dress', group: 'Bridal & evening', woman: fromSet('set_cocktail_dress'), alt: 'classic', adult: true },
   { id: 'buba', label: 'Buba & sokoto', phrase: 'in a Yoruba buba and sokoto', group: 'Traditional', ...both(full({ top: 'long_tunic', bottom: 'trousers', shoes: 'sandals', accessories: ['fila_cap'], garmentStyles: fromPreset('The Yoruba Warrior').garmentStyles })) },
   { id: 'ankara_gown', label: 'Ankara gown', phrase: 'in an ankara gown', group: 'Traditional', woman: fromSet('set_ankara_gown'), alt: 'buba' },
   { id: 'ankara_peplum', label: 'Ankara peplum & skirt', phrase: 'in an ankara peplum and skirt', group: 'Traditional', woman: fromSet('set_ankara_peplum'), alt: 'buba' },
