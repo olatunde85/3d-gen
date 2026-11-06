@@ -1,3 +1,4 @@
+import {SETS} from './catalog';
 /** Tour copy and targets follow the editor's actual controls; demonstrations never edit a film. */
 export const TOUR_STORAGE_KEY = 'ara.studio.tour.v1';
 export type TourDemo = 'welcome'|'sets'|'cast'|'drag'|'move'|'pose'|'orbit'|'timeline'|'camera'|'sound'|'assist'|'export';
@@ -9,7 +10,7 @@ export const TOUR_STEPS:readonly TourStep[] = [
   {title:'Your set. Your cast. Your film.',demo:'welcome',targets:['#stage'],
     body:'Choose a location, direct your characters, then make a film. This quick tour points out the tools and demonstrates the gestures. Your film stays untouched.'},
   {title:'Find the right location',demo:'sets',targets:['#scene-search','#scene-category'],
-    body:'Search 50 sets or choose a category, then pick a scene below. Changing location keeps your characters, actions and dialogue.'},
+    body:`Search ${SETS.length} sets or choose a category, then pick a scene below. Changing location keeps your characters, actions and dialogue.`},
   {title:'Meet your cast',demo:'cast',targets:['#cast-roster','.cast-actions','#character'],
     body:'Add up to five characters. Choose a preset, or use + Custom to import character settings saved from the builder. Click a name to select them; Character builder edits their appearance. Equipment below gives the selected character a weapon or bag.'},
   {title:'Select, drag, place',demo:'drag',targets:['#film'],

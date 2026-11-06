@@ -23,7 +23,7 @@ import { seatCast, seatedAt, hipsAt, type Sitter } from '../src/studio/seating';
 import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES} from '../src/core/props/vehicles';
 const catalog=JSON.parse(readFileSync(new URL('../public/assets/catalog.json',import.meta.url),'utf8'))as Catalog;
 const parseStudioInput=(text:string)=>parseInput(text,catalog);
-assert.equal(SETS.length,50);assert.equal(new Set(SETS.map(s=>s.id)).size,50);assert.equal(SCENE_CATEGORIES.length,6);
+assert.equal(SETS.length,66);assert.equal(new Set(SETS.map(s=>s.id)).size,SETS.length);assert.equal(SCENE_CATEGORIES.length,6);
 for(const set of SETS){const p=newProject(set.id);const copy=parseProject(JSON.stringify(p));assert.equal(copy.template,set.id);assert.equal(copy.actors[0].character,p.actors[0].character);assert.equal(durationOf(p),durationOf(copy));}
 assert.deepEqual(searchScenes('resort pool').map(s=>s.id),['resort-pool']);assert.ok(searchScenes('bedroom','Homes').length===2);assert.equal(searchScenes('pool','Workplaces').length,0);
 assert.ok(searchScenes('cafe').some(s=>s.id==='street-cafe'));assert.ok(searchAnimations('pickup').some(c=>c.id==='pick_up'));
@@ -108,7 +108,7 @@ const screenActor=parseProject(JSON.stringify({...valid,actors:[{...valid.actors
 console.log('Timed text: legacy migration, actor/screen anchors, duration, colours, SRT round trip and invalid cues passed.');
 console.log('Editor recovery: valid film, bounded selection/time, unfinished Assist drafts, stale actor ids and damaged Undo entries passed.');
 console.log(`LLM Assist: full live catalogues, ${Object.keys(PRESETS).length} presets, equipment, canonical/v1/fenced import, schema and invalid responses passed (${guide.length} guide characters).`);
-console.log(`Studio model: 50 locations, ${CLIPS.length} animations, v1 migration, independent tracks, held ends, camera subjects and invalid files passed.`);
+console.log(`Studio model: ${SETS.length} locations, ${CLIPS.length} animations, v1 migration, independent tracks, held ends, camera subjects and invalid files passed.`);
 
 const actors=new Set(['host','narrator']);
 assert.deepEqual(parseAudio(undefined,actors),defaultAudio());assert.deepEqual(migrated.audio,defaultAudio());
@@ -209,3 +209,9 @@ assert.equal(parseAudio({effects:[{sound:'car-engine'}]},actors).effects[0].loop
 assert.equal(parseAudio({music:{track:'none',start:2,duration:4}},actors).music.duration,4);
 assert.throws(()=>parseAudio({music:{start:59,duration:2}},actors));
 console.log('Per-shot direction, inherited legacy cameras, loop flags and music windows passed.');
+
+const storyIds=['hospital-room','police-station','interrogation-room','highway','military-base','prison-cell','prison-yard','public-restroom','private-bathroom','neon-street','back-alley','football-stadium','fine-dining','night-club','elevator','church'];
+for(const id of storyIds){const scene=SETS.find(s=>s.id===id)!;assert.ok(scene?.staging);assert.ok(guide.includes(scene.staging!));assert.ok(schema.properties.template.enum.includes(scene.id));}
+for(const [query,id]of [['nightclub','night-club'],['soccer','football-stadium'],['lift','elevator'],['public toilet','public-restroom'],['chapel','church']])assert.ok(searchScenes(query).some(s=>s.id===id));
+assert.equal(SETS.find(s=>s.id==='alley')!.name,'Neon alley');assert.ok(searchScenes('alley').some(s=>s.id==='back-alley'));
+console.log('Story sets: all sixteen searchable locations, aliases, staging notes, legacy alley and live Assist schema passed.');

@@ -1,6 +1,6 @@
 /** Scene metadata is cheap to search. Geometry is created only for the active scene. */
 export type SceneCategory = 'Studios' | 'Workplaces' | 'Homes' | 'Leisure' | 'City' | 'Outdoors';
-export type SceneFamily = 'studio' | 'office' | 'bedroom' | 'lounge' | 'kitchen' | 'beach' | 'pool' | 'garden' | 'street' | 'transit' | 'warehouse' | 'restaurant' | 'landscape' | 'yacht';
+export type SceneFamily = 'studio' | 'office' | 'bedroom' | 'lounge' | 'kitchen' | 'beach' | 'pool' | 'garden' | 'street' | 'transit' | 'warehouse' | 'restaurant' | 'landscape' | 'yacht' | 'civic' | 'bathroom' | 'venue' | 'road';
 export type Mood = 'day' | 'sunset' | 'night';
 const entries = [
   ['portrait', 'The portrait', 'Studios', 'studio', 'day', 'Soft light, plaster columns and a quiet introduction.'],
@@ -53,16 +53,58 @@ const entries = [
   ['mountain-lake', 'Mountain lake', 'Outdoors', 'landscape', 'day', 'A rocky shore, water and mountain silhouettes.'],
   ['sports-court', 'Basketball court', 'Outdoors', 'garden', 'day', 'A basketball court beside a clear walking path, with hoops and room to pass.'],
   ['harbour', 'Harbour promenade', 'Outdoors', 'yacht', 'sunset', 'Mooring posts, a waterside rail and boats beyond.'],
+  ['hospital-room', 'Hospital room', 'Workplaces', 'civic', 'day', 'A ward bed, patient monitor, privacy curtain and visitor chairs.'],
+  ['police-station', 'Police station', 'Workplaces', 'civic', 'day', 'A blue reception counter, duty desks, filing cabinets and a waiting bench.'],
+  ['interrogation-room', 'Police interrogation room', 'Workplaces', 'civic', 'night', 'A metal interview table, opposing chairs, observation glass and a recording camera.'],
+  ['highway', 'Highway', 'Outdoors', 'road', 'day', 'Long divided carriageways, an overpass, crash barriers and overhead direction signs.'],
+  ['military-base', 'Military base', 'Outdoors', 'civic', 'day', 'A guarded entrance, barracks, a hangar and a helipad beside a clear access road.'],
+  ['prison-cell', 'Prison cell', 'City', 'civic', 'day', 'Steel bunk beds, a barred gate, a fixed desk and a stainless toilet.'],
+  ['prison-yard', 'Prison yard', 'Outdoors', 'civic', 'day', 'A secure exercise yard with perimeter fences, guard towers, benches and pull-up bars.'],
+  ['public-restroom', 'Public restroom', 'City', 'bathroom', 'day', 'Tiled washbasins, mirrors, urinals and partitioned toilet stalls.'],
+  ['private-bathroom', 'Private bathroom / toilet', 'Homes', 'bathroom', 'day', 'A freestanding bath, glazed shower, vanity and a toilet in warm stone.'],
+  ['neon-street', 'Neon-lit street', 'City', 'street', 'night', 'A long city street with glowing shop signs, coloured lighting and reflective asphalt.'],
+  ['back-alley', 'Alley', 'City', 'street', 'day', 'Brick service walls, fire escapes, bins and delivery doors around a clear passage.'],
+  ['football-stadium', 'Football stadium', 'Leisure', 'venue', 'day', 'A full association-football pitch, goal nets, tiered stands and floodlights.'],
+  ['fine-dining', 'Fancy-dining restaurant room', 'Leisure', 'venue', 'night', 'White table linen, candlelight, a wine display and a warm private dining room.'],
+  ['night-club', 'Night club', 'Leisure', 'venue', 'night', 'A luminous dance floor, DJ booth, speaker stacks, booths and a neon bar.'],
+  ['elevator', 'Elevator', 'City', 'civic', 'day', 'A brushed-metal lift cabin, door panels, floor indicator and handrails.'],
+  ['church', 'Church', 'City', 'civic', 'day', 'An open central aisle, timber pews, stained-glass windows and an altar.'],
 ] as const;
 export type SetId = typeof entries[number][0];
-export interface SceneDefinition { id: SetId; name: string; category: SceneCategory; family: SceneFamily; mood: Mood; subtitle: string; index: number; tags: string; accent: string; }
+/** Direction notes describe actual floor plans, not collision or interaction simulation. */
+const staging:Partial<Record<SetId,string>>={
+ 'hospital-room':'Open foreground at x=-2..2,z=-.5..3. Bed at x=-3.3,z=-2.7; visitor chairs on the right. No patient lying animation or medical interaction is implied.',
+ 'police-station':'Reception at z=-3.6, desks to the sides; use the centre/foreground for arrivals and conversations.',
+ 'interrogation-room':'Interview table centred x=0,z=-2.7. Two registered chairs face each other across it; start sitters near (0,-3.6) or (0,-1.7). Keep walking in the foreground.',
+ 'highway':'The main through-lane is x=0 along Z. Median at x=-10; opposite carriageway at x=-20; right shoulder x=7.6..8.5 (guardrail at x=9). Overpass at z=-55. Stage walking on shoulders; no traffic is spawned.',
+ 'military-base':'Clear access road x=-5..5 along Z. Hangars, barracks and helipad sit beside it; vehicles can travel the road. Gate is open. No military vehicles are spawned.',
+ 'prison-cell':'Bunks at left, desk at right, barred entrance at the back. Keep the centre x=-2..2,z=-.5..3 open. Bunks are dressing, not supported lying poses.',
+ 'prison-yard':'Open central yard and long access path; exercise equipment and benches stand to the sides. Perimeter walls/fences are scenery, not collision boundaries.',
+ 'public-restroom':'Stalls on back left, washbasins on back right. Keep the centre and foreground clear. Toilets and taps are static scenery; no toileting animation is supplied.',
+ 'private-bathroom':'Bath and shower are behind the foreground stage. Mirror surfaces are decorative, not live reflections. No bathing/toileting simulation.',
+ 'neon-street':'Drive along Z near x=0; stage pedestrians near pavement x=±8.4, clear of signs at x=±7 and lamps at x=±9.5. Neon lighting is deterministic; no traffic is spawned.',
+ 'back-alley':'Main passage x=-2..2 runs along Z between service walls. Keep cast and travel inside that corridor; there is no obstacle avoidance.',
+ 'football-stadium':'Association football/soccer, not American football. A 68×105m pitch, centred at origin, has goals at z=±52.5. The central pitch is open; no ball, players or crowd are spawned.',
+ 'fine-dining':'Tables and registered dining seats at x=±3.4,z=-2.4. Use the central aisle/foreground for arrivals. Decorative candlelight does not animate.',
+ 'night-club':'Dance floor centred at origin; DJ booth behind at z=-4.5, bar and seating to the sides. Lighting is static; add music and dance clips explicitly.',
+ 'elevator':'Cabin interior x=-2.5..2.5,z=-2.4..2.4. Stage cast near origin and use medium/close shots. Doors, floor indicator and buttons are static; no elevator travel/door animation.',
+ 'church':'Altar at z=-5.0; pews flank the central aisle. Stage cast in aisle x=-1.7..1.7,z=-1..4 or use registered pew seats, facing the altar. Stained glass is original decorative art.'
+};
+const aliases:Partial<Record<SetId,string>>={
+ 'hospital-room':'ward clinic medical', 'police-station':'precinct police headquarters', 'interrogation-room':'interview questioning',
+ 'highway':'motorway freeway road', 'military-base':'army barracks checkpoint', 'prison-cell':'jail jailhouse', 'prison-yard':'jail exercise',
+ 'public-restroom':'public toilet washroom wc', 'private-bathroom':'ensuite washroom shower bath', 'neon-street':'neon avenue cyberpunk',
+ 'back-alley':'backstreet service delivery', 'football-stadium':'soccer pitch field', 'fine-dining':'fine dining luxury restaurant',
+ 'night-club':'nightclub disco dancefloor', 'elevator':'lift', 'church':'chapel sanctuary worship'
+};
+export interface SceneDefinition { staging?:string; id: SetId; name: string; category: SceneCategory; family: SceneFamily; mood: Mood; subtitle: string; index: number; tags: string; accent: string; }
 export const SETS: SceneDefinition[] = entries.map(([id, name, category, family, mood, subtitle], index) => ({
-  id, name, category, family, mood, subtitle, index,
-  tags: `${id} ${name} ${category} ${family} ${mood} ${subtitle}`.toLowerCase(),
+  id, name, category, family, mood, subtitle, index,...(staging[id]?{staging:staging[id]}:{}),
+  tags: `${id} ${name} ${category} ${family} ${mood} ${subtitle} ${aliases[id]??''}`.toLowerCase(),
   accent: mood === 'night' ? '#51617e' : mood === 'sunset' ? '#c39468' : family === 'pool' || family === 'beach' ? '#67a9b4' : '#a79d88',
 }));
 export const sceneById = new Map(SETS.map(s => [s.id, s]));
-export const isOutdoorScene=(id:SetId)=>{const s=sceneById.get(id)!;return s.category==='Outdoors'||['beach','pool','garden','landscape','yacht','street'].includes(s.family)||['street-cafe','restaurant-terrace','rooftop-bar','train-platform'].includes(id);};
+export const isOutdoorScene=(id:SetId)=>{const s=sceneById.get(id)!;return s.category==='Outdoors'||['beach','pool','garden','landscape','yacht','street'].includes(s.family)||['street-cafe','restaurant-terrace','rooftop-bar','train-platform','football-stadium','highway'].includes(id);};
 export const SCENE_CATEGORIES = [...new Set(SETS.map(s => s.category))];
 export function searchScenes(query: string, category = '') {
   const words = query.toLowerCase().trim().split(/\s+/).filter(Boolean);

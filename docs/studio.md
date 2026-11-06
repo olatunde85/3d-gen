@@ -21,7 +21,11 @@ To start afresh, click **New** in the top bar. Choose **Save & start new** to do
 
 ## Find a location
 
-Search **50 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City** and **Outdoors**. They include executive and open-plan offices, a boardroom, a classroom, a newsroom, bedrooms, a living room, a kitchen, beaches, pools, a hotel lobby, a café, a forest trail and a harbour.
+Search **66 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City** and **Outdoors**. They include executive and open-plan offices, a boardroom, a classroom, a newsroom, bedrooms, a living room, a kitchen, beaches, pools, a hotel lobby, a café, a forest trail and a harbour.
+
+The expanded catalogue also includes hospital and police rooms, a military base, a prison cell and yard, public and private bathrooms, a highway, a neon-lit street, a daylight alley, a football stadium, fine dining, a nightclub, an elevator and a church. The earlier **Neon alley** remains available for existing films.
+
+Each location has its own layout. The new indoor sets have clear foreground or central acting space, and chairs, pews and benches register real seating positions. The highway and base retain long driving routes. The stadium has a 68 × 105 m association-football pitch; no crowd or players are added automatically. Doors, toilets, taps and lift controls are scenery. Mirrors use stylized surfaces rather than live reflections. LLM Assist includes the layouts and staging notes; movement still requires you to avoid obstacles.
 
 Changing the set keeps your cast, performances, camera shots and title. Every set is original, built in the browser, with no downloads.
 

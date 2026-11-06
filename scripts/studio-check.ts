@@ -24,6 +24,8 @@ import {reviewBoarding} from './boarding-review';
 import {reviewArmedRiding} from './armed-riding-review';
 import {reviewVehicleStage} from './studio-vehicle-stage-review';
 import { CLIPS } from '../src/core/anim/clips';
+import {SETS} from '../src/studio/catalog';
+import {checkStoryScenes} from './studio-scenes-check';
 import { captureStudioExample } from './studio-example-capture';
 import { TOUR_STORAGE_KEY } from '../src/studio/tour-content';
 
@@ -37,6 +39,7 @@ const CHROME = process.env.CHROME ?? [
 ].find(existsSync);
 if (!CHROME) throw new Error('No Chrome, Chromium or Edge found: set CHROME=/path/to/browser');
 
+const scenesOnly=process.argv.includes('--scenes');
 const editingOnly=process.argv.includes('--editing');
 const vehiclesOnly=process.argv.includes('--vehicles');
 const outdoorOnly=process.argv.includes('--outdoor');
@@ -128,7 +131,7 @@ const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
 const assistOnly=process.argv.includes('--assist');
-async function step(name:string,fn:()=>Promise<void>){if(editingOnly&&!/Studio loads|Two characters reuse|^Editing (camera|pointer|text,|looped|new)/.test(name))return;if(outdoorOnly&&!name.startsWith('Outdoor'))return;if(stagingOnly&&!/^(Three occupants|Motorcycle to|Shared |Transfer exports|Outdoor)/.test(name))return;if(armedOnly&&!/^Armed riding /.test(name))return;if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+async function step(name:string,fn:()=>Promise<void>){if(scenesOnly&&!/Studio loads|Every scene renders|^Story scenes /.test(name))return;if(editingOnly&&!/Studio loads|Two characters reuse|^Editing (camera|pointer|text,|looped|new)/.test(name))return;if(outdoorOnly&&!name.startsWith('Outdoor'))return;if(stagingOnly&&!/^(Three occupants|Motorcycle to|Shared |Transfer exports|Outdoor)/.test(name))return;if(armedOnly&&!/^Armed riding /.test(name))return;if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -142,8 +145,8 @@ try{
  await send('Runtime.enable');await send('Page.enable');await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});
  if(!tourOnly)await send('Page.addScriptToEvaluateOnNewDocument',{source:`try{localStorage.setItem(${JSON.stringify(TOUR_STORAGE_KEY)},'1')}catch{}`});
  await send('Page.navigate',{url:'http://localhost:4422/studio/#demo'});
- await step('Studio loads a textured character and 50 searchable scenes',async()=>{
-  await ready();if(!await evaluate('window.studio.sets.length===50 && document.querySelectorAll("[data-set]").length===50'))throw Error('Missing scene catalogue');
+ await step(`Studio loads a textured character and ${SETS.length} searchable scenes`,async()=>{
+  await ready();if(!await evaluate(`window.studio.sets.length===${SETS.length} && document.querySelectorAll("[data-set]").length===${SETS.length}`))throw Error('Missing scene catalogue');
   await search('scene-search','resort pool');if(!await evaluate('document.querySelectorAll("[data-set]").length===1 && !!document.querySelector("[data-set=resort-pool]")'))throw Error('Scene search');
   await change('scene-category','Homes');if(!await evaluate('!document.querySelector("#scene-empty").hidden'))throw Error('Category filter');await search('scene-search','');await change('scene-category','');
   await evaluate('window.studio.seek(1.5)');await pause();await shot('editor');
@@ -155,7 +158,7 @@ try{
   console.log('Scene resource budget:',metrics);if(metrics.maxGeometries>180||metrics.finalGeometries>35||metrics.maxTextures>80||metrics.maxCalls>350||metrics.finalTextures>metrics.initialTextures+1)throw Error('Scene resources grew without bounds');
   const frames=await evaluate<Record<string,string>>('window.__sceneFrames');for(const [id,url]of Object.entries(frames))writeFileSync(`${folder}/set-${id}.png`,Buffer.from(url.split(',')[1],'base64'));
   const tiles=await Promise.all(Object.entries(frames).map(async([id,url],i)=>({input:await sharp(Buffer.from(url.split(',')[1],'base64')).resize(320,180).extend({bottom:24,background:'#1b2027'}).composite([{input:Buffer.from(`<svg width="320" height="204"><text x="10" y="197" font-size="12" fill="#e0c5a3">${id}</text></svg>`)}]).png().toBuffer(),left:i%5*320,top:Math.floor(i/5)*204})));
-  await sharp({create:{width:1600,height:2040,channels:3,background:'#1b2027'}}).composite(tiles).png().toFile(`${folder}/all-50-scenes.png`);
+  await sharp({create:{width:1600,height:Math.ceil(SETS.length/5)*204,channels:3,background:'#1b2027'}}).composite(tiles).png().toFile(`${folder}/all-scenes.png`);
  });
  await step('Animation search exposes all registered performances',async()=>{
   if(!await evaluate(`document.querySelector("#animation-count").textContent.includes("${CLIPS.length} / ${CLIPS.length}")`))throw Error('Missing animations');
@@ -537,6 +540,7 @@ try{
  await checkStudioShortcuts({enabled:keysOnly,step,evaluate,waitFor,ready,pause,send});
  await checkStudioTour({enabled:tourOnly,step,evaluate,waitFor,ready,pause,shot,send});
  await checkFiveCast({enabled:castOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
+ await checkStoryScenes({enabled:scenesOnly,step,evaluate,ready,change,search,send,pause});
  await checkStudioEditing({enabled:editingOnly,step,evaluate,waitFor,change,ready,pause,shot,send,folder});
  await checkStudioEffects({enabled:effectsOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
  await checkStudioAudio({enabled:audioOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
