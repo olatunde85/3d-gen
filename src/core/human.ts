@@ -547,6 +547,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     }
   }
 
+  if(rig)rig.weapon=p.weapon;
   stage('Assembling mesh');
   const faceInfo = faceD ? { names: shapeNames, defaults: exprWeights } : undefined;
   const asm = new MeshAssembler(faceInfo);

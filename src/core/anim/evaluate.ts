@@ -12,8 +12,14 @@ import { fist } from './clips/helpers';
 import { PARCEL_REST } from '../props/carry';
 import { carriesParcel, parcelHold } from './clips/interaction';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
+import {boardingFrame} from './boarding';
+import {mountedWeaponSample,PADDLING_CLIPS,type WeaponPose} from './riding-weapons';
+import {RIDING_VEHICLES} from '../props/vehicles';
 
 export interface Frame {
+  /** Unarmed controls for fitted props: an aiming hand must not drag the wheel or bars away. */
+  vehicleControls?:Frame;
+  ridingWeapon?:import('../props/weapons').WeaponId;
   /** Local rotation per bone (relative to its parent), as exported / applied to three.js bones. */
   rot: Q[];
   /** Local position of root bones (parent = -1); other bones keep their rest offsets. */
@@ -243,6 +249,12 @@ export class Animator {
         this.flexAxis[i] = norm(qrot(qconj(this.animRest[i]), axis));
       });
     }
+    // Lite rigs omit finger joints. Their fitted weapon socket still records the palm
+    // plane, so wrist orientation can be solved instead of inheriting arbitrary forearm roll.
+    if(!this.palmLocal.has('Right')){
+      const hand=this.idx.get('RightHand'),socket=B.find(b=>b.name==='WeaponR');
+      if(hand!==undefined&&socket)this.palmLocal.set('Right',norm(qrot(qconj(this.restWorld[hand]),socket.rot.slice(0,3)as Vec3)));
+    }
     this.feet = B.map((_, i) => i).filter((i) => /^(Left|Right)(Foot|ToeBase|Toe_End)$/.test(this.names[i] ?? '') || /^(foot|toe\d-\d)\.[LR]$/.test(B[i].name));
     this.restFootY = Math.min(...this.feet.map((i) => B[i].head[1]));
     this.recoveryFeet=[...new Set([...this.feet,...B.flatMap((b,i)=>/^(Left|Right)Toe_End$/.test(b.name)?[i]:[])])];
@@ -297,15 +309,45 @@ export class Animator {
    * `faceTime`: blink and glance on this continuous clock (seconds) instead of at fixed times inside
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
-  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number } = {}): Frame {
-    const sample=clip.sample(time);
+  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number } = {}): Frame {
+    const pose=opts.weaponPose??(clip.vehicleTransition?'hidden':'hold'),weapon=this.rig.weapon??'none';
+    const mounted=weapon!=='none'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
+    const sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
     const carried=this.parcel>=0&&!opts.parcelGrounded&&carriesParcel(clip)?parcelHold(sample):sample;
-    const s = this.holding(this.withEyes(carried, clip, time, opts.faceTime));
-    const frame = this.frameOf(s, clip, time, opts);
+    const controls=this.holding(this.withEyes(carried, clip, time, opts.faceTime));
+    const contact=mounted?this.frameOf(controls,clip,time,opts):undefined;
+    let counter=QI;
+    if(contact){const world:Q[]=[];this.rig.bones.forEach((b,i)=>world[i]=b.parent<0?contact.rot[i]:qmul(world[b.parent],contact.rot[i]));const chest=this.idx.get('Spine2')!;counter=qconj(qmul(world[chest],qconj(this.animRest[chest])));}
+    const s=mounted?this.withEyes(mountedWeaponSample(controls,clip,time,weapon,pose,opts.weaponYaw,counter),clip,time,opts.faceTime):controls;
+    const frame = clip.vehicleTransition
+      ? boardingFrame(this,clip,time,clipById.get('idle')!,clipById.get(clip.vehicleTransition.ride)!,opts.vehicleLift??0)
+      : this.frameOf(s, clip, time, opts);
     this.placeParcel(frame,clip,time,opts.rootMotion,opts.parcelGrounded);
-    if(opts.vehicleLift)for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
+    if(opts.vehicleLift&&!clip.vehicleTransition)for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
+    if(contact){
+      if(opts.vehicleLift)for(const [i,p]of contact.rootPos)contact.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
+      frame.vehicleControls=contact;frame.ridingWeapon=weapon;
+    }
+    if(pose==='hidden'&&weapon!=='none'&&this.socket>=0)frame.scale=new Map([[this.socket,[0,0,0]]]);
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
+  }
+
+  /** Pin an existing solved limb without changing any bone offset or scale. Handles split full-rig chains. */
+  pinLimb(frame:Frame,side:'Left'|'Right',kind:'arm'|'leg',target:Vec3,pole:Vec3,endOrientation?:Q){
+    const B=this.rig.bones,names=kind==='leg'?['UpLeg','Leg','Foot']:['Arm','ForeArm','Hand'];
+    const [upper,lower,end]=names.map(n=>this.idx.get(side+n)!);
+    const world=()=>{const q:Q[]=[];B.forEach((b,i)=>q[i]=b.parent<0?frame.rot[i]:qmul(q[b.parent],frame.rot[i]));return q;};
+    const initial=world(),P=this.positions(frame),S=P[upper],endRotation=endOrientation??initial[end];
+    const L1=dist(B[upper].head,B[lower].head),L2=dist(B[lower].head,B[end].head),dir=norm(sub3(target,S));
+    const d=Math.max(Math.abs(L1-L2)+1e-5,Math.min(dist(target,S),(L1+L2)*.9999));
+    const along=(L1*L1-L2*L2+d*d)/(2*d),height=Math.sqrt(Math.max(0,L1*L1-along*along));
+    const dot=pole.reduce((v,x,i)=>v+x*dir[i],0),perp=norm(pole.map((x,i)=>x-dot*dir[i])as Vec3);
+    const joint=S.map((x,i)=>x+dir[i]*along+perp[i]*height)as Vec3,reachable=S.map((x,i)=>x+dir[i]*d)as Vec3;
+    const aim=(index:number,next:number,to:Vec3)=>{const q=world(),p=this.positions(frame),current=sub3(p[next],p[index]);
+      const rotation=qmul(qfromTo(current,sub3(to,p[index])),q[index]);frame.rot[index]=B[index].parent<0?rotation:qmul(qconj(q[B[index].parent]),rotation);};
+    aim(upper,lower,joint);aim(lower,end,reachable);
+    const q=world();frame.rot[end]=qmul(qconj(q[B[end].parent]),endRotation);
   }
 
   /** A rigid, level box: on the floor before pickup, then between the two solved wrists. */
@@ -730,7 +772,7 @@ export class Animator {
   }
 
   /** Frames sampled at `fps` over the clip (inclusive end), quaternion signs kept continuous. */
-  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number } = {}): { times: number[]; frames: Frame[] } {
+  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number } = {}): { times: number[]; frames: Frame[] } {
     const n = Math.max(2, Math.round(clip.duration * fps) + 1);
     const times: number[] = [], frames: Frame[] = [];
     for (let f = 0; f < n; f++) {

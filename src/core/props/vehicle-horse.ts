@@ -47,8 +47,8 @@ export function buildHorse(k:VehicleKit){
   k.tube(v(),v(0,L2,0),.029*s,coat,lower);k.ellipsoid(v(),v(.049*s,.05*s,.047*s),coat,lower);
   k.box(v(0,-.008*s,.025*s),v(.095*s,.075*s,.13*s),k.dark,hoof);
   k.updates.push((_,time)=>{
-   const phase=time/k.fit.clip.duration*Math.PI*2+(front===(side===1)?0:Math.PI),swing=Math.sin(phase),origin=top.clone().add(v(0,.012*s*Math.cos(phase*2),0));
-   const foot=v(top.x,.052*s+Math.max(0,swing)*.15*s,top.z-Math.cos(phase)*.18*s),d=foot.clone().sub(origin),len=Math.min(d.length(),L*.999),dir=d.clone().normalize(),along=(L1*L1-L2*L2+len*len)/(2*len),high=Math.sqrt(Math.max(0,L1*L1-along*along));
+   const moving=1-(k.group.userData.parkedWeight??0),phase=time/k.fit.clip.duration*Math.PI*2+(front===(side===1)?0:Math.PI),swing=moving*Math.sin(phase),origin=top.clone().add(v(0,moving*.012*s*Math.cos(phase*2),0));
+   const foot=v(top.x,.052*s+Math.max(0,swing)*.15*s,top.z-moving*Math.cos(phase)*.18*s),d=foot.clone().sub(origin),len=Math.min(d.length(),L*.999),dir=d.clone().normalize(),along=(L1*L1-L2*L2+len*len)/(2*len),high=Math.sqrt(Math.max(0,L1*L1-along*along));
    const bend=v(0,-dir.z,dir.y).multiplyScalar(front?-1:1).normalize(),joint=origin.clone().addScaledVector(dir,along).addScaledVector(bend,high);
    upper.position.copy(origin);upper.quaternion.setFromUnitVectors(v(0,1,0),joint.clone().sub(origin).normalize());
    lower.position.copy(joint);lower.quaternion.setFromUnitVectors(v(0,1,0),foot.clone().sub(joint).normalize());hoof.position.copy(foot);hoof.rotation.x=swing>0?-.15*swing:0;

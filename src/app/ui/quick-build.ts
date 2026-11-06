@@ -13,6 +13,7 @@ import type { Ctx } from './context';
 import { $, el } from './dom';
 import type { History } from './history';
 import * as Q from './quick-data';
+import {VEHICLE_CLIP,VEHICLE_LABELS,VEHICLE_FINISHES,VEHICLE_VARIANTS,type VehicleId,type VehicleStyle} from '../../core/props/vehicles';
 
 type Mode = 'quick' | 'detailed';
 const MODE_KEY = '3dgen.mode';
@@ -26,6 +27,7 @@ const STEPS = [
   { id: 'colours', title: 'Colours', detailed: 'Clothing' },
   { id: 'hair', title: 'Hair & face', detailed: 'Hair' },
   { id: 'extras', title: 'Extras', detailed: 'Accessories' },
+  { id: 'vehicle', title: 'Vehicle', detailed: 'Props' },
   { id: 'action', title: 'Action', detailed: '' },
 ] as const;
 type StepId = (typeof STEPS)[number]['id'];
@@ -37,6 +39,7 @@ const ROWS: Record<StepId, string[]> = {
   colours: ['colours'],
   hair: ['hair', 'hairColour', 'beard', 'eyes', 'expression'],
   extras: ['glasses', 'jewellery', 'earrings', 'hat', 'tattoos', 'bag', 'held'],
+  vehicle: ['vehicle', 'vehicleColour', 'vehicleFinish', 'vehicleVariant'],
   action: ['action'],
 };
 const READY_SHOWN = 8;
@@ -296,22 +299,50 @@ export function quickBuild(ctx: Ctx, hist: History): void {
     ];
   }
 
+  function vehicleStep(q: HumanParams) {
+    const current = Q.vehicleOf(q, clip), horse = current === 'horse';
+    const style = <K extends keyof VehicleStyle>(key: K, value: VehicleStyle[K], row: string) =>
+      apply(row, { vehicleStyle: { ...p().vehicleStyle, [key]: value } });
+    return [
+      row('vehicle', 'Travel with', Q.VEHICLES.map(o => ({ ...o, on: o.id === (current ?? 'none') })), id => {
+        if (id === 'none') {
+          apply('vehicle', { vehicle: 'none' });
+          ctx.playClip('idle');
+          return;
+        }
+        apply('vehicle', Q.vehiclePatch(p(), id as VehicleId));
+        ctx.playClip(VEHICLE_CLIP[id as VehicleId]);
+      }, 'pills', 'Pick a vehicle to try its riding animation. Other vehicle animations switch the model automatically.'),
+      ...(current ? [
+        colourRow('vehicleColour', horse ? 'Coat colour' : 'Body colour', Q.PALETTE, q.vehicleStyle.color, color => style('color', color, 'vehicleColour')),
+        row('vehicleVariant', horse ? 'Tack style' : 'Style', VEHICLE_VARIANTS.map(id => ({
+          id, label: id === 'sport' ? 'Sport' : horse ? 'Traditional' : 'Standard', on: id === q.vehicleStyle.variant,
+        })), id => style('variant', id as VehicleStyle['variant'], 'vehicleVariant')),
+        ...(!horse ? [row('vehicleFinish', 'Finish', VEHICLE_FINISHES.map(id => ({
+          id, label: id[0].toUpperCase() + id.slice(1), on: id === q.vehicleStyle.finish,
+        })), id => style('finish', id as VehicleStyle['finish'], 'vehicleFinish'))] : []),
+        el('div', { className: 'qb-note', textContent: horse ? 'Adjust mane and tack colours in Detailed.' : 'Adjust trim and seat colours in Detailed.' }),
+      ] : []),
+    ];
+  }
+
   function actionStep(q: HumanParams) {
     return [
-      row('action', 'Play', Q.actions(q).map((a) => ({ id: a.id, label: clipById.get(a.id)?.name.replace(/ \((chair|low ready|guard)\)$/, '') ?? a.id, on: a.id === clip })), (id) => {
+      row('action', 'Play', Q.actions(q,clip).map((a) => ({ id: a.id, label: clipById.get(a.id)?.name.replace(/ \((chair|low ready|guard)\)$/, '') ?? a.id, on: a.id === clip })), (id) => {
         chosen.add('action');
         ctx.playClip(id);
       }, 'pills', 'All animations are in the bar above the character.'),
     ];
   }
 
-  const build: Record<StepId, (q: HumanParams) => Node[]> = { body: bodyStep, heritage: heritageStep, outfit: outfitStep, colours: coloursStep, hair: hairStep, extras: extrasStep, action: actionStep };
+  const build: Record<StepId, (q: HumanParams) => Node[]> = { body: bodyStep, heritage: heritageStep, outfit: outfitStep, colours: coloursStep, hair: hairStep, extras: extrasStep, vehicle:vehicleStep, action: actionStep };
   /** One line on where each step stands. */
   const nowText: Partial<Record<StepId, (q: HumanParams) => string>> = {
     body: (q) => [Q.genderOf(q) === 'man' ? 'Man' : 'Woman', Q.AGES.find((a) => a.id === Q.ageOf(q))!.label, Q.BUILDS.find((b) => b.id === Q.buildOf(q))!.label].join(' · '),
     heritage: (q) => Q.HERITAGES.find((h) => h.id === Q.heritageOf(q))!.label,
     outfit: (q) => Q.styleById.get(Q.styleOf(q) ?? '')?.label ?? 'Their own',
     hair: (q) => Q.HAIRS.find((h) => h.id === q.hair)?.label ?? 'Their own',
+    vehicle:(q)=>{const id=Q.vehicleOf(q,clip);return id?VEHICLE_LABELS[id]:'On foot';},
     action: () => clipById.get(clip)?.name ?? 'Bind pose',
   };
 

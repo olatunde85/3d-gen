@@ -268,6 +268,7 @@ export class Viewer {
         const from = this.blendFrom;
         const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
         frame = {
+          ...frame,
           rot: frame.rot.map((q, i) => {
             qa.set(...from.rot[i]);
             qb.set(...q);
@@ -289,7 +290,7 @@ export class Viewer {
       const rp = [...frame.rootPos.values()][0];
       if (rp) this.controls.target.set(rp[0], this.controls.target.y, rp[2]);
     }
-    frame.rot.forEach((q, i) => this.bones[i].quaternion.set(q[0], q[1], q[2], q[3]));
+    frame.rot.forEach((q, i) => {this.bones[i].quaternion.set(q[0], q[1], q[2], q[3]);this.bones[i].scale.set(...(frame.scale?.get(i)??[1,1,1]));});
     for (const [i, p] of frame.rootPos) this.bones[i].position.set(p[0], p[1], p[2]);
     const inf = this.mesh?.morphTargetInfluences;
     if (inf) {

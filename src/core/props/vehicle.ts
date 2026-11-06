@@ -9,7 +9,9 @@ import {RiderFit,VehicleKit,v} from './vehicle-kit';
 import {sanitizeVehicleStyle,isCar,type VehicleId,type VehicleStyle} from './vehicles';
 import type {Rig} from '../rig/rig';
 import type {Animator,Frame,BakedClip} from '../anim/evaluate';
-import type {Clip} from '../anim/clips';
+import {clipById,type Clip} from '../anim/clips';
+import {ridingClip,boardProgress,doorOpenAt} from './vehicle-actions';
+import {articulateDoors} from './vehicle-doors';
 import type {MeshData,Material} from '../mesh';
 import type {Q} from '../anim/quat';
 import type {Vec3} from '../math';
@@ -17,16 +19,24 @@ export class Vehicle{
  readonly group:T.Group;readonly fit:RiderFit;readonly lift:number;
  private kit?:VehicleKit;private bicycle?:Bicycle;
  constructor(readonly id:VehicleId,rig:Rig,animator:Animator,readonly clip:Clip,style:VehicleStyle){
-  this.fit=new RiderFit(rig,animator,clip,id);this.lift=this.fit.lift;
-  if(id==='bicycle'){this.bicycle=new Bicycle(rig,animator,clip,sanitizeVehicleStyle(style));this.group=this.bicycle.group;this.group.userData.component=true;}
+  const reference=clipById.get(ridingClip(clip.id))!;
+  this.fit=new RiderFit(rig,animator,reference,id);this.lift=this.fit.lift;
+  if(id==='bicycle'){this.bicycle=new Bicycle(rig,animator,reference,sanitizeVehicleStyle(style));this.group=this.bicycle.group;this.group.userData.component=true;}
   else{const k=this.kit=new VehicleKit(sanitizeVehicleStyle(style),this.fit);this.group=k.group;
-   if(isCar(id))buildCar(k);else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else buildWatercraft(k);
+   if(isCar(id)){buildCar(k);articulateDoors(k);}else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else buildWatercraft(k);
   }
   mergeVehicleParts(this.group);this.update(0);
  }
- update(time:number,frame?:Frame,travelDistance?:number){
-  if(this.bicycle)this.bicycle.update(this.fit.animator.positions(frame??this.fit.animator.frame(this.clip,time)),time/this.clip.duration*Math.PI*6);
-  else{const c=frame?this.fit.fromFrame(frame):this.fit.at(time);for(const fn of this.kit!.updates)fn(c,time);}
+ update(time:number,frame?:Frame,travelDistance?:number,action:Clip=this.clip,parked=false){
+  const armed=frame?.ridingWeapon;frame=frame?.vehicleControls??frame;
+  const transition=action.vehicleTransition;
+  const controlsTime=transition?0:time;
+  const progress=transition?boardProgress(transition,time,action.duration):1,x=Math.max(0,Math.min(1,(progress-.88)/.12));
+  this.group.userData.parkedWeight=parked?1:transition?1-x*x*(3-2*x):0;
+  if(this.bicycle)this.bicycle.update(this.fit.animator.positions(transition?this.fit.animator.frame(this.fit.clip,0,{weaponPose:'hidden'}):frame??this.fit.animator.frame(this.fit.clip,time,{weaponPose:'hidden'})),controlsTime/this.fit.clip.duration*Math.PI*6);
+  else{const c=transition?this.fit.at(0):frame?this.fit.fromFrame(frame):this.fit.at(time);if(armed&&this.id==='horse')c.right.copy(c.left);for(const fn of this.kit!.updates)fn(c,controlsTime);}
+  const opening=transition?doorOpenAt(boardProgress(transition,time,action.duration)):0;
+  this.group.traverse(o=>{if(o.userData.doorSide)o.rotation.y=o.userData.occupantDoor?-o.userData.doorSide*opening*1.3:0;if(o.name.startsWith('Window_'))o.scale.y=armed?.001:1;if(o.name==='Boarding_gate')o.rotation.y=opening*1.5;});
   if(travelDistance!==undefined)this.group.traverse(o=>{if(o.userData.wheelRadius)o.rotation.x=travelDistance/o.userData.wheelRadius;});
   this.group.updateMatrixWorld(true);
  }
@@ -34,7 +44,7 @@ export class Vehicle{
  dispose(){if(this.bicycle)this.bicycle.dispose();else this.kit!.dispose();}
 
  /** Rigid components become separate joints, keeping steering, paddles and wheels editable. */
- asset():{mesh:MeshData;rig:Rig;bake:()=>BakedClip}{
+ asset():{mesh:MeshData;rig:Rig;bake:(clip?:Clip)=>BakedClip}{
   this.update(0);const rootInverse=this.group.matrixWorld.clone().invert(),parts:T.Object3D[]=[];
   this.group.traverse(o=>{if(o.userData.component)parts.push(o);});
   const relative=(o:T.Object3D)=>new T.Matrix4().multiplyMatrices(rootInverse,o.matrixWorld);
@@ -63,14 +73,14 @@ export class Vehicle{
    geo.dispose();
   });
   const mesh:MeshData={positions:Float32Array.from(positions),normals:Float32Array.from(normals),uvs:Float32Array.from(uvs),joints:Uint16Array.from(joints),weights:Float32Array.from(weights),materials,groups:[...groups.values()].map(g=>({material:g.material,indices:Uint32Array.from(g.indices),polyIndices:Uint32Array.from(g.indices),polySizes:new Uint8Array(g.indices.length/3).fill(3)}))};
-  return {mesh,rig,bake:()=>{
-   const n=Math.ceil(this.clip.duration*30),times:number[]=[],frames:Frame[]=[];
+  return {mesh,rig,bake:(action:Clip=this.clip)=>{
+   const n=Math.ceil(action.duration*30),times:number[]=[],frames:Frame[]=[];
    for(let i=0;i<=n;i++){
-    const time=Math.min(this.clip.duration,i/30);this.update(time);const inv=this.group.matrixWorld.clone().invert(),rot:Q[]=[],rootPos=new Map<number,Vec3>(),scale=new Map<number,Vec3>();
+    const time=Math.min(action.duration,i/30);this.update(time,this.fit.animator.frame(action,time,{vehicleLift:this.lift}),undefined,action);const inv=this.group.matrixWorld.clone().invert(),rot:Q[]=[],rootPos=new Map<number,Vec3>(),scale=new Map<number,Vec3>();
     for(const [j,o]of parts.entries()){const p=v(),q=new T.Quaternion(),s=v();new T.Matrix4().multiplyMatrices(inv,o.matrixWorld).decompose(p,q,s);let a=q.toArray()as Q;const previous=frames.at(-1)?.rot[j];if(previous&&a.reduce((sum,x,d)=>sum+x*previous[d],0)<0)a=a.map(x=>-x)as Q;rot.push(a);rootPos.set(j,p.toArray()as Vec3);scale.set(j,s.divide(rest[j].s).toArray()as Vec3);}
     times.push(time);frames.push({rot,rootPos,scale});
    }
-   return{name:this.clip.name,loop:this.clip.loop,times,frames};
+   return{name:action.name,loop:action.loop,times,frames};
   }};
  }
 }

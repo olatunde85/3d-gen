@@ -6,13 +6,15 @@ import { defaultAudio, parseAudio, type FilmAudio } from './audio/schema';
 import { parseTextCues, type TextCue } from './text';
 import { sceneById, type SetId } from './catalog';
 import {studioTravel} from './motion';
-import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,type VehicleChoice} from '../core/props/vehicles';
+import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES,type VehicleChoice} from '../core/props/vehicles';
+import {WEAPON_POSES,type WeaponPose} from '../core/anim/riding-weapons';
+import {isFirearm} from '../core/props/weapons';
 export { SETS, type SetId } from './catalog';
 export const ACTIONS = CLIPS.map(c => c.id);
 export type Action = string;
 export type Shot = 'wide' | 'medium' | 'close';
 export type CameraMove = 'locked' | 'orbit' | 'dolly';
-export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;showVehicle?:boolean }
+export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;showVehicle?:boolean;weaponPose?:WeaponPose;weaponYaw?:number }
 export interface ActorTrack { id: string; character: string; detail: Detail; x: number; y: number; z: number; yaw: number; beats: Beat[];vehicle?:VehicleChoice }
 export interface CameraShot { id: string; duration: number; shot: Shot; target: string }
 export interface View { azimuth: number; elevation: number; zoom: number }
@@ -73,14 +75,20 @@ export function parseProject(text: string): StudioProject {
     if (typeof a.id !== 'string' || !/^[a-zA-Z0-9_-]{1,50}$/.test(a.id) || ids.has(a.id) || ['all','camera'].includes(a.id)) throw new Error('Character IDs must be unique.'); ids.add(a.id);
     if (!member(a.detail, ['low', 'medium', 'high']) || typeof a.character !== 'string' || !decodeCharacter(a.character, a.detail)) throw new Error('Invalid character recipe or detail.');
     if (!Array.isArray(a.beats) || !a.beats.length || a.beats.length > MAX_ACTIONS) throw new Error(`Use one to ${MAX_ACTIONS} actions per character.`);
-    const inherited=decodeCharacter(a.character,a.detail)!.vehicle,legacy=a.vehicle??inherited;
+    const actorParams=decodeCharacter(a.character,a.detail)!,inherited=actorParams.vehicle,legacy=a.vehicle??inherited;
     const migrate=(clip:string)=>a.vehicle!=='auto'&&(legacy==='sports_car'||legacy==='suv')?(clip==='drive_car'?(legacy==='suv'?'drive_suv':'drive_sports_car'):clip==='sit_passenger'?(legacy==='suv'?'sit_suv_passenger':'sit_sports_car_passenger'):clip):clip;
     const beats = a.beats.map((rawBeat, j) => { const b = record(rawBeat);
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
       const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,6,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
-      if(speed!==undefined&&!VEHICLE_FOR_CLIP[clip])throw Error('Travel speed is only available for vehicle actions.');
-      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: b.move && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}) };
+      if(speed!==undefined&&!RIDING_VEHICLES[clip])throw Error('Travel speed is only available for riding/driving actions.');
+      const pose=b.weaponPose,yaw=b.weaponYaw===undefined?undefined:number(b.weaponYaw,-110,110,'mounted weapon direction');
+      if(pose!==undefined&&!member(pose,WEAPON_POSES))throw Error('Choose a supported weapon pose.');
+      if((pose!==undefined&&pose!=='hidden'||yaw!==undefined)&&!RIDING_VEHICLES[clip])throw Error('Wield, aim, fire and weapon direction are only available for riding/driving actions.');
+      const weapon=actorParams.weapon;
+      if(pose!==undefined&&pose!=='hidden'&&weapon==='none')throw Error('Equip a weapon before choosing a mounted weapon pose.');
+      if(pose==='fire'&&!isFirearm(weapon))throw Error('Only a pistol or rifle can use Fire.');
+      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: b.move && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}) };
     });
     if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');
     return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -12, 12, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -12, 12, 'character Z'), yaw: number(a.yaw, -180, 180, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };

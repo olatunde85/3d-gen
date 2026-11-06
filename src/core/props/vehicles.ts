@@ -4,7 +4,9 @@ export type VehicleId=typeof VEHICLE_IDS[number];
 export const VEHICLE_CHOICES=['none','auto',...VEHICLE_IDS]as const;
 export type VehicleChoice=typeof VEHICLE_CHOICES[number];
 export const VEHICLE_LABELS:Record<VehicleChoice,string>={none:'None',auto:'Match animation',bicycle:'Bicycle',car:'Classic convertible',sports_car:'Modern sports car',suv:'SUV',motorcycle:'Motorcycle',horse:'Horse',canoe:'Canoe',kayak:'Kayak',rowboat:'Rowing boat',motorboat:'Motorboat'};
-export const VEHICLE_FOR_CLIP:Readonly<Record<string,VehicleId>>={ride_bicycle:'bicycle',drive_car:'car',sit_passenger:'car',drive_sports_car:'sports_car',sit_sports_car_passenger:'sports_car',drive_suv:'suv',sit_suv_passenger:'suv',ride_motorcycle:'motorcycle',ride_horse:'horse',paddle_canoe:'canoe',paddle_kayak:'kayak',row_boat:'rowboat',drive_boat:'motorboat'};
+import {TRANSITION_BY_CLIP,ridingClip} from './vehicle-actions';
+export const RIDING_VEHICLES:Readonly<Record<string,VehicleId>>={ride_bicycle:'bicycle',drive_car:'car',sit_passenger:'car',drive_sports_car:'sports_car',sit_sports_car_passenger:'sports_car',drive_suv:'suv',sit_suv_passenger:'suv',ride_motorcycle:'motorcycle',ride_horse:'horse',paddle_canoe:'canoe',paddle_kayak:'kayak',row_boat:'rowboat',drive_boat:'motorboat'};
+export const VEHICLE_FOR_CLIP:Readonly<Record<string,VehicleId>>={...RIDING_VEHICLES,...Object.fromEntries(Object.entries(TRANSITION_BY_CLIP).map(([id,t])=>[id,RIDING_VEHICLES[t.ride]]))};
 export const VEHICLE_CLIP:Record<VehicleId,string>={bicycle:'ride_bicycle',car:'drive_car',sports_car:'drive_sports_car',suv:'drive_suv',motorcycle:'ride_motorcycle',horse:'ride_horse',canoe:'paddle_canoe',kayak:'paddle_kayak',rowboat:'row_boat',motorboat:'drive_boat'};
 export const VEHICLE_FINISHES=['matte','satin','gloss']as const;
 export const VEHICLE_VARIANTS=['classic','sport']as const;
@@ -23,7 +25,7 @@ export function sanitizeVehicleStyle(value:unknown):VehicleStyle{
  const color=(key:'color'|'accentColor'|'seatColor')=>typeof s[key]==='string'&&/^#[a-f0-9]{6}$/i.test(s[key])?s[key] as string:DEFAULT_VEHICLE_STYLE[key];
  return {color:color('color'),accentColor:color('accentColor'),seatColor:color('seatColor'),finish:VEHICLE_FINISHES.includes(s.finish as VehicleStyle['finish'])?s.finish as VehicleStyle['finish']:'satin',variant:VEHICLE_VARIANTS.includes(s.variant as VehicleStyle['variant'])?s.variant as VehicleStyle['variant']:'classic'};
 }
-export function isPassengerClip(id:string){return id==='sit_passenger'||id==='sit_sports_car_passenger'||id==='sit_suv_passenger';}
+export function isPassengerClip(id:string){return ridingClip(id).includes('passenger');}
 export function isCar(id:VehicleChoice):id is 'car'|'sports_car'|'suv'{return id==='car'||id==='sports_car'||id==='suv';}
 /** Every supported model/role combination, including both occupants for each car design. */
 export const VEHICLE_FITS=VEHICLE_IDS.flatMap(id=>(isCar(id)?[VEHICLE_CLIP[id],id==='car'?'sit_passenger':id==='suv'?'sit_suv_passenger':'sit_sports_car_passenger']:[VEHICLE_CLIP[id]]).map(clip=>({id,clip})));

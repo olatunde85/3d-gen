@@ -7,13 +7,13 @@ import {nodeLibrary} from './node-assets';
 import {buildHuman} from '../src/core/human';
 import {DEFAULT_PARAMS} from '../src/core/params';
 import {Animator} from '../src/core/anim/evaluate';
-import {clipById} from '../src/core/anim/clips';
+import {clipById,CLIPS} from '../src/core/anim/clips';
 import {Vehicle} from '../src/core/props/vehicle';
-import {VEHICLE_FITS,DEFAULT_VEHICLE_STYLE} from '../src/core/props/vehicles';
+import {VEHICLE_FITS,VEHICLE_FOR_CLIP,DEFAULT_VEHICLE_STYLE} from '../src/core/props/vehicles';
 import {exportGLB} from '../src/export/glb';
 import {exportFBX} from '../src/export/fbx';
 const lib=await nodeLibrary(),ch=await buildHuman(lib,{...DEFAULT_PARAMS,detail:'low',outfit:'none',hair:'none',faceShapes:false}),A=new Animator(ch.rig!);let maxError=0;
-for(const {clip:clipId,id}of VEHICLE_FITS){
+for(const {clip:clipId,id}of [...VEHICLE_FITS,...CLIPS.filter(c=>c.vehicleTransition).map(c=>({clip:c.id,id:VEHICLE_FOR_CLIP[c.id]}))]){
  const c=clipById.get(clipId)!,vehicle=new Vehicle(id,ch.rig!,A,c,DEFAULT_VEHICLE_STYLE),parts:T.Object3D[]=[];vehicle.group.traverse(o=>{if(o.userData.component)parts.push(o);});
  const inverse=vehicle.group.matrixWorld.clone().invert(),rest=parts.map(o=>inverse.clone().multiply(o.matrixWorld).invert());
  const {mesh,rig,bake}=vehicle.asset(),baked=bake();
