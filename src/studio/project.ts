@@ -17,7 +17,7 @@ export type Shot = 'wide' | 'medium' | 'close';
 export type CameraMove = 'locked' | 'orbit' | 'dolly';
 export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;showVehicle?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;vehicleId?:string;vehicleSeat?:VehicleSeat }
 export interface ActorTrack { id: string; character: string; detail: Detail; x: number; y: number; z: number; yaw: number; beats: Beat[];vehicle?:VehicleChoice }
-export interface CameraShot { id: string; duration: number; shot: Shot; target: string }
+export interface CameraShot { view?: View; camera?: CameraMove; id: string; duration: number; shot: Shot; target: string }
 export interface View { azimuth: number; elevation: number; zoom: number }
 export interface StudioProject {
   kind: 'ara-studio'; version: 2; title: string; template: SetId; actors: ActorTrack[]; shots: CameraShot[];
@@ -51,13 +51,14 @@ export function blankProject(): StudioProject {
   project.shots=[{id:beatId(),duration:3,shot:'wide',target:'all'}];
   return project;
 }
-export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration),...(p.audio?.speech??[]).map(c=>c.start+c.duration),...(p.audio?.effects??[]).map(c=>c.start+c.duration)) * 30 - 1e-7) / 30;
+export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.audio?.music.track!=='none'&&p.audio?.music.duration!==undefined?(p.audio.music.start??0)+p.audio.music.duration:0,p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration),...(p.audio?.speech??[]).map(c=>c.start+c.duration),...(p.audio?.effects??[]).map(c=>c.start+c.duration)) * 30 - 1e-7) / 30;
 const member = <T extends string>(v: unknown, values: readonly T[]): v is T => typeof v === 'string' && values.includes(v as T);
 function number(v: unknown, min: number, max: number, name: string) {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) throw new Error(`Invalid ${name}.`);
   return v;
 }
 function record(v: unknown): Record<string, unknown> { if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('Choose a valid Ara Studio project.'); return v as Record<string, unknown>; }
+function parseView(raw:unknown):View { const v=record(raw);return {azimuth:number(v.azimuth,-180,180,'camera rotation'),elevation:number(v.elevation,-35,65,'camera elevation'),zoom:number(v.zoom,.5,3,'camera zoom')}; }
 /** Migrate saved v1 films; reject unsupported versions and malformed tracks before building models. */
 export function parseProject(text: string): StudioProject {
   if (text.length > 100_000) throw new Error('Choose a project smaller than 100 KB.');
@@ -99,11 +100,12 @@ export function parseProject(text: string): StudioProject {
   if (!Array.isArray(p.shots) || !p.shots.length || p.shots.length > MAX_SHOTS) throw new Error(`Use one to ${MAX_SHOTS} camera shots.`);
   const shots = p.shots.map((raw, i): CameraShot => { const s = record(raw);
     if (!member(s.shot, ['wide', 'medium', 'close']) || typeof s.target !== 'string' || s.target !== 'all' && !ids.has(s.target)) throw new Error('Invalid shot framing or subject.');
-    return { id: `shot-${i}`, duration: number(s.duration, 0.1, 12, 'shot duration'), shot: s.shot, target: s.target };
+    if(s.camera!==undefined&&!member(s.camera,['locked','dolly','orbit']))throw Error('Invalid shot camera movement.');
+    return { ...(s.view===undefined?{}:{view:parseView(s.view)}),...(s.camera===undefined?{}:{camera:s.camera as CameraMove}),id: `shot-${i}`, duration: number(s.duration, 0.1, 12, 'shot duration'), shot: s.shot, target: s.target };
   });
-  const v = record(p.view);
   const result: StudioProject = { kind: 'ara-studio', version: 2, template: p.template as SetId, title: typeof p.title === 'string' ? p.title.trim().slice(0, 60) : '', actors, shots,
-    camera: p.camera, aspect: p.aspect, caption: p.caption === true, texts:parseTextCues(p.texts,ids), audio:parseAudio(p.audio,ids), view: { azimuth: number(v.azimuth, -180, 180, 'camera rotation'), elevation: number(v.elevation, -35, 65, 'camera elevation'), zoom: number(v.zoom, 0.5, 3, 'camera zoom') } };
+    camera: p.camera, aspect: p.aspect, caption: p.caption === true, texts:parseTextCues(p.texts,ids), audio:parseAudio(p.audio,ids), view: parseView(p.view) };
+  const music=result.audio.music;if(music.track!=='none'&&music.duration===undefined&&(music.start??0)>=durationOf(result))throw Error('Music starts beyond the film. Set its duration or move its start earlier.');
   if (durationOf(result) > MAX_DURATION) throw new Error(`Keep films under ${MAX_DURATION} seconds.`);
   validateVehicleLinks(result);
   return result;

@@ -53,7 +53,11 @@ The timeline has a **camera lane** and a **performance lane for each character**
 - **Camera shots:** full-body, medium or close framing, on the **whole cast** or **one character**.
 - **Limits:** up to **16 actions per character**, **12 camera shots** and **60 seconds** per film. Each item lasts 0.1–12 seconds.
 
+Drag either edge of a timeline clip to adjust its timing. The right edge of an action or shot changes its duration and shifts later clips; its left edge adjusts the boundary with the previous clip, keeping the selected clip’s end fixed. The first action/shot starts at zero. Text, speech, sound effects and music have independent start/end handles. Timing respects the film limits and shared-vehicle boarding constraints. **Escape** cancels; **Undo** reverses a completed drag in one step. Handles also accept Left/Right (one frame), or Shift + Left/Right (0.1 seconds). Audio edges change the playback window; source trimming remains a separate control.
+
 ## Move the camera
+
+Each camera shot can have its own angle. Select its camera block and enable **Custom camera for this shot**, then set **Angle**, **Elevation**, **Distance** and **Movement**. Orbiting or zooming the preview edits the active custom shot. Disable the option to inherit **Film camera defaults** again. Shots without overrides keep the film’s camera settings, including older projects. The same cuts appear in playback, PNGs and MP4 exports.
 
 - **Orbit:** drag the background. Alt-drag or right-drag also works over a character.
 - **Zoom:** scroll, or pinch on a touch screen. With the picture focused, **+** and **−** zoom and **Home** resets.
@@ -97,9 +101,11 @@ Choose from **nine recorded tracks**, grouped by genre: Dramatic Adventure Trail
 
 Only the chosen track downloads. The film uses its beginning, with your volume and fades, and lowers the music under dialogue.
 
+Music follows the whole film by default. Drag its timeline edges or enable **Custom music timing** in Sound to choose a start and duration. Fades follow that window; turn custom timing off to follow the film again.
+
 ## Sound effects
 
-**Sound effects** above the timeline opens nine recordings, grouped by category: suppressed pistol, rifle shot, body fall, motorcycle/car/boat engines, wind, forest birds and ocean. Engine takes last eight seconds and ambient takes last four seconds. Duplicate adjacent cues for a longer bed; LLM Assist lists every ID and source duration.
+**Sound effects** above the timeline opens nine recordings, grouped by category: suppressed pistol, rifle shot, body fall, motorcycle/car/boat engines, wind, forest birds and ocean. Engine takes last eight seconds and ambient takes last four seconds. Enable **Loop until cue ends** for longer engine or ambience beds. The recording repeats from **Trim start** to its end at the chosen speed, stopping exactly at the cue’s end. Looping is off by default; longer non-looping windows leave silence after the recording. LLM Assist lists every ID, source duration and the optional `loop` field.
 
 1. Listen, then **Add at playhead**.
 2. Set the start time to the moment of the shot or impact.

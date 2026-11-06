@@ -170,7 +170,7 @@ assert.ok(!hasAudio({...fxAudio,muted:true}));assert.ok(!hasAudio({...fxAudio,ef
 const fxFilm=parseStudioInput(JSON.stringify({...valid,audio:{effects:[{sound:'suppressed-pistol-shot',start:42}]}}));
 assert.ok(Math.abs(durationOf(fxFilm)-Math.ceil(42.6065*30)/30)<1e-7);
 assert.deepEqual(parseStudioInput(JSON.stringify(projectForAssist(fxFilm))),fxFilm);
-for(const patch of [{sound:'unknown'},{actor:'missing'},{start:59.9,duration:.2},{offset:.6065},{offset:-.1},{speed:0},{speed:2.1},{pan:2},{volume:2.1},{duration:.001},{loop:true},{url:'effect.mp3'},{id:'invalid id'},{start:NaN}])assert.throws(()=>parseAudio({effects:[{sound:'body-fall-thump',...patch}]},actors));
+for(const patch of [{sound:'unknown'},{actor:'missing'},{start:59.9,duration:.2},{offset:.6065},{offset:-.1},{speed:0},{speed:2.1},{pan:2},{volume:2.1},{duration:.001},{loop:'yes'},{loop:null},{url:'effect.mp3'},{id:'invalid id'},{start:NaN}])assert.throws(()=>parseAudio({effects:[{sound:'body-fall-thump',...patch}]},actors));
 assert.throws(()=>parseAudio({effects:[{id:'same',sound:'body-fall-thump'},{id:'same',sound:'body-fall-thump'}]},actors));
 assert.throws(()=>parseAudio({effects:Array.from({length:MAX_SOUND_EFFECTS+1},()=>({sound:'body-fall-thump'}))},actors));
 assert.doesNotThrow(()=>parseAudio({effects:Array.from({length:MAX_SOUND_EFFECTS},()=>({sound:'body-fall-thump'}))},actors));
@@ -195,3 +195,17 @@ assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beat
 console.log('Vehicle travel: all actions, speed validation, held endings, legacy model migration and animation authority passed.');
 
 for(const id of ['board_suv','alight_suv','board_kayak']){const p=newProject();p.actors[0].beats=[beat(id,4,true)];assert.equal(parseProject(JSON.stringify(p)).actors[0].beats[0].move,false);assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{...p.actors[0].beats[0],travelSpeed:1}]}]})));assert.ok(guide.includes(id));}assert.ok(guide.includes('26 one-shot actions'));
+
+// Shot direction and loop flags must survive every import path without changing old projects.
+const customCamera=structuredClone(valid);customCamera.shots[0].view={azimuth:90,elevation:20,zoom:.8};customCamera.shots[0].camera='locked';
+assert.deepEqual(parseStudioInput(JSON.stringify(customCamera)).shots[0].view,customCamera.shots[0].view);
+assert.equal(parseProject(JSON.stringify(customCamera)).shots[0].camera,'locked');
+assert.equal(parseProject(JSON.stringify(valid)).shots[0].view,undefined);
+for(const patch of [{view:{azimuth:181,elevation:0,zoom:1}},{view:{azimuth:0,zoom:1}},{view:[]},{camera:'fly'}])assert.throws(()=>parseProject(JSON.stringify({...valid,shots:[{...valid.shots[0],...patch}]})));
+assert.throws(()=>parseStudioInput(JSON.stringify({...valid,shots:[{...customCamera.shots[0],view:{...customCamera.shots[0].view,fov:45}}]})));
+assert.equal(parseAudio({effects:[{sound:'car-engine',loop:true,duration:30}]},actors).effects[0].loop,true);
+assert.equal(parseAudio({effects:[{sound:'car-engine',loop:false}]},actors).effects[0].loop,false);
+assert.equal(parseAudio({effects:[{sound:'car-engine'}]},actors).effects[0].loop,undefined);
+assert.equal(parseAudio({music:{track:'none',start:2,duration:4}},actors).music.duration,4);
+assert.throws(()=>parseAudio({music:{start:59,duration:2}},actors));
+console.log('Per-shot direction, inherited legacy cameras, loop flags and music windows passed.');

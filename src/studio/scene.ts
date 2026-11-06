@@ -80,8 +80,9 @@ export class StudioScene {
     const h = Math.max(1.6, ...subjects.map(a => a.height)), center = new THREE.Vector3();
     for (const a of subjects) center.add(position(a)); if(subjects.length)center.multiplyScalar(1/subjects.length);
     const u = at.progress, eased = u * u * (3 - 2 * u);
-    let angle = (project.template === 'courtyard' ? -0.32 : project.template === 'runway' ? 0.1 : 0.24) + THREE.MathUtils.degToRad(project.view.azimuth);
-    if (project.camera === 'orbit') angle += (eased - 0.5) * 0.6;
+    const view=beat.view??project.view,cameraMove=beat.camera??project.camera;
+    let angle = (project.template === 'courtyard' ? -0.32 : project.template === 'runway' ? 0.1 : 0.24) + THREE.MathUtils.degToRad(view.azimuth);
+    if (cameraMove === 'orbit') angle += (eased - 0.5) * 0.6;
     const size = { wide: 1.28, medium: 0.82, close: 0.43 }[beat.shot];
     const targetY = center.y + h * { wide: 0.51, medium: 0.7, close: 0.88 }[beat.shot];
     const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
@@ -90,9 +91,9 @@ export class StudioScene {
       extent=Math.max(extent,Math.abs(dx*Math.cos(angle)-dz*Math.sin(angle))+a.height*0.29);
       depth=Math.max(depth,Math.abs(dx*Math.sin(angle)+dz*Math.cos(angle)));
     }
-    let distance = Math.max(h*size/(2*tan),extent/(tan*this.camera.aspect))*project.view.zoom + depth + Math.max(0,...subjects.map(a=>a.framingPadding));
-    if (project.camera === 'dolly') distance *= 1.07 - 0.12 * eased;
-    const elevation=THREE.MathUtils.degToRad(project.view.elevation);
+    let distance = Math.max(h*size/(2*tan),extent/(tan*this.camera.aspect))*view.zoom + depth + Math.max(0,...subjects.map(a=>a.framingPadding));
+    if (cameraMove === 'dolly') distance *= 1.07 - 0.12 * eased;
+    const elevation=THREE.MathUtils.degToRad(view.elevation);
     if(!this.freezeCamera){this.camera.position.set(center.x+Math.sin(angle)*distance*Math.cos(elevation),Math.max(0.12,targetY+h*0.025+Math.sin(elevation)*distance),center.z+Math.cos(angle)*distance*Math.cos(elevation));
     this.camera.lookAt(center.x, targetY, center.z); }
     // Wide exterior shots need depth precision for paths, water and road markings hundreds of metres away.

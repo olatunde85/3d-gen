@@ -12,7 +12,7 @@ async function musicBuffer(ctx:BaseAudioContext,id:MusicId,signal?:AbortSignal){
   for(let c=0;c<buffer.numberOfChannels;c++)buffer.copyToChannel(full.getChannelData(c).subarray(0,frames),c);
   cached={id,buffer,rate:ctx.sampleRate};return buffer;
 }
-export async function addMusic(ctx:BaseAudioContext,id:MusicId,duration:number,destination:AudioNode,signal?:AbortSignal){
+export async function addMusic(ctx:BaseAudioContext,id:MusicId,duration:number,destination:AudioNode,signal?:AbortSignal,start=0){
   if(id==='none')return;const buffer=await musicBuffer(ctx,id,signal);signal?.throwIfAborted();
-  const source=ctx.createBufferSource();source.buffer=buffer;source.loop=true;source.connect(destination);source.start(0);source.stop(duration);
+  const source=ctx.createBufferSource();source.buffer=buffer;source.loop=true;source.connect(destination);source.start(start);source.stop(start+duration);
 }
