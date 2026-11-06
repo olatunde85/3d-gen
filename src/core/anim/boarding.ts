@@ -44,6 +44,16 @@ function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number,choreography=rid
   add(.57,standX*.26,dy,0,.9,12,...pair(side([.68,.10,.22]),inside),.7);
   add(.76,0,dy,0,1,4,...pair(sign>0?finalL:finalR,inside),.9);
   add(.88,0,dy,0,1,0,finalL,finalR,.65);
+ }else if(rideId==='fly_helicopter'){
+  // Open the cabin door, step onto the skid, transfer weight onto the deck, then sit.
+  // This is a step-through doorway, never the saddle swing or gunwale crossing.
+  const floor=lift/s,pair=(out:Vec3,inn:Vec3):[Vec3,Vec3]=>sign>0?[out,inn]:[inn,out];
+  const inside=sign>0?finalR:finalL;
+  add(.16,standX,0,standZ,0,4,...pair(outer,inner),.45);
+  add(.34,standX*.84,.08,standZ,.12,9,...pair(outer,side([Math.abs(standX)*.56,floor*.56,.12])),.7);
+  add(.52,standX*.36,dy+.14,0,.65,10,...pair(side([Math.abs(standX)*.56,floor*.55,.10]),inside),.8);
+  add(.72,0,dy,0,1,3,finalL,finalR,.8);
+  add(.88,0,dy,0,1,0,finalL,finalR,.4);
  }else if(rideId==='ride_horse'){
   // Left stirrup, rise over the saddle, swing the right leg behind the cantle, settle.
   add(.18,.78,0,-.12,0,12,standFeet[0],[.64,.13,-.27],.65);
@@ -85,6 +95,7 @@ function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number,choreography=rid
  const hands:[Vec3,Vec3]=[ref(rp[handL]),ref(rp[handR])];
  // A fixed support, not a steering wheel/paddle dragged along with a reaching hand.
  if(car){const h=(rp[index('Hips')][1]/s)+.08;hands[sign>0?0:1]=[standX*.58,h,.16];}
+ else if(rideId==='fly_helicopter'){hands[0]=[standX*.58,rroot[1]/s+.35,.20];hands[1]=[standX*.58,rroot[1]/s+.28,.37];}
  else if(rideId==='ride_horse'){hands[0]=[.17,rroot[1]/s+.24,.28];hands[1]=[-.12,rroot[1]/s+.24,.28];}
  else if(!rideId.startsWith('ride_')){const rim=rideId==='drive_boat'?.98:rideId==='paddle_kayak'?.42:.53;hands[0]=[standX*.48,rim,.25];hands[1]=[standX*.40,rim,.50];}
  const idleWorld:Q[]=[];B.forEach((b,i)=>idleWorld[i]=b.parent<0?idle.rot[i]:qmul(idleWorld[b.parent],idle.rot[i]));

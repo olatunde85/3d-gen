@@ -1,4 +1,5 @@
 /** Shared transition metadata; deliberately independent of the clip registry and renderer. */
+import {HELICOPTER} from './helicopter-layout';
 import type {Rig} from '../rig/rig';
 /** Anatomical height, excluding the game rig's extrapolated HeadTop_End tail. */
 export function boardingScale(rig:Rig){return rig.bones.find(b=>b.name==='Head'||b.name==='head')!.tail[1]/1.8;}
@@ -16,6 +17,7 @@ export const VEHICLE_TRANSITIONS = [
   ['kayak', 'paddle_kayak', 'kayak', 2.1],
   ['rowboat', 'row_boat', 'rowing boat', 1.9],
   ['motorboat', 'drive_boat', 'motorboat', 2.0],
+  ['helicopter', 'fly_helicopter', 'helicopter', 2.2],
 ] as const;
 export interface VehicleTransition { ride: string; direction: 'board' | 'alight' }
 export const TRANSITION_BY_CLIP: Readonly<Record<string, VehicleTransition>> = Object.fromEntries(
@@ -24,6 +26,7 @@ export const TRANSITION_BY_CLIP: Readonly<Record<string, VehicleTransition>> = O
 export const ridingClip = (id: string) => TRANSITION_BY_CLIP[id]?.ride ?? id;
 /** Stand beside the appropriate door, saddle or gunwale, facing the vehicle's heading. */
 export function boardingStand(ride: string): [number, number] {
+  if(ride==='fly_helicopter')return [HELICOPTER.standRight,0];
   const side = ride.includes('passenger') ? -1 : 1;
   const distance = ride.includes('suv') ? 1.13 : ride.includes('sports_car') ? 1.09 : ride.includes('car') || ride==='sit_passenger' ? .95 : ride==='drive_boat' ? 1.62 : ride==='row_boat' ? .95 : ride==='ride_horse' ? .90 : .76;
   return [side * distance, ride==='drive_boat' ? -.42 : ride==='ride_horse' ? -.12 : 0];

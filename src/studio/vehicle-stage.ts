@@ -5,6 +5,8 @@ import {VEHICLE_FOR_CLIP,VEHICLE_CLIP,vehicleLift,type VehicleId} from '../core/
 import type {Vec3} from '../core/math';
 import {timelineAt,trackDuration,type ActorTrack,type Beat,type StudioProject} from './project';
 import {vehicleCatalog,vehicleKey,type VehicleSeat} from './vehicle-seats';
+import {HELICOPTER} from '../core/props/helicopter-layout';
+import {helicopterHeight} from './helicopter-flight';
 import {studioTravel} from './motion';
 export interface VehicleBody {scale:number;boardingScale:number;weapon?:string;hip(clip:string,model?:VehicleId):Vec3}
 export interface StagePoint {x:number;y:number;z:number;yaw:number}
@@ -45,18 +47,20 @@ export class VehicleStage {
  }
  private nominal(row:Row,time:number):StagePoint{
   const at=timelineAt(this.project,time,row.actor),body=this.bodies.get(row.actor.id)??fallback,d=turn(at.x*body.scale+row.offset[0],at.z*body.scale+row.offset[2],row.actor.yaw);
-  return{x:row.actor.x+d.x,y:row.actor.y,z:row.actor.z+d.z,yaw:row.actor.yaw};
+  return{x:row.actor.x+d.x,y:row.actor.y+(VEHICLE_FOR_CLIP[row.beat.clip]==='helicopter'?helicopterHeight(row.actor,row.index,time):0),z:row.actor.z+d.z,yaw:row.actor.yaw};
  }
  private seat(row:Row,vehicle:StagedVehicle):{shift:Vec3;stand?:[number,number]}{
   const seat=row.beat.vehicleSeat??'operator';if(seat==='operator')return{shift:[0,0,0]};
   const owner=this.bodies.get(vehicle.owner.id)??fallback,guest=this.bodies.get(row.actor.id)??fallback,s=owner.scale,hip=owner.hip(VEHICLE_CLIP[vehicle.model]);
   let target:Vec3;
-  if(vehicle.model==='motorboat')target=[(seat==='passenger-left'?.52:-.52)*s,.81*s,hip[2]-1.30*s];
+  if(vehicle.model==='helicopter')target=[hip[0]+(seat==='front-passenger'||seat==='rear-left'?HELICOPTER.seatWidth*s:0),hip[1],hip[2]+(seat.startsWith('rear')?-HELICOPTER.seatPitch*s:0)];
+  else if(vehicle.model==='motorboat')target=[(seat==='passenger-left'?.52:-.52)*s,.81*s,hip[2]-1.30*s];
   else if(vehicle.model==='motorcycle')target=[hip[0],hip[1]+.04*s,hip[2]-.65*s];
   else if(vehicle.model==='canoe'||vehicle.model==='rowboat')target=[hip[0],hip[1],hip[2]-.8*s];
   else target=[hip[0]+(seat==='rear-left'?.08:seat==='rear-right'?-.80:-.72)*s,hip[1],hip[2]+(seat.startsWith('rear')?-.91*s:0)];
   const pose=vehicle.model==='motorcycle'?'ride_motorcycle':'sit_passenger',own=guest.hip(pose,vehicle.model),shift=target.map((v,i)=>v-own[i])as Vec3;
   const boat=['motorboat','canoe','rowboat'].includes(vehicle.model),gate=boardingStand(VEHICLE_CLIP[vehicle.model]);
+  if(vehicle.model==='helicopter'){const left=seat==='front-passenger'||seat==='rear-left',x=(left?HELICOPTER.standLeft:HELICOPTER.standRight)*owner.boardingScale,z=seat.startsWith('rear')?hip[2]-HELICOPTER.seatPitch*s:hip[2];return{shift,stand:[(x-shift[0])/guest.boardingScale,(z-shift[2]-own[2])/guest.boardingScale]};}
   return {shift,...(boat?{stand:[(gate[0]*owner.boardingScale-shift[0])/guest.boardingScale,(gate[1]*owner.boardingScale-shift[2])/guest.boardingScale]as [number,number]}:{})};
  }
  private onVehicle(row:Row,time:number):StagedActor{

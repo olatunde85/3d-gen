@@ -174,7 +174,7 @@ export function planExport(ch: Character, s: ExportSettings): ExportPlan {
         for(const format of formats)files.push({path:format==='obj'?`props/${name}/`:`${formats.length>1?format+'/':''}props/${stem}_${name}.${format}`,kind:'vehicle',vehicleId:id,vehicleClip,format,rigged:mode!=='static'&&format!=='obj',clips:animated&&format!=='obj'?actions:[],meshless:false,desc:`${VEHICLE_LABELS[id]} · fitted separate prop${animated&&format!=='obj'?` · ${actions.length} matching vehicle animation${actions.length===1?'':'s'}`:' · static appearance'}`});
       }
     }
-    if(rig&&ids.length)notes.push('Vehicle props use the same origin as the rider. Keep both transforms aligned and play their matching clips together. Car and boat clips include the fitted cabin/deck height. Static and rigged-only characters remain in their bind pose until a riding/driving clip is applied.');
+    if(rig&&ids.length)notes.push('Vehicle props use the same origin as the rider. Keep both transforms aligned and play their matching clips together. Car, boat and helicopter clips include the fitted cabin/deck height. Static and rigged-only characters remain in their bind pose until a riding/driving clip is applied.');
     if(ch.params.vehicle==='auto'&&!ids.length)notes.push('Match animation includes vehicles for selected riding/driving clips. Play a vehicle action in the builder, or select a specific vehicle in the character recipe, to export a static or rigged vehicle prop.');
   }
   if (mode === 'animated' && s.rootMotion && clips.some((c) => clipById.get(c)!.travel))

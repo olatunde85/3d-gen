@@ -1,6 +1,6 @@
 # Animations
 
-There are 114 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 117 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -13,7 +13,7 @@ There are 114 clips. The character loads playing **Idle**. The animation bar at 
 | Turns | Left/right 45° and 90°, full 360° (recorded turn-in-place steps at 2× speed) |
 | Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade. |
 | Reactions | Hit from front / back / left / right, knockdown, death (fall forward), death (fall backward), get up (from back), get up (from front) (one-shots). Knockdown ends where Get up (from back) starts, and Death (fall forward) ends where Get up (from front) starts, so they chain without a pop |
-| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm) (loops); plus 26 boarding/alighting one-shots |
+| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm), pilot helicopter (loops); plus 28 boarding/alighting one-shots |
 
 Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
 
@@ -52,7 +52,7 @@ Interaction hands use chest-space IK; the pickup reach uses floor-space targets 
 
 ## Vehicles and props
 
-Choose a riding or driving **animation** to add its matching vehicle automatically, in both the builder and Studio. There is no separate model selector. Use **Drive modern sports car / Sit (sports car passenger)** or **Drive SUV / Sit (SUV passenger)** for the enclosed cars. **Show vehicle** controls visibility; in Studio it applies to the selected action. Ten procedural models cover thirteen riding/driving actions, plus 26 boarding/alighting actions, including both car occupant roles.
+Choose a riding or driving **animation** to add its matching vehicle automatically, in both the builder and Studio. There is no separate model selector. Use **Drive modern sports car / Sit (sports car passenger)** or **Drive SUV / Sit (SUV passenger)** for the enclosed cars. **Show vehicle** controls visibility; in Studio it applies to the selected action. Eleven procedural models cover fourteen riding/driving actions, plus 28 boarding/alighting actions, including both car occupant roles.
 
 | Vehicle | Compatible clips | Moving components |
 | --- | --- | --- |
@@ -66,6 +66,7 @@ Choose a riding or driving **animation** to add its matching vehicle automatical
 | Kayak | `paddle_kayak` | Double-bladed paddle with continuous side changes |
 | Rowing boat | `row_boat` | Two oars passing through the rowlocks |
 | Motorboat | `drive_boat` | Helm wheel and outboard propeller; two aft passenger seats |
+| Helicopter / chopper | `fly_helicopter` | Upright pilot, cyclic/collective controls, four doors, animated main/tail rotors and landing skids |
 
 Body/coat, trim/mane and seats/tack colours, paint finish and classic/sport variants are saved in `vehicleStyle`. The coupe has a rounded two-door cabin, solid rear pillars, a split grille and alloy wheels. The SUV has an upright five-door cabin, separate rounded rectangular windows, circular LED headlights, flared arches, running boards and a rear spare wheel. Choosing one with untouched colours applies its teal coupe or red SUV factory appearance; edited colours are preserved. Fitting measures the rider’s existing hips, palms, knees, feet and headroom; it never stretches limbs or changes the original rider pose. Car and boat fittings raise the complete rider onto their cabin/deck floor. The clips still work without a vehicle, using their original grounding.
 
@@ -117,3 +118,11 @@ Equip a pistol, rifle, sword or knife and choose an ordinary riding/driving acti
 Studio’s **Weapon action** selector adds Wield, Aim / present, Fire (guns only) and Hide weapon. **Aim (°)** controls heading: 0 forward, positive left, negative right, from −110° to +110°. Defaults aim out the driver/passenger window or to the side of the animal; custom directions need visual clearance review. Fire supplies repeating recoil, without automatic sound, bullets or muzzle flashes. Add timed sound effects separately. Boarding/alighting automatically hide the weapon; it reappears for riding and ordinary actions. Hiding it on other beats is also supported. The equipped model stays in the character recipe; visibility and mounted pose are timed per action.
 
 Builder/game exports use the default mounted wield pose. Studio’s optional `weaponPose` and `weaponYaw` belong to film beats. Code using `Animator.frame`/`bake` may also supply those options directly.
+
+## Helicopter
+
+Choose **Fly helicopter** for a fitted pilot at the controls, or **Board helicopter / Alight from helicopter** for step-through cabin entry and exit. Both transitions last 2.2 seconds, keep limb lengths unchanged, and return to the exact standing/pilot endpoints. Quick Build’s Vehicle choices include the helicopter and its three matching actions; body, trim, seats, finish and style remain customizable.
+
+The Studio helicopter carries a pilot and three shared passengers. **Flight height** is available on the pilot’s flight action: leave it blank for 3 m when moving or 0 m when stationary, set a positive value to hover, or choose 0 to stay on the ground. A continuous flight sequence takes off once and lands once. Forward travel defaults to 12 m/s. Boarding/alighting require a stationary, grounded aircraft; assign different doors/seats for simultaneous entries. The parked aircraft remains after everyone exits.
+
+GLB/FBX exports retain the fitted pilot and transition poses, doors and rotor joints/clips. World travel and altitude are Studio direction, so a game engine supplies its own aircraft movement. No aviation physics or automatic obstacle clearance is implied.

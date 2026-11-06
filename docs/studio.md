@@ -47,10 +47,10 @@ Removing a character also tidies up camera shots and captions that pointed at th
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **114 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **117 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. There's no collision detection, so characters will walk through walls, furniture and each other. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
-- **Props:** vehicle models follow the selected riding/driving action automatically. Dedicated modern sports-car and SUV actions sit alongside the classic car, bicycle, motorcycle, horse, canoe, kayak, rowboat and motorboat performances. The selected action’s **Show vehicle** checkbox controls visibility; **Vehicle appearance** in Equipment edits colours, finish and styling. There is no separate model dropdown.
+- **Props:** vehicle models follow the selected riding/driving action automatically. Dedicated modern sports-car and SUV actions sit alongside the classic car, bicycle, motorcycle, horse, canoe, kayak, rowboat, motorboat and helicopter performances. The selected action’s **Show vehicle** checkbox controls visibility; **Vehicle appearance** in Equipment edits colours, finish and styling. There is no separate model dropdown.
 - **Vehicle travel:** enable **Move through the set** on the operator’s action and adjust **Travel speed (m/s)**. Defaults are now three times the original speeds (e.g. motorcycle 5.4 m/s, car/SUV 4.8 m/s, motorboat 4.2 m/s); explicit saved speeds are retained. Shared passengers follow automatically. Travel does not retime the animation. Stage a clear route: walls, furniture and other actors do not stop vehicles, and there is no water simulation. Outdoor sets now have extended paths, landscaping and waterfronts across a 360 m performance area, with placement up to ±200 m on X/Z.
 - **Custom cast:** in the builder, **Save character** downloads a small `.ara-character.json` with all editable settings; **Open character** reopens it. In Studio, **+ Custom** imports that file as another cast member, preserving the existing characters and film. Custom characters count toward the five-character limit, can be edited via Character builder, survive reload, and can be removed with Undo.
 
@@ -197,7 +197,7 @@ Character assets and motion capture keep their usual terms. Hosting, the speech 
 
 ### Entering and leaving vehicles
 
-Choose **Board…**, the matching riding/driving action, then **Alight from…** from the animation search. There are 26 entry/exit actions across all ten vehicles, including driver/passenger roles for all three cars. Use the full clip duration for entry/exit and keep **Move through set** off; those actions contain their own footwork. Riding can travel at an adjustable speed between them. Car doors and the motorboat’s boarding gate open and close with the action.
+Choose **Board…**, the matching riding/driving action, then **Alight from…** from the animation search. There are 28 entry/exit actions across all eleven vehicles, including driver/passenger roles for all three cars. Use the full clip duration for entry/exit and keep **Move through set** off; those actions contain their own footwork. Riding can travel at an adjustable speed between them. Car doors and the motorboat’s boarding gate open and close with the action.
 
 Boarding/alighting now play at twice their original speed: full actions take 1.6–2.2 seconds. New actions and **Original timing** use those durations; existing longer timeline beats finish the motion sooner and hold its end pose.
 
@@ -237,3 +237,13 @@ The same actor can board with free hands, ride armed, then exit without changing
 ```
 
 LLM Assist includes the fields, defaults and restrictions. Pose/direction survive Save/Open, reload and Undo. Fire is a recoil performance; time gunshot effects yourself. There are no automatic projectiles, targets, muzzle flashes or damage. Weapon model selection remains actor-wide; the beat controls its use and visibility.
+
+## Fly a helicopter
+
+Choose **Board helicopter → Pilot helicopter (fly / hover) → Alight from helicopter**. The four-seat chopper includes working doors, a rounded glass cockpit, landing skids, cyclic/collective controls and animated main/tail rotors. Body, trim, upholstery, finish and style use **Vehicle appearance** as usual.
+
+On the pilot action, enable **Move through the set** for forward travel and adjust **Travel speed** (default 12 m/s). **Flight height** accepts 0–30 metres above the actor’s elevation. An empty value uses 3 m while moving or 0 m while stationary. A positive height with movement off creates a hover. Studio eases one takeoff and landing across consecutive pilot beats on the same vehicle, smoothing height changes between them. End the flight before alighting. Keep actor elevation at 0 for ordinary ground-level boarding.
+
+To carry others, give each character matching helicopter actions, the same **Vehicle** identity and a different **Seat**: front passenger, rear left or rear right. Passengers inherit travel and altitude; set their movement off and configure height only on the pilot. Four separate doors allow simultaneous boarding. A grounded, stationary pilot action (`move:false, flightHeight:0`) can wait while passengers enter. Keep every entry/exit on the ground; the importer rejects boarding a moving or airborne vehicle.
+
+The helicopter waits before entry and stays parked after exit, including transfers to another vehicle. Rotors stop during entry/exit, grounded waiting and parking. Leave about 4 m around the cabin for the main rotor and 6 m behind it for the tail. Use open outdoor routes, wide establishing shots and explicit camera angles. There is no collision avoidance, terrain landing solver, rotor audio or aircraft physics; add supported sound cues separately. LLM Assist includes these limits, all three animations, seat assignments and `flightHeight`.

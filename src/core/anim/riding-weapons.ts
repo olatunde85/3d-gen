@@ -7,7 +7,7 @@ import {isFirearm,type WeaponId} from '../props/weapons';
 export const WEAPON_POSES=['hold','aim','fire','hidden']as const;
 export type WeaponPose=typeof WEAPON_POSES[number];
 export const PADDLING_CLIPS=new Set(['paddle_canoe','paddle_kayak','row_boat']);
-export function defaultWeaponYaw(clip:string){const id=RIDING_VEHICLES[clip];return id==='car'||id==='sports_car'||id==='suv'?(isPassengerClip(clip)?-80:80):id==='horse'?-55:-35;}
+export function defaultWeaponYaw(clip:string,seat?:string){const id=RIDING_VEHICLES[clip];if(id==='helicopter'&&(seat==='front-passenger'||seat==='rear-left'))return 80;return id==='car'||id==='sports_car'||id==='suv'?(isPassengerClip(clip)?-80:80):id==='horse'?-55:-35;}
 export function mountedWeaponSample(base:Sample,clip:Clip,time:number,weapon:WeaponId,pose:WeaponPose,yaw=defaultWeaponYaw(clip.id),chestCounter:Q=QI):Sample{
  const gun=isFirearm(weapon),aim=pose==='aim'||pose==='fire',angle=Math.max(-110,Math.min(110,yaw)),turn=qaxis([0,1,0],angle);
  const pulses=Math.max(1,Math.round(clip.duration*2)),kick=pose==='fire'&&gun?Math.max(0,Math.sin(time/clip.duration*Math.PI*2*pulses))**8:0;

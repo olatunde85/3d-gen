@@ -99,10 +99,10 @@ export class StudioScene {
     // Wide exterior shots need depth precision for paths, water and road markings hundreds of metres away.
     const near=Math.max(.03,Math.min(.5,this.camera.position.distanceTo(center)/300));
     if(Math.abs(this.camera.near-near)>.001){this.camera.near=near;this.camera.updateProjectionMatrix();}
-    this.key.position.set(center.x + (project.template === 'courtyard' ? -3.5 : 3.2), 6, center.z + 4);
+    this.key.position.set(center.x + (project.template === 'courtyard' ? -3.5 : 3.2), center.y+6, center.z + 4);
     const shadowExtent=Math.max(5,...subjects.map(a=>a.group.position.distanceTo(center)+2));
     if(Math.abs(this.key.shadow.camera.right-shadowExtent)>0.01){Object.assign(this.key.shadow.camera,{left:-shadowExtent,right:shadowExtent,top:shadowExtent,bottom:-shadowExtent});this.key.shadow.camera.updateProjectionMatrix();}
-    this.key.target.position.set(center.x,0.8,center.z);this.rim.position.set(center.x-3,4,center.z-4);
+    this.key.target.position.set(center.x,center.y+.8,center.z);this.rim.position.set(center.x-3,center.y+4,center.z-4);
     this.renderer.render(this.scene, this.camera);
     // Compositing in one output canvas makes preview, PNG and MP4 use exactly the same picture.
     const ctx = this.output.getContext('2d')!, W = this.output.width, H = this.output.height;

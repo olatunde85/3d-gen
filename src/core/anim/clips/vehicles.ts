@@ -251,11 +251,24 @@ const driveBoat: Clip = {
   },
 };
 
+/** Upright cockpit posture: right hand on cyclic, left on collective, feet on the pedals. */
+const flyHelicopter:Clip={
+ id:'fly_helicopter',name:'Pilot helicopter (fly / hover)',category:'Vehicles',duration:6,loop:true,
+ sample:t=>{
+  const a=t/6*Math.PI*2,bones:Record<string,Ch>={Spine:[-3,0,0],Spine1:[2,0,0],Neck:[1,0,0],Head:[0,3*Math.sin(a),0]};
+  seatedLegs(bones,82,-82,0,6);grip(bones,'Left');grip(bones,'Right');
+  return{bones,root:{ground:true},thumbs:{Left:.6,Right:.6},ik:{
+   Right:{pos:v(-.13,-.43,.38+.006*Math.sin(a)),pole:v(-1,-.7,-.3),dir:v(0,-.10,1),palm:v(1,0,0)},
+   Left:{pos:v(.29,-.53,.08),pole:v(1,-.7,-.3),dir:v(0,0,1),palm:v(0,-1,0)}
+  }};
+ }
+};
+
 export const VEHICLES: Clip[] = [driveCar, sitPassenger,
  {...driveCar,id:'drive_sports_car',name:'Drive modern sports car'},
  {...sitPassenger,id:'sit_sports_car_passenger',name:'Sit (sports car passenger)'},
  {...driveCar,id:'drive_suv',name:'Drive SUV'},
- {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat];
+ {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat, flyHelicopter];
 
 /** Exact contact poses are fitted by Animator, shared by previews and exports. */
 export const BOARDING: Clip[] = VEHICLE_TRANSITIONS.flatMap(([id, ride, name, duration]) =>
