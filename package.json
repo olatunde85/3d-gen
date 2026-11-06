@@ -41,6 +41,7 @@
     "test:parcel": "tsx scripts/parcel-check.ts",
     "test:gltf": "tsx scripts/gltf-check.ts",
     "build-mocap": "tsx scripts/build-mocap.ts",
+    "build:gown-thumbnails": "tsx scripts/ui-check.ts --gowns",
     "test:ui": "tsx scripts/ui-check.ts",
     "test:studio:vehicles": "tsx scripts/studio-vehicles-check.ts && tsx scripts/passenger-contact-check.ts",
     "test:helicopter": "tsx scripts/helicopter-check.ts && tsx scripts/studio-check.ts --helicopter",
