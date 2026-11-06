@@ -184,7 +184,8 @@ CAPABILITIES AND STAGING
 - Actor ids must be unique, 1–50 letters/numbers/underscores/hyphens, excluding all and camera. Shot targets must exist. Beat/shot ids are optional and regenerated on import. Keep the JSON under 100 KB. Review the result in Studio and refine after import; staging is not physically solved.
 
 COMPLETE LOCATION CATALOGUE
-${json(SETS.map(s => ({ id: s.id, name: s.name, category: s.category, mood: s.mood, description: s.subtitle })))}
+Use template as a location ID. Staging notes describe the actual floor plan and are guidance, not additional project fields.
+${json(SETS.map(s => ({ id: s.id, name: s.name, category: s.category, mood: s.mood, description: s.subtitle,...(s.staging?{staging:s.staging}:{}) })))}
 
 COMPLETE CHARACTER PRESET CATALOGUE
 ${json(Object.keys(PRESETS))}
@@ -210,7 +211,7 @@ COMPLETE ANIMATION CATALOGUE
 ${json(CLIPS.map(c => ({ id: c.id, name: c.name, category: c.category, duration: c.duration, loop: c.loop, travel: studioTravel(c.id) ? Array.from(studioTravel(c.id)!) : null, note: actionNote(c.id) })))}
 
 JSON SCHEMA
-${json(assistSchema(catalog))}
+${JSON.stringify(assistSchema(catalog))}
 Additional constraints: actor ids are unique; shot targets must be all or an actor id; each track, speech clip, sound-effect cue and text cue must finish within ${MAX_DURATION}s. Screen text x/y must be 0..1; actor-relative x/y may be -1..1. Text IDs must be unique. Use move:true only for clips whose catalogue travel is non-null. Unknown fields are rejected.
 
 VALID EXAMPLE (replace it with the requested film)

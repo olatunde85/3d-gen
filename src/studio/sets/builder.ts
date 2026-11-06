@@ -25,7 +25,7 @@ export class SetBuilder {
       const m = child as THREE.Mesh;
       if (!m.isMesh || m.children.length || Array.isArray(m.material)) continue;
       const key = `${m.material.uuid}:${m.castShadow}`;
-      buckets.set(key, [...buckets.get(key) ?? [], m]);
+      const bucket=buckets.get(key);if(bucket)bucket.push(m);else buckets.set(key,[m]);
     }
     for (const meshes of buckets.values()) {
       if (meshes.length < 2) continue;

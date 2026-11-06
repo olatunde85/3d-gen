@@ -43,6 +43,7 @@
     "build-mocap": "tsx scripts/build-mocap.ts",
     "test:ui": "tsx scripts/ui-check.ts",
     "test:studio:vehicles": "tsx scripts/studio-vehicles-check.ts && tsx scripts/passenger-contact-check.ts",
+    "test:studio:scenes": "tsx scripts/studio-check.ts --scenes",
     "test:studio:editing": "tsx scripts/studio-timing-check.ts && tsx scripts/studio-check.ts --editing",
     "test:studio:model": "tsx scripts/studio-model-check.ts",
     "test:studio": "tsx scripts/studio-check.ts",

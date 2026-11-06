@@ -1,7 +1,8 @@
-/** A bounded set factory: 50 searchable recipes reuse fourteen families of original props. */
+/** Lazy set recipes share original geometry and release resources when the location changes. */
 import * as THREE from 'three';
 import { sceneById,isOutdoorScene, type SetId, type SceneDefinition } from './catalog';
 import {extendOutdoor} from './sets/outdoor-extension';
+import {STORY_SETS} from './sets/story';
 import { SetBuilder, type Seat } from './sets/builder';
 import { createOriginalSet } from './sets/original';
 export interface StudioSet { group: THREE.Group; background: string; floor: string; key: string; fill: string; exposure: number; seats: Seat[] }
@@ -227,8 +228,8 @@ export function createSet(id: SetId): StudioSet {
   const surface = s.family==='bedroom'||s.family==='lounge'||s.family==='yacht'?'wood':s.family==='beach'||s.id==='desert-outpost'?'sand':s.family==='landscape'||s.family==='garden'?'grass':'stone';
   const b = new SetBuilder(s.mood,surface);
   const builders = { studio, office, bedroom, lounge, kitchen, beach: coast, pool: coast, garden, street: urban, transit: urban, warehouse: urban, restaurant, landscape, yacht };
-  builders[s.family](b, s); b.group.name = id;
-  if(isOutdoorScene(id))extendOutdoor(b,s);
+  const story=STORY_SETS[id];if(story)story(b);else{const build=builders[s.family as keyof typeof builders];if(!build)throw Error('Missing scene recipe.');build(b,s);}b.group.name=id;
+  if(isOutdoorScene(id)&&!b.group.userData.performanceBounds)extendOutdoor(b,s);
   if(s.mood==='sunset'&&['beach','pool','landscape','yacht','garden'].includes(s.family)){const sun=b.ball([8,8,8],[-120,58,-460],'#efc995'),material=b.material('#efc995',1,0,1);material.fog=false;sun.material=material;sun.castShadow=false;}
   b.compact();
   const night = s.mood === 'night', sunset = s.mood === 'sunset';
