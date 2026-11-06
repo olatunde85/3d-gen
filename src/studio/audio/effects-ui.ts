@@ -12,7 +12,7 @@ export function setupEffectsEditor(editor:EffectsEditor){
  const preview=new AudioPlayback();let selected='',previewToken=0;
  const current=()=>editor.project().audio.effects.find(c=>c.id===selected),status=(message:string)=>{$('status').textContent=message;};
  const label=(cue:SoundEffectCue)=>`${cue.start.toFixed(2)}s · ${cue.name}`;
- for(const effect of SOUND_EFFECTS){select('library').append(new Option(effect.name,effect.id));select('sound').append(new Option(effect.name,effect.id));}
+ for(const id of ['library','sound'])for(const category of new Set(SOUND_EFFECTS.map(s=>s.category))){const group=document.createElement('optgroup');group.label=category;for(const effect of SOUND_EFFECTS.filter(s=>s.category===category))group.append(new Option(effect.name,effect.id));select(id).append(group);}
  function describe(){const effect=soundEffectById(select('library').value)!;$('description').textContent=`${effect.description} ${effect.duration.toFixed(2)}s.`;}
  function render(){
   const cues=editor.project().audio.effects;if(!cues.some(c=>c.id===selected))selected=cues[0]?.id??'';

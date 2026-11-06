@@ -190,7 +190,7 @@ for(const clip of Object.keys(RIDING_VEHICLES)){
  const p=newProject();p.actors[0].beats=[{...beat(clip,2,true),travelSpeed:1.1},beat('idle',1)];const parsed=parseProject(JSON.stringify(p));assert.equal(parsed.actors[0].beats[0].move,true);const a=timelineAt(parsed,0),b=timelineAt(parsed,2),c=timelineAt(parsed,3);assert.ok(Math.abs(Math.abs(b.z-a.z)-2.2)<1e-6);assert.equal(c.z,b.z);
 }
 const legacyVehicle=newProject();legacyVehicle.actors[0].vehicle='suv';legacyVehicle.actors[0].beats=[beat('drive_car',3)];const migratedVehicle=parseProject(JSON.stringify(legacyVehicle));assert.equal(migratedVehicle.actors[0].beats[0].clip,'drive_suv');assert.equal(migratedVehicle.actors[0].vehicle,'auto');migratedVehicle.actors[0].beats[0].clip='ride_bicycle';assert.equal(parseProject(JSON.stringify(migratedVehicle)).actors[0].beats[0].clip,'ride_bicycle');
-for(const travelSpeed of [0,7,'fast'])assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{clip:'drive_suv',duration:2,move:true,travelSpeed}]}]})));
+for(const travelSpeed of [0,31,'fast'])assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{clip:'drive_suv',duration:2,move:true,travelSpeed}]}]})));
 assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{clip:'walk',duration:2,move:true,travelSpeed:1}]}]})));
 console.log('Vehicle travel: all actions, speed validation, held endings, legacy model migration and animation authority passed.');
 

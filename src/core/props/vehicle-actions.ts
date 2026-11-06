@@ -3,19 +3,19 @@ import type {Rig} from '../rig/rig';
 /** Anatomical height, excluding the game rig's extrapolated HeadTop_End tail. */
 export function boardingScale(rig:Rig){return rig.bones.find(b=>b.name==='Head'||b.name==='head')!.tail[1]/1.8;}
 export const VEHICLE_TRANSITIONS = [
-  ['bicycle', 'ride_bicycle', 'bicycle', 3.2],
-  ['car', 'drive_car', 'convertible (driver)', 3.6],
-  ['car_passenger', 'sit_passenger', 'convertible (passenger)', 3.6],
-  ['sports_car', 'drive_sports_car', 'sports car (driver)', 4.0],
-  ['sports_car_passenger', 'sit_sports_car_passenger', 'sports car (passenger)', 4.0],
-  ['suv', 'drive_suv', 'SUV (driver)', 4.2],
-  ['suv_passenger', 'sit_suv_passenger', 'SUV (passenger)', 4.2],
-  ['motorcycle', 'ride_motorcycle', 'motorcycle', 3.4],
-  ['horse', 'ride_horse', 'horse', 4.4],
-  ['canoe', 'paddle_canoe', 'canoe', 3.8],
-  ['kayak', 'paddle_kayak', 'kayak', 4.2],
-  ['rowboat', 'row_boat', 'rowing boat', 3.8],
-  ['motorboat', 'drive_boat', 'motorboat', 4.0],
+  ['bicycle', 'ride_bicycle', 'bicycle', 1.6],
+  ['car', 'drive_car', 'convertible (driver)', 1.8],
+  ['car_passenger', 'sit_passenger', 'convertible (passenger)', 1.8],
+  ['sports_car', 'drive_sports_car', 'sports car (driver)', 2.0],
+  ['sports_car_passenger', 'sit_sports_car_passenger', 'sports car (passenger)', 2.0],
+  ['suv', 'drive_suv', 'SUV (driver)', 2.1],
+  ['suv_passenger', 'sit_suv_passenger', 'SUV (passenger)', 2.1],
+  ['motorcycle', 'ride_motorcycle', 'motorcycle', 1.7],
+  ['horse', 'ride_horse', 'horse', 2.2],
+  ['canoe', 'paddle_canoe', 'canoe', 1.9],
+  ['kayak', 'paddle_kayak', 'kayak', 2.1],
+  ['rowboat', 'row_boat', 'rowing boat', 1.9],
+  ['motorboat', 'drive_boat', 'motorboat', 2.0],
 ] as const;
 export interface VehicleTransition { ride: string; direction: 'board' | 'alight' }
 export const TRANSITION_BY_CLIP: Readonly<Record<string, VehicleTransition>> = Object.fromEntries(

@@ -24,11 +24,13 @@ export function articulateDoors(k:VehicleKit){
  const s=k.fit.scale,suv=k.fit.id==='suv',classic=k.fit.id==='car',driver=!k.fit.clip.id.includes('passenger'),cx=(driver?-.36:.36)*s,z=k.fit.average('hip').z;
  const width=(suv?2.02:classic?1.62:1.94)*s,front=(suv?.64:classic?.55:.88)*s,rear=(suv?-.40:classic?-.55:-.42)*s;
  const hip=k.fit.average('hip').y,roof=Math.max(hip+.88*s,...k.fit.samples.map(c=>c.headTop.y+.12*s));
- for(const side of [-1,1]){
-  const hinge=v(cx+side*width*.465,(classic?.30:suv?.46:.19)*s,z+front),door=k.component(`Door_${side>0?'left':'right'}`,hinge);
-  const window=k.component(`Window_${side>0?'left':'right'}`,v(),door);
-  door.userData.doorSide=side;door.userData.occupantDoor=side===(driver?1:-1);
-  const planes:Plane[]=[{axis:'x',value:cx+side*width*.36,sign:side},{axis:'z',value:z+rear,sign:1},{axis:'z',value:z+front,sign:-1},{axis:'y',value:(classic?.29:suv?.45:.17)*s,sign:1},{axis:'y',value:classic?1.0*s:roof-.075*s,sign:-1}];
+ for(const row of suv?[0,1]:[0])for(const side of [-1,1]){
+  const doorFront=row?-.40*s:front,doorRear=row?-1.43*s:rear;
+  const hinge=v(cx+side*width*.465,(classic?.30:suv?.46:.19)*s,z+doorFront),door=k.component(`Door_${row?'rear_':''}${side>0?'left':'right'}`,hinge);
+  const window=k.component(`Window_${row?'rear_':''}${side>0?'left':'right'}`,v(),door);
+  door.userData.rearDoor=!!row;
+  door.userData.doorSide=side;door.userData.occupantDoor=!row&&side===(driver?1:-1);
+  const planes:Plane[]=[{axis:'x',value:cx+side*width*.36,sign:side},{axis:'z',value:z+doorRear,sign:1},{axis:'z',value:z+doorFront,sign:-1},{axis:'y',value:(classic?.29:suv?.45:.17)*s,sign:1},{axis:'y',value:classic?1.0*s:roof-.075*s,sign:-1}];
   k.group.updateMatrixWorld(true);const meshes:T.Mesh[]=[];
   k.group.traverse(o=>{if(o instanceof T.Mesh&&o.parent===k.group)meshes.push(o);});
   for(const mesh of meshes){

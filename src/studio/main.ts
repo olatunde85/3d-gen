@@ -29,7 +29,8 @@ import {VEHICLE_FOR_CLIP,RIDING_VEHICLES,VEHICLE_LABELS,type VehicleStyle} from 
 import {defaultWeaponYaw,type WeaponPose} from '../core/anim/riding-weapons';
 import {isFirearm} from '../core/props/weapons';
 
-import {studioTravel,VEHICLE_SPEED} from './motion';
+import {studioTravel,VEHICLE_SPEED,STAGE_LIMIT} from './motion';
+import {vehicleCatalog,vehicleKey,assignVehicle,availableVehicleSeats,seatsForVehicle,SEAT_LABELS,type VehicleSeat} from './vehicle-seats';
 import {readCharacterSettings} from '../app/character-file';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -115,10 +116,12 @@ function lock() {
     button('add-shot').disabled = project.shots.length >= MAX_SHOTS || project.shots.reduce((s, b) => s + b.duration, 0) > MAX_DURATION - 0.1;
     button('add-actor').disabled = button('add-custom-actor').disabled = project.actors.length >= MAX_ACTORS;
     input('movement').disabled = !studioTravel(actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)].clip);
+    const current=actorTrack().beats[Math.min(selected,actorTrack().beats.length-1)],passenger=(current.vehicleSeat??'operator')!=='operator';
+    if(passenger){input('movement').disabled=true;input('show-vehicle').disabled=true;input('vehicle-travel-speed').disabled=true;}
     select('blocking').disabled = project.actors.length !== 2;
   }
   input('title').disabled=loading||exporting||importing||!!placementBefore;
-  if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','show-vehicle','beat-weapon-pose','beat-weapon-yaw','vehicle-travel-speed','vehicle-color','vehicle-accentColor','vehicle-seatColor','vehicle-finish','vehicle-variant','actor-x','actor-y','actor-z','actor-yaw','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
+  if(!characterSelected){for(const id of ['character','remove-actor','actor-weapon','actor-carry','show-vehicle','beat-vehicle','beat-vehicle-seat','beat-weapon-pose','beat-weapon-yaw','vehicle-travel-speed','vehicle-color','vehicle-accentColor','vehicle-seatColor','vehicle-finish','vehicle-variant','actor-x','actor-y','actor-z','actor-yaw','action','beat-duration','movement','clip-length','add-beat','animation-search','animation-category','place-actor'])($<HTMLInputElement>(id)).disabled=true;}
   $('deselect-actor').hidden=!characterSelected;
   for(const guard of document.querySelectorAll<HTMLElement>('.select-first'))guard.hidden=characterSelected||loading||exporting||importing;
   for(const hint of document.querySelectorAll<HTMLElement>('.select-first-hint')){hint.hidden=characterSelected;if(characterSelected)hint.classList.remove('urgent');}
@@ -157,6 +160,17 @@ function renderAnimations() {
   if(!clips.some(c=>c.id===b.clip))picker.append(new Option(`${clipById.get(b.clip)!.name} · current`,b.clip));
   for(const category of ANIMATION_CATEGORIES){const group=document.createElement('optgroup');group.label=category;for(const c of clips.filter(c=>c.category===category))group.append(new Option(c.name,c.id));if(group.children.length)picker.append(group);}
   picker.value=b.clip;$('animation-count').textContent=`${clips.length} / ${CLIPS.length}`;$('action-note').textContent=actionNote(b.clip,decodeCharacter(actorTrack().character,actorTrack().detail)?.weapon,loading?undefined:scene.seatsFor(project).length);$('action-note').title=$('action-note').textContent||'';
+}
+function renderVehicleLinks(actor:ActorTrack){
+ const b=actor.beats[Math.min(selected,actor.beats.length-1)],model=VEHICLE_FOR_CLIP[b.clip];if(!model)return;
+ const picker=select('beat-vehicle'),catalog=vehicleCatalog(project),source=catalog.get(vehicleKey(actor,b));
+ picker.replaceChildren(new Option('Own vehicle',''));
+ for(const entry of catalog.values())if(entry.model===model&&(entry.actor.id===actor.id||seatsForVehicle(model).length>1))picker.append(new Option(`${entry.actor.id===actor.id?'This vehicle':`Share · Character ${project.actors.indexOf(entry.actor)+1} · ${actorName(entry.actor)}`} · ${VEHICLE_LABELS[model]}${entry.beat.vehicleId?` · ${entry.id}`:''}`,entry.id));
+ picker.value=b.vehicleId??'';
+ const guest=source?.actor.id!==actor.id&&!!b.vehicleId,seats=guest?seatsForVehicle(model).filter(s=>s!=='operator'):['operator']as const;
+ const free=b.vehicleId?availableVehicleSeats(project,actor.id,selected,b.vehicleId):[];
+ select('beat-vehicle-seat').replaceChildren(...seats.map(s=>{const o=new Option(SEAT_LABELS[s],s);o.disabled=guest&&!free.includes(s);return o;}));select('beat-vehicle-seat').value=b.vehicleSeat??'operator';
+ $('vehicle-link-note').textContent=guest?'Entry, ride and exit use this seat on the shared vehicle. Travel follows its driver automatically.':'Vehicles wait in the set before boarding and remain parked after exit. Link other characters to this vehicle to add passengers.';
 }
 function renderTracks() {
   const total=durationOf(project);$('tracks').replaceChildren();
@@ -227,14 +241,16 @@ function renderUI() {
   $('action-settings').hidden=cameraSelection;$('shot-settings').hidden=!cameraSelection;
   if(cameraSelection){const s=project.shots[selected];select('shot').value=s.shot;input('shot-duration').value=String(s.duration);select('shot-target').replaceChildren(new Option('Entire cast','all'));for(const [i,actor]of project.actors.entries())select('shot-target').append(new Option(`Character ${i+1} · ${actorName(actor)}`,actor.id));select('shot-target').value=s.target;}
   else{const b=a.beats[selected];const mounted=!!RIDING_VEHICLES[b.clip];$('weapon-action-settings').hidden=params.weapon==='none';select('beat-weapon-pose').value=b.weaponPose??'auto';for(const option of select('beat-weapon-pose').options)option.disabled=option.value!=='auto'&&option.value!=='hidden'&&(!mounted||option.value==='fire'&&!isFirearm(params.weapon));$('weapon-yaw-row').hidden=!mounted||b.weaponPose==='hidden';input('beat-weapon-yaw').value=String(b.weaponYaw??defaultWeaponYaw(b.clip));renderAnimations();input('beat-duration').value=String(b.duration);input('movement').checked=b.move;const ride=VEHICLE_FOR_CLIP[b.clip];$('vehicle-action-settings').hidden=!ride;input('show-vehicle').checked=b.showVehicle??a.vehicle!=='none';$('vehicle-speed-row').hidden=!ride||!b.move;input('vehicle-travel-speed').value=String(b.travelSpeed??(ride?VEHICLE_SPEED[ride]:1));}
+  if(!cameraSelection)renderVehicleLinks(a);
   $('blocking-title').textContent=characterSelected?`Character ${ai+1} placement`:'Character placement';for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).value=String(a[key]);select('blocking').value=castArrangement(project.actors);
   $('cast-staging').hidden=project.actors.length>2;
   $('blocking-hint').textContent=project.actors.length<2?'Add another character to arrange the cast.':`Moves and turns all ${project.actors.length} characters.`;
   $('equipment-title').textContent='Equipment';select('actor-weapon').value=params.weapon;select('actor-carry').value=params.carry;
-  const vehicle=VEHICLE_FOR_CLIP[a.beats[Math.min(selected,a.beats.length-1)].clip];$('vehicle-appearance').hidden=!vehicle||!(a.beats[Math.min(selected,a.beats.length-1)].showVehicle??a.vehicle!=='none');
-  for(const key of ['color','accentColor','seatColor']as const)input(`vehicle-${key}`).value=params.vehicleStyle[key];
-  for(const key of ['finish','variant']as const)select(`vehicle-${key}`).value=params.vehicleStyle[key];
-  $('vehicle-note').textContent=vehicle?`${VEHICLE_LABELS[vehicle]} follows this action. Visibility and travel are on the right.`:'Choose a riding or driving action to add its vehicle.';
+  const currentBeat=a.beats[Math.min(selected,a.beats.length-1)],vehicle=VEHICLE_FOR_CLIP[currentBeat.clip],source=vehicleCatalog(project).get(vehicleKey(a,currentBeat)),shared=source&&source.actor.id!==a.id,vehicleStyle=source?decodeCharacter(source.actor.character,source.actor.detail)!.vehicleStyle:params.vehicleStyle;
+  $('vehicle-appearance').hidden=!vehicle||(!shared&&!(currentBeat.showVehicle??a.vehicle!=='none'));
+  for(const key of ['color','accentColor','seatColor']as const)input(`vehicle-${key}`).value=vehicleStyle[key];
+  for(const key of ['finish','variant']as const)select(`vehicle-${key}`).value=vehicleStyle[key];
+  $('vehicle-note').textContent=vehicle?(shared?`${VEHICLE_LABELS[vehicle]} shared with ${actorName(source.actor)}. Appearance edits apply to the shared vehicle.`:`${VEHICLE_LABELS[vehicle]} follows this action. Visibility and travel are on the right.`):'Choose a riding or driving action to add its vehicle.';
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
   $('view-readout').textContent=`${Math.round(project.view.azimuth)}° · ${project.view.zoom.toFixed(1)}×`;
   for(const aspect of ['landscape','portrait'])button(aspect).setAttribute('aria-pressed',String(project.aspect===aspect));
@@ -305,13 +321,19 @@ select('blocking').addEventListener('change',async()=>{
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});
-select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition)b.duration=clipById.get(b.clip)!.duration;b.move=false;delete b.travelSpeed;delete b.showVehicle;delete b.weaponPose;delete b.weaponYaw;const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
+select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];const priorModel=VEHICLE_FOR_CLIP[b.clip];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition)b.duration=clipById.get(b.clip)!.duration;b.move=false;delete b.travelSpeed;delete b.showVehicle;delete b.weaponPose;delete b.weaponYaw;if(priorModel!==VEHICLE_FOR_CLIP[b.clip]){delete b.vehicleId;delete b.vehicleSeat;}const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
 input('beat-duration').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].duration=Number(input('beat-duration').value)));
 button('clip-length').addEventListener('click',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.duration=Math.min(12,clipById.get(b.clip)!.duration);}));
 select('beat-weapon-pose').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected],value=select('beat-weapon-pose').value;if(value==='auto')delete b.weaponPose;else b.weaponPose=value as WeaponPose;}));
 input('beat-weapon-yaw').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].weaponYaw=Number(input('beat-weapon-yaw').value);}));
 input('show-vehicle').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].showVehicle=input('show-vehicle').checked;}));
 input('vehicle-travel-speed').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].travelSpeed=Number(input('vehicle-travel-speed').value);}));
+select('beat-vehicle').addEventListener('change',()=>{
+ const id=select('beat-vehicle').value||undefined,source=id?vehicleCatalog(project).get(id):undefined,guest=source&&source.actor.id!==selectedActor,free=id&&guest?availableVehicleSeats(project,selectedActor,selected,id):[];
+ if(guest&&!free.length){notify('All passenger seats are occupied during this sequence. Choose another vehicle or change the timing.');renderUI();return;}
+ void edit(p=>assignVehicle(p,selectedActor,selected,id,guest?free[0]:'operator'));
+});
+select('beat-vehicle-seat').addEventListener('change',()=>void edit(p=>assignVehicle(p,selectedActor,selected,select('beat-vehicle').value||undefined,select('beat-vehicle-seat').value as VehicleSeat)));
 input('movement').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].move=input('movement').checked));
 select('shot').addEventListener('change',()=>void edit(p=>p.shots[selected].shot=select('shot').value as typeof p.shots[number]['shot']));
 select('shot-target').addEventListener('change',()=>void edit(p=>p.shots[selected].target=select('shot-target').value));
@@ -381,7 +403,7 @@ for(const id of WEAPONS)select('actor-weapon').append(new Option(WEAPON_LABELS[i
 for(const id of CARRIED)select('actor-carry').append(new Option(CARRY_LABELS[id],id));
 for(const key of ['color','accentColor','seatColor','finish','variant']as const){
   const control=$<HTMLInputElement|HTMLSelectElement>(`vehicle-${key}`);
-  control.addEventListener('change',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!,params=decodeCharacter(a.character,a.detail)!;params.vehicleStyle={...params.vehicleStyle,[key]:control.value}as VehicleStyle;a.character=encodeCharacter(params);}));
+  control.addEventListener('change',()=>void edit(p=>{const selectedTrack=p.actors.find(a=>a.id===selectedActor)!,b=selectedTrack.beats[Math.min(selected,selectedTrack.beats.length-1)],a=vehicleCatalog(p).get(vehicleKey(selectedTrack,b))?.actor??selectedTrack,params=decodeCharacter(a.character,a.detail)!;params.vehicleStyle={...params.vehicleStyle,[key]:control.value}as VehicleStyle;a.character=encodeCharacter(params);}));
 }
 for(const [id,slot]of [['actor-weapon','weapon'],['actor-carry','carry']]as const)select(id).addEventListener('change',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!;a.character=equipActor(a,slot,select(id).value);}));
 orbitControls($<HTMLCanvasElement>('film'),()=>project.view,()=>!loading&&!exporting&&!importing,()=>{remember();setPlaying(false);},v=>{project.view=v;dirty=true;$('view-readout').textContent=`${Math.round(v.azimuth)}° · ${v.zoom.toFixed(1)}×`;},()=>{lock();save();},{
@@ -397,12 +419,12 @@ orbitControls($<HTMLCanvasElement>('film'),()=>project.view,()=>!loading&&!expor
     else{const m=scene.camera.matrixWorld.elements,length=Math.hypot(m[8],m[10])||1;
       const dx=key==='ArrowLeft'?-m[0]:key==='ArrowRight'?m[0]:key==='ArrowUp'?-m[8]/length:m[8]/length;
       const dz=key==='ArrowLeft'?-m[2]:key==='ArrowRight'?m[2]:key==='ArrowUp'?-m[10]/length:m[10]/length;
-      a.x=Math.max(-12,Math.min(12,a.x+dx*.1));a.z=Math.max(-12,Math.min(12,a.z+dz*.1));}
+      a.x=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,a.x+dx*.1));a.z=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,a.z+dz*.1));}
     for(const field of ['x','y','z','yaw']as const)input(`actor-${field}`).value=String(Number(a[field].toFixed(3)));dirty=true;return true;
   },
   point:(x,y,elevation)=>scene.groundPoint(x,y,elevation),clickToPlace:()=>clickToPlace,
   begin:()=>{placementBefore=JSON.stringify(project);scene.freezeCamera=true;setPlaying(false);lock();},
-  move:(x,z)=>{const a=actorTrack();a.x=Math.max(-12,Math.min(12,x));a.z=Math.max(-12,Math.min(12,z));input('actor-x').value=String(Number(a.x.toFixed(2)));input('actor-z').value=String(Number(a.z.toFixed(2)));dirty=true;},
+  move:(x,z)=>{const a=actorTrack();a.x=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,x));a.z=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,z));input('actor-x').value=String(Number(a.x.toFixed(2)));input('actor-z').value=String(Number(a.z.toFixed(2)));dirty=true;},
   end:cancelled=>{const before=placementBefore;placementBefore=undefined;scene.freezeCamera=false;if(!before)return;
     if(cancelled)project=JSON.parse(before) as StudioProject;
     else if(JSON.stringify(project)!==before){history.push(before);if(history.length>30)history.shift();const a=actorTrack();a.x=Number(a.x.toFixed(3));a.z=Number(a.z.toFixed(3));save();}

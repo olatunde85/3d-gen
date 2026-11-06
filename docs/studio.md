@@ -47,7 +47,7 @@ The timeline has a **camera lane** and a **performance lane for each character**
 - **Move through the set:** walking, running and strafing clips can travel. There's no collision detection, so characters will walk through walls, furniture and each other. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
 - **Props:** vehicle models follow the selected riding/driving action automatically. Dedicated modern sports-car and SUV actions sit alongside the classic car, bicycle, motorcycle, horse, canoe, kayak, rowboat and motorboat performances. The selected action’s **Show vehicle** checkbox controls visibility; **Vehicle appearance** in Equipment edits colours, finish and styling. There is no separate model dropdown.
-- **Vehicle travel:** enable **Move through the set** on the selected action and adjust **Travel speed (m/s)**. The complete vehicle and rider move together, facing the actor’s yaw; wheel rotation follows distance. Stage a clear route and review it before export: walls, furniture and other actors do not stop vehicles. There is no pathfinding or water simulation. The enlarged motorboat has two aft passenger seats: use Sit (passenger) with Show vehicle unchecked, and manual placement/elevation (see the animation guide). Match passenger travel speeds and timings when the boat moves.
+- **Vehicle travel:** enable **Move through the set** on the operator’s action and adjust **Travel speed (m/s)**. Defaults are now three times the original speeds (e.g. motorcycle 5.4 m/s, car/SUV 4.8 m/s, motorboat 4.2 m/s); explicit saved speeds are retained. Shared passengers follow automatically. Travel does not retime the animation. Stage a clear route: walls, furniture and other actors do not stop vehicles, and there is no water simulation. Outdoor sets now have extended paths, landscaping and waterfronts across a 360 m performance area, with placement up to ±200 m on X/Z.
 - **Custom cast:** in the builder, **Save character** downloads a small `.ara-character.json` with all editable settings; **Open character** reopens it. In Studio, **+ Custom** imports that file as another cast member, preserving the existing characters and film. Custom characters count toward the five-character limit, can be edited via Character builder, survive reload, and can be removed with Undo.
 
 - **Camera shots:** full-body, medium or close framing, on the **whole cast** or **one character**.
@@ -99,7 +99,7 @@ Only the chosen track downloads. The film uses its beginning, with your volume a
 
 ## Sound effects
 
-**Sound effects** above the timeline opens the effects library: **Suppressed pistol shot** and **Body fall thump**.
+**Sound effects** above the timeline opens nine recordings, grouped by category: suppressed pistol, rifle shot, body fall, motorcycle/car/boat engines, wind, forest birds and ocean. Engine takes last eight seconds and ambient takes last four seconds. Duplicate adjacent cues for a longer bed; LLM Assist lists every ID and source duration.
 
 1. Listen, then **Add at playhead**.
 2. Set the start time to the moment of the shot or impact.
@@ -189,7 +189,28 @@ Character assets and motion capture keep their usual terms. Hosting, the speech 
 
 Choose **Board…**, the matching riding/driving action, then **Alight from…** from the animation search. There are 26 entry/exit actions across all ten vehicles, including driver/passenger roles for all three cars. Use the full clip duration for entry/exit and keep **Move through set** off; those actions contain their own footwork. Riding can travel at an adjustable speed between them. Car doors and the motorboat’s boarding gate open and close with the action.
 
-The vehicle stays parked after alighting while the actor walks away, and is visible beside an actor waiting in a leading idle beat. Scrubbing, saved JSON, Undo and reloading derive the same parked position from the timeline. One actor retains one active vehicle; return to the parked position before boarding again. LLM Assist includes the complete pairing table, timing and staging instructions. Boarding the motorboat goes to the helm; passengers in the aft seats still need manual staging.
+Boarding/alighting now play at twice their original speed: full actions take 1.6–2.2 seconds. New actions and **Original timing** use those durations; existing longer timeline beats finish the motion sooner and hold its end pose.
+
+Every scheduled vehicle is present from the beginning, waiting at its first entry. It stays parked after exit even when its actor boards a different vehicle. For **Ride motorcycle → Alight → Run → Board motorboat → Drive boat**, Studio places the boat at the end of the approach and retains the motorcycle behind. Scrubbing, Save/Open, Undo, reload and MP4 use the same timeline-derived state. Reusing an identity returns to that physical vehicle; different identities create separate props of the same model.
+
+### Share a vehicle
+
+1. Give the operator a matching boarding/riding/alighting sequence.
+2. Select another character’s matching vehicle action. In **Vehicle**, choose **Share · [operator]** and select a **Seat**. The link applies to the complete contiguous entry/ride/exit sequence.
+3. Add waiting or walking beats to synchronize entry. Passengers follow the vehicle’s placement, yaw and movement automatically; no copied speed, hand-set offsets or duplicate hidden prop is required.
+4. Keep the operator stationary while anyone boards/alights. Stagger use of the motorboat gate, motorcycle, canoe or rowing-boat entry. Cars use separate front doors; the SUV also opens its rear doors. Occupied seats and boarding a moving vehicle are rejected with an explanation.
+
+| Vehicle | Occupants |
+| --- | --- |
+| Convertible / sports car | Driver + front passenger |
+| SUV | Driver + front passenger + two rear passengers |
+| Motorboat | Helm operator + two aft passengers |
+| Motorcycle / canoe / rowing boat | Rider/operator + one passenger |
+| Bicycle / horse / kayak | One rider |
+
+Passengers use the host model’s animations; **Seat** supplies the appropriate seated or pillion performance, fitted to their own body. Exit leaves them on the ground while the vehicle can depart. Add walking approaches and space waiting characters apart; this is authored staging, not collision avoidance.
+
+LLM Assist uses per-beat `vehicleId` and `vehicleSeat`. For example, the operator’s `{"clip":"drive_boat","duration":5,"move":true,"vehicleId":"launch","vehicleSeat":"operator"}` can be shared by a passenger using the same `vehicleId`, `vehicleSeat:"passenger-left"` and `move:false`. Keep those fields on entry and exit too. The other aft seat is `passenger-right`; car seats are `front-passenger`, `rear-left` and `rear-right` where supported. The operator’s character supplies vehicle colours and body fit. Existing unlinked projects retain automatic actor-owned vehicles.
 
 ### Armed riding
 
@@ -199,9 +220,9 @@ The same actor can board with free hands, ride armed, then exit without changing
 
 ```json
 [
-  {"clip":"board_motorcycle","duration":3.4,"move":false},
+  {"clip":"board_motorcycle","duration":1.7,"move":false},
   {"clip":"ride_motorcycle","duration":3,"move":true,"weaponPose":"fire","weaponYaw":-60},
-  {"clip":"alight_motorcycle","duration":3.4,"move":false}
+  {"clip":"alight_motorcycle","duration":1.7,"move":false}
 ]
 ```
 

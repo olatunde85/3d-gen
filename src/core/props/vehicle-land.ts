@@ -57,6 +57,14 @@ export function buildMotorcycle(k:VehicleKit){
  const rearWheel=k.wheel('Rear_wheel',back,.32*s,.17*s,true),frontWheel=k.wheel('Front_wheel',front,.32*s,.14*s,true);
  k.updates.push((_,time)=>{rearWheel.rotation.x=frontWheel.rotation.x=time/k.fit.clip.duration*Math.PI*8;});
  k.ellipsoid(v(0,saddle.y-.025*s,H.z-.1*s),v(.17*s,.055*s,.3*s),k.seat);
+ // A real pillion pad and rear frame support the second Studio occupant.
+ k.ellipsoid(v(0,saddle.y+.02*s,H.z-.65*s),v(.16*s,.05*s,.23*s),k.seat);
+ for(const side of [-1,1]){
+  k.tube(saddle.clone().setX(side*.12*s),v(side*.12*s,saddle.y-.04*s,H.z-.89*s),.022*s,k.dark);
+  const peg=k.fit.average(side===1?'footLeft':'footRight').add(v(0,0,-.58*s));
+  k.tube(v(side*.09*s,.48*s,H.z-.55*s),peg,.02*s,k.trim);
+  k.tube(peg.clone().add(v(-.06*s,0,0)),peg.clone().add(v(.06*s,0,0)),.024*s,k.rubber);
+ }
  const tank=k.ellipsoid(v(0,saddle.y-.02*s,H.z+.27*s),v(sport?.19*s:.17*s,.16*s,.29*s),k.paint);
  tank.rotation.x=-.1;
  const engine=k.box(v(0,.39*s,H.z+.1*s),v(.3*s,.32*s,.35*s),k.dark);

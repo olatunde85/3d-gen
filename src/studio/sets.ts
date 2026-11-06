@@ -1,6 +1,7 @@
 /** A bounded set factory: 50 searchable recipes reuse fourteen families of original props. */
 import * as THREE from 'three';
-import { sceneById, type SetId, type SceneDefinition } from './catalog';
+import { sceneById,isOutdoorScene, type SetId, type SceneDefinition } from './catalog';
+import {extendOutdoor} from './sets/outdoor-extension';
 import { SetBuilder, type Seat } from './sets/builder';
 import { createOriginalSet } from './sets/original';
 export interface StudioSet { group: THREE.Group; background: string; floor: string; key: string; fill: string; exposure: number; seats: Seat[] }
@@ -117,7 +118,7 @@ function kitchen(b: SetBuilder) {
 }
 function coast(b: SetBuilder, s: SceneDefinition) {
   b.floor(s.family === 'beach' ? '#c9bb9d' : '#c4bcaa');
-  if (s.family === 'beach') { b.water(-24, 100, 41, s.mood === 'sunset' ? '#8bafad' : '#4a9eaa'); for (const [x, z] of [[-5, -3], [5, -6], [-8, -10], [8, -13]]) b.palm(x, z); b.parasol(-3.5, -1.5, '#dbc7a0'); b.box([0.85, 0.08, 2.1], [-3.7, 0.12, 0.4], '#a5b9b1'); }
+  if (s.family === 'beach') { b.water(-163.5, 600, 320, s.mood === 'sunset' ? '#8bafad' : '#4a9eaa'); for (const [x, z] of [[-5, -3], [5, -6], [-8, -10], [8, -13]]) b.palm(x, z); b.parasol(-3.5, -1.5, '#dbc7a0'); b.box([0.85, 0.08, 2.1], [-3.7, 0.12, 0.4], '#a5b9b1'); }
   else {
     b.box([11.5, 0.14, 6.5], [0, -0.05, -6.6], '#d8d4c3'); b.water(-6.6, 10.8, 5.8, s.id === 'spa' ? '#88aaa2' : '#54b4bd');
     for (const x of [-5.7, 5.7]) { b.box([0.18, 0.1, 6.5], [x, 0.025, -6.6], '#e5decc'); b.palm(x + (x < 0 ? -1 : 1), -6, 5); }
@@ -129,8 +130,9 @@ function coast(b: SetBuilder, s: SceneDefinition) {
 function garden(b: SetBuilder, s: SceneDefinition) {
   b.floor(s.id === 'sports-court' ? '#81968a' : s.id === 'veranda' ? '#a18c70' : '#aaa992');
   if (s.id === 'sports-court') {
-    for (const x of [-5, 5]) b.box([0.04, 0.02, 16], [x, 0, 0], '#e4dbc3'); for (const z of [-8, 0, 8]) b.box([10, 0.02, 0.04], [0, 0, z], '#e4dbc3');
-    for (const z of [-8, 8]) { b.box([0.12, 3.5, 0.12], [0, 1.75, z], '#727c79'); b.box([1.6, 0.9, 0.09], [0, 3.2, z], '#deded0'); const hoop = b.mesh(b.geometry('hoop', () => new THREE.TorusGeometry(0.25, 0.025, 8, 24)), b.material('#a76d43'), [0, 2.9, z + (z < 0 ? 0.35 : -0.35)]); hoop.rotation.x = Math.PI / 2; }
+    const cx=9;b.box([10.4,.018,16.4],[cx,.002,0],'#6f8d80');b.group.userData.courtBounds={minX:cx-5,maxX:cx+5,minZ:-8,maxZ:8};b.plantExclusions.push(b.group.userData.courtBounds);
+    for (const x of [-5, 5]) b.box([0.04, 0.02, 16], [cx+x, .02, 0], '#e4dbc3'); for (const z of [-8, 0, 8]) b.box([10, 0.02, 0.04], [cx, .02, z], '#e4dbc3');
+    for (const z of [-8, 8]) { b.box([0.12, 3.5, 0.12], [cx, 1.75, z], '#727c79'); b.box([1.6, 0.9, 0.09], [cx, 3.2, z], '#deded0'); const hoop = b.mesh(b.geometry('hoop', () => new THREE.TorusGeometry(0.25, 0.025, 8, 24)), b.material('#a76d43'), [cx, 2.9, z + (z < 0 ? 0.35 : -0.35)]); hoop.rotation.x = Math.PI / 2; }
   } else if (s.id === 'wedding-garden') {
     b.box([0.14, 3, 0.14], [-1.8, 1.5, -3.5], '#e2d8bc'); b.box([0.14, 3, 0.14], [1.8, 1.5, -3.5], '#e2d8bc'); b.box([3.8, 0.16, 0.16], [0, 3, -3.5], '#e2d8bc');
     for (let i = 0; i < 12; i++) b.ball([0.24, 0.18, 0.18], [-1.7 + i * 0.31, 3.05, -3.5], i % 3 ? '#c8c1ab' : '#bb9f9a');
@@ -186,23 +188,25 @@ function urban(b: SetBuilder, s: SceneDefinition) {
 }
 function landscape(b: SetBuilder, s: SceneDefinition) {
   b.floor(s.id === 'desert-outpost' ? '#c1a77e' : '#a4a28a');
+  if(s.id==='campsite')b.water(-174,600,320,s.mood==='sunset'?'#8eaaa6':'#6e9fa3');
+  if(s.id==='mountain-lake')b.water(-169,600,320,'#7faaa9');
   if (s.id === 'desert-outpost') {
     for (let i = 0; i < 8; i++) b.ball([10, 2.5 + i % 3, 7], [(i - 4) * 8, -0.8, -17 - i % 2 * 7], i % 2 ? '#baa27e' : '#cfb78b');
     for (const x of [-3.6, 3.6]) b.box([0.16, 2.6, 0.16], [x, 1.3, -4], '#9b8462'); b.box([8, 0.08, 3], [0, 2.6, -4.2], '#b7a482'); b.box([1.1, 0.8, 0.8], [3.8, 0.4, -2], '#9a855f');
   } else {
-    for (let i = 0; i < 14; i++) b.tree((i % 2 ? 1 : -1) * (4 + i % 4 * 2), -5 - Math.floor(i / 2) * 3, 4 + i % 3);
-    if (s.id === 'campsite') { b.water(-26, 100, 24, s.mood === 'sunset' ? '#8eaaa6' : '#6e9fa3');
+    for (let i = 0; i < 14; i++) {const lake=s.id==='campsite'||s.id==='mountain-lake',shore=s.id==='campsite'?-14:-9;b.tree((i%2?1:-1)*(lake?5+i%4*4:4+i%4*2),lake?shore+4+Math.floor(i/2)%3*4:-5-Math.floor(i/2)*3,4+i%3);}
+    if (s.id === 'campsite') {
       for (const [x, z, yaw] of [[3, -1.5, 0], [4.2, -2.5, Math.PI / 2], [1.8, -2.6, Math.PI / 2]] as const) { const log = b.cylinder(0.16, 1.3, [x, 0.16, z], '#6e5a42'); log.rotation.set(0, yaw, Math.PI / 2); }
       b.seat(3, 0.32, -1.5, Math.PI); b.seat(4.2, 0.32, -2.5, -Math.PI / 2); b.seat(1.8, 0.32, -2.6, Math.PI / 2);
       const tent = b.mesh(b.geometry('tent', () => new THREE.ConeGeometry(1.6, 2, 3)), b.material('#ac8a5e'), [-3.6, 1, -2.4]); tent.rotation.y = Math.PI / 6;
       for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; b.ball([0.18, 0.1, 0.15], [3 + Math.cos(a) * 0.5, 0.1, -2.5 + Math.sin(a) * 0.5], '#79796c'); }
       const fire = b.mesh(b.geometry('fire', () => new THREE.ConeGeometry(0.2, 0.55, 7)), b.material('#ce9257', 0.8, 0, 1.2), [3, 0.3, -2.5]); fire.castShadow = false;
-    } else if (s.id === 'mountain-lake') { b.water(-24, 100, 30, '#7faaa9'); for (let i = 0; i < 7; i++) b.mesh(b.geometry('mountain', () => new THREE.ConeGeometry(1, 1, 5)), b.material(i % 2 ? '#8e9b94' : '#abb0a2'), [(i - 3) * 9, 4, -47], [9, 12 + i % 3 * 4, 8]); }
+    } else if (s.id === 'mountain-lake') {const mountains=[];for(let i=0;i<7;i++){const radius=28+i%3*8,height=44+i%3*15,x=(i-3)*60,z=-390;mountains.push({minX:x-radius,maxX:x+radius,minZ:z-radius,maxZ:z+radius});b.mesh(b.geometry('mountain',()=>new THREE.ConeGeometry(1,1,7)),b.material(i%2?'#8e9b94':'#abb0a2'),[x,height/2-.02,z],[radius,height,radius]);}b.group.userData.mountainBounds=mountains;}
     else b.box([2.7, 0.015, 36], [0, -0.005, -10], '#b7ad92');
   }
 }
 function yacht(b: SetBuilder, s: SceneDefinition) {
-  b.floor('#ad9875'); b.water(-25, 100, 35, '#659da8');
+  b.floor('#ad9875'); b.water(-167.5, 600, 320, '#659da8');
   for (let i = -5; i <= 5; i++) { b.box([0.06, 1, 0.06], [i * 1.5, 0.5, -5], '#b6bdb6', 0.3, 0.7); b.box([1.5, 0.045, 0.045], [i * 1.5, 1, -5], '#c6cbc3', 0.3, 0.7); }
   for (const x of [-3.7, 3.7]) {
     if (s.id === 'harbour') { b.cylinder(0.18, 0.65, [x, 0.33, -2], '#7a7666'); const hull = b.box([1.8, 0.5, 4.5], [x, 0.1, -11], '#d7d6c9'); hull.rotation.y = x * 0.05; b.box([0.8, 0.7, 1.7], [x, 0.7, -11], '#c4cbbb'); }
@@ -216,13 +220,16 @@ function studio(b: SetBuilder, s: SceneDefinition) {
   else if (s.id === 'black-box') { for (const x of [-4, 4]) for (const z of [-4, 0, 4]) { const light = b.box([0.05, 2.8, 0.05], [x, 1.4, z], '#d0b68c'); light.material = b.material('#d0b68c', 0.7, 0, 1); } }
 }
 export function createSet(id: SetId): StudioSet {
-  if (id === 'portrait' || id === 'runway' || id === 'courtyard') return createOriginalSet(id);
+  if (id === 'portrait' || id === 'runway' || id === 'courtyard') {
+    const set=createOriginalSet(id);if(id==='courtyard'){const b=new SetBuilder('sunset');extendOutdoor(b,sceneById.get(id)!);b.compact();set.group.add(b.group);set.group.userData.performanceBounds=b.group.userData.performanceBounds;}return set;
+  }
   const s = sceneById.get(id); if (!s) throw new Error('Unknown scene.');
   const surface = s.family==='bedroom'||s.family==='lounge'||s.family==='yacht'?'wood':s.family==='beach'||s.id==='desert-outpost'?'sand':s.family==='landscape'||s.family==='garden'?'grass':'stone';
   const b = new SetBuilder(s.mood,surface);
   const builders = { studio, office, bedroom, lounge, kitchen, beach: coast, pool: coast, garden, street: urban, transit: urban, warehouse: urban, restaurant, landscape, yacht };
   builders[s.family](b, s); b.group.name = id;
-  if(s.mood==='sunset'&&['beach','pool','landscape','yacht','garden'].includes(s.family)){const sun=b.ball([1.1,1.1,1.1],[-18,5,-42],'#efc995');sun.material=b.material('#efc995',1,0,1);sun.castShadow=false;}
+  if(isOutdoorScene(id))extendOutdoor(b,s);
+  if(s.mood==='sunset'&&['beach','pool','landscape','yacht','garden'].includes(s.family)){const sun=b.ball([8,8,8],[-120,58,-460],'#efc995'),material=b.material('#efc995',1,0,1);material.fog=false;sun.material=material;sun.castShadow=false;}
   b.compact();
   const night = s.mood === 'night', sunset = s.mood === 'sunset';
   return { group: b.group, seats: b.seats, background: night ? '#27313e' : sunset ? '#c8b49c' : '#afc5cb', floor: '#b2aa96',

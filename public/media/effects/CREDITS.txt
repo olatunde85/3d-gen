@@ -1,14 +1,42 @@
 Ara Studio sound effects
 
-Recordings supplied by the project owner in sound-for-ara.
+Recordings supplied by the project owner in sound-for-ara and new-sound-effects.
 Audio retains its own rights and is not covered by Ara's MIT code licence.
 Web versions use FFmpeg VBR MP3 compression at 48 kHz stereo, with 1 dB
 of additional headroom. No trimming, looping or time-stretching is applied.
 
 Suppressed pistol shot
-Original: Single_suppressed_pistol_shot.wav
+Original: sound-for-ara/Single_suppressed_pistol_shot.wav
 Web file: suppressed-pistol-shot.mp3
 
 Body fall thump
-Original: Body_fall_thump.wav
+Original: sound-for-ara/Body_fall_thump.wav
 Web file: body-fall-thump.mp3
+
+Rifle shot
+Original: new-sound-effects/rifle_shot_#2-1793963191245.wav
+Web file: rifle-shot.mp3
+
+Motorcycle engine
+Original: new-sound-effects/sustained_motorcycle_#3-1793882377486.wav
+Web file: motorcycle-engine.mp3
+
+Car engine
+Original: new-sound-effects/sustained_car_sound__#3-1793882476167.wav
+Web file: car-engine.mp3
+
+Boat engine
+Original: new-sound-effects/sustained_boat_sound_#3-1793882521640.wav
+Web file: boat-engine.mp3
+
+Wind
+Original: new-sound-effects/sustained_wind_sound_#1-1793962999219.wav
+Web file: wind.mp3
+
+Forest and birds
+Original: new-sound-effects/forest_with_birds_an_#3-1793963029362.wav
+Web file: forest-birds.mp3
+
+Ocean
+Original: new-sound-effects/sustained_ocean_soun_#1-1793963083248.wav
+Web file: ocean.mp3
