@@ -30,15 +30,15 @@
     <aside id="panel">
       <header>
         <h1><a href="../" title="Ara 3D Gen home">Ara 3D Gen</a> <span>realistic humans</span> <a class="hdr-docs" href="../docs/" title="Documentation">Docs</a></h1>
-        <div class="row">
+        <div class="row detailed-only">
           <select id="preset"></select>
           <button id="randomize" title="Random character">🎲 Randomize</button>
         </div>
-        <div class="row">
+        <div class="row detailed-only">
           <label class="grow">Name <input id="name" type="text" /></label>
           <label>Seed <input id="seed" type="number" min="0" step="1" /></label>
         </div>
-        <div class="row"><button id="save-character" title="Download this character’s editable settings">Save character</button><button id="open-character" title="Open saved character settings">Open character</button><input id="character-settings-file" type="file" accept=".json,application/json" hidden /></div><p id="character-file-status" class="hint" role="status"></p>
+        <div class="character-files" role="group" aria-label="Character settings"><button id="save-character" title="Download this character’s editable settings">Save character</button><button id="open-character" title="Open saved character settings">Open character</button><input id="character-settings-file" type="file" accept=".json,application/json" hidden /></div><p id="character-file-status" class="hint" role="status"></p>
         <button id="character-assist-btn" title="Create a character with a JSON from your AI assistant">LLM Assist <span>Build from a description ↗</span></button>
       </header>
       <div id="controls"></div>
