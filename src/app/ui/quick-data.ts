@@ -12,6 +12,7 @@ import { CARRIED, CARRY_LABELS, type CarryId } from '../../core/props/carry';
 import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons';
 import {VEHICLE_IDS,VEHICLE_LABELS,VEHICLE_CLIP,RIDING_VEHICLES,vehicleFor,vehicleStyleForChoice,type VehicleId} from '../../core/props/vehicles';
 import {VEHICLE_TRANSITIONS,ridingClip} from '../../core/props/vehicle-actions';
+import { VEHICLE_MANOEUVRES } from '../../core/props/vehicle-motion';
 
 export type Patch = Partial<HumanParams>;
 export type Gender = 'man' | 'woman';
@@ -387,7 +388,7 @@ export const vehicleActions = (id: VehicleId, clip = VEHICLE_CLIP[id]) => {
   const ride = RIDING_VEHICLES[ridingClip(clip)] === id ? ridingClip(clip) : VEHICLE_CLIP[id];
   const transition = VEHICLE_TRANSITIONS.find(([, action]) => action === ride)?.[0];
   // Runway, gunner and parachute manoeuvres sit in story order around the main ride.
-  const before = id === 'jet' ? ['taxi_jet', 'takeoff_jet'] : [], after = id === 'jet' ? ['land_jet', 'bailout_jet'] : id === 'helicopter' ? ['bailout_helicopter'] : id === 'tank' ? ['gun_tank'] : [];
+  const before = id === 'jet' ? ['taxi_jet', 'takeoff_jet'] : [], after = id === 'jet' ? ['land_jet', 'bailout_jet'] : id === 'helicopter' ? ['bailout_helicopter'] : id === 'tank' ? ['gun_tank'] : [`crash_${id}`].filter((c) => VEHICLE_MANOEUVRES[c]);
   return transition ? [`board_${transition}`, ...before, ride, ...after, `alight_${transition}`, ...(['horse'].includes(id)?[]:[`tumble_${id}`])] : [ride];
 };
 

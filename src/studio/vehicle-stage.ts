@@ -9,7 +9,7 @@ import {vehicleCatalog,vehicleKey,type VehicleSeat} from './vehicle-seats';
 import {HELICOPTER} from '../core/props/helicopter-layout';
 import {helicopterHeight} from './helicopter-flight';
 import {studioTravel} from './motion';
-import {manoeuvre,bailoutExit} from '../core/props/vehicle-motion';
+import {manoeuvre,vehicleExit} from '../core/props/vehicle-motion';
 export interface VehicleBody {scale:number;boardingScale:number;weapon?:string;hip(clip:string,model?:VehicleId):Vec3}
 export interface StagePoint {x:number;y:number;z:number;yaw:number}
 interface Row {actor:ActorTrack;beat:Beat;index:number;start:number;end:number;offset:Vec3;vehicle?:string}
@@ -81,8 +81,8 @@ export class VehicleStage {
   // Ground spans connect the two actual doorway/gunwale positions, not two unrelated actor origins.
   let first=at.index,last=at.index;while(first>0&&!rows[first-1].vehicle)first--;while(last<rows.length-1&&!rows[last+1].vehicle)last++;
   const before=rows[first-1],after=rows[last+1],start=rows[first].start,end=rows[last].end,nominal=this.nominal(row,this.time);
-  // After a bail-out, free fall continues where the occupant left the airframe (beside and behind it).
-  const boundary=(r:Row,t:number)=>{const point=this.onVehicle(r,t),body=this.bodies.get(track.id)??fallback,transition=clipById.get(r.beat.clip)?.vehicleTransition,exit=bailoutExit(r.beat.clip,r.beat.duration),stand=transition?(point.stand??boardingStand(ridingClip(r.beat.clip))):exit?[exit.x,-exit.behind/body.boardingScale]:[0,0],d=turn(stand[0]*body.boardingScale,stand[1]*body.boardingScale,point.yaw);return {...point,x:point.x+d.x,z:point.z+d.z};};
+  // After a bail-out or crash escape, the next action continues where the occupant left the vehicle.
+  const boundary=(r:Row,t:number)=>{const point=this.onVehicle(r,t),body=this.bodies.get(track.id)??fallback,transition=clipById.get(r.beat.clip)?.vehicleTransition,exit=vehicleExit(r.beat.clip,r.beat.duration),stand=transition?(point.stand??boardingStand(ridingClip(r.beat.clip))):exit?[exit.x,-exit.behind/body.boardingScale]:[0,0],d=turn(stand[0]*body.boardingScale,stand[1]*body.boardingScale,point.yaw);return {...point,x:point.x+d.x,z:point.z+d.z};};
   const a=this.nominal(rows[first],start),b=this.nominal(rows[last],end),from=before?boundary(before,start):undefined,to=after?boundary(after,end):undefined;
   const distance=(t:number)=>{let sum=0;for(let i=first;i<=last;i++){const r=rows[i],dt=Math.max(0,Math.min(r.end,t)-r.start);if(r.beat.move){const x=this.nominal(r,r.start),z=this.nominal(r,r.start+dt);sum+=Math.hypot(z.x-x.x,z.z-x.z);}}return sum;};
   const total=distance(end),u=total>1e-8?distance(this.time)/total:after&&!before?1:0;
@@ -93,6 +93,6 @@ export class VehicleStage {
   return {...nominal,yaw,x:nominal.x+dx0+(dx1-dx0)*u,z:nominal.z+dz0+(dz1-dz0)*u,seat:'operator',seatShift:[0,0,0],passenger:false,deckFloor:0};
  }
  /** All physical doors used now, including passengers entering while the driver waits and doors left open by a bail-out. */
- transitions(id:string){return [...this.rows.values()].flatMap(rows=>rows.filter(r=>r.vehicle===id&&this.time>=r.start&&(this.time<r.end&&!!clipById.get(r.beat.clip)?.vehicleTransition||manoeuvre(r.beat.clip)==='bailout')).map(row=>({clip:clipById.get(row.beat.clip)!,time:this.time-row.start,seat:row.beat.vehicleSeat??'operator'})));}
+ transitions(id:string){return [...this.rows.values()].flatMap(rows=>rows.filter(r=>r.vehicle===id&&this.time>=r.start&&(this.time<r.end&&!!clipById.get(r.beat.clip)?.vehicleTransition||['bailout','crash'].includes(manoeuvre(r.beat.clip)!))).map(row=>({clip:clipById.get(row.beat.clip)!,time:this.time-row.start,seat:row.beat.vehicleSeat??'operator'})));}
  armed(id:string){return this.project.actors.some(actor=>{const row=this.rows.get(actor.id)![timelineAt(this.project,this.time,actor).index],weapon=this.bodies.get(actor.id)?.weapon;return row.vehicle===id&&weapon&&weapon!=='none'&&weapon!=='grenade'&&row.beat.weaponPose!=='hidden'&&!clipById.get(row.beat.clip)?.vehicleTransition;});}
 }

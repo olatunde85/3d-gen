@@ -336,7 +336,7 @@ export class Animator {
       ? boardingFrame(this,clip,time,clipById.get('idle')!,clipById.get(clip.vehicleTransition.ride)!,opts.vehicleLift??0)
       : this.frameOf(s, clip, time, opts);
     this.placeParcel(frame,clip,time,opts.rootMotion,opts.parcelGrounded);
-    if(opts.vehicleLift&&!clip.vehicleTransition)for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
+    if(opts.vehicleLift&&!clip.vehicleTransition){const lift=opts.vehicleLift*(clip.liftWeight?.(time)??1);for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+lift,p[2]]);}
     if(contact){
       if(opts.vehicleLift)for(const [i,p]of contact.rootPos)contact.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
       frame.vehicleControls=contact;frame.ridingWeapon=weapon;

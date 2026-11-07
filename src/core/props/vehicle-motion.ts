@@ -5,10 +5,13 @@
  */
 import {qaxis,qmul,qrot,type Q} from '../anim/quat';
 import type {Vec3} from '../math';
-export type ManoeuvreKind='taxi'|'takeoff'|'land'|'bailout'|'gun';
+export type ManoeuvreKind='taxi'|'takeoff'|'land'|'bailout'|'gun'|'crash';
+/** Road vehicles a driver can dive out of as they crash. */
+export const CRASH_VEHICLES=[['car','drive_car'],['sports_car','drive_sports_car'],['suv','drive_suv'],['pickup','drive_pickup'],['motorcycle','ride_motorcycle'],['bicycle','ride_bicycle']]as const;
 export const VEHICLE_MANOEUVRES:Readonly<Record<string,{ride:string;kind:ManoeuvreKind}>>={
  taxi_jet:{ride:'fly_jet',kind:'taxi'},takeoff_jet:{ride:'fly_jet',kind:'takeoff'},land_jet:{ride:'fly_jet',kind:'land'},
  bailout_jet:{ride:'fly_jet',kind:'bailout'},bailout_helicopter:{ride:'fly_helicopter',kind:'bailout'},gun_tank:{ride:'drive_tank',kind:'gun'},
+ ...Object.fromEntries(CRASH_VEHICLES.map(([model,ride])=>[`crash_${model}`,{ride,kind:'crash'as const}])),
 };
 export const manoeuvre=(clip:string)=>VEHICLE_MANOEUVRES[clip]?.kind;
 /** Default speeds in metres per second. */
@@ -81,5 +84,15 @@ export const BAILOUT_PATHS:Readonly<Record<string,{T:number[];x:number[];lift:nu
  bailout_jet:{T:[0,.3,.6,.85,1.15,1.6,2.1,2.6],x:[0,0,0,-.15,-.7,-1.4,-2,-2.4],lift:[0,.02,-.05,1,1.4,.9,-.8,-3.2],pitch:[0,0,-5,0,25,60,80,85],pose:[.7,1.1]},
  bailout_helicopter:{T:[0,.35,.8,1.2,1.6,2.1,2.6],x:[0,0,-.45,-1,-1.5,-1.9,-2.2],lift:[0,.05,.2,.25,-.3,-1.6,-3.4],pitch:[0,0,10,25,55,80,85],pose:[.5,1.4]},
 };
-/** The occupant's final offset from the seat after a bail-out: [x scaled to the rider, metres behind the aircraft]. */
-export const bailoutExit=(clip:string,duration:number)=>{const p=BAILOUT_PATHS[clip];return p?{x:p.x.at(-1)!,lift:p.lift.at(-1)!,behind:bailoutDrift(clip,duration)}:undefined;};
+/**
+ * Crash escape (seconds; metres scaled to the rider): turn to the driver's door, dive out to the left (+X),
+ * shoulder-roll along the ground and stand, turning back to face the original heading.
+ */
+export const CRASH_PATH={T:[0,.3,.6,.85,1.1,1.35,1.6,1.9,2.3,2.8,3.6],x:[0,.1,.7,1.3,1.7,2,2.3,2.6,2.8,2.9,2.9],yaw:[0,20,70,90,90,90,90,90,90,60,0],
+ pitch:[0,0,30,60,100,180,270,340,360,360,360],drop:[0,0,.3,.5,.8,.9,.85,.6,.4,.1,0],y:[0,0,.25,.2,0,0,0,0,0,0,0],floor:[1,1,1,.6,0,0,0,0,0,0,0]};
+export const CRASH_DURATION=3.6;
+/** Where the occupant ends after leaving a vehicle mid-action: [x scaled to the rider, metres behind it, height change]. */
+export const vehicleExit=(clip:string,duration:number)=>{
+ if(manoeuvre(clip)==='crash')return {x:CRASH_PATH.x.at(-1)!,lift:0,behind:0};
+ const p=BAILOUT_PATHS[clip];return p?{x:p.x.at(-1)!,lift:p.lift.at(-1)!,behind:bailoutDrift(clip,duration)}:undefined;
+};

@@ -1,4 +1,4 @@
-import {vehicleStunt} from './vehicle-stunt';
+import {vehicleStunt,vehicleCrash} from './vehicle-stunt';
 import {clipVehicleMotion,bailoutDrift,manoeuvre} from './vehicle-motion';
 import {tankGunFiring} from '../anim/clips/vehicles';
 import {buildJet,buildTank} from './vehicle-special';
@@ -42,13 +42,13 @@ export class Vehicle{
   const motion=this.filmMotion?undefined:clipVehicleMotion(action.id,time,action.duration,this.fit.average('hip').z-.85*s);
   if(motion&&!armed)frame=this.fit.animator.frame(action,time,{vehicleLift:this.lift,weaponPose:'hidden',vehicleMotion:false});
   // Off the controls: boarding, stunts, bail-outs and the standing tank gunner leave levers and sticks at rest.
-  const detached=!!transition||!!action.vehicleStunt||kind==='bailout'||kind==='gun';
+  const detached=!!transition||!!action.vehicleStunt||kind==='bailout'||kind==='gun'||kind==='crash';
   const controlsTime=transition||action.vehicleStunt?0:time;
   const progress=transition?boardProgress(transition,time,action.duration):1,x=Math.max(0,Math.min(1,(progress-.88)/.12));
   this.group.userData.parkedWeight=parked?1:transition?1-x*x*(3-2*x):0;
-  if(this.bicycle)this.bicycle.update(this.fit.animator.positions(transition||action.vehicleStunt?this.fit.animator.frame(this.fit.clip,0,{weaponPose:'hidden'}):frame??this.fit.animator.frame(this.fit.clip,time,{weaponPose:'hidden'})),controlsTime/this.fit.clip.duration*Math.PI*6);
+  if(this.bicycle)this.bicycle.update(this.fit.animator.positions(detached?this.fit.animator.frame(this.fit.clip,0,{weaponPose:'hidden'}):frame??this.fit.animator.frame(this.fit.clip,time,{weaponPose:'hidden'})),controlsTime/this.fit.clip.duration*Math.PI*6);
   else{const c=detached?this.fit.at(0):frame?this.fit.fromFrame(frame):this.fit.at(time);if(armed&&this.id==='horse')c.right.copy(c.left);for(const fn of this.kit!.updates)fn(c,(action.vehicleStunt||kind==='bailout')&&this.id==='helicopter'?time:controlsTime);}
-  const opening=transition?doorOpenAt(boardProgress(transition,time,action.duration)):kind==='bailout'?Math.min(1,time/.3):0;
+  const opening=transition?doorOpenAt(boardProgress(transition,time,action.duration)):kind==='bailout'||kind==='crash'?Math.min(1,time/.3):0;
   const gunner=kind==='gun'&&hands&&!hands.vehicleControls?this.fit.fromFrame(hands):undefined;
   this.group.traverse(o=>{if(o.userData.doorSide)o.rotation.y=o.userData.occupantDoor?-o.userData.doorSide*opening*1.3:0;if(o.name.startsWith('Window_'))o.scale.y=armed?.001:1;if(o.name==='Canopy')o.rotation.z=-opening*1.3;if(o.name==='Boarding_gate')o.rotation.y=opening*1.5;if(o.name==='Tank_hatch')o.rotation.z=transition?hatchOpenAt(boardProgress(transition,time,action.duration))*1.6:kind==='gun'?1.6:0;
    // The gun traverses with the gunner's grip; the flash flickers through each burst.
@@ -57,6 +57,8 @@ export class Vehicle{
   if(motion)travelDistance=motion.distance;
   if(travelDistance!==undefined)this.group.traverse(o=>{if(o.userData.wheelRadius)o.rotation.x=travelDistance/o.userData.wheelRadius;});
   if(action.vehicleStunt){const m=vehicleStunt(this.id,time,action.duration,this.fit.scale);this.stuntRoot.quaternion.set(...m.rotation);this.stuntRoot.position.set(...m.translation);}
+  // The crash is the vehicle's own motion in every context, so a film keeps the wreck where it came to rest.
+  else if(kind==='crash'){const m=vehicleCrash(this.id,time,this.fit.scale);this.stuntRoot.quaternion.set(...m.rotation);this.stuntRoot.position.set(...m.translation);}
   else if(motion){this.stuntRoot.quaternion.set(...motion.rotation);this.stuntRoot.position.set(motion.translation[0],motion.translation[1],motion.translation[2]+bailoutDrift(action.id,time));}
   else{this.stuntRoot.quaternion.identity();this.stuntRoot.position.set(0,0,0);}
   if(this.id==='jet')this.setFlight(motion?.retract??0,motion?motion.throttle:transition||parked?0:.15);

@@ -1,6 +1,6 @@
 /** Authored descent, derived from the timeline so seeking/export produce the same altitude. */
 import type {ActorTrack,Beat} from './project';
-import {bailoutExit} from '../core/props/vehicle-motion';
+import {vehicleExit,manoeuvre} from '../core/props/vehicle-motion';
 import {helicopterHeight} from './helicopter-flight';
 export const AERIAL_HEIGHTS:Readonly<Record<string,number>>={skydive:20,parachute_deploy:12,parachute_glide:8,parachute_land:2};
 export const isAerialClip=(clip:string)=>clip in AERIAL_HEIGHTS;
@@ -12,7 +12,7 @@ export const aerialStartHeight=(beat:Beat)=>beat.flightHeight??AERIAL_HEIGHTS[be
 export function aerialStart(track:ActorTrack,index:number,actors:readonly ActorTrack[]=[track]){
  const beat=track.beats[index];if(beat.flightHeight!==undefined)return beat.flightHeight;
  let first=index;while(first>0&&isAerialClip(track.beats[first-1].clip))first--;
- const exit=first>0?bailoutExit(track.beats[first-1].clip,track.beats[first-1].duration):undefined;if(!exit)return aerialStartHeight(beat);
+ const exit=first>0&&manoeuvre(track.beats[first-1].clip)==='bailout'?vehicleExit(track.beats[first-1].clip,track.beats[first-1].duration):undefined;if(!exit)return aerialStartHeight(beat);
  // A passenger leaves at the pilot's altitude.
  const end=track.beats.slice(0,first).reduce((n,b)=>n+b.duration,0),jump=track.beats[first-1],pilot=jump.vehicleSeat&&jump.vehicleSeat!=='operator'?actors.find(a=>a!==track&&a.beats.some(b=>b.vehicleId===jump.vehicleId&&(b.vehicleSeat??'operator')==='operator')):undefined;
  const altitude=pilot?helicopterHeight(pilot,pilotIndex(pilot,end-1e-6),end-1e-6):helicopterHeight(track,first-1,end-1e-6),top=Math.max(.5,altitude+exit.lift-.4);

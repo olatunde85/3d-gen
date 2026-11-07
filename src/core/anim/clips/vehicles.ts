@@ -1,8 +1,8 @@
 /** Vehicle riders: car, passenger, bicycle, motorcycle, horse, canoe, kayak, rowing, boat helm. */
-import { type Ch, type Clip, type HandTarget } from './types';
+import { type Ch, type Clip, type HandTarget, type Sample } from './types';
 import { cyc, fingers, fist, FISTS, grip, normV, side, track, v } from './helpers';
 import { skydive } from './aerial';
-import { BAILOUT_PATHS } from '../../props/vehicle-motion';
+import { BAILOUT_PATHS,CRASH_PATH,CRASH_DURATION,CRASH_VEHICLES } from '../../props/vehicle-motion';
 import { VEHICLE_TRANSITIONS,VEHICLE_STUNTS } from '../../props/vehicle-actions';
 import { TROT, trotBob } from '../../props/horse-gait';
 import { idle } from './basic';
@@ -295,6 +295,25 @@ const bailout=(id:string,name:string,ride:Clip):Clip=>({id,name,category:'Vehicl
  return {bones,root:{ground:true,lift:k(P.lift),x:k(P.x),pitch:k(P.pitch)},ik:{Left:mixHand(a.ik?.Left,b.ik?.Left,w),Right:mixHand(a.ik?.Right,b.ik?.Right,w)},thumbs:w<.5?a.thumbs:b.thumbs,gaze:[0,0]};
 }});
 const bailoutJet=bailout('bailout_jet','Bail out of jet with parachute',flyJet),bailoutHelicopter=bailout('bailout_helicopter','Jump from helicopter with parachute',flyHelicopter);
+
+/**
+ * Crash escape: from the seat, turn to the driver's door, dive out to the left, shoulder-roll along the ground
+ * (a forward roll in the dive direction) and stand, turning back to the original heading. The vehicle crash
+ * itself (slide and roll-over) is the prop's motion.
+ */
+const crash=(model:string,ride:string):Clip=>({id:`crash_${model}`,name:`Crash and roll out (${model.replace(/_/g,' ')})`,category:'Vehicles',duration:CRASH_DURATION,loop:false,
+ liftWeight:t=>track(CRASH_PATH.T,CRASH_PATH.floor)(t),sample:t=>{
+ const k=(a:number[])=>track(CRASH_PATH.T,a)(t),bones:Record<string,Ch>={Spine:[k([0,10,0,15,40,50,45,30,20,8,0]),0,0],Spine1:[k([0,5,0,10,25,30,28,20,10,4,0]),0,0],Neck:[k([0,0,-10,10,35,40,30,15,5,0,0]),0,0],Head:[k([0,0,-10,5,20,25,15,5,0,0,0]),0,0]};
+ side(bones,'UpLeg',[k([80,70,10,30,110,125,130,100,80,30,0]),0,6],[k([80,70,10,30,110,125,130,100,80,30,0]),0,6]);
+ side(bones,'Leg',[k([-80,-60,-10,-40,-120,-130,-135,-115,-100,-40,-3]),0,0],[k([-80,-60,-10,-40,-120,-130,-135,-115,-100,-40,-3]),0,0]);
+ side(bones,'Foot',[k([0,10,-20,10,25,25,30,30,25,10,0]),0,0],[k([0,10,-20,10,25,25,30,30,25,10,0]),0,0]);
+ const arm=k([10,40,120,100,70,60,45,40,40,20,5]),out=k([5,10,15,15,15,20,20,15,15,8,4]),fore=k([40,30,10,30,50,60,50,40,35,20,12]);
+ side(bones,'Arm',[arm,0,out],[arm,0,out]);side(bones,'ForeArm',[fore,0,0],[fore,0,0]);fingers(bones,k([20,25,10,15,25,25,20,20,18,15,14]));
+ const s:Sample={bones,root:{x:k(CRASH_PATH.x),y:k(CRASH_PATH.y),yaw:k(CRASH_PATH.yaw),pitch:k(CRASH_PATH.pitch),drop:k(CRASH_PATH.drop),floor:true},gaze:[0,0]};
+ // Leave the seat from the exact riding pose.
+ if(t<.5)s.blend={sample:VEHICLES.find(c=>c.id===ride)!.sample(0),w:1-ease(t/.5)};return s;
+}});
+export const VEHICLE_CRASHES:Clip[]=CRASH_VEHICLES.map(([model,ride])=>crash(model,ride));
 
 /**
  * Tank machine gunner: standing on the driver's floor, head and shoulders out of the open hatch behind the gun
