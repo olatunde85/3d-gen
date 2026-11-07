@@ -14,7 +14,7 @@ No Blender round trip is needed: the exports load directly.
 - **Looping:** glTF has no loop flag, so set looping clips to loop.
 - **Root motion:** loops play in place unless you export with Root motion.
 - **Props:** parent weapons and other props to the `WeaponR` bone (see [Rigging](rigging.md#weapon-socket)).
-- **Vehicles:** align the separate fitted prop and rider origins and play matching clips together; with your own vehicle, uncheck Show vehicle when exporting and use your seat transform (see [Animations](animations.md#vehicles-and-props)).
+- **Vehicles:** align the separate fitted prop and rider origins and play matching clips together; with your own vehicle, uncheck Show vehicle when exporting and use your seat transform (see [Animations](animations.md#vehicles)).
 - **Blinks:** short loops (walk, run) don't blink on their own, so blinks can come from a separate face layer (see [Faces](faces.md#a-living-face)).
 
 Notes for other engines and tools are welcome; see [CONTRIBUTING.md](../CONTRIBUTING.md).
