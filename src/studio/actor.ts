@@ -1,4 +1,5 @@
 import {flightHeight} from './helicopter-flight';
+import {jetAttitude,type JetAttitude} from './jet-flight';
 /** Studio's render adapter. Uses the generator's unmodified mesh, materials and Animator. */
 import * as THREE from 'three';
 import type { Character } from '../core/human';
@@ -32,6 +33,8 @@ export class StudioActor {
   private bones: THREE.Bone[];
   private sittingHips?: [number, number, number];
   private rides=new Map<string,Vehicle>();
+  private base={position:new THREE.Vector3(),yaw:0};
+  private jet?:JetAttitude;
   private vehiclePlan?:VehicleStage;
   private hipCache=new Map<string,[number,number,number]>();
   get vehicleBody():VehicleBody{return {scale:this.scale,boardingScale:boardingScale(this.character.rig!),weapon:this.character.params.weapon,hip:(clip,model)=>{
@@ -164,8 +167,15 @@ export class StudioActor {
       const root=this.character.rig!.bones.findIndex(b=>b.name===boneFor(this.character.rig!.type,'Hips')),p=frame.rootPos.get(root),rest=this.character.rig!.bones[root];
       if(p)this.blockingOffset.set(p[0]-rest.head[0],0,p[2]-rest.head[2]);
     }
-    this.group.position.set(state.x,state.y,state.z);this.group.rotation.y=state.yaw*Math.PI/180;
+    this.group.position.set(state.x,state.y,state.z);this.group.rotation.set(0,state.yaw*Math.PI/180,0);
     this.group.position.y += this.seatLift(project, track, seats, track.beats[at.index].clip, at.phase);
+    this.base={position:this.group.position.clone(),yaw:this.group.rotation.y};
+    // A flown jet pitches and banks about its main-gear contact; the pilot rides in the same frame.
+    this.jet=state.vehicle?.model==='jet'&&!state.passenger?jetAttitude(project,track,time,this.scale):undefined;
+    if(this.jet){
+      const ride=this.rides.get(state.vehicle!.id),pivot=new THREE.Vector3(0,0,ride?ride.fit.average('hip').z-.85*this.scale:0),turn=new THREE.Quaternion().setFromEuler(new THREE.Euler(-this.jet.pitch,0,this.jet.roll));
+      this.group.quaternion.multiply(turn);this.group.position.add(pivot.clone().sub(pivot.clone().applyQuaternion(turn)).applyAxisAngle(new THREE.Vector3(0,1,0),this.base.yaw)).add(new THREE.Vector3(0,this.jet.bob,0));
+    }
     this.group.updateMatrixWorld(true);
     this.props(project,time,track,frame);
     if(this.character.params.carry==='parachute'&&track.beats[at.index].clip.startsWith('parachute_')){const canopy=this.bones.find(b=>b.name==='ParachuteCanopy');if(canopy&&canopy.scale.x>1){const open=canopy.scale.x*.002,centre=canopy.getWorldPosition(new THREE.Vector3()),r=Math.max(.35,2.9*open)*this.scale;if(open<.2)centre.lerp(this.group.position,1-open/.2);this.framingBounds=new THREE.Box3(new THREE.Vector3(centre.x-r,this.group.position.y,centre.z-1.1*this.scale),new THREE.Vector3(centre.x+r,Math.max(centre.y+.8*this.scale*open,this.group.position.y+this.height),centre.z+1.1*this.scale*open));}}
@@ -197,10 +207,11 @@ export class StudioActor {
       if(ride&&(ride.id!==state.model||ride.fit.clip.id!==ridingClip(state.reference.id))){ride.group.removeFromParent();ride.dispose();this.rides.delete(state.id);ride=undefined;}
       if(!ride){ride=new Vehicle(state.model,this.character.rig!,this.animator,state.reference,this.character.params.vehicleStyle);ride.group.userData.studioVehicle=state.id;this.rides.set(state.id,ride);this.group.add(ride.group);}
       ride.group.visible=state.visible;
-      const angle=-this.group.rotation.y,delta=new THREE.Vector3(state.x-this.group.position.x,state.y-this.group.position.y,state.z-this.group.position.z).applyAxisAngle(new THREE.Vector3(0,1,0),angle);
-      ride.group.position.copy(delta);ride.group.rotation.y=state.yaw*Math.PI/180-this.group.rotation.y;
+      const base=this.base,delta=new THREE.Vector3(state.x-base.position.x,state.y-base.position.y,state.z-base.position.z).applyAxisAngle(new THREE.Vector3(0,1,0),-base.yaw);
+      ride.group.position.copy(delta);ride.group.rotation.y=state.yaw*Math.PI/180-base.yaw;
       const doors=stage.transitions(state.id),waiting=state.model==='helicopter'&&!!state.active&&!state.active.beat.move&&flightHeight(state.active.beat)===0;
       ride.update(state.clip.loop?state.phase%state.clip.duration:Math.min(state.phase,state.clip.duration),state.parked?undefined:frame,state.distance,state.clip,state.parked||state.model==='helicopter'&&(doors.length>0||waiting));
+      if(state.model==='jet'){const own=current.vehicle?.id===state.id?this.jet:undefined;ride.setFlight(own?.retract??0,own?.throttle??0);}
       if(stage.armed(state.id))ride.group.traverse(o=>{if(o.name.startsWith('Window_'))o.scale.y=.001;});
       ride.group.traverse(o=>{if(o.userData.doorSide){let opening=0;for(const door of doors){const rear=door.seat.startsWith('rear'),side=state.model==='helicopter'?(door.seat==='front-passenger'||door.seat==='rear-left'?1:-1):door.seat==='rear-left'?1:door.seat==='rear-right'||door.seat==='front-passenger'?-1:door.clip.id.includes('passenger')?-1:1;if(!!o.userData.rearDoor===rear&&o.userData.doorSide===side)opening=Math.max(opening,doorOpenAt(boardProgress(door.clip.vehicleTransition!,door.time,door.clip.duration)));}o.rotation.y=-o.userData.doorSide*opening*1.3;}if(o.name==='Canopy'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.z=-opening*1.3;}if(o.name==='Boarding_gate'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.y=opening*1.5;}});
       if(current.vehicle?.id===state.id&&state.visible){this.framingBounds=ride.bounds;const size=this.framingBounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}

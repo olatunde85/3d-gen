@@ -187,12 +187,12 @@ function buildRuggedDetails(k:VehicleKit,c:Rugged){
  k.box(v(cx,bottom+.08*s,face+.06*s),v(.64*s,.17*s,.07*s),k.dark);
  for(const x of [-.84,.84])k.tube(v(cx+x*s,bottom+.02*s,face+.15*s),v(cx+x*s,bottom+.32*s,face+.15*s),.028*s,k.dark);
  for(const y of [bottom+.02*s,bottom+.32*s])k.tube(v(cx-.84*s,y,face+.15*s),v(cx+.84*s,y,face+.15*s),.027*s,k.dark);
- // A spare mounted to the upright rear door, with a body-colour cover.
- const spareY=belt-.02*s,spareZ=z+endR-.15*s;
+ // A spare mounted to the SUV's upright rear door, with a body-colour cover. The pickup's tailgate stays clear.
+ if(k.fit.id!=='pickup'){const spareY=belt-.02*s,spareZ=z+endR-.15*s;
  const tyre=k.mesh(new T.TorusGeometry(.29*s,.072*s,14,48),k.rubber);tyre.position.set(cx,spareY,spareZ);
  const cover=k.mesh(new T.CylinderGeometry(.315*s,.315*s,.16*s,48),k.paint);cover.rotation.x=Math.PI/2;cover.position.set(cx,spareY,spareZ-.035*s);
  const rim=k.mesh(new T.TorusGeometry(.314*s,.012*s,8,48),k.dark);rim.position.set(cx,spareY,spareZ-.12*s);
- k.box(v(cx,spareY,spareZ-.13*s),v(.49*s,.075*s,.012*s),k.dark);
+ k.box(v(cx,spareY,spareZ-.13*s),v(.49*s,.075*s,.012*s),k.dark);}
  const red=new T.MeshStandardMaterial({name:'Vehicle rear lamps',color:'#bb1726',emissive:'#47010c',roughness:.2});
  for(const side of [-1,1])k.box(v(cx+side*.72*s,bottom+.17*s,z+endR-.055*s),v(.31*s,.09*s,.04*s),red);
  k.box(v(cx,bottom+.035*s,z+endR-.06*s),v(width*.88,.14*s,.14*s),k.dark);

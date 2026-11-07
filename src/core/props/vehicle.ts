@@ -13,7 +13,7 @@ import {sanitizeVehicleStyle,isCar,type VehicleId,type VehicleStyle} from './veh
 import type {Rig} from '../rig/rig';
 import type {Animator,Frame,BakedClip} from '../anim/evaluate';
 import {clipById,type Clip} from '../anim/clips';
-import {ridingClip,boardProgress,doorOpenAt} from './vehicle-actions';
+import {ridingClip,boardProgress,doorOpenAt,hatchOpenAt} from './vehicle-actions';
 import {articulateDoors} from './vehicle-doors';
 import type {MeshData,Material} from '../mesh';
 import type {Q} from '../anim/quat';
@@ -40,9 +40,14 @@ export class Vehicle{
   if(this.bicycle)this.bicycle.update(this.fit.animator.positions(transition||action.vehicleStunt?this.fit.animator.frame(this.fit.clip,0,{weaponPose:'hidden'}):frame??this.fit.animator.frame(this.fit.clip,time,{weaponPose:'hidden'})),controlsTime/this.fit.clip.duration*Math.PI*6);
   else{const c=transition||action.vehicleStunt?this.fit.at(0):frame?this.fit.fromFrame(frame):this.fit.at(time);if(armed&&this.id==='horse')c.right.copy(c.left);for(const fn of this.kit!.updates)fn(c,action.vehicleStunt&&this.id==='helicopter'?time:controlsTime);}
   const opening=transition?doorOpenAt(boardProgress(transition,time,action.duration)):0;
-  this.group.traverse(o=>{if(o.userData.doorSide)o.rotation.y=o.userData.occupantDoor?-o.userData.doorSide*opening*1.3:0;if(o.name.startsWith('Window_'))o.scale.y=armed?.001:1;if(o.name==='Canopy')o.rotation.z=-opening*1.3;if(o.name==='Boarding_gate')o.rotation.y=opening*1.5;});
+  this.group.traverse(o=>{if(o.userData.doorSide)o.rotation.y=o.userData.occupantDoor?-o.userData.doorSide*opening*1.3:0;if(o.name.startsWith('Window_'))o.scale.y=armed?.001:1;if(o.name==='Canopy')o.rotation.z=-opening*1.3;if(o.name==='Boarding_gate')o.rotation.y=opening*1.5;if(o.name==='Tank_hatch')o.rotation.z=transition?hatchOpenAt(boardProgress(transition,time,action.duration))*1.6:0;});
   if(travelDistance!==undefined)this.group.traverse(o=>{if(o.userData.wheelRadius)o.rotation.x=travelDistance/o.userData.wheelRadius;});
   if(action.vehicleStunt){const motion=vehicleStunt(this.id,time,action.duration,this.fit.scale);this.stuntRoot.quaternion.set(...motion.rotation);this.stuntRoot.position.set(...motion.translation);}else{this.stuntRoot.quaternion.identity();this.stuntRoot.position.set(0,0,0);}
+  this.group.updateMatrixWorld(true);
+ }
+ /** Aircraft state from a film: 0..1 gear retraction and engine throttle (0 idle, 1 take-off power). */
+ setFlight(retract:number,throttle:number){
+  this.group.traverse(o=>{const axis=o.userData.gearFold as T.Vector3|undefined,lift=o.userData.gearLift as T.Vector3|undefined;if(axis)o.quaternion.setFromAxisAngle(axis,retract*Math.PI/2);if(lift){o.userData.gearRest??=o.position.clone();o.position.copy(o.userData.gearRest).addScaledVector(lift,retract);}if(o.name==='Exhaust_glow'){o.visible=throttle>0;o.scale.set(.25+.75*throttle,.25+.75*throttle,.2+1.1*throttle);}});
   this.group.updateMatrixWorld(true);
  }
  get bounds(){return new T.Box3().setFromObject(this.group);}

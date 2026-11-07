@@ -4,7 +4,7 @@ import type {Clip,Sample} from './clips';
 import type {Vec3} from '../math';
 import {qslerp,qmul,type Q} from './quat';
 import {boneFor} from '../rig/poses';
-import {boardingStand,boardingScale,boardProgress} from '../props/vehicle-actions';
+import {boardingStand,boardingScale,boardProgress,tankRoof} from '../props/vehicle-actions';
 
 const mix=(a:number,b:number,w:number)=>a+(b-a)*w;
 const lerp=(a:Vec3,b:Vec3,w:number):Vec3=>a.map((x,i)=>mix(x,b[i],w)) as Vec3;
@@ -45,12 +45,17 @@ function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number,choreography=rid
   add(.76,0,dy,0,1,4,...pair(sign>0?finalL:finalR,inside),.9);
   add(.88,0,dy,0,1,0,finalL,finalR,.65);
  }else if(rideId==='drive_tank'){
-  const k=lift/(.72*s),pair=(out:Vec3,inn:Vec3):[Vec3,Vec3]=>sign>0?[out,inn]:[inn,out],inside=sign>0?finalR:finalL;
-  add(.16,standX,0,standZ,0,5,...pair(outer,inner),.5);
-  add(.34,standX*.84,.10,standZ,.15,10,...pair(outer,[1.13*k,.40*k,-.55*k]),.9);
-  add(.52,.90*k,.58*k,-.35*k,.45,12,...pair([1.13*k,.78*k,-.55*k],[.73*k,1.20*k,-.12*k]),1);
-  add(.70,.30*k,dy+.32*k,-.08*k,.85,8,...pair([.72*k,1.2*k,-.12*k],inside),.8);
-  add(.86,0,dy,0,1,0,finalL,finalR,.5);
+  // Up the tread steps onto the fender and hull roof, then down through the driver's hatch.
+  const head=B[index('Head')],roof=tankRoof(rp[index('Head')][1]+Math.hypot(...head.tail.map((x,d)=>x-head.head[d])),s)/s,fender=1.17,hx=rroot[0]/s,hz=rroot[2]/s,floor=lift/s;
+  add(.10,standX,0,standZ,0,4,standFeet[0],standFeet[1],.3);
+  add(.22,standX*.86,.15,standZ,.05,10,standFeet[0],[1.13,.40,-.55],.9);
+  add(.34,1.0,.80,-.55,.05,12,[1.13,.78,-.55],[.82,fender,-.40],1);
+  add(.46,.80,fender+.05,-.55,.05,8,[.85,fender,-.75],[.42,roof,hz-.55],1);
+  add(.54,.25,roof,hz-.62,.05,4,[.38,roof,hz-.62],[.12,roof,hz-.62],.4);
+  add(.62,hx+.18,roof-.15,hz-.5,.2,8,[.38,roof,hz-.62],[hx+.05,roof-.45,hz-.05],.25);
+  // Standing on the floor inside, head out of the hatch, before sitting down.
+  add(.78,hx,floor+.1,hz-.12,.6,4,[hx+.12,floor,hz+.05],[hx-.1,floor,hz+.05],.15);
+  add(.93,0,dy,0,1,0,finalL,finalR,.1);
  }else if(rideId==='fly_helicopter'||rideId==='fly_jet'){
   // Open the cabin door, step onto the skid, transfer weight onto the deck, then sit.
   // This is a step-through doorway, never the saddle swing or gunwale crossing.
@@ -102,8 +107,8 @@ function fit(A:Animator,idleClip:Clip,rideClip:Clip,lift:number,choreography=rid
  const hands:[Vec3,Vec3]=[ref(rp[handL]),ref(rp[handR])];
  // A fixed support, not a steering wheel/paddle dragged along with a reaching hand.
  if(car){const h=(rp[index('Hips')][1]/s)+.08;hands[sign>0?0:1]=[standX*.58,h,.16];}
- else if(rideId==='drive_tank'){const k=lift/(.72*s);hands[0]=[1.1*k,1.34*k,-.45*k];hands[1]=[1.1*k,1.52*k,-.15*k];}
- else if(rideId==='fly_jet'){const k=lift/(.55*s);hands[0]=[.54*k,rroot[1]/s+.06*k,.18*k];hands[1]=[.54*k,rroot[1]/s+.06*k,.35*k];}
+ else if(rideId==='drive_tank'){const head=B[index('Head')],roof=tankRoof(rp[index('Head')][1]+Math.hypot(...head.tail.map((x,d)=>x-head.head[d])),s)/s+.03,hz=rroot[2]/s;hands[0]=[.55,roof,hz-.55];hands[1]=[.55,roof,hz-.15];}
+ else if(rideId==='fly_jet'){const k=lift/(.55*s);hands[0]=[sign*.54*k,rroot[1]/s+.06*k,.18*k];hands[1]=[sign*.54*k,rroot[1]/s+.06*k,.35*k];}
  else if(rideId==='fly_helicopter'){hands[0]=[standX*.58,rroot[1]/s+.35,.20];hands[1]=[standX*.58,rroot[1]/s+.28,.37];}
  else if(rideId==='ride_horse'){hands[0]=[.17,rroot[1]/s+.24,.28];hands[1]=[-.12,rroot[1]/s+.24,.28];}
  else if(!rideId.startsWith('ride_')){const rim=rideId==='drive_boat'?.98:rideId==='paddle_kayak'?.42:.53;hands[0]=[standX*.48,rim,.25];hands[1]=[standX*.40,rim,.50];}

@@ -17,7 +17,7 @@ import { PARCEL_REST } from '../props/carry';
 import { carriesParcel, parcelHold } from './clips/interaction';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
 import {boardingFrame} from './boarding';
-import {mountedWeaponSample,directedWeaponSample,supportsWeaponAim,PADDLING_CLIPS,type WeaponPose} from './riding-weapons';
+import {mountedWeaponSample,directedWeaponSample,supportsWeaponAim,PADDLING_CLIPS,ENCLOSED_CLIPS,type WeaponPose} from './riding-weapons';
 import {RIDING_VEHICLES} from '../props/vehicles';
 
 export interface Frame {
@@ -314,7 +314,7 @@ export class Animator {
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
   frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): Frame {
-    const weapon=this.rig.weapon??'none',pose=opts.weaponPose??(clip.vehicleTransition||clip.vehicleStunt||clip.category==='Aerial'||weapon==='grenade'&&RIDING_VEHICLES[clip.id]?'hidden':'hold');
+    const weapon=this.rig.weapon??'none',pose=ENCLOSED_CLIPS.has(clip.id)?'hidden':opts.weaponPose??(clip.vehicleTransition||clip.vehicleStunt||clip.category==='Aerial'||weapon==='grenade'&&RIDING_VEHICLES[clip.id]?'hidden':'hold');
     const mounted=weapon!=='none'&&weapon!=='grenade'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
     let sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
     if(!mounted&&isFirearm(weapon)&&supportsWeaponAim(clip.id)&&opts.weaponPose&&pose!=='hidden'){

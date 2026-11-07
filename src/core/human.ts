@@ -1,5 +1,5 @@
 import {boneFor} from './rig/poses';
-import {parachutePack,parachuteCanopy,parachuteLine,PACKED_CANOPY,SUSPENSION_ANCHORS} from './props/parachute';
+import {parachutePack,parachuteCanopy,parachuteLine,parachuteHarness,PACKED_CANOPY,SUSPENSION_ANCHORS} from './props/parachute';
 import {carryStyle} from './props/carry';
 /**
  * Builds a complete character: morphed body + fitted proxies (eyes, brows,
@@ -515,11 +515,14 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     }
 
     if(p.carry==='parachute'){
-      const chest=bones.findIndex(b=>b.name===boneFor(p.rig,'Spine2')),P=xf(coords),level=bones[chest].head[1];let back=0;
+      // Fit the rig over clothing, not bare skin. Hair and small face parts never push the webbing out.
+      const worn=out.filter(([,m])=>!/hair|eye|brow|lash|teeth|tongue|hat|beard|stubble|earring|pearl/i.test(m.name)).map(([m])=>m.positions);
+      const P=new Float32Array(worn.reduce((n,a)=>n+a.length,0));worn.reduce((o,a)=>(P.set(a,o),o+a.length),0);
+      const chest=bones.findIndex(b=>b.name===boneFor(p.rig,'Spine2')),level=bones[chest].head[1];let back=0;
       for(let i=0;i<P.length;i+=3)if(Math.abs(P[i+1]-level)<.13*sizeK&&Math.abs(P[i])<.22*sizeK)back=Math.min(back,P[i+2]);
       const centre:Vec3=[0,level+.12*sizeK,back-.085*sizeK],style=carryStyle('parachute',p.garmentStyles);
       const attach=(part:import('./props/carry').CarryPart,index:number,offset?:Vec3,k=1)=>{const positions=part.mesh.positions.map((v,i)=>v*k+(offset?.[i%3]??0)),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...part.mesh,positions,skin:{j,w}},part.material]);};
-      const harness=[-1,1].map(side=>{const front:Vec3[]=[],rear:Vec3[]=[];for(let n=0;n<=12;n++){const y=level+(.19-.51*n/12)*sizeK,x=side*.12*sizeK;let near=Infinity,lo=0,hi=0;for(let j=0;j<P.length;j+=3){const d=Math.abs(P[j]-x)+Math.abs(P[j+1]-y);if(d<near-.012*sizeK){near=d;lo=hi=P[j+2];}else if(d<=near+.012*sizeK){lo=Math.min(lo,P[j+2]);hi=Math.max(hi,P[j+2]);}}front.push([x,y,hi+.014*sizeK]);rear.push([x,y,lo-.014*sizeK]);}return [...front,...rear.reverse(),front[0]];});
+      const harness=parachuteHarness(P,level,sizeK);
       for(const part of parachutePack(centre,.32*sizeK,sizeK,style,harness))attach(part,chest);
       // Packed rest geometry stays inside the pack, including static/bind-pose exports.
       const addRoot=(name:string)=>{const i=bones.length;bones.push({name,parent:-1,head:[...centre],tail:[centre[0],centre[1]+.01*sizeK,centre[2]],rot:[1,0,0,0,1,0,0,0,1]});return i;};

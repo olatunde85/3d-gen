@@ -270,14 +270,20 @@ const driveTank:Clip={id:'drive_tank',name:'Drive military tank',category:'Vehic
  const hand=(s:1|-1):HandTarget=>({pos:v(.23*s,-.43,.28+.008*s*Math.sin(t*Math.PI/2)),pole:v(s,-1,-.25),dir:v(0,-.1,1),palm:v(-s,0,0)});
  return {bones,root:{ground:true},ik:{Left:hand(1),Right:hand(-1)},thumbs:{Left:.6,Right:.6}};
 }};
-const flyJet:Clip={...flyHelicopter,id:'fly_jet',name:'Pilot jet (fly / taxi)',sample:t=>{
- const s=flyHelicopter.sample(t);return {...s,ik:{Right:{pos:v(-.12,-.43,.32),pole:v(-1,-.8,-.2),dir:v(0,-.1,1),palm:v(1,0,0)},Left:{pos:v(.26,-.46,.14),pole:v(1,-.8,-.2),dir:v(0,0,1),palm:v(0,-1,0)}}};
-}};
+/** Jet pilot: right hand on the centre stick, left on the throttle. `stick` and `throttle` are small offsets in metres. */
+const jetPilot=(t:number,stick:[number,number],throttle:number)=>{
+ const s=flyHelicopter.sample(t);return {...s,ik:{Right:{pos:v(-.12+stick[0],-.43,.32+stick[1]),pole:v(-1,-.8,-.2),dir:v(0,-.1,1),palm:v(1,0,0)},Left:{pos:v(.26,-.46,.14+throttle),pole:v(1,-.8,-.2),dir:v(0,0,1),palm:v(0,-1,0)}}};
+};
+// Small, continuous stick inputs; Studio banks the airborne jet a beat behind them.
+const flyJet:Clip={...flyHelicopter,id:'fly_jet',name:'Pilot jet (fly / taxi)',sample:t=>{const a=t/6*Math.PI*2;return jetPilot(t,[.014*Math.sin(a),.006*Math.sin(2*a)],.03);}};
+const ease=(x:number)=>{const u=Math.max(0,Math.min(1,x));return u*u*(3-2*u);};
+const takeoffJet:Clip={...flyJet,id:'takeoff_jet',name:'Take off jet',loop:false,sample:t=>{const u=t/6;return jetPilot(t,[0,-.035*ease((u-.38)/.08)+.025*ease((u-.62)/.2)],.06*ease(u/.08));}};
+const landJet:Clip={...flyJet,id:'land_jet',name:'Land jet',loop:false,sample:t=>{const u=t/6;return jetPilot(t,[0,-.03*ease((u-.42)/.12)+.03*ease((u-.62)/.1)],.03-.06*ease((u-.3)/.25));}};
 export const VEHICLES: Clip[] = [driveCar, sitPassenger,
  {...driveCar,id:'drive_sports_car',name:'Drive modern sports car'},
  {...sitPassenger,id:'sit_sports_car_passenger',name:'Sit (sports car passenger)'},
  {...driveCar,id:'drive_suv',name:'Drive SUV'},
- {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, {...driveCar,id:'drive_pickup',name:'Drive pickup truck'},{...sitPassenger,id:'sit_pickup_passenger',name:'Sit (pickup passenger)'},driveTank,flyJet, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat, flyHelicopter];
+ {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, {...driveCar,id:'drive_pickup',name:'Drive pickup truck'},{...sitPassenger,id:'sit_pickup_passenger',name:'Sit (pickup passenger)'},driveTank,flyJet,takeoffJet,landJet, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat, flyHelicopter];
 
 /** Exact contact poses are fitted by Animator, shared by previews and exports. */
 export const BOARDING: Clip[] = VEHICLE_TRANSITIONS.flatMap(([id, ride, name, duration]) =>

@@ -51,8 +51,8 @@ export class VehicleKit{
  ellipsoid(p:V,size:V,mat:T.Material,parent:T.Object3D=this.group){const m=this.mesh(new T.SphereGeometry(1,24,16),mat,parent);m.position.copy(p);m.scale.copy(size);return m;}
  tube(a:V,b:V,r:number,mat:T.Material,parent:T.Object3D=this.group){const m=this.mesh(new T.CylinderGeometry(r,r,a.distanceTo(b),12),mat,parent);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(v(0,1,0),b.clone().sub(a).normalize());return m;}
  component(name:string,position=v(),parent:T.Object3D=this.group){const g=new T.Group();g.name=name;g.userData.component=true;g.position.copy(position);parent.add(g);return g;}
- wheel(name:string,p:V,r:number,width:number,spokes:boolean|'alloy'=false){
-  const g=this.component(name,p);g.userData.wheelRadius=r;const tyre=this.mesh(new T.TorusGeometry(r-width*.3,width*.3,12,40),this.rubber,g);tyre.rotation.y=Math.PI/2;
+ wheel(name:string,p:V,r:number,width:number,spokes:boolean|'alloy'=false,parent:T.Object3D=this.group){
+  const g=this.component(name,p,parent);g.userData.wheelRadius=r;const tyre=this.mesh(new T.TorusGeometry(r-width*.3,width*.3,12,40),this.rubber,g);tyre.rotation.y=Math.PI/2;
   const rim=this.mesh(new T.CylinderGeometry(r*.69,r*.69,width*.72,24),this.trim,g);rim.rotation.z=Math.PI/2;
   if(spokes){
    rim.geometry.dispose();rim.geometry=new T.CylinderGeometry(r*.15,r*.15,width*.85,16);

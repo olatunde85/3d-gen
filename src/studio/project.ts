@@ -8,7 +8,7 @@ import { decodeCharacter, encodeCharacter } from '../app/share';
 import { defaultAudio, parseAudio, type FilmAudio } from './audio/schema';
 import { parseTextCues, type TextCue } from './text';
 import { sceneById, type SetId } from './catalog';
-import {studioTravel,MAX_TRAVEL_SPEED,STAGE_LIMIT} from './motion';
+import {studioTravel,travelTime,forcedTravel,MAX_TRAVEL_SPEED,STAGE_LIMIT} from './motion';
 import {VEHICLE_SEATS,validateVehicleLinks,type VehicleSeat} from './vehicle-seats';
 import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES,type VehicleChoice} from '../core/props/vehicles';
 import {WEAPON_POSES,type WeaponPose} from '../core/anim/riding-weapons';
@@ -86,7 +86,7 @@ export function parseProject(text: string): StudioProject {
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
       const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,MAX_TRAVEL_SPEED,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
-      if(speed!==undefined&&!RIDING_VEHICLES[clip])throw Error('Travel speed is only available for riding/driving actions.');
+      if(speed!==undefined&&!RIDING_VEHICLES[clip]&&!forcedTravel(clip))throw Error('Travel speed is only available for riding/driving actions.');
       const height=b.flightHeight===undefined?undefined:number(b.flightHeight,0,30,'helicopter flight height');if(height!==undefined&&!isFlightClip(clip)&&!isAerialClip(clip))throw Error('Flight height is only available for aircraft and aerial actions.');
       const pitch=b.weaponPitch===undefined?undefined:number(b.weaponPitch,-45,60,'weapon elevation');
       const pose=b.weaponPose,yaw=b.weaponYaw===undefined?undefined:number(b.weaponYaw,-110,110,'mounted weapon direction');
@@ -98,7 +98,7 @@ export function parseProject(text: string): StudioProject {
       if(pose==='fire'&&!isFirearm(weapon))throw Error('Only a pistol or rifle can use Fire.');
       if(b.vehicleId!==undefined&&(typeof b.vehicleId!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(b.vehicleId)))throw Error('Use a vehicle ID of 1–80 letters, numbers, underscores or hyphens.');
       if(b.vehicleSeat!==undefined&&!member(b.vehicleSeat,VEHICLE_SEATS))throw Error('Choose a supported vehicle seat.');
-      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: b.move && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}) };
+      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: (b.move||forcedTravel(clip)) && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}) };
     });
     if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');
     return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -STAGE_LIMIT, STAGE_LIMIT, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -STAGE_LIMIT, STAGE_LIMIT, 'character Z'), yaw: number(a.yaw, -180, 180, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
@@ -125,13 +125,13 @@ export interface TimelinePoint { index: number; time: number; local: number; pha
 export function timelineAt(p: StudioProject, time: number, actor = p.actors[0]): TimelinePoint {
   const t = Math.max(0, Math.min(trackDuration(actor), time));
   let start = 0, x = 0, z = 0, index = actor.beats.length - 1;
-  const travel = (b: Beat, axis: 0 | 2) => b.move ? studioTravel(b.clip,b.travelSpeed)?.[axis] ?? 0 : 0;
+  const travel = (b: Beat, axis: 0 | 2) => b.move ? studioTravel(b.clip,b.travelSpeed)?.[axis] ?? 0 : 0, span = (b: Beat, local: number) => travelTime(b.clip, local, b.duration);
   for (let i = 0; i < actor.beats.length; i++) { const b = actor.beats[i]; if (t < start + b.duration || i === actor.beats.length - 1) { index = i; break; }
-    x += travel(b, 0) * b.duration; z += travel(b, 2) * b.duration; start += b.duration; }
+    x += travel(b, 0) * span(b, b.duration); z += travel(b, 2) * span(b, b.duration); start += b.duration; }
   const b = actor.beats[index], local = t - start;
   let phase = local; for (let i = clipById.get(b.clip)?.loop ? index - 1 : -1; i >= 0 && actor.beats[i].clip === b.clip; i--) phase += actor.beats[i].duration;
-  x += travel(b, 0) * local; z += travel(b, 2) * local;
-  x -= actor.beats.reduce((sum, b) => sum + travel(b, 0) * b.duration, 0) / 2;
-  z -= actor.beats.reduce((sum, b) => sum + travel(b, 2) * b.duration, 0) / 2;
+  x += travel(b, 0) * span(b, local); z += travel(b, 2) * span(b, local);
+  x -= actor.beats.reduce((sum, b) => sum + travel(b, 0) * span(b, b.duration), 0) / 2;
+  z -= actor.beats.reduce((sum, b) => sum + travel(b, 2) * span(b, b.duration), 0) / 2;
   return { index, time: t, local, phase, start, x, z };
 }

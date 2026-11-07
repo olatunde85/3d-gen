@@ -35,7 +35,7 @@ import {VEHICLE_FOR_CLIP,RIDING_VEHICLES,VEHICLE_LABELS,type VehicleStyle} from 
 import {defaultWeaponYaw,type WeaponPose} from '../core/anim/riding-weapons';
 import {isFirearm} from '../core/props/weapons';
 
-import {studioTravel,VEHICLE_SPEED,STAGE_LIMIT} from './motion';
+import {studioTravel,forcedTravel,VEHICLE_SPEED,STAGE_LIMIT} from './motion';
 import {vehicleCatalog,vehicleKey,assignVehicle,availableVehicleSeats,seatsForVehicle,SEAT_LABELS,type VehicleSeat} from './vehicle-seats';
 import {readCharacterSettings} from '../app/character-file';
 import {setupSpatialReview,fittedSpatialBodies} from './spatial-ui';
@@ -122,7 +122,7 @@ function lock() {
     button('add-beat').disabled = actorTrack().beats.length >= MAX_ACTIONS || trackDuration(actorTrack()) > MAX_DURATION - 0.1;
     button('add-shot').disabled = project.shots.length >= MAX_SHOTS || project.shots.reduce((s, b) => s + b.duration, 0) > MAX_DURATION - 0.1;
     button('add-actor').disabled = button('add-custom-actor').disabled = project.actors.length >= MAX_ACTORS;
-    input('movement').disabled = !studioTravel(actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)].clip);
+    input('movement').disabled = !studioTravel(actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)].clip)||forcedTravel(actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)].clip);
     const current=actorTrack().beats[Math.min(selected,actorTrack().beats.length-1)],passenger=(current.vehicleSeat??'operator')!=='operator';
     if(passenger){input('movement').disabled=true;input('show-vehicle').disabled=true;input('vehicle-travel-speed').disabled=true;input('helicopter-height').disabled=true;}
     select('blocking').disabled = project.actors.length !== 2;
@@ -359,7 +359,7 @@ select('blocking').addEventListener('change',async()=>{
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});
-select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];const priorModel=VEHICLE_FOR_CLIP[b.clip];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition)b.duration=clipById.get(b.clip)!.duration;b.move=false;delete b.travelSpeed;delete b.flightHeight;delete b.showVehicle;delete b.weaponPose;delete b.weaponYaw;delete b.weaponPitch;if(priorModel!==VEHICLE_FOR_CLIP[b.clip]){delete b.vehicleId;delete b.vehicleSeat;}const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
+select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];const priorModel=VEHICLE_FOR_CLIP[b.clip];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition||forcedTravel(b.clip))b.duration=clipById.get(b.clip)!.duration;b.move=forcedTravel(b.clip);delete b.travelSpeed;delete b.flightHeight;delete b.showVehicle;delete b.weaponPose;delete b.weaponYaw;delete b.weaponPitch;if(priorModel!==VEHICLE_FOR_CLIP[b.clip]){delete b.vehicleId;delete b.vehicleSeat;}const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';}));
 input('beat-duration').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].duration=Number(input('beat-duration').value)));
 button('clip-length').addEventListener('click',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];b.duration=Math.min(12,clipById.get(b.clip)!.duration);}));
 select('beat-weapon-pose').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected],value=select('beat-weapon-pose').value;if(value==='auto')delete b.weaponPose;else b.weaponPose=value as WeaponPose;}));
