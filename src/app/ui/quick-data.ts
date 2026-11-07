@@ -400,7 +400,7 @@ export function actions(p: HumanParams, clip = 'idle'): Option[] {
     sword: ['sword_idle', 'sword_slash', 'sword_block'], knife: [], grenade:['throw_grenade'],
   };
   const vehicle = vehicleOf(p, clip);
-  return [...base,...(p.carry==='parachute'?['skydive','parachute_deploy','parachute_glide','parachute_land']:[]), ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));
+  return [...base,...(p.carry==='parachute'?['skydive','parachute_deploy','parachute_glide','parachute_land']:[]),...(p.carry==='head_load'?['head_load_idle','head_load_walk']:[]), ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));
 }
 
 // --- Summary --------------------------------------------------------------------------------

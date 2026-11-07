@@ -1,6 +1,6 @@
 # Animations
 
-There are 167 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 169 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -37,7 +37,7 @@ The takes and cuts are listed in `scripts/mocap-takes.ts`. `npm run build-mocap`
 
 ## Interaction
 
-The **Interaction** category contains seven clips. Choose **Carry: Box / parcel** to include a fitted box for pickup and carry. Your game supplies other interaction objects such as buttons and doors.
+The **Interaction** category contains nine clips. Choose **Carry: Box / parcel** to include a fitted box for pickup and carry. **Head-load idle** and **Head-load walk** carry a load on the head, common across Africa and elsewhere: choose **Carry: Head load (basin)** for an enamel basin of produce on a rolled cloth pad, fitted on the crown over the hair and rigid with the head. The right hand rests on the rim and the head stays level; the walk keeps the recorded footfalls at a steadier pace, with the left arm swinging. Your game supplies other interaction objects such as buttons and doors.
 
 - **Pick up (ground)** (3.4 s): look down, reach forward, squat with the hands clear of the knees, close both hands on a low object, then lift with the legs. Grip at about 1.5 s; the clip ends in the first pose of **Carry idle**, so the two chain without a pop.
 - **Put down / drop (ground)** (3.4 s): the matching reverse of pickup. Start holding the parcel, lower it to the floor around 1.6 s, release it, then return upright. Chain Carry idle/walk → Put down → Idle. The parcel stays on the floor after release.

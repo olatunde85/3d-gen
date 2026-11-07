@@ -86,6 +86,7 @@ export function carryPanel(ctx: Ctx) {
   const row = selectRow(ctx, 'Carry', CARRIED.map((c) => [c, CARRY_LABELS[c]]), () => store.params.carry, (v) => {
     store.set({ carry: v as CarryId });
     if(v==='parcel'&&store.params.rig!=='none')ctx.playClip('carry_idle');
+    if(v==='head_load'&&store.params.rig!=='none')ctx.playClip('head_load_idle');
     store.emit('sync');
   });
   return el('div', {}, row, styleControls(ctx, () => (store.params.carry === 'none' ? '' : store.params.carry)));
