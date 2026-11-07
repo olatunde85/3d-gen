@@ -15,9 +15,9 @@ import type { Material } from '../mesh';
  * Bags: carried in the hand (built here), or worn (the backpack, a garment with slot 'bag', built
  * with the clothes).
  */
-export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel', 'parachute', 'head_load'] as const;
+export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel', 'parachute', 'head_load', 'phone', 'broom'] as const;
 export type CarryId = (typeof CARRIED)[number];
-export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel',parachute:'Parachute / skydiving rig',head_load:'Head load (basin)' };
+export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel',parachute:'Parachute / skydiving rig',head_load:'Head load (basin)',phone:'Mobile phone',broom:'Broom' };
 /** Bags worn on the body rather than carried in the hand. */
 export const WORN_BAGS: readonly CarryId[] = ['backpack','parachute','head_load'];
 
@@ -38,6 +38,8 @@ export const CARRY_STYLES: Record<Exclude<CarryId, 'none' | 'backpack'>, { patte
   parachute:{patterns:['solid'],color:'#cc5937',color2:'#283c4b',colorLabels:['Canopy','Pack / canopy stripe']},
   parcel: {patterns:['solid'],color:'#ae8550',color2:'#c7a776',colorLabels:['Cardboard','Packing tape']},
   head_load: {patterns:['solid'],color:'#ece7dc',color2:'#c8381f',colorLabels:['Enamel basin','Produce']},
+  phone: {patterns:['solid'],color:'#1c1e23',color2:'#3a6fa8',colorLabels:['Phone body','Screen']},
+  broom: {patterns:['solid'],color:'#b0864f',color2:'#d6b35e',colorLabels:['Handle','Bristles']},
 };
 
 /** A carried bag's style from the params' saved styles (falling back to its defaults). */
@@ -90,6 +92,44 @@ export function headLoad(st:BagStyle):CarryPart[]{
  fruit.push(ellipsoid(frameOf([0,top-.01,0],[0,0,1],[0,1,0]),[rim-.01,.05,rim-.01],[.5,.5],24,6));
  return [{mesh:pad,material:mat('Head pad cloth','#7c4a86',.95)},{mesh:basin,material:mat('Enamel basin',st.color,.32,.1)},
   {mesh:lip,material:mat('Basin rim','#23427c',.3,.1)},{mesh:merge(fruit)!,material:mat('Basin produce',st.color2,.45)}];
+}
+
+/**
+ * Smartphone on its own prop joint, centred on the origin: screen facing +X, width along Y, top towards +Z.
+ * A rounded-rectangle body with a metal frame, black glass front with the display inset, and a camera module
+ * on the back near the top.
+ */
+export const PHONE_SIZE:Vec3=[.0078,.071,.147];
+function phone(st:BagStyle):CarryPart[]{
+ const [T,W,L]=PHONE_SIZE;
+ // Superellipse outline in the phone's plane at depth x.
+ const ring=(x:number,inset:number,n=56):Vec3[]=>Array.from({length:n},(_,i)=>{const a=i/n*Math.PI*2,c=Math.cos(a),sn=Math.sin(a),k=2/5;
+  return [x,Math.sign(c)*Math.abs(c)**k*(W/2-inset),Math.sign(sn)*Math.abs(sn)**k*(L/2-inset)];});
+ const slab=(x0:number,x1:number,inset:number,round:number)=>{
+  const xs=[x0,x0+round*.4,x0+round,x1-round,x1-round*.4,x1],insets=[inset+round,inset+round*.35,inset,inset,inset+round*.35,inset+round],rings=xs.map((x,i)=>ring(x,insets[i]));
+  const centre=(r:Vec3[])=>r.reduce((c,p)=>v3.add(c,v3.scale(p,1/r.length)),[0,0,0]as Vec3);
+  return orientOutward(loftRings([rings[0].map(p=>v3.lerp(p,centre(rings[0]),.98)),...rings,rings[5].map(p=>v3.lerp(p,centre(rings[5]),.98))],{closedAround:true,uRepeats:1,tileV:.01}),[(x0+x1)/2,0,0]);
+ };
+ const mat=(name:string,color:string,roughness:number,metalness=0):Material=>({name,color,roughness,metalness,alpha:'opaque',doubleSided:false});
+ const back=-T/2,front=T/2,body=slab(back,front-.0006,0,.0016),glass=slab(front-.0007,front,.0009,.0003),display=slab(front,front+.0002,.0032,.0001);
+ const camera:Vec3=[back-.0008,.018,L/2-.026],plate=roundedBox(frameOf(camera,[0,0,1],[1,0,0]),[.014,.0012,.014],2);
+ const lenses=merge([0,1].map(i=>cord(Array.from({length:17},(_,j)=>[camera[0]-.0012,camera[1]+.0045*Math.cos(j/16*Math.PI*2),camera[2]+(i?-.006:.006)+.0045*Math.sin(j/16*Math.PI*2)]as Vec3),.0018,true,6)));
+ return [{mesh:body,material:mat('Phone frame',st.color,.3,.7)},{mesh:glass,material:mat('Phone glass','#07080b',.06,.2)},
+  {mesh:display,material:{...mat('Phone display',st.color2,.15),emissive:st.color2}},{mesh:plate,material:mat('Phone camera module','#141519',.25,.5)},{mesh:lenses!,material:mat('Phone camera lenses','#2a3346',.05,.6)}];
+}
+/**
+ * Broom on its own prop joint: origin at the bristle tips on the floor, handle rising along +Y. The animator
+ * lays it through both hands while sweeping.
+ */
+export const BROOM_LENGTH=1.42;
+/** Rest scale of the phone and broom: packed out of sight inside the hips until a clip shows them (as the parachute canopy). */
+export const PROP_REST=.001;
+function broom(st:BagStyle):CarryPart[]{
+ const mat=(name:string,color:string,roughness:number):Material=>({name,color,roughness,metalness:0,alpha:'opaque',doubleSided:false});
+ const handle=cord([[0,.2,0],[0,BROOM_LENGTH,0]],.014,false,10),cap=cord([[0,BROOM_LENGTH-.005,0],[0,BROOM_LENGTH+.02,0]],.017,false,10);
+ const block=roundedBox(frameOf([0,.17,0],[0,0,1],[0,1,0]),[.16,.03,.035],1);
+ const bristles:PolyMesh[]=[];for(let i=0;i<14;i++)bristles.push(roundedBox(frameOf([-.15+i*.023,.075,0],[0,0,1],[0,1,0]),[.011,.075,.03],0));
+ return [{mesh:merge([handle,cap])!,material:mat('Broom handle',st.color,.6)},{mesh:block,material:mat('Broom block','#5b4128',.7)},{mesh:merge(bristles)!,material:mat('Broom bristles',st.color2,.95)}];
 }
 
 /** Registers a generated texture and returns its file name (see GCtx.texture). */
@@ -264,6 +304,10 @@ export function buildCarry(id: CarryId, texture: TextureFn, styles: Parameters<t
       return briefcase(texture, carryStyle(id, styles));
     case 'parcel':
       return parcel(carryStyle(id,styles));
+    case 'phone':
+      return phone(carryStyle(id,styles));
+    case 'broom':
+      return broom(carryStyle(id,styles));
     default:
       return [];
   }

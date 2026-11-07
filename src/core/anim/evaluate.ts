@@ -14,7 +14,7 @@ import { boneFor } from '../rig/poses';
 import { boneFrame, quatOf, type Rig } from '../rig/rig';
 import { clipById, type Ch, type Clip, type HandTarget, type Sample } from './clips';
 import { fist,grip } from './clips/helpers';
-import { PARCEL_REST } from '../props/carry';
+import { PARCEL_REST, PROP_REST } from '../props/carry';
 import { carriesParcel, parcelHold } from './clips/interaction';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
 import {boardingFrame} from './boarding';
@@ -151,6 +151,8 @@ export class Animator {
   /** WeaponR socket bone (-1 if the rig has none) and cached weapon fits. */
   private socket: number;
   private parcel:number;
+  private broom:number;
+  private phone:number;
   private fits = new Map<string, { rot: Q; supportZ: number }>();
 
   /** `face`: the character's blend-shape names and resting (expression) weights, if it has face shapes. */
@@ -266,6 +268,8 @@ export class Animator {
     this.recoveryFloor=Math.min(...this.recoveryFeet.map(i=>B[i].head[1]));
     this.socket = B.findIndex((b) => b.name === 'WeaponR');
     this.parcel=B.findIndex(b=>b.name==='Parcel');
+    this.broom=B.findIndex(b=>b.name==='Broom');
+    this.phone=B.findIndex(b=>b.name==='Phone');
   }
 
   /**
@@ -336,6 +340,8 @@ export class Animator {
       ? boardingFrame(this,clip,time,clipById.get('idle')!,clipById.get(clip.vehicleTransition.ride)!,opts.vehicleLift??0)
       : this.frameOf(s, clip, time, opts);
     this.placeParcel(frame,clip,time,opts.rootMotion,opts.parcelGrounded);
+    this.placeBroom(frame,clip);
+    this.placePhone(frame,carried);
     if(opts.vehicleLift&&!clip.vehicleTransition){const lift=opts.vehicleLift*(clip.liftWeight?.(time)??1);for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+lift,p[2]]);}
     if(contact){
       if(opts.vehicleLift)for(const [i,p]of contact.rootPos)contact.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
@@ -400,6 +406,32 @@ export class Animator {
   }
 
   /** A rigid, level box: on the floor before pickup, then between the two solved wrists. */
+  /** The phone shows only in clips that place it (phone call, texting), exactly where the clip's chest-space pose puts it. */
+  private placePhone(frame:Frame,s:Sample){
+    const index=this.phone;if(index<0)return;
+    if(!s.prop)return;
+    frame.scale??=new Map();frame.scale.set(index,[1/PROP_REST,1/PROP_REST,1/PROP_REST]);
+    const B=this.rig.bones,world:Q[]=[];B.forEach((b,i)=>world[i]=b.parent<0?frame.rot[i]:qmul(world[b.parent],frame.rot[i]));
+    const cross3=(a:Vec3,b:Vec3):Vec3=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+    const {cd,origin}=this.chestSpace(world,this.positions(frame)),x=norm(s.prop.x),z0=norm(s.prop.z),y=norm(cross3(z0,x)),z=cross3(x,y);
+    const at=qrot(cd,s.prop.pos.map(v=>v*this.scale)as Vec3);
+    frame.rootPos.set(index,[origin[0]+at[0],origin[1]+at[1],origin[2]+at[2]]);frame.rot[index]=qmul(cd,quatOf([...x,...y,...z]as Parameters<typeof quatOf>[0]));
+  }
+
+  /** The broom only shows while sweeping: its handle runs through both hands and the bristles rest on the floor. */
+  private placeBroom(frame:Frame,clip:Clip){
+    const index=this.broom;if(index<0)return;
+    if(clip.id!=='sweep')return;
+    frame.scale??=new Map();frame.scale.set(index,[1/PROP_REST,1/PROP_REST,1/PROP_REST]);
+    // Through the actual grips: the middle of each closed fist, not the wrist joints.
+    const pos=this.positions(frame),fist=(side:string):Vec3|undefined=>{const ids=['HandIndex1','HandPinky1','HandIndex2','HandMiddle2','HandRing2','HandMiddle3'].map(n=>this.idx.get(side+n));
+      if(ids.every(i=>i!==undefined))return ids.reduce((p,i)=>p.map((v,d)=>v+pos[i!][d]/ids.length)as Vec3,[0,0,0]as Vec3);const h=this.idx.get(side+'Hand');return h===undefined?undefined:pos[h];};
+    const L=fist('Left'),R=fist('Right');if(!L||!R)return;
+    const d=norm(R.map((v,i)=>v-L[i])as Vec3),floor=Math.min(...this.feet.map(i=>pos[i][1])),t=(L[1]-floor)/Math.max(.2,-d[1]);
+    const tip=L.map((v,i)=>v+d[i]*t)as Vec3,up:Vec3=[-d[0],-d[1],-d[2]],c=[up[2],0,-up[0]],w=1+up[1],l=Math.hypot(c[0],c[2],w)||1;
+    frame.rootPos.set(index,tip);frame.rot[index]=[c[0]/l,0,c[2]/l,w/l];
+  }
+
   placeParcel(frame:Frame,clip:Clip,time:number,rootMotion=false,grounded=false){
     const index=this.parcel;if(index<0)return;
     const scale=this.scale,rest=PARCEL_REST.map((v,d)=>v*scale+(rootMotion&&clip.travel?clip.travel[d]*time*scale:0))as Vec3;
@@ -774,6 +806,16 @@ export class Animator {
       const S = pos[i];
       const tp = toWorld(t.pos.map((x) => x * this.scale) as Vec3);
       const T: Vec3 = [origin[0] + tp[0], origin[1] + tp[1], origin[2] + tp[2]];
+      if (t.tip && t.dir) {
+        // Back from the index fingertip to the wrist. The relaxed index curls slightly and sits off the hand's axis,
+        // so the tip lies along the hand, a little towards the palm and the thumb side (measured proportions of
+        // this rig's own hand-plus-index length).
+        const end = this.idx.get(`${side}HandIndex3`), reach = end !== undefined ? dist(B[hand].head, B[end].tail) : 0.18 * this.scale;
+        const f = norm(toWorld(t.dir)), pw = t.palm ? toWorld(t.palm) : [0, 0, 0] as Vec3, k0 = pw[0] * f[0] + pw[1] * f[1] + pw[2] * f[2];
+        const pu = Math.hypot(pw[0] - f[0] * k0, pw[1] - f[1] * k0, pw[2] - f[2] * k0) > 1e-6 ? norm([pw[0] - f[0] * k0, pw[1] - f[1] * k0, pw[2] - f[2] * k0]) : [0, 0, 0] as Vec3;
+        const sd: Vec3 = [f[1] * pu[2] - f[2] * pu[1], f[2] * pu[0] - f[0] * pu[2], f[0] * pu[1] - f[1] * pu[0]], thumb = side === 'Right' ? 1 : -1;
+        for (let k = 0; k < 3; k++) T[k] -= reach * (0.955 * f[k] + 0.226 * pu[k] + 0.19 * thumb * sd[k]);
+      }
       const L1 = dist(B[fore].head, B[i].head), L2 = dist(B[hand].head, B[fore].head);
       let d = dist(T, S);
       const dir = norm(sub3(T, S));

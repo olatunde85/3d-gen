@@ -1,6 +1,6 @@
 # Animations
 
-There are 181 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 187 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -167,4 +167,8 @@ The **Swimming** category has **Tread water**, **Swim forward (front crawl)**, *
 ### Social emotes
 
 In **Emotes**: **Clap** (loop), **Point** and **Thumbs up** (raise and hold), **Bow** (down and back up), and two loops for dancing: **Dance (groove)**, a step-touch at 120 bpm, and **Dance (party bounce)** with alternating raised hands.
+
+### Everyday NPCs
+
+The **Everyday** category has **Talk with gestures**, **Phone call**, **Texting**, **Lean on wall**, **Look around** and **Sweep** (all loops). Choose **Carry: Mobile phone** for a smartphone on its own prop joint: on a call it rests against the left ear and cheek with the palm on its back, and for texting it lies in the left palm while the right index finger taps the screen. It appears only in these two clips. Choose **Carry: Broom** for sweeping: the broom has its own prop joint, held in both fists with the thumbs up the handle and the bristles on the floor, and appears only while sweeping. **Lean on wall** (arms folded, one foot against the wall) expects a wall about 20 cm behind the heels; place the character with their back to one.
 
