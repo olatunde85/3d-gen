@@ -1,3 +1,4 @@
+import {reviewActionProps} from './action-props-review';
 /**
  * Studio integration: real renderer, timeline edits, responsive layouts and encoded MP4 playback.
  * Fails on page errors; saves review images and a real film under out/studio-review.
@@ -548,6 +549,7 @@ try{
  await checkFiveCast({enabled:castOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
  await buildLocationThumbnails({enabled:thumbnailsOnly,step,evaluate,ready});
  await checkSpatialReview({enabled:spatialOnly,step,evaluate,ready,change,send,pause,shot});
+ await reviewActionProps({step,evaluate,ready,change});
  await reviewHelicopter({enabled:helicopterOnly,step,evaluate,ready,change,send,pause});
  await checkStoryScenes({enabled:scenesOnly,step,evaluate,ready,change,search,send,pause});
  await checkStudioEditing({enabled:editingOnly,step,evaluate,waitFor,change,ready,pause,shot,send,folder});

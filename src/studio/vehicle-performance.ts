@@ -24,7 +24,7 @@ export function passengerFrame(animator:Animator,beat:Beat,time:number,state:Sta
   const reference={...ride,id:`${ride.id}-${state.seat}`},choreography=model==='car'||model==='sports_car'||model==='suv'?(state.seat==='rear-left'?VEHICLE_CLIP[model]:model==='suv'?'sit_suv_passenger':model==='sports_car'?'sit_sports_car_passenger':'sit_passenger'):VEHICLE_CLIP[model];
   frame=boardingFrame(animator,clip,time,clipById.get('idle')!,reference,lift,choreography,state.stand);
   const socket=animator.rig.bones.findIndex(b=>b.name==='WeaponR');if(socket>=0)frame.scale=new Map([[socket,[0,0,0]]]);
- }else frame=animator.frame(passengerClip(clip,model),time,{faceTime,vehicleLift:lift,weaponPose:beat.weaponPose,weaponYaw:beat.weaponYaw??(model==='helicopter'?defaultWeaponYaw(clip.id,state.seat):isCar(model)?state.seat==='rear-left'?80:-80:state.seat==='passenger-left'?55:-55)});
+ }else frame=animator.frame(passengerClip(clip,model),time,{faceTime,vehicleLift:lift,weaponPose:beat.weaponPose,weaponPitch:beat.weaponPitch,weaponYaw:beat.weaponYaw??(model==='helicopter'?defaultWeaponYaw(clip.id,state.seat):isCar(model)?state.seat==='rear-left'?80:-80:state.seat==='passenger-left'?55:-55)});
  const weight=clip.vehicleTransition?boardProgress(clip.vehicleTransition,time,clip.duration):1;
  if(state.seatShift[1])for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+state.seatShift[1]*weight,p[2]]);
  // Fit the seated hips to the shared upholstery, then keep longer legs above its real floor.

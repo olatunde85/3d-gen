@@ -106,7 +106,7 @@ export class StudioActor {
     const parcel=parcelStateAt(track,at.time),id=vehicleFor(this.vehicleChoice(track,b),clip.id);
     const lift=id?vehicleLift(id,this.scale):0;
     const stage=this.stage(project,time,track),state=stage.actor(track);
-    let frame = state.passenger?passengerFrame(this.animator,b,local,state,this.scale,faceTime):this.animator.frame(clip, local, { faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift,weaponPose:b.weaponPose,weaponYaw:b.weaponYaw });
+    let frame = state.passenger?passengerFrame(this.animator,b,local,state,this.scale,faceTime):this.animator.frame(clip, local, { faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift,weaponPose:b.weaponPose,weaponPitch:b.weaponPitch,weaponYaw:b.weaponYaw });
     const previousClip=clipById.get(track.beats[Math.max(0,at.index-1)].clip)!,fromVehicle=VEHICLE_FOR_CLIP[previousClip.id],toVehicle=VEHICLE_FOR_CLIP[clip.id];
     const blend=(!fromVehicle&&!toVehicle)||(!toVehicle&&previousClip.vehicleTransition?.direction==='alight')||(!fromVehicle&&clip.vehicleTransition?.direction==='board')||(clip.vehicleTransition?.direction==='alight'&&ridingClip(previousClip.id)===clip.vehicleTransition.ride);
     if (blend&&at.index && at.local < 0.3 && (track.beats[at.index - 1].clip !== b.clip || !clip.loop)) {
@@ -115,7 +115,7 @@ export class StudioActor {
       const priorPhase = prior.phase + 0.000001;
       const fromTime = fromClip.loop ? priorPhase % fromClip.duration : Math.min(priorPhase, fromClip.duration);
       const priorState=this.stage(project,prior.time,track).actor(track);
-      const from = priorState.passenger?passengerFrame(this.animator,previous,fromTime,priorState,this.scale,faceTime):this.animator.frame(fromClip, fromTime, { faceTime,parcelGrounded:parcelStateAt(track,prior.time).grounded,weaponPose:previous.weaponPose,weaponYaw:previous.weaponYaw,vehicleLift:vehicleFor(this.vehicleChoice(track,previous),fromClip.id)?vehicleLift(vehicleFor(this.vehicleChoice(track,previous),fromClip.id)!,this.scale):0 });
+      const from = priorState.passenger?passengerFrame(this.animator,previous,fromTime,priorState,this.scale,faceTime):this.animator.frame(fromClip, fromTime, { faceTime,parcelGrounded:parcelStateAt(track,prior.time).grounded,weaponPose:previous.weaponPose,weaponPitch:previous.weaponPitch,weaponYaw:previous.weaponYaw,vehicleLift:vehicleFor(this.vehicleChoice(track,previous),fromClip.id)?vehicleLift(vehicleFor(this.vehicleChoice(track,previous),fromClip.id)!,this.scale):0 });
       // Blend in the current group's coordinates, so a door/seat offset cannot slide a foot at a join.
       const inv=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-state.yaw*Math.PI/180),turn=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),priorState.yaw*Math.PI/180).premultiply(inv),delta=new THREE.Vector3(priorState.x-state.x,priorState.y-state.y,priorState.z-state.z).applyQuaternion(inv);
       for(const [i,p]of from.rootPos)from.rootPos.set(i,new THREE.Vector3(...p).applyQuaternion(turn).add(delta).toArray());
@@ -128,9 +128,9 @@ export class StudioActor {
     }
     if(frame.ridingWeapon&&at.index&&at.local<.3){
       const previous=track.beats[at.index-1];
-      if(previousClip.vehicleTransition?.direction==='board'||previous.clip===b.clip&&(previous.weaponPose!==b.weaponPose||previous.weaponYaw!==b.weaponYaw)){
+      if(previousClip.vehicleTransition?.direction==='board'||previous.clip===b.clip&&(previous.weaponPose!==b.weaponPose||previous.weaponYaw!==b.weaponYaw||previous.weaponPitch!==b.weaponPitch)){
         const prior=timelineAt(project,Math.max(0,at.start-.000001),track),t=previousClip.loop?(prior.phase+.000001)%previousClip.duration:Math.min(prior.phase+.000001,previousClip.duration);
-        const priorState=this.stage(project,prior.time,track).actor(track),from=priorState.passenger?passengerFrame(this.animator,previous,t,priorState,this.scale,faceTime):this.animator.frame(previousClip,t,{vehicleLift:lift,weaponPose:previous.weaponPose,weaponYaw:previous.weaponYaw}),rig=this.character.rig!,names=new Set([boneFor(rig.type,'RightShoulder'),boneFor(rig.type,'Neck'),boneFor(rig.type,'Head')]),chain=new Set<number>();
+        const priorState=this.stage(project,prior.time,track).actor(track),from=priorState.passenger?passengerFrame(this.animator,previous,t,priorState,this.scale,faceTime):this.animator.frame(previousClip,t,{vehicleLift:lift,weaponPose:previous.weaponPose,weaponPitch:previous.weaponPitch,weaponYaw:previous.weaponYaw}),rig=this.character.rig!,names=new Set([boneFor(rig.type,'RightShoulder'),boneFor(rig.type,'Neck'),boneFor(rig.type,'Head')]),chain=new Set<number>();
         rig.bones.forEach((bone,i)=>{if(bone.name===boneFor(rig.type,'RightShoulder')||chain.has(bone.parent))chain.add(i);});
         const u=at.local/.3,w=u*u*(3-2*u),a=new THREE.Quaternion(),c=new THREE.Quaternion();
         frame.rot=frame.rot.map((q,i)=>chain.has(i)||names.has(rig.bones[i].name)?a.set(...from.rot[i]).slerp(c.set(...q),w).toArray()as [number,number,number,number]:q);

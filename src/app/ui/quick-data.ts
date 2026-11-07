@@ -394,7 +394,7 @@ export function actions(p: HumanParams, clip = 'idle'): Option[] {
   const base = ['idle', 'walk', 'model_walk', 'run', 'wave', 'talk', 'laugh', 'cheer', 'sit_idle', 'jump', 'punch'];
   const held: Record<string, string[]> = {
     pistol: ['pistol_idle', 'pistol_aim', 'pistol_fire'], rifle: ['rifle_idle', 'rifle_aim', 'rifle_fire_auto', 'rifle_walk', 'rifle_reload'],
-    sword: ['sword_idle', 'sword_slash', 'sword_block'], knife: [],
+    sword: ['sword_idle', 'sword_slash', 'sword_block'], knife: [], grenade:['throw_grenade'],
   };
   const vehicle = vehicleOf(p, clip);
   return [...base, ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));

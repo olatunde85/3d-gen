@@ -1,3 +1,4 @@
+import {isFirearm} from '../props/weapons';
 /**
  * Evaluates clips on any rig: forward kinematics in world space from an
  * "animation rest" (bind pose with relaxed arms), producing per-bone local
@@ -13,7 +14,7 @@ import { PARCEL_REST } from '../props/carry';
 import { carriesParcel, parcelHold } from './clips/interaction';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
 import {boardingFrame} from './boarding';
-import {mountedWeaponSample,PADDLING_CLIPS,type WeaponPose} from './riding-weapons';
+import {mountedWeaponSample,directedWeaponSample,supportsWeaponAim,PADDLING_CLIPS,type WeaponPose} from './riding-weapons';
 import {RIDING_VEHICLES} from '../props/vehicles';
 
 export interface Frame {
@@ -309,16 +310,23 @@ export class Animator {
    * `faceTime`: blink and glance on this continuous clock (seconds) instead of at fixed times inside
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
-  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number } = {}): Frame {
+  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): Frame {
     const pose=opts.weaponPose??(clip.vehicleTransition?'hidden':'hold'),weapon=this.rig.weapon??'none';
-    const mounted=weapon!=='none'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
-    const sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
+    const mounted=weapon!=='none'&&weapon!=='grenade'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
+    let sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
+    if(!mounted&&isFirearm(weapon)&&supportsWeaponAim(clip.id)&&opts.weaponPose&&pose!=='hidden'){
+      const reference=clipById.get(`${weapon}_${pose==='fire'?'fire':pose==='aim'?'aim':'idle'}`)!;
+      const upper=reference.sample(time%reference.duration);if(clip.id==='pistol_aim_one_hand'){upper.ik={Right:upper.ik?.Right};for(const key of Object.keys(upper.bones))if(key.startsWith('Left'))delete upper.bones[key];}
+      const bones={...sample.bones};
+      for(const [key,value]of Object.entries(upper.bones))if(!/(Hips|UpLeg|Leg|Foot|ToeBase)/.test(key))bones[key]=value;
+      sample={...sample,bones,ik:upper.ik,thumbs:upper.thumbs};
+    }
     const carried=this.parcel>=0&&!opts.parcelGrounded&&carriesParcel(clip)?parcelHold(sample):sample;
     const controls=this.holding(this.withEyes(carried, clip, time, opts.faceTime));
     const contact=mounted?this.frameOf(controls,clip,time,opts):undefined;
     let counter=QI;
     if(contact){const world:Q[]=[];this.rig.bones.forEach((b,i)=>world[i]=b.parent<0?contact.rot[i]:qmul(world[b.parent],contact.rot[i]));const chest=this.idx.get('Spine2')!;counter=qconj(qmul(world[chest],qconj(this.animRest[chest])));}
-    const s=mounted?this.withEyes(mountedWeaponSample(controls,clip,time,weapon,pose,opts.weaponYaw,counter),clip,time,opts.faceTime):controls;
+    const s=mounted?this.withEyes(mountedWeaponSample(controls,clip,time,weapon,pose,opts.weaponYaw,counter,opts.weaponPitch),clip,time,opts.faceTime):weapon!=='none'&&supportsWeaponAim(clip.id)&&(opts.weaponYaw!==undefined||opts.weaponPitch!==undefined)?directedWeaponSample(controls,weapon,opts.weaponYaw,opts.weaponPitch):controls;
     const frame = clip.vehicleTransition
       ? boardingFrame(this,clip,time,clipById.get('idle')!,clipById.get(clip.vehicleTransition.ride)!,opts.vehicleLift??0)
       : this.frameOf(s, clip, time, opts);
@@ -328,9 +336,22 @@ export class Animator {
       if(opts.vehicleLift)for(const [i,p]of contact.rootPos)contact.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
       frame.vehicleControls=contact;frame.ridingWeapon=weapon;
     }
-    if(pose==='hidden'&&weapon!=='none'&&this.socket>=0)frame.scale=new Map([[this.socket,[0,0,0]]]);
+    if(weapon==='grenade')this.placeGrenade(frame,clip,time,opts);
+    if(pose==='hidden'&&weapon!=='none'&&this.socket>=0){frame.scale??=new Map();frame.scale.set(this.socket,[0,0,0]);const g=this.rig.bones.findIndex(b=>b.name==='Grenade');if(g>=0)frame.scale.set(g,[0,0,0]);}
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
+  }
+
+  /** Visual release only: deterministic, exportable and independent of the throwing hand. */
+  private placeGrenade(frame:Frame,clip:Clip,time:number,opts:Parameters<Animator['frame']>[2]){
+    const index=this.rig.bones.findIndex(b=>b.name==='Grenade');if(index<0)return;
+    if(clip.id==='throw_grenade'&&time>.82){
+      const release=this.frame(clip,.82,opts),p=release.rootPos.get(index)!,dt=Math.min(time,clip.duration)-.82,k=this.scale;
+      frame.rootPos.set(index,[p[0],Math.max(.04*k,p[1]+2.3*k*dt-4.9*k*dt*dt),p[2]+4*k*dt]);
+      frame.rot[index]=qmul(qaxis([1,0,0],dt*240),release.rot[index]);return;
+    }
+    const world:Q[]=[];this.rig.bones.forEach((b,i)=>world[i]=b.parent<0?frame.rot[i]:qmul(world[b.parent],frame.rot[i]));
+    frame.rootPos.set(index,this.positions(frame)[this.socket]);frame.rot[index]=world[this.socket];
   }
 
   /** Pin an existing solved limb without changing any bone offset or scale. Handles split full-rig chains. */
@@ -772,7 +793,7 @@ export class Animator {
   }
 
   /** Frames sampled at `fps` over the clip (inclusive end), quaternion signs kept continuous. */
-  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number } = {}): { times: number[]; frames: Frame[] } {
+  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): { times: number[]; frames: Frame[] } {
     const n = Math.max(2, Math.round(clip.duration * fps) + 1);
     const times: number[] = [], frames: Frame[] = [];
     for (let f = 0; f < n; f++) {

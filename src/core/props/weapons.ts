@@ -9,10 +9,10 @@ import type { Vec3 } from '../math';
 import type { Material } from '../mesh';
 import { frameOf, loftRings, merge, orientOutward, roundedBox } from '../garments/ring';
 
-export const WEAPONS = ['none', 'rifle', 'pistol', 'sword', 'knife'] as const;
+export const WEAPONS = ['none', 'rifle', 'pistol', 'sword', 'knife', 'grenade'] as const;
 export type WeaponId = (typeof WEAPONS)[number];
 export const WEAPON_LABELS: Record<WeaponId, string> = {
-  none: 'None', rifle: 'Assault rifle', pistol: 'Pistol', sword: 'Sword', knife: 'Combat knife',
+  none: 'None', rifle: 'Assault rifle', pistol: 'Pistol', sword: 'Sword', knife: 'Combat knife', grenade:'Grenade (prop)',
 };
 export const isFirearm = (w: WeaponId) => w === 'rifle' || w === 'pistol';
 
@@ -139,6 +139,12 @@ export function buildWeapon(id: WeaponId, fit: WeaponFit = {}): WeaponPart[] {
           ])!,
           material: POLYMER,
         },
+      ];
+    case 'grenade':
+      return [
+        {mesh:merge([cylinder([0,-.04,0],[0,.025,0],.033,20),cylinder([0,.025,0],[0,.047,0],.023,16)])!,material:mat('Grenade shell','#536045',.78,.15)},
+        {mesh:merge([box([.025,.025,0],[.006,.045,.012],-8),box([0,.055,0],[.027,.005,.013])])!,material:GUNMETAL},
+        {mesh:cylinder([-.023,.043,0],[-.023,.07,0],.005,10),material:STEEL},
       ];
     case 'sword':
       return [

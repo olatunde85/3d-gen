@@ -539,6 +539,9 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
       }
       const parts = buildWeapon(p.weapon, { supportZ });
       weapon = { id: p.weapon, rot: fitRot, parts };
+      // A separate rigid root follows WeaponR until release, then travels independently.
+      const propIndex=p.weapon==='grenade'?bones.length:socket;
+      if(p.weapon==='grenade'){const sb=bones[socket];bones.push({...sb,name:'Grenade',parent:-1});}
       const sb = bones[socket];
       const sq = quatOf(sb.rot);
       for (const wp of parts) {
@@ -554,7 +557,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
         const n = P.length / 3;
         const j = new Uint16Array(n * 4), wts = new Float32Array(n * 4);
         for (let v = 0; v < n; v++) {
-          j[v * 4] = socket;
+          j[v * 4] = propIndex;
           wts[v * 4] = 1;
         }
         out.push([{ ...wp.mesh, positions, skin: { j, w: wts } }, wp.material]);
