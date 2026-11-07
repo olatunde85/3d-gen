@@ -26,6 +26,7 @@ export class Viewer {
   private lastFrame: Frame | null = null;
   /** One fitted vehicle at a time; shared with Studio and exports. */
   private ride:Vehicle|null=null;
+  private floor!:{ground:THREE.Object3D;grid:THREE.Object3D;water:THREE.Object3D};
   private rideKey='';
   private vehicleStyle:VehicleStyle=DEFAULT_VEHICLE_STYLE;
   private riderScale=1;
@@ -76,6 +77,14 @@ export class Viewer {
     (grid.material as THREE.Material).opacity = 0.5;
     grid.position.y = 0.001;
     this.scene.add(grid);
+    // Swimming clips float at a water surface on the floor plane: show see-through water instead of the floor.
+    const water = new THREE.Mesh(
+      new THREE.CircleGeometry(4, 64).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: '#2f8aa0', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }),
+    );
+    water.visible = false;
+    this.scene.add(water);
+    this.floor = { ground, grid, water };
 
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
@@ -299,6 +308,8 @@ export class Viewer {
       const w = this.blendFrom ? Math.min(1, (now - this.blendStart) / 0.25) : 1;
       want.forEach((x, i) => (inf[i] = inf[i] + (x - inf[i]) * w));
     }
+    const swimming = this.clip?.category === 'Swimming';
+    this.floor.water.visible = swimming;this.floor.ground.visible = this.floor.grid.visible = !swimming;
     this.updateVehicle(frame,t);
     this.onTick?.(this.clip, t);
   }

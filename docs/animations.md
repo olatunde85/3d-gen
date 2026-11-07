@@ -1,6 +1,6 @@
 # Animations
 
-There are 169 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 175 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -154,4 +154,13 @@ The Aerial category contains `skydive`, `parachute_deploy`, `parachute_glide` an
 In **Actions**: **Forward roll** (`roll_forward`, 1.3 s) crouches, tucks and rolls over the back to standing; **Side dodge left/right** (`dodge_left`, `dodge_right`, 0.9 s) push off and land low on the near leg with the guard up. All three carry root motion (`travel`), so engines can play them in place or moving.
 
 Each road vehicle has **Crash and roll out** (`crash_car`, `crash_sports_car`, `crash_suv`, `crash_pickup`, `crash_motorcycle`, `crash_bicycle`, 3.6 s). The driver's door opens, the driver dives out to the left, shoulder-rolls along the ground and stands about 3 m away, facing the original heading. The empty vehicle slides on, rolls over away from them and comes to rest upside down. **Crash and fall down** (`crash_fall_MODEL`, 3.4 s) throws the driver out the same way; they land hard, tumble onto their back and lie still, ending in the starting pose of **Get up (from back)**. Like the stunt rolls, these are authored choreography, not crash physics; the vehicle's motion is exported on its prop joints.
+
+### Swimming
+
+The **Swimming** category has **Tread water**, **Swim forward (front crawl)**, **Swim breaststroke**, **Swim backstroke**, **Dive into water** and **Climb out of water**. The water surface is the floor plane: swimmers float with the body below it and only the head and shoulders above, and the builder shows see-through water while a swimming clip plays.
+
+- Strokes carry their speed in `travel` (front crawl 1.1 m/s, breaststroke 0.75 m/s, backstroke 0.9 m/s head first); Tread water stays in place.
+- **Dive into water** (2 s) crouches on the bank, springs out head first, glides underwater and surfaces into a stroke, about 3.5 m forward.
+- **Climb out of water** (2.4 s) starts treading water facing the bank: hands on the edge, press up, knee on and stand, about 0.9 m forward onto a bank at water level.
+- The dive and climb-out author their path around an even `travel`, so they line up exactly with root motion and stay close to place without it. Weapons are hidden while swimming.
 

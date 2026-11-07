@@ -315,7 +315,7 @@ export class Animator {
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
   frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;/** false: Studio supplies vehicle flight motion. */vehicleMotion?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): Frame {
-    const weapon=this.rig.weapon??'none',pose=ENCLOSED_CLIPS.has(clip.id)?'hidden':opts.weaponPose??(clip.vehicleTransition||clip.vehicleStunt||clip.category==='Aerial'||weapon==='grenade'&&RIDING_VEHICLES[clip.id]?'hidden':'hold');
+    const weapon=this.rig.weapon??'none',pose=ENCLOSED_CLIPS.has(clip.id)?'hidden':opts.weaponPose??(clip.vehicleTransition||clip.vehicleStunt||clip.category==='Aerial'||clip.category==='Swimming'||weapon==='grenade'&&RIDING_VEHICLES[clip.id]?'hidden':'hold');
     const mounted=weapon!=='none'&&weapon!=='grenade'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
     let sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
     if(!mounted&&isFirearm(weapon)&&supportsWeaponAim(clip.id)&&opts.weaponPose&&pose!=='hidden'){

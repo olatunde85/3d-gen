@@ -46,12 +46,14 @@ export function hull(points:Polygon):Polygon {
  const half=(p:Polygon)=>{const h:Polygon=[];for(const a of p){while(h.length>=2&&cross(h[h.length-2],h[h.length-1],a)<=0)h.pop();h.push(a);}return h;};
  return half(p).slice(0,-1).concat(half([...p].reverse()).slice(0,-1));
 }
-export function spatialConflict(map:LocationMap,polygon:Polygon,mode:'pedestrian'|'ground-vehicle'|'boat'|'air',bottom=0,top=2,decks:Polygon[]=[],options:{boatEdgeTolerance?:number}={}):{code:string;message:string}|undefined {
+export function spatialConflict(map:LocationMap,polygon:Polygon,mode:'pedestrian'|'ground-vehicle'|'boat'|'air'|'swimmer',bottom=0,top=2,decks:Polygon[]=[],options:{boatEdgeTolerance?:number}={}):{code:string;message:string}|undefined {
  if(polygon.some(([x,z])=>x<map.bounds[0]-1e-6||x>map.bounds[2]+1e-6||z<map.bounds[1]-1e-6||z>map.bounds[3]+1e-6))return{code:'outside-map',message:'leaves the mapped performance area'};
  const docks=map.regions.filter(r=>r.kind==='dock').map(r=>r.bounds);
  if(mode==='boat'){
   const tolerance=Math.max(0,options.boatEdgeTolerance??BOAT_EDGE_TOLERANCE),inner=inset(polygon,tolerance);
   if(subtractAll([inner],map.water).some(p=>area(p)>1e-6)||docks.some(r=>area(intersection(inner,r))>1e-6))return{code:'boat-on-land',message:`extends onto land or a dock beyond the ${Math.round(tolerance*100)} cm boat-edge allowance`};
+ }else if(mode==='swimmer'){
+  if(subtractAll([polygon],map.water).some(p=>area(p)>1e-6))return{code:'swimmer-on-land',message:'swims outside the water'};
  }else if(mode!=='air'){
   if(map.water.some(r=>decks.reduce((parts,deck)=>parts.flatMap(p=>subtractConvex(p,deck)),subtractAll([intersection(polygon,r)],docks)).some(p=>area(p)>1e-6)))return{code:'ground-in-water',message:'crosses water outside a walkable dock'};
  }
