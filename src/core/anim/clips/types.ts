@@ -69,7 +69,7 @@ export interface Sample {
   blend?: { sample: Sample; w: number; /** Keep interpolated feet from sinking below the floor. */ ground?: boolean };
 }
 
-export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction';
+export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming';
 
 export interface Clip {
   id: string;

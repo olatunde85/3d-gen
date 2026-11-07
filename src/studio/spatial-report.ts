@@ -104,7 +104,9 @@ export function stagingReport(project:StudioProject,bodies:ReadonlyMap<string,Sp
     decks.push(poly);
    }
    const airborne=isAerialClip(beat.clip)&&Math.min(p.y,q.y)>.15,canopy=beat.clip.startsWith('parachute_')&&beat.clip!=='parachute_land'?2.9*(body?.scale??1):r;
-   check(track.id,airborne?'air':'pedestrian',p,q,[-canopy,-r,canopy,r],height+(airborne&&canopy>r?2.8*(body?.scale??1):0),.025,t0,t1,decks);
+   // Strokes stay in the water; the dive and climb-out cross the edge between bank and water.
+   const category=clipById.get(beat.clip)?.category,swimming=category==='Swimming'?(['dive_into_water','climb_out_of_water'].includes(beat.clip)?'air':'swimmer'):undefined;
+   check(track.id,swimming??(airborne?'air':'pedestrian'),p,q,[-canopy,-r,canopy,r],height+(airborne&&canopy>r?2.8*(body?.scale??1):0),.025,t0,t1,decks);
   }
  }
  if(report.transitions.some(t=>clipById.get(t.clip??'')?.vehicleTransition)&&!fitted)report.notes.push('Boarding footwork is provisional until the characters are built. No reference result certifies a custom-body dock contact.');

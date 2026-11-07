@@ -12,6 +12,7 @@ import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
 import { VEHICLES, BOARDING, VEHICLE_TUMBLES, VEHICLE_CRASHES } from './vehicles';
 import { DODGES } from './dodge';
+import { SWIMMING } from './swimming';
 import { INTERACTIONS } from './interaction';
 import { REACTIONS } from './reactions';
 import { withFaces } from './faces';
@@ -68,6 +69,7 @@ export const CLIPS: Clip[] = withFaces(
     ...DODGES,
     ...REACTIONS,
     ...INTERACTIONS,
+    ...SWIMMING,
     wave,
     cheer,
     laugh,
