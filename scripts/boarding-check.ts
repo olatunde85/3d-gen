@@ -24,7 +24,7 @@ for(const rig of smoke?['game']as const:['game','game_lite','full']as const)for(
  const idle=A.positions(A.frame(clipById.get('idle')!,0)),floor=Math.min(...feet.map(i=>idle[i][1]));
  const rightFoot=B.findIndex(b=>b.name===boneFor(rig,'RightFoot'));
  for(const c of clips){
-  const meta=c.vehicleTransition!,id=VEHICLE_FOR_CLIP[c.id],lift=vehicleLift(id,s),ride=clipById.get(meta.ride)!,target=A.positions(A.frame(ride,0,{vehicleLift:lift}));
+  const meta=c.vehicleTransition!,id=VEHICLE_FOR_CLIP[c.id],lift=vehicleLift(id,s),ride=clipById.get(meta.ride)!,target=A.positions(A.frame(ride,0,{vehicleLift:lift,vehicleMotion:false}));
   assert.equal(studioTravel(c.id),undefined,'entry must not drive through the scene');
   const begin=A.positions(A.frame(c,meta.direction==='board'?0:c.duration,{vehicleLift:lift})),end=A.positions(A.frame(c,meta.direction==='board'?c.duration:0,{vehicleLift:lift}));
   const stand=boardingStand(meta.ride),bs=boardingScale(ch.rig!);

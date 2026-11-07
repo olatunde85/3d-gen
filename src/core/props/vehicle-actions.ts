@@ -1,5 +1,6 @@
 /** Shared transition metadata; deliberately independent of the clip registry and renderer. */
 import {HELICOPTER} from './helicopter-layout';
+import {VEHICLE_MANOEUVRES} from './vehicle-motion';
 import type {Rig} from '../rig/rig';
 /** Anatomical height, excluding the game rig's extrapolated HeadTop_End tail. */
 export function boardingScale(rig:Rig){return rig.bones.find(b=>b.name==='Head'||b.name==='head')!.tail[1]/1.8;}
@@ -29,13 +30,11 @@ export const TRANSITION_BY_CLIP: Readonly<Record<string, VehicleTransition>> = O
 );
 export const VEHICLE_STUNTS=[['bicycle','ride_bicycle'],['car','drive_car'],['sports_car','drive_sports_car'],['suv','drive_suv'],['pickup','drive_pickup'],['motorcycle','ride_motorcycle'],['tank','drive_tank'],['canoe','paddle_canoe'],['kayak','paddle_kayak'],['rowboat','row_boat'],['motorboat','drive_boat'],['helicopter','fly_helicopter'],['jet','fly_jet']]as const;
 export const STUNT_BY_CLIP:Readonly<Record<string,{ride:string;model:string}>>=Object.fromEntries(VEHICLE_STUNTS.map(([model,ride])=>[`tumble_${model}`,{ride,model}]));
-/** Jet take-off and landing: the pilot's seat with a film-driven ground roll, rotation, climb, flare and roll-out. */
-export const JET_MANOEUVRES:Readonly<Record<string,{ride:string;kind:'takeoff'|'land'}>>={takeoff_jet:{ride:'fly_jet',kind:'takeoff'},land_jet:{ride:'fly_jet',kind:'land'}};
-export const ridingClip = (id: string) => TRANSITION_BY_CLIP[id]?.ride ?? STUNT_BY_CLIP[id]?.ride ?? JET_MANOEUVRES[id]?.ride ?? id;
+export const ridingClip = (id: string) => TRANSITION_BY_CLIP[id]?.ride ?? STUNT_BY_CLIP[id]?.ride ?? VEHICLE_MANOEUVRES[id]?.ride ?? id;
 /** Stand beside the appropriate door, saddle or gunwale, facing the vehicle's heading. */
 export function boardingStand(ride: string): [number, number] {
   if(ride==='drive_tank')return [1.65,-.7];
-  // The canopy hinges on the pilot's right; climb in from the open (left) side.
+  // The canopy hinges on the pilot's left (+X); climb in from the open right-hand side.
   if(ride==='fly_jet')return [-1.22,-.12];
   if(ride==='fly_helicopter')return [HELICOPTER.standRight,0];
   const side = ride.includes('passenger') ? -1 : 1;

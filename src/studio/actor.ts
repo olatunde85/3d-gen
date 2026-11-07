@@ -1,10 +1,11 @@
 import {flightHeight} from './helicopter-flight';
 import {jetAttitude,type JetAttitude} from './jet-flight';
+import {manoeuvre} from '../core/props/vehicle-motion';
 /** Studio's render adapter. Uses the generator's unmodified mesh, materials and Animator. */
 import * as THREE from 'three';
 import type { Character } from '../core/human';
 import { Animator, type Frame } from '../core/anim/evaluate';
-import { clipById } from '../core/anim/clips';
+import { clipById, type Clip } from '../core/anim/clips';
 import { localTransform, quatOf } from '../core/rig/rig';
 import type { ActorTrack, StudioProject, Beat } from './project';
 import {Vehicle} from '../core/props/vehicle';
@@ -38,7 +39,7 @@ export class StudioActor {
   private vehiclePlan?:VehicleStage;
   private hipCache=new Map<string,[number,number,number]>();
   get vehicleBody():VehicleBody{return {scale:this.scale,boardingScale:boardingScale(this.character.rig!),weapon:this.character.params.weapon,hip:(clip,model)=>{
-    const key=`${clip}/${model??''}`;let hip=this.hipCache.get(key);if(!hip){const action=clipById.get(clip)!,id=model??VEHICLE_FOR_CLIP[clip],frame=this.animator.frame(action,0,{vehicleLift:id?vehicleLift(id,this.scale):0,weaponPose:'hidden'}),index=this.character.rig!.bones.findIndex(b=>b.name===boneFor(this.character.rig!.type,'Hips'));hip=this.animator.positions(frame)[index];this.hipCache.set(key,hip);}return hip;
+    const key=`${clip}/${model??''}`;let hip=this.hipCache.get(key);if(!hip){const action=clipById.get(clip)!,id=model??VEHICLE_FOR_CLIP[clip],frame=this.animator.frame(action,0,{vehicleLift:id?vehicleLift(id,this.scale):0,weaponPose:'hidden',vehicleMotion:false}),index=this.character.rig!.bones.findIndex(b=>b.name===boneFor(this.character.rig!.type,'Hips'));hip=this.animator.positions(frame)[index];this.hipCache.set(key,hip);}return hip;
   }};}
   private stage(project:StudioProject,time:number,track=project.actors[0]){return this.vehiclePlan?.project===project&&this.vehiclePlan.time===time?this.vehiclePlan:new VehicleStage(project,time,this.vehiclePlan?.bodies??new Map([[track.id,this.vehicleBody]]));}
   private textures: THREE.Texture[] = [];
@@ -111,16 +112,17 @@ export class StudioActor {
     const parcel=parcelStateAt(track,at.time),id=vehicleFor(this.vehicleChoice(track,b),clip.id);
     const lift=id?vehicleLift(id,this.scale):0;
     const stage=this.stage(project,time,track),state=stage.actor(track);
-    let frame = state.passenger?passengerFrame(this.animator,b,local,state,this.scale,faceTime):this.animator.frame(clip, local, { faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift,weaponPose:b.weaponPose,weaponPitch:b.weaponPitch,weaponYaw:b.weaponYaw });
+    let frame = state.passenger?passengerFrame(this.animator,b,local,state,this.scale,faceTime):this.animator.frame(clip, local, { vehicleMotion:false,faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift,weaponPose:b.weaponPose,weaponPitch:b.weaponPitch,weaponYaw:b.weaponYaw });
     const previousClip=clipById.get(track.beats[Math.max(0,at.index-1)].clip)!,fromVehicle=VEHICLE_FOR_CLIP[previousClip.id],toVehicle=VEHICLE_FOR_CLIP[clip.id];
-    const blend=(!fromVehicle&&!toVehicle)||(!toVehicle&&previousClip.vehicleTransition?.direction==='alight')||(!fromVehicle&&clip.vehicleTransition?.direction==='board')||(clip.vehicleTransition?.direction==='alight'&&ridingClip(previousClip.id)===clip.vehicleTransition.ride);
+    // Also ease between actions on the same vehicle (driving ↔ gunner, flying ↔ bail-out) and from a bail-out into free fall.
+    const blend=(!fromVehicle&&!toVehicle)||(!!fromVehicle&&fromVehicle===toVehicle&&!clip.vehicleTransition&&!previousClip.vehicleTransition&&!clip.vehicleStunt&&!previousClip.vehicleStunt)||(manoeuvre(previousClip.id)==='bailout'&&!toVehicle)||(!toVehicle&&previousClip.vehicleTransition?.direction==='alight')||(!fromVehicle&&clip.vehicleTransition?.direction==='board')||(clip.vehicleTransition?.direction==='alight'&&ridingClip(previousClip.id)===clip.vehicleTransition.ride);
     if (blend&&at.index && at.local < 0.3 && (track.beats[at.index - 1].clip !== b.clip || !clip.loop)) {
       const previous = track.beats[at.index - 1], fromClip = clipById.get(previous.clip)!;
       const prior = timelineAt(project, Math.max(0, at.start - 0.000001), track);
       const priorPhase = prior.phase + 0.000001;
       const fromTime = fromClip.loop ? priorPhase % fromClip.duration : Math.min(priorPhase, fromClip.duration);
       const priorState=this.stage(project,prior.time,track).actor(track);
-      const from = priorState.passenger?passengerFrame(this.animator,previous,fromTime,priorState,this.scale,faceTime):this.animator.frame(fromClip, fromTime, { faceTime,parcelGrounded:parcelStateAt(track,prior.time).grounded,weaponPose:previous.weaponPose,weaponPitch:previous.weaponPitch,weaponYaw:previous.weaponYaw,vehicleLift:vehicleFor(this.vehicleChoice(track,previous),fromClip.id)?vehicleLift(vehicleFor(this.vehicleChoice(track,previous),fromClip.id)!,this.scale):0 });
+      const from = priorState.passenger?passengerFrame(this.animator,previous,fromTime,priorState,this.scale,faceTime):this.animator.frame(fromClip, fromTime, { vehicleMotion:false,faceTime,parcelGrounded:parcelStateAt(track,prior.time).grounded,weaponPose:previous.weaponPose,weaponPitch:previous.weaponPitch,weaponYaw:previous.weaponYaw,vehicleLift:vehicleFor(this.vehicleChoice(track,previous),fromClip.id)?vehicleLift(vehicleFor(this.vehicleChoice(track,previous),fromClip.id)!,this.scale):0 });
       // Blend in the current group's coordinates, so a door/seat offset cannot slide a foot at a join.
       const inv=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-state.yaw*Math.PI/180),turn=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),priorState.yaw*Math.PI/180).premultiply(inv),delta=new THREE.Vector3(priorState.x-state.x,priorState.y-state.y,priorState.z-state.z).applyQuaternion(inv);
       for(const [i,p]of from.rootPos)from.rootPos.set(i,new THREE.Vector3(...p).applyQuaternion(turn).add(delta).toArray());
@@ -135,7 +137,7 @@ export class StudioActor {
       const previous=track.beats[at.index-1];
       if(previousClip.vehicleTransition?.direction==='board'||previous.clip===b.clip&&(previous.weaponPose!==b.weaponPose||previous.weaponYaw!==b.weaponYaw||previous.weaponPitch!==b.weaponPitch)){
         const prior=timelineAt(project,Math.max(0,at.start-.000001),track),t=previousClip.loop?(prior.phase+.000001)%previousClip.duration:Math.min(prior.phase+.000001,previousClip.duration);
-        const priorState=this.stage(project,prior.time,track).actor(track),from=priorState.passenger?passengerFrame(this.animator,previous,t,priorState,this.scale,faceTime):this.animator.frame(previousClip,t,{vehicleLift:lift,weaponPose:previous.weaponPose,weaponPitch:previous.weaponPitch,weaponYaw:previous.weaponYaw}),rig=this.character.rig!,names=new Set([boneFor(rig.type,'RightShoulder'),boneFor(rig.type,'Neck'),boneFor(rig.type,'Head')]),chain=new Set<number>();
+        const priorState=this.stage(project,prior.time,track).actor(track),from=priorState.passenger?passengerFrame(this.animator,previous,t,priorState,this.scale,faceTime):this.animator.frame(previousClip,t,{vehicleMotion:false,vehicleLift:lift,weaponPose:previous.weaponPose,weaponPitch:previous.weaponPitch,weaponYaw:previous.weaponYaw}),rig=this.character.rig!,names=new Set([boneFor(rig.type,'RightShoulder'),boneFor(rig.type,'Neck'),boneFor(rig.type,'Head')]),chain=new Set<number>();
         rig.bones.forEach((bone,i)=>{if(bone.name===boneFor(rig.type,'RightShoulder')||chain.has(bone.parent))chain.add(i);});
         const u=at.local/.3,w=u*u*(3-2*u),a=new THREE.Quaternion(),c=new THREE.Quaternion();
         frame.rot=frame.rot.map((q,i)=>chain.has(i)||names.has(rig.bones[i].name)?a.set(...from.rot[i]).slerp(c.set(...q),w).toArray()as [number,number,number,number]:q);
@@ -205,15 +207,17 @@ export class StudioActor {
     for(const state of stage.vehicles.values()){
       if(state.owner.id!==track.id)continue;keep.add(state.id);let ride=this.rides.get(state.id);
       if(ride&&(ride.id!==state.model||ride.fit.clip.id!==ridingClip(state.reference.id))){ride.group.removeFromParent();ride.dispose();this.rides.delete(state.id);ride=undefined;}
-      if(!ride){ride=new Vehicle(state.model,this.character.rig!,this.animator,state.reference,this.character.params.vehicleStyle);ride.group.userData.studioVehicle=state.id;this.rides.set(state.id,ride);this.group.add(ride.group);}
+      if(!ride){ride=new Vehicle(state.model,this.character.rig!,this.animator,state.reference,this.character.params.vehicleStyle);ride.filmMotion=true;ride.group.userData.studioVehicle=state.id;this.rides.set(state.id,ride);this.group.add(ride.group);}
       ride.group.visible=state.visible;
       const base=this.base,delta=new THREE.Vector3(state.x-base.position.x,state.y-base.position.y,state.z-base.position.z).applyAxisAngle(new THREE.Vector3(0,1,0),-base.yaw);
       ride.group.position.copy(delta);ride.group.rotation.y=state.yaw*Math.PI/180-base.yaw;
       const doors=stage.transitions(state.id),waiting=state.model==='helicopter'&&!!state.active&&!state.active.beat.move&&flightHeight(state.active.beat)===0;
-      ride.update(state.clip.loop?state.phase%state.clip.duration:Math.min(state.phase,state.clip.duration),state.parked?undefined:frame,state.distance,state.clip,state.parked||state.model==='helicopter'&&(doors.length>0||waiting));
+      ride.update(state.clip.loop?state.phase%state.clip.duration:manoeuvre(state.clip.id)==='bailout'?state.phase:Math.min(state.phase,state.clip.duration),state.parked?undefined:frame,state.distance,state.clip,state.parked||state.model==='helicopter'&&(doors.some(d=>d.clip.vehicleTransition)||waiting));
       if(state.model==='jet'){const own=current.vehicle?.id===state.id?this.jet:undefined;ride.setFlight(own?.retract??0,own?.throttle??0);}
       if(stage.armed(state.id))ride.group.traverse(o=>{if(o.name.startsWith('Window_'))o.scale.y=.001;});
-      ride.group.traverse(o=>{if(o.userData.doorSide){let opening=0;for(const door of doors){const rear=door.seat.startsWith('rear'),side=state.model==='helicopter'?(door.seat==='front-passenger'||door.seat==='rear-left'?1:-1):door.seat==='rear-left'?1:door.seat==='rear-right'||door.seat==='front-passenger'?-1:door.clip.id.includes('passenger')?-1:1;if(!!o.userData.rearDoor===rear&&o.userData.doorSide===side)opening=Math.max(opening,doorOpenAt(boardProgress(door.clip.vehicleTransition!,door.time,door.clip.duration)));}o.rotation.y=-o.userData.doorSide*opening*1.3;}if(o.name==='Canopy'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.z=-opening*1.3;}if(o.name==='Boarding_gate'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.y=opening*1.5;}});
+      // Boarding doors follow the entry; a bail-out opens the right-hand door or canopy and leaves it open.
+      const doorOpening=(d:{clip:Clip;time:number})=>d.clip.vehicleTransition?doorOpenAt(boardProgress(d.clip.vehicleTransition,d.time,d.clip.duration)):Math.min(1,d.time/.3);
+      ride.group.traverse(o=>{if(o.userData.doorSide){let opening=0;for(const door of doors){const rear=door.seat.startsWith('rear'),side=!door.clip.vehicleTransition?-1:state.model==='helicopter'?(door.seat==='front-passenger'||door.seat==='rear-left'?1:-1):door.seat==='rear-left'?1:door.seat==='rear-right'||door.seat==='front-passenger'?-1:door.clip.id.includes('passenger')?-1:1;if(!!o.userData.rearDoor===rear&&o.userData.doorSide===side)opening=Math.max(opening,doorOpening(door));}o.rotation.y=-o.userData.doorSide*opening*1.3;}if(o.name==='Canopy'){const opening=Math.max(0,...doors.map(d=>doorOpening(d)));o.rotation.z=-opening*1.3;}if(o.name==='Boarding_gate'){const opening=Math.max(0,...doors.map(d=>doorOpening(d)));o.rotation.y=opening*1.5;}});
       if(current.vehicle?.id===state.id&&state.visible){this.framingBounds=ride.bounds;const size=this.framingBounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}
     }
     for(const [id,ride]of this.rides)if(!keep.has(id)){ride.group.removeFromParent();ride.dispose();this.rides.delete(id);}

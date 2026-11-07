@@ -1,6 +1,6 @@
 # Animations
 
-There are 148 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 152 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -14,7 +14,7 @@ There are 148 clips. The character loads playing **Idle**. The animation bar at 
 | Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade. |
 | Aerial | Skydive, activate/deploy parachute, glide/use parachute, land parachute |
 | Reactions | Hit from front / back / left / right, knockdown, death (fall forward), death (fall backward), get up (from back), get up (from front) (one-shots). Knockdown ends where Get up (from back) starts, and Death (fall forward) ends where Get up (from front) starts, so they chain without a pop |
-| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm), pilot helicopter (loops); pickup, tank and jet, with jet take-off and landing; plus 36 boarding/alighting one-shots and 13 vehicle stunt rolls. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) holding all of its clips |
+| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm), pilot helicopter (loops); pickup, tank and jet, with jet taxi, take-off, landing and bail-out, a helicopter parachute jump and the tank machine gunner; plus 36 boarding/alighting one-shots and 13 vehicle stunt rolls. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) holding all of its clips |
 
 Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
 
@@ -62,8 +62,8 @@ Choose a riding or driving **animation** to add its matching vehicle automatical
 | Modern sports car | `drive_sports_car`, `sit_sports_car_passenger` | Wheels, hinged doors and driver steering wheel |
 | SUV | `drive_suv`, `sit_suv_passenger` | Wheels, hinged doors and driver steering wheel |
 | Pickup | `drive_pickup`, `sit_pickup_passenger` | Wheels, hinged doors and steering wheel |
-| Military tank | `drive_tank` | Tracks, road wheels and lever contacts |
-| Jet | `fly_jet`, `takeoff_jet`, `land_jet` | Hinged canopy, fitted cockpit controls, retractable gear and exhaust glow |
+| Military tank | `drive_tank`, `gun_tank` | Tracks, road wheels, lever contacts and a shielded roof machine gun |
+| Jet | `fly_jet`, `taxi_jet`, `takeoff_jet`, `land_jet`, `bailout_jet` | Hinged canopy, fitted cockpit controls, retractable gear and exhaust glow |
 | Motorcycle | `ride_motorcycle` | Wheels and handlebars |
 | Horse | `ride_horse` | Diagonal trot, tail, reins and stirrups |
 | Canoe | `paddle_canoe` | Single-bladed paddle |
@@ -109,7 +109,7 @@ To add a clip, see [CONTRIBUTING.md](../CONTRIBUTING.md#adding-an-animation).
 
 ### Boarding and alighting
 
-Search **Board** or **Alight** under Vehicles. Entry and exit now play at twice their former speed (1.6–2.2 seconds), with the same poses and limb paths. Jet entry/exit takes 2.8 seconds, from the pilot’s left where the canopy opens. Tank entry/exit takes 4.2 seconds: the driver climbs the tread steps onto the hull and lowers through the roof hatch, which closes over them. Every vehicle has a one-shot pair; the convertible, coupe, SUV and pickup have separate driver/passenger pairs. The motorboat opens its side boarding gate. Entry starts upright beside the vehicle, moves over the saddle or gunwale or through a hinged car door, and ends in that rig’s fitted riding pose. Exit follows the reverse path and finishes upright. Limbs retain their original lengths on all three rigs and both bind poses.
+Search **Board** or **Alight** under Vehicles. Entry and exit now play at twice their former speed (1.6–2.2 seconds), with the same poses and limb paths. Jet entry/exit takes 2.8 seconds, from the pilot’s right, where the canopy opens. Tank entry/exit takes 4.2 seconds: the driver climbs the tread steps onto the hull and lowers through the roof hatch, which closes over them. Every vehicle has a one-shot pair; the convertible, coupe, SUV and pickup have separate driver/passenger pairs. The motorboat opens its side boarding gate. Entry starts upright beside the vehicle, moves over the saddle or gunwale or through a hinged car door, and ends in that rig’s fitted riding pose. Exit follows the reverse path and finishes upright. Limbs retain their original lengths on all three rigs and both bind poses.
 
 Use **Board SUV → Drive SUV → Alight from SUV**, for example. Give each entry/exit its full clip length with movement off; use optional movement/speed only on the riding beat. A whole riding loop makes the cleanest join into exit. In Studio, the vehicle remains parked after exit while the actor walks away. Every scheduled vehicle waits at its first entry from frame zero and stays parked after exit, including during transfers to other vehicles. Shared seats support passenger boarding/alighting with synchronized physical doors or the boat’s gate. This is authored choreography, not navigation or a reach-to-any-vehicle system.
 
@@ -133,7 +133,7 @@ GLB/FBX exports retain the fitted pilot and transition poses, doors and rotor jo
 
 ### Expanded fleet and stunt rolls
 
-The pickup adds an enclosed two-seat cabin and open cargo bed; the military tank has an enclosed hull with the driver seated under a closed roof hatch, fitted lever controls and animated tracks (weapons stay hidden inside); the jet has a single pilot cockpit, hinged canopy and retractable gear. Use their matching board/drive-or-fly/alight clips. **Take off jet** and **Land jet** are 6-second runway manoeuvres: in Studio the take-off accelerates, rotates, lifts off and climbs while the gear folds, and the landing descends, flares, touches down and brakes to a stop. In flight the jet pitches with its climb and banks gently with the stick. Studio flight height works for both aircraft; height 0 lets the jet taxi. The jet needs a wide clear route.
+The pickup adds an enclosed two-seat cabin and open cargo bed; the military tank has an enclosed hull with the driver seated under a closed roof hatch, fitted lever controls and animated tracks (weapons stay hidden inside); the jet has a single pilot cockpit, hinged canopy and retractable gear. Use their matching board/drive-or-fly/alight clips. The jet clips play their own motion in the builder and in exported animations: **Taxi jet on runway** rolls along on its wheels, **Take off jet** accelerates, rotates and climbs to a demonstration height with the gear folding, **Pilot jet** flies with gentle banking, and **Land jet** descends, flares and rolls out. Studio replaces that motion with the film’s route and Flight height. **Take off jet** and **Land jet** are 6-second runway manoeuvres: in Studio the take-off accelerates, rotates, lifts off and climbs while the gear folds, and the landing descends, flares, touches down and brakes to a stop. In flight the jet pitches with its climb and banks gently with the stick. Studio flight height works for both aircraft; height 0 lets the jet taxi. The jet needs a wide clear route.
 
 Mechanical vehicles also have `tumble_MODEL` actions. These are controlled, three-second, 360° stunt rolls with a rigidly attached rider, returning to the original upright driving pose. They are authored animation, not crash physics. Keep movement off and leave extra clearance. The animation browser separates road vehicles, tracks, aircraft, watercraft, horse, boarding/alighting and tumbles.
 
@@ -142,3 +142,10 @@ Pistol aim (one hand) uses a lower wrist and relaxed shoulder. Studio supports p
 ### Parachuting
 
 The Aerial category contains `skydive`, `parachute_deploy`, `parachute_glide` and `parachute_land`. Equip `carry:parachute` for the pack, fitted harness, striped canopy and suspension lines. Deployment takes 2.4 seconds; landing takes three seconds and ends in the exact upright idle pose. Use original timing. Game engines supply altitude/physics; Studio supplies editable descent height. Only the canopy and line joints scale; the character skeleton keeps its original dimensions.
+
+### Parachute jumps from aircraft and the tank gunner
+
+**Bail out of jet with parachute** and **Jump from helicopter with parachute** (2.6 seconds each) take the occupant from the seat, out through the open right-hand side and clear of the airframe, turning belly-down into the free-fall pose that **Skydive** continues. Equip **Carry: Parachute / skydiving rig**. In the builder the aircraft hovers at a safe height while the jet flies on; in Studio the empty aircraft flies on and leaves the shot, and free fall starts just below it.
+
+**Fire tank machine gun** stands the tank driver in the open roof hatch, both hands on the spade grips of a pintle machine gun. Only the head and shoulders show above the gun shield. The gun traverses slowly and fires in short bursts with a muzzle flash. Personal weapons stay hidden.
+

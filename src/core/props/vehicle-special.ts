@@ -2,6 +2,8 @@
 import * as T from 'three';
 import {VehicleKit,v,type V} from './vehicle-kit';
 import {tankRoof} from './vehicle-actions';
+import {clipById} from '../anim/clips';
+import {TANK_GUN} from '../anim/clips/vehicles';
 function shell(k:VehicleKit,rings:{z:number;y:number;w:number;h:number}[],mat:T.Material,lower=false){
  const p:number[]=[],ix:number[]=[],N=40;
  for(const r of rings)for(let j=0;j<=N;j++){const a=(lower?Math.PI:0)+j/N*(lower?Math.PI:Math.PI*2);p.push(Math.cos(a)*r.w,r.y+Math.sin(a)*r.h,r.z);}
@@ -65,6 +67,7 @@ export function buildTank(k:VehicleKit){
  for(const [x,zz,w,d] of [[H.x,z-hatch,2*hatch+.08*s,.05*s],[H.x,z+hatch,2*hatch+.08*s,.05*s],[H.x-hatch,z,.05*s,2*hatch],[H.x+hatch,z,.05*s,2*hatch]])k.box(v(x,roof+.012*s,zz),v(w,.04*s,d),k.dark);
  const lid=k.component('Tank_hatch',v(H.x-hatch,roof,z));k.box(v(hatch,.03*s,0),v(2*hatch-.02*s,.06*s,2*hatch-.02*s),k.paint,lid);k.box(v(hatch,.075*s,0),v(.26*s,.03*s,.05*s),k.dark,lid);
  for(const x of [-.17,.17])k.box(v(H.x+x*s,roof+.04*s,z+hatch+.1*s),v(.16*s,.07*s,.08*s),k.dark);
+ tankGun(k,roof);
  for(const side of [-1,1]){
   const x=cx+side*1.32*s;
   const trackShape=new T.Shape();trackShape.moveTo(-1.55*s,.12*s);trackShape.lineTo(1.55*s,.12*s);trackShape.quadraticCurveTo(2.05*s,.12*s,2.05*s,.59*s);trackShape.quadraticCurveTo(2.05*s,1.04*s,1.55*s,1.04*s);trackShape.lineTo(-1.55*s,1.04*s);trackShape.quadraticCurveTo(-2.05*s,1.04*s,-2.05*s,.59*s);trackShape.quadraticCurveTo(-2.05*s,.12*s,-1.55*s,.12*s);
@@ -88,6 +91,28 @@ export function buildTank(k:VehicleKit){
  k.tube(v(0,.22*s,.48*s),v(0,.22*s,3.55*s),.085*s,k.paint,turret);k.tube(v(0,.22*s,3.50*s),v(0,.22*s,3.82*s),.115*s,k.dark,turret);
  k.tube(v(cx-.67*s,roof+.3*s,z-1.7*s),v(cx-.67*s,roof+1.45*s,z-1.7*s),.009*s,k.dark);
  controls(k);
+}
+
+/**
+ * Pintle machine gun with a traversing shield, ahead of the driver's hatch. It is placed from the standing
+ * gunner's actual grip, so the spade grips meet both palms on every rig.
+ */
+function tankGun(k:VehicleKit,roof:number){
+ const s=k.fit.scale,c=k.fit.fromFrame(k.fit.animator.frame(clipById.get('gun_tank')!,0,{vehicleLift:k.fit.lift,weaponPose:'hidden',vehicleMotion:false}));
+ const grip=c.left.clone().add(c.right).multiplyScalar(.5),pivot=grip.clone().add(v(0,-.05*s,(TANK_GUN.pivot-.4)*s)),reach=-(TANK_GUN.pivot-.4)*s,metal=k.dark;
+ k.tube(v(pivot.x,roof,pivot.z),pivot.clone().add(v(0,-.02*s,0)),.035*s,metal);
+ const gun=k.component('Tank_gun',pivot),grips=.05*s;
+ for(const side of [-1,1])k.tube(v(side*.11*s,grips-.06*s,reach),v(side*.11*s,grips+.06*s,reach),.016*s,k.rubber,gun);
+ k.tube(v(-.11*s,grips-.05*s,reach+.02*s),v(.11*s,grips-.05*s,reach+.02*s),.014*s,metal,gun);
+ k.box(v(0,.06*s,reach+.21*s),v(.13*s,.13*s,.42*s),metal,gun);
+ k.tube(v(0,.07*s,reach+.42*s),v(0,.07*s,reach+.82*s),.036*s,metal,gun);k.tube(v(0,.07*s,reach+.42*s),v(0,.07*s,reach+1.24*s),.022*s,metal,gun);
+ k.box(v(-.13*s,.03*s,reach+.18*s),v(.1*s,.14*s,.18*s),k.trim,gun);
+ const flash=k.component('Muzzle_flash',v(0,.07*s,reach+1.27*s),gun),glow=new T.MeshStandardMaterial({name:'Muzzle flash',color:'#ffd27a',emissive:'#ff9a2e',emissiveIntensity:2,transparent:true,opacity:.8,depthWrite:false,side:T.DoubleSide});
+ for(const [r,l,turn] of [[.05,.2,0],[.035,.14,Math.PI/4]]as const){const cone=k.mesh(new T.ConeGeometry(r*s,l*s,6,1,true),glow,flash);cone.rotation.set(-Math.PI/2,turn,0);cone.position.z=l*s/2;cone.castShadow=false;}
+ // Shield: a front plate from the roof to just below the gunner's eyes, and angled side wings.
+ const bottom=roof+.02*s-pivot.y,top=grips+.33*s,front=reach+.62*s;
+ k.box(v(0,(bottom+top)/2,front),v(.8*s,top-bottom,.03*s),k.paint,gun);
+ for(const side of [-1,1]){const wing=k.box(v(side*.47*s,(bottom+top)/2,front-.1*s),v(.26*s,top-bottom,.03*s),k.paint,gun);wing.rotation.y=-side*.75;}
 }
 
 /** Arc-length stadium path: no teleport or direction change at the ends of a track. */

@@ -1,5 +1,6 @@
 import {isAerialClip} from './aerial-motion';
 import {isFlightClip} from './helicopter-flight';
+import {manoeuvre} from '../core/props/vehicle-motion';
 import {supportsWeaponAim} from '../core/anim/riding-weapons';
 /** Version 2 separates the camera track from independently timed actor performances. */
 import { CLIPS, clipById } from '../core/anim/clips';
@@ -86,7 +87,7 @@ export function parseProject(text: string): StudioProject {
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
       const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,MAX_TRAVEL_SPEED,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
-      if(speed!==undefined&&!RIDING_VEHICLES[clip]&&!forcedTravel(clip))throw Error('Travel speed is only available for riding/driving actions.');
+      if(speed!==undefined&&!RIDING_VEHICLES[clip]&&!manoeuvre(clip))throw Error('Travel speed is only available for riding/driving actions.');
       const height=b.flightHeight===undefined?undefined:number(b.flightHeight,0,30,'helicopter flight height');if(height!==undefined&&!isFlightClip(clip)&&!isAerialClip(clip))throw Error('Flight height is only available for aircraft and aerial actions.');
       const pitch=b.weaponPitch===undefined?undefined:number(b.weaponPitch,-45,60,'weapon elevation');
       const pose=b.weaponPose,yaw=b.weaponYaw===undefined?undefined:number(b.weaponYaw,-110,110,'mounted weapon direction');

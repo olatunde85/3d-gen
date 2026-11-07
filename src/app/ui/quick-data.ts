@@ -386,7 +386,9 @@ export function vehiclePatch(p: HumanParams, id: VehicleId): Patch {
 export const vehicleActions = (id: VehicleId, clip = VEHICLE_CLIP[id]) => {
   const ride = RIDING_VEHICLES[ridingClip(clip)] === id ? ridingClip(clip) : VEHICLE_CLIP[id];
   const transition = VEHICLE_TRANSITIONS.find(([, action]) => action === ride)?.[0];
-  return transition ? [`board_${transition}`, ...(id==='jet'?['takeoff_jet']:[]), ride, ...(id==='jet'?['land_jet']:[]), `alight_${transition}`, ...(['horse'].includes(id)?[]:[`tumble_${id}`])] : [ride];
+  // Runway, gunner and parachute manoeuvres sit in story order around the main ride.
+  const before = id === 'jet' ? ['taxi_jet', 'takeoff_jet'] : [], after = id === 'jet' ? ['land_jet', 'bailout_jet'] : id === 'helicopter' ? ['bailout_helicopter'] : id === 'tank' ? ['gun_tank'] : [];
+  return transition ? [`board_${transition}`, ...before, ride, ...after, `alight_${transition}`, ...(['horse'].includes(id)?[]:[`tumble_${id}`])] : [ride];
 };
 
 /** Clips to try, and more for whatever is in hand. */

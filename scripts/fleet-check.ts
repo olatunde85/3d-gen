@@ -20,7 +20,7 @@ const lib=await nodeLibrary();let checks=0;
 for(const rig of ['game','game_lite','full']as const){
  const ch=await buildHuman(lib,{...DEFAULT_PARAMS,rig,detail:'low',outfit:'none',hair:'none',carry:'none',weapon:'none',faceShapes:false}),A=new Animator(ch.rig!),B=ch.rig!.bones,scale=Math.max(...B.flatMap(b=>[b.head[1],b.tail[1]]))/1.8;
  for(const clip of CLIPS.filter(c=>c.vehicleStunt)){
-  const model=VEHICLE_FOR_CLIP[clip.id],native=clipById.get(VEHICLE_CLIP[model])!,lift=vehicleLift(model,scale),base=A.frame(native,0,{vehicleLift:lift}),points=A.positions(base),prop=new Vehicle(model,ch.rig!,A,clip,DEFAULT_VEHICLE_STYLE),hand=B.findIndex(b=>b.name===boneFor(rig,'RightHand'));
+  const model=VEHICLE_FOR_CLIP[clip.id],native=clipById.get(VEHICLE_CLIP[model])!,lift=vehicleLift(model,scale),base=A.frame(native,0,{vehicleLift:lift,vehicleMotion:false}),points=A.positions(base),prop=new Vehicle(model,ch.rig!,A,clip,DEFAULT_VEHICLE_STYLE),hand=B.findIndex(b=>b.name===boneFor(rig,'RightHand'));
   for(const t of [0,.3,.75,1.5,2.25,2.7,3]){
    const f=A.frame(clip,t,{vehicleLift:lift}),p=A.positions(f),m=vehicleStunt(model,t,3,scale),expected=qrot(m.rotation,points[hand]).map((v,d)=>v+m.translation[d]);
    assert.ok(Math.hypot(...p[hand].map((v,d)=>v-expected[d]))<1e-6,'rider/vehicle transform disagrees');assert.ok(f.rot.every(q=>q.every(Number.isFinite)));

@@ -1,4 +1,6 @@
 import {vehicleStunt} from './vehicle-stunt';
+import {clipVehicleMotion,bailoutDrift,manoeuvre} from './vehicle-motion';
+import {tankGunFiring} from '../anim/clips/vehicles';
 import {buildJet,buildTank} from './vehicle-special';
 /** One fitted, customizable vehicle implementation for preview, films and game exports. */
 import * as T from 'three';
@@ -21,6 +23,8 @@ import type {Vec3} from '../math';
 export class Vehicle{
  readonly group:T.Group;readonly fit:RiderFit;readonly lift:number;
  private stuntRoot=new T.Group();
+ /** Set by Studio, which flies and moves vehicles along the film itself instead of the clip-authored motion. */
+ filmMotion=false;
  private kit?:VehicleKit;private bicycle?:Bicycle;
  constructor(readonly id:VehicleId,rig:Rig,animator:Animator,readonly clip:Clip,style:VehicleStyle){
   const reference=clipById.get(ridingClip(clip.id))!;
@@ -32,17 +36,30 @@ export class Vehicle{
   mergeVehicleParts(this.group);this.stuntRoot.name='Vehicle_motion';this.stuntRoot.userData.component=true;this.stuntRoot.add(...[...this.group.children]);this.group.add(this.stuntRoot);this.update(0);
  }
  update(time:number,frame?:Frame,travelDistance?:number,action:Clip=this.clip,parked=false){
-  const armed=frame?.ridingWeapon;frame=frame?.vehicleControls??frame;
-  const transition=action.vehicleTransition;
+  const armed=frame?.ridingWeapon,hands=frame;frame=frame?.vehicleControls??frame;
+  const transition=action.vehicleTransition,kind=manoeuvre(action.id),s=this.fit.scale;
+  // Builder/export flight baked into the clip; Studio (filmMotion) flies the vehicle along the film instead.
+  const motion=this.filmMotion?undefined:clipVehicleMotion(action.id,time,action.duration,this.fit.average('hip').z-.85*s);
+  if(motion&&!armed)frame=this.fit.animator.frame(action,time,{vehicleLift:this.lift,weaponPose:'hidden',vehicleMotion:false});
+  // Off the controls: boarding, stunts, bail-outs and the standing tank gunner leave levers and sticks at rest.
+  const detached=!!transition||!!action.vehicleStunt||kind==='bailout'||kind==='gun';
   const controlsTime=transition||action.vehicleStunt?0:time;
   const progress=transition?boardProgress(transition,time,action.duration):1,x=Math.max(0,Math.min(1,(progress-.88)/.12));
   this.group.userData.parkedWeight=parked?1:transition?1-x*x*(3-2*x):0;
   if(this.bicycle)this.bicycle.update(this.fit.animator.positions(transition||action.vehicleStunt?this.fit.animator.frame(this.fit.clip,0,{weaponPose:'hidden'}):frame??this.fit.animator.frame(this.fit.clip,time,{weaponPose:'hidden'})),controlsTime/this.fit.clip.duration*Math.PI*6);
-  else{const c=transition||action.vehicleStunt?this.fit.at(0):frame?this.fit.fromFrame(frame):this.fit.at(time);if(armed&&this.id==='horse')c.right.copy(c.left);for(const fn of this.kit!.updates)fn(c,action.vehicleStunt&&this.id==='helicopter'?time:controlsTime);}
-  const opening=transition?doorOpenAt(boardProgress(transition,time,action.duration)):0;
-  this.group.traverse(o=>{if(o.userData.doorSide)o.rotation.y=o.userData.occupantDoor?-o.userData.doorSide*opening*1.3:0;if(o.name.startsWith('Window_'))o.scale.y=armed?.001:1;if(o.name==='Canopy')o.rotation.z=-opening*1.3;if(o.name==='Boarding_gate')o.rotation.y=opening*1.5;if(o.name==='Tank_hatch')o.rotation.z=transition?hatchOpenAt(boardProgress(transition,time,action.duration))*1.6:0;});
+  else{const c=detached?this.fit.at(0):frame?this.fit.fromFrame(frame):this.fit.at(time);if(armed&&this.id==='horse')c.right.copy(c.left);for(const fn of this.kit!.updates)fn(c,(action.vehicleStunt||kind==='bailout')&&this.id==='helicopter'?time:controlsTime);}
+  const opening=transition?doorOpenAt(boardProgress(transition,time,action.duration)):kind==='bailout'?Math.min(1,time/.3):0;
+  const gunner=kind==='gun'&&hands&&!hands.vehicleControls?this.fit.fromFrame(hands):undefined;
+  this.group.traverse(o=>{if(o.userData.doorSide)o.rotation.y=o.userData.occupantDoor?-o.userData.doorSide*opening*1.3:0;if(o.name.startsWith('Window_'))o.scale.y=armed?.001:1;if(o.name==='Canopy')o.rotation.z=-opening*1.3;if(o.name==='Boarding_gate')o.rotation.y=opening*1.5;if(o.name==='Tank_hatch')o.rotation.z=transition?hatchOpenAt(boardProgress(transition,time,action.duration))*1.6:kind==='gun'?1.6:0;
+   // The gun traverses with the gunner's grip; the flash flickers through each burst.
+   if(o.name==='Tank_gun'){const m=gunner?gunner.left.clone().add(gunner.right).multiplyScalar(.5):undefined;o.rotation.y=m?Math.atan2(-(m.x-o.position.x),-(m.z-o.position.z)):0;}
+   if(o.name==='Muzzle_flash')o.visible=kind==='gun'&&tankGunFiring(time)&&Math.floor(time*24)%2===0;});
+  if(motion)travelDistance=motion.distance;
   if(travelDistance!==undefined)this.group.traverse(o=>{if(o.userData.wheelRadius)o.rotation.x=travelDistance/o.userData.wheelRadius;});
-  if(action.vehicleStunt){const motion=vehicleStunt(this.id,time,action.duration,this.fit.scale);this.stuntRoot.quaternion.set(...motion.rotation);this.stuntRoot.position.set(...motion.translation);}else{this.stuntRoot.quaternion.identity();this.stuntRoot.position.set(0,0,0);}
+  if(action.vehicleStunt){const m=vehicleStunt(this.id,time,action.duration,this.fit.scale);this.stuntRoot.quaternion.set(...m.rotation);this.stuntRoot.position.set(...m.translation);}
+  else if(motion){this.stuntRoot.quaternion.set(...motion.rotation);this.stuntRoot.position.set(motion.translation[0],motion.translation[1],motion.translation[2]+bailoutDrift(action.id,time));}
+  else{this.stuntRoot.quaternion.identity();this.stuntRoot.position.set(0,0,0);}
+  if(this.id==='jet')this.setFlight(motion?.retract??0,motion?motion.throttle:transition||parked?0:.15);
   this.group.updateMatrixWorld(true);
  }
  /** Aircraft state from a film: 0..1 gear retraction and engine throttle (0 idle, 1 take-off power). */
