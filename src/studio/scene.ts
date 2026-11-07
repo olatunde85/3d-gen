@@ -94,6 +94,7 @@ export class StudioScene {
     let distance = Math.max(h*size/(2*tan),extent/(tan*this.camera.aspect))*view.zoom + depth + Math.max(0,...subjects.map(a=>a.framingPadding));
     if (cameraMove === 'dolly') distance *= 1.07 - 0.12 * eased;
     const elevation=THREE.MathUtils.degToRad(view.elevation);
+    if(beat.shot==='wide')for(const actor of subjects){const bounds=actor.framingBounds;if(!bounds)continue;let fit=0;for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z]){const dx=x-center.x,dz=z-center.z,dy=y-targetY,lateral=dx*Math.cos(angle)-dz*Math.sin(angle),forward=dx*Math.sin(angle)+dz*Math.cos(angle),up=dy*Math.cos(elevation)-forward*Math.sin(elevation),towards=dy*Math.sin(elevation)+forward*Math.cos(elevation);fit=Math.max(fit,Math.abs(lateral)/(tan*this.camera.aspect)+towards,Math.abs(up)/tan+towards);}distance=Math.max(distance,fit*1.08*view.zoom);}
     if(!this.freezeCamera){this.camera.position.set(center.x+Math.sin(angle)*distance*Math.cos(elevation),Math.max(0.12,targetY+h*0.025+Math.sin(elevation)*distance),center.z+Math.cos(angle)*distance*Math.cos(elevation));
     this.camera.lookAt(center.x, targetY, center.z); }
     // Wide exterior shots need depth precision for paths, water and road markings hundreds of metres away.

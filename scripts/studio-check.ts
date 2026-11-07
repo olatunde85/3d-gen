@@ -1,3 +1,4 @@
+import {reviewFleet} from './fleet-review';
 import {reviewActionProps} from './action-props-review';
 /**
  * Studio integration: real renderer, timeline edits, responsive layouts and encoded MP4 playback.
@@ -43,6 +44,7 @@ const CHROME = process.env.CHROME ?? [
 ].find(existsSync);
 if (!CHROME) throw new Error('No Chrome, Chromium or Edge found: set CHROME=/path/to/browser');
 
+const fleetOnly=process.argv.includes('--fleet');
 const thumbnailsOnly=process.argv.includes('--location-thumbnails');
 const spatialOnly=process.argv.includes('--spatial');
 const helicopterOnly=process.argv.includes('--helicopter');
@@ -138,7 +140,7 @@ const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
 const assistOnly=process.argv.includes('--assist');
-async function step(name:string,fn:()=>Promise<void>){if(thumbnailsOnly&&!/^Location thumbnails/.test(name))return;if(spatialOnly&&!/Studio loads|^Spatial /.test(name))return;if(helicopterOnly&&!/Studio loads|^Helicopter /.test(name))return;if(scenesOnly&&!/Studio loads|Every scene renders|^Story scenes /.test(name))return;if(editingOnly&&!/Studio loads|Two characters reuse|^Editing (camera|pointer|text,|looped|new)/.test(name))return;if(outdoorOnly&&!name.startsWith('Outdoor'))return;if(stagingOnly&&!/^(Three occupants|Motorcycle to|Shared |Transfer exports|Outdoor)/.test(name))return;if(armedOnly&&!/^Armed riding /.test(name))return;if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+async function step(name:string,fn:()=>Promise<void>){if(fleetOnly&&!/^Fleet /.test(name))return;if(thumbnailsOnly&&!/^Location thumbnails/.test(name))return;if(spatialOnly&&!/Studio loads|^Spatial /.test(name))return;if(helicopterOnly&&!/Studio loads|^Helicopter /.test(name))return;if(scenesOnly&&!/Studio loads|Every scene renders|^Story scenes /.test(name))return;if(editingOnly&&!/Studio loads|Two characters reuse|^Editing (camera|pointer|text,|looped|new)/.test(name))return;if(outdoorOnly&&!name.startsWith('Outdoor'))return;if(stagingOnly&&!/^(Three occupants|Motorcycle to|Shared |Transfer exports|Outdoor)/.test(name))return;if(armedOnly&&!/^Armed riding /.test(name))return;if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -549,6 +551,7 @@ try{
  await checkFiveCast({enabled:castOnly,step,evaluate,waitFor,change,search,ready,pause,shot,send,folder});
  await buildLocationThumbnails({enabled:thumbnailsOnly,step,evaluate,ready});
  await checkSpatialReview({enabled:spatialOnly,step,evaluate,ready,change,send,pause,shot});
+ await reviewFleet({step,evaluate,ready,change});
  await reviewActionProps({step,evaluate,ready,change});
  await reviewHelicopter({enabled:helicopterOnly,step,evaluate,ready,change,send,pause});
  await checkStoryScenes({enabled:scenesOnly,step,evaluate,ready,change,search,send,pause});

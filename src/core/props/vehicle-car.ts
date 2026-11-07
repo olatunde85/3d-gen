@@ -11,10 +11,10 @@ function surface(k:VehicleKit,rows:number,cols:number,point:(row:number,col:numb
 }
 function line(k:VehicleKit,points:V[],radius:number,mat:T.Material){return k.mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points),32,radius,7,false),mat);}
 export function buildCoveredCar(k:VehicleKit){
- const s=k.fit.scale,suv=k.fit.id==='suv',driver=!k.fit.clip.id.includes('passenger'),H=k.fit.average('hip'),cx=(driver?-.36:.36)*s,z=H.z;
- const width=(suv?2.02:1.94)*s,wheelR=(suv?.395:.355)*s,front=1.52*s,rear=(suv?-1.57:-1.30)*s,endF=2.15*s,endR=(suv?-2.48:-1.98)*s;
+ const s=k.fit.scale,pickup=k.fit.id==='pickup',suv=k.fit.id==='suv'||pickup,driver=!k.fit.clip.id.includes('passenger'),H=k.fit.average('hip'),cx=(driver?-.36:.36)*s,z=H.z;
+ const width=(suv?2.02:1.94)*s,wheelR=(suv?.395:.355)*s,front=1.52*s,rear=(pickup?-1.95:suv?-1.57:-1.30)*s,endF=2.15*s,endR=(pickup?-3.0:suv?-2.48:-1.98)*s;
  const belt=H.y+(suv?.16:.35)*s,bottom=(suv?.41:.12)*s,roof=Math.max(H.y+.88*s,...k.fit.samples.map(c=>c.headTop.y+.12*s));
- const roofRear=(suv?-2.27:-.95)*s,roofFront=(suv?.53:.37)*s,halfRoof=width*(suv?.43:.37),frontLow=(suv?.72:.99)*s,rearLow=(suv?-2.37:-1.52)*s;
+ const roofRear=(pickup?-.64:suv?-2.27:-.95)*s,roofFront=(suv?.53:.37)*s,halfRoof=width*(suv?.43:.37),frontLow=(suv?.72:.99)*s,rearLow=(pickup?-.75:suv?-2.37:-1.52)*s;
  const halfAt=(zz:number)=>suv?width*.49:width*.5*(.84+.16*Math.sin(Math.PI*T.MathUtils.clamp((zz-endR)/(endF-endR),0,1))**.65);
  const shoulderAt=(zz:number)=>suv?belt-.025*s:belt-.25*s*smooth((zz-.65*s)/(endF-.65*s))-.10*s*smooth((-.70*s-zz)/(-.70*s-endR));
  const arch=wheelR+.033*s;
@@ -33,7 +33,7 @@ export function buildCoveredCar(k:VehicleKit){
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(points,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();k.mesh(geo,k.paint);
   line(k,[v(cx+side*halfAt(-.8*s)*.985,belt-.12*s,z-.8*s),v(cx+side*halfAt(0)*.99,belt-.10*s,z),v(cx+side*halfAt(.7*s)*.985,belt-.14*s,z+.7*s)],.004*s,k.dark);
   // Flush handles, door shut lines and dark sill trim replace the broad chrome strips.
-  for(const doorZ of suv?[-1.22,.08]:[.05]){
+  for(const doorZ of suv&&!pickup?[-1.22,.08]:[.05]){
    const zz=doorZ*s,x=cx+side*(halfAt(zz)*.997+.003*s);
    k.box(v(x,belt-.095*s,z+zz),v(.015*s,.025*s,.17*s),k.dark);
    line(k,[v(x,belt-.16*s,z+zz+.12*s),v(x,belt-.34*s,z+zz+.13*s),v(x,bottom+.11*s,z+zz+.10*s)],.0025*s,k.dark);
@@ -41,7 +41,7 @@ export function buildCoveredCar(k:VehicleKit){
   k.box(v(cx+side*width*.465,bottom+.012*s,z+(front+rear)/2),v(.08*s,.045*s,front-rear-2*arch),k.dark);
  }
  // A crowned bonnet and tapered rear deck join the body shoulder without a box-shaped hood.
- for(const [from,to]of [[frontLow,endF],[endR,rearLow]])surface(k,32,28,(t,u)=>{const zz=from+(to-from)*t,x=u*2-1,half=halfAt(zz)*.90;return v(cx+x*half,bodyTopAt(zz)+.005*s+.035*s*(1-x*x),z+zz);},k.paint,true);
+ for(const [from,to]of (pickup?[[frontLow,endF]]:[[frontLow,endF],[endR,rearLow]]))surface(k,32,28,(t,u)=>{const zz=from+(to-from)*t,x=u*2-1,half=halfAt(zz)*.90;return v(cx+x*half,bodyTopAt(zz)+.005*s+.035*s*(1-x*x),z+zz);},k.paint,true);
  const nose=(u:number)=>{const x=u*2-1;return{ x:cx+x*halfAt(endF)*.92,z:z+endF+.10*s*(1-x*x)};};
  surface(k,14,36,(t,u)=>{const p=nose(u),x=u*2-1;return v(p.x,bottom+(shoulderAt(endF)+.018*s-bottom)*t+.018*s*(1-x*x)*t,suv?z+endF+.035*s*(1-x*x)-.015*s*(1-t):p.z-.12*s*(1-t)**1.3);},k.paint);
  surface(k,12,32,(t,u)=>v(cx+(u*2-1)*halfAt(endR)*.92,bottom+(shoulderAt(endR)-bottom)*t,z+endR-.045*s*(1-(u*2-1)**2)),k.paint,true);
@@ -59,7 +59,7 @@ export function buildCoveredCar(k:VehicleKit){
   const back=k.box(v(x,seatY+.26*s,z-.30*s),v(.51*s,.62*s,.12*s),k.seat);back.rotation.x=-.11;
   k.box(v(x,seatY+.66*s,z-.36*s),v(.32*s,.18*s,.10*s),k.seat);
  }
- if(suv){
+ if(suv&&!pickup){
   k.box(v(cx,seatY-.01*s,z-.91*s),v(1.40*s,.12*s,.45*s),k.seat);
   k.box(v(cx,seatY+.25*s,z-1.18*s),v(1.40*s,.57*s,.11*s),k.seat);
   for(const x of [-.44,0,.44])k.box(v(cx+x*s,seatY+.62*s,z-1.20*s),v(.27*s,.17*s,.10*s),k.seat);
@@ -77,6 +77,15 @@ export function buildCoveredCar(k:VehicleKit){
  for(const edge of [0,1])surface(k,24,1,(t,u)=>roofPoint(t,edge).add(v(0,-.035*s*u,0)),roofMat,edge===1);
  buildCabin(k,{cx,z,belt,roof,roofRear,roofFront,halfRoof,frontLow,rearLow,width,halfAt,suv});
  k.box(v(cx,belt-.045*s,z+frontLow-.12*s),v(width*.77,.08*s,.24*s),k.dark);
+ if(pickup){
+  const bedEnd=z-.82*s,bedRear=z+endR+.10*s,floorY=bottom+.24*s;
+  k.box(v(cx,floorY,(bedEnd+bedRear)/2),v(width*.78,.06*s,bedEnd-bedRear),k.dark);
+  for(let i=-5;i<=5;i++)k.box(v(cx+i*.13*s,floorY+.035*s,(bedEnd+bedRear)/2),v(.028*s,.012*s,bedEnd-bedRear-.06*s),k.rubber);
+  k.box(v(cx,(floorY+belt)/2,bedEnd),v(width*.84,belt-floorY,.08*s),k.paint);
+  for(const side of [-1,1])k.box(v(cx+side*width*.44,belt+.015*s,(bedEnd+bedRear)/2),v(.10*s,.045*s,bedEnd-bedRear),k.dark);
+  k.box(v(cx,belt-.1*s,z+endR-.016*s),v(.24*s,.04*s,.02*s),k.trim);
+  for(const side of [-1,1])k.box(v(cx+side*.77*s,belt-.15*s,z+endR-.04*s),v(.13*s,.24*s,.025*s),new T.MeshStandardMaterial({color:'#a5121c',emissive:'#430208'}));
+ }
  if(suv){buildRuggedDetails(k,{cx,z,belt,bottom,endF,endR,width,wheelR,front,rear});return;}
  // Surface-following lights and intakes stay flush with the sculpted nose.
  const frontZ=(x:number,y:number)=>{const u=(x-cx)/(halfAt(endF)*.92),t=T.MathUtils.clamp((y-bottom)/(shoulderAt(endF)+.018*s-bottom),0,1);return z+endF+.10*s*(1-u*u)-.12*s*(1-t)**1.3+.01*s;};
@@ -116,7 +125,7 @@ function buildCabin(k:VehicleKit,c:Cabin){
  if(suv){outer.quadraticCurveTo(.72*s,roof-.15*s,roofFront,roof-.015*s);outer.lineTo(roofRear,roof-.015*s);outer.quadraticCurveTo(rearLow,roof-.06*s,rearLow,belt);}
  else{outer.quadraticCurveTo(.77*s,roof-.29*s,roofFront,roof-.085*s);outer.bezierCurveTo(.10*s,roof-.025*s,-.65*s,roof-.025*s,roofRear,roof-.085*s);outer.quadraticCurveTo(-1.27*s,roof-.25*s,rearLow,belt);}
  outer.lineTo(frontLow,belt);outer.closePath();
- const windows:T.Shape[]=suv?[
+ const windows:T.Shape[]=k.fit.id==='pickup'?[roundedWindow([[.59*s,belt+.075*s],[-.56*s,belt+.075*s],[-.56*s,roof-.13*s],[.43*s,roof-.13*s]],.065*s)]:suv?[
   roundedWindow([[.59*s,belt+.075*s],[-.35*s,belt+.075*s],[-.35*s,roof-.13*s],[.43*s,roof-.13*s]],.065*s),
   roundedWindow([[-.43*s,belt+.075*s],[-1.23*s,belt+.075*s],[-1.23*s,roof-.13*s],[-.43*s,roof-.13*s]],.065*s),
   roundedWindow([[-1.31*s,belt+.075*s],[-2.21*s,belt+.075*s],[-2.17*s,roof-.13*s],[-1.31*s,roof-.13*s]],.065*s),

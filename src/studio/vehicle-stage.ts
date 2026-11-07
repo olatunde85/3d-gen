@@ -11,7 +11,7 @@ import {studioTravel} from './motion';
 export interface VehicleBody {scale:number;boardingScale:number;weapon?:string;hip(clip:string,model?:VehicleId):Vec3}
 export interface StagePoint {x:number;y:number;z:number;yaw:number}
 interface Row {actor:ActorTrack;beat:Beat;index:number;start:number;end:number;offset:Vec3;vehicle?:string}
-export interface StagedVehicle extends StagePoint {id:string;model:VehicleId;owner:ActorTrack;clip:Clip;reference:Clip;phase:number;distance:number;parked:boolean;visible:boolean;active?:Row}
+export interface StagedVehicle extends StagePoint {id:string;model:VehicleId;scale:number;owner:ActorTrack;clip:Clip;reference:Clip;phase:number;distance:number;parked:boolean;visible:boolean;active?:Row}
 export interface StagedActor extends StagePoint {vehicle?:StagedVehicle;seat:VehicleSeat;seatShift:Vec3;stand?:[number,number];passenger:boolean;deckFloor:number}
 const fallback:VehicleBody={scale:1,boardingScale:1,hip:()=>[0,1,0]};
 const turn=(x:number,z:number,yaw:number)=>{const a=yaw*Math.PI/180;return{x:x*Math.cos(a)+z*Math.sin(a),z:-x*Math.sin(a)+z*Math.cos(a)};};
@@ -42,12 +42,12 @@ export class VehicleStage {
    const row=rows.find(r=>time>=r.start&&time<r.end)??[...rows].reverse().find(r=>time>=r.end)??rows[0];
    const sample=Math.max(row.start,Math.min(row.end,time)),point=this.nominal(row,sample),at=timelineAt(project,sample,entry.actor),active=time>=row.start&&time<row.end||time>=trackDuration(entry.actor)&&row===this.rows.get(entry.actor.id)!.at(-1)&&!clipById.get(row.beat.clip)?.vehicleTransition;
    const clip=clipById.get(row.beat.clip)!,visible=row.beat.showVehicle??entry.actor.vehicle!=='none';
-   this.vehicles.set(entry.id,{...point,id:entry.id,model:entry.model,owner:entry.actor,clip,reference:clipById.get(entry.beat.clip)!,phase:active?at.phase:clip.duration,distance:at.z*(bodies.get(entry.actor.id)?.scale??1),parked:!active,visible,active:active?row:undefined});
+   this.vehicles.set(entry.id,{...point,id:entry.id,model:entry.model,scale:bodies.get(entry.actor.id)?.scale??1,owner:entry.actor,clip,reference:clipById.get(entry.beat.clip)!,phase:active?at.phase:clip.duration,distance:at.z*(bodies.get(entry.actor.id)?.scale??1),parked:!active,visible,active:active?row:undefined});
   }
  }
  private nominal(row:Row,time:number):StagePoint{
   const at=timelineAt(this.project,time,row.actor),body=this.bodies.get(row.actor.id)??fallback,d=turn(at.x*body.scale+row.offset[0],at.z*body.scale+row.offset[2],row.actor.yaw);
-  return{x:row.actor.x+d.x,y:row.actor.y+(VEHICLE_FOR_CLIP[row.beat.clip]==='helicopter'?helicopterHeight(row.actor,row.index,time):0),z:row.actor.z+d.z,yaw:row.actor.yaw};
+  return{x:row.actor.x+d.x,y:row.actor.y+(helicopterHeight(row.actor,row.index,time)),z:row.actor.z+d.z,yaw:row.actor.yaw};
  }
  private seat(row:Row,vehicle:StagedVehicle):{shift:Vec3;stand?:[number,number]}{
   const seat=row.beat.vehicleSeat??'operator';if(seat==='operator')return{shift:[0,0,0]};

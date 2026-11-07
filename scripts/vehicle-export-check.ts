@@ -13,7 +13,7 @@ import {VEHICLE_FITS,VEHICLE_FOR_CLIP,DEFAULT_VEHICLE_STYLE} from '../src/core/p
 import {exportGLB} from '../src/export/glb';
 import {exportFBX} from '../src/export/fbx';
 const lib=await nodeLibrary(),ch=await buildHuman(lib,{...DEFAULT_PARAMS,detail:'low',outfit:'none',hair:'none',faceShapes:false}),A=new Animator(ch.rig!);let maxError=0;
-for(const {clip:clipId,id}of [...VEHICLE_FITS,...CLIPS.filter(c=>c.vehicleTransition).map(c=>({clip:c.id,id:VEHICLE_FOR_CLIP[c.id]}))].filter(c=>!process.argv.includes('--helicopter')||c.id==='helicopter')){
+for(const {clip:clipId,id}of [...VEHICLE_FITS,...CLIPS.filter(c=>(c.vehicleTransition||c.vehicleStunt)).map(c=>({clip:c.id,id:VEHICLE_FOR_CLIP[c.id]}))].filter(c=>(!process.argv.includes('--helicopter')||c.id==='helicopter')&&(!process.argv.includes('--fleet')||['pickup','tank','jet'].includes(c.id)))){
  const c=clipById.get(clipId)!,vehicle=new Vehicle(id,ch.rig!,A,c,DEFAULT_VEHICLE_STYLE),parts:T.Object3D[]=[];vehicle.group.traverse(o=>{if(o.userData.component)parts.push(o);});
  const inverse=vehicle.group.matrixWorld.clone().invert(),rest=parts.map(o=>inverse.clone().multiply(o.matrixWorld).invert());
  const {mesh,rig,bake}=vehicle.asset(),baked=bake();
@@ -23,7 +23,7 @@ for(const {clip:clipId,id}of [...VEHICLE_FITS,...CLIPS.filter(c=>c.vehicleTransi
   assert.equal(clips.length,1);const mixer=new T.AnimationMixer(scene);mixer.clipAction(clips[0]).play();
   const meshes:T.SkinnedMesh[]=[];scene.traverse(o=>{if(o instanceof T.SkinnedMesh)meshes.push(o);});assert.ok(meshes.length);
   for(const tick of [0,3,11,23]){
-   const t=baked.times[Math.floor((baked.times.length-1)*tick/30)];vehicle.update(t);const matrices=parts.map((o,i)=>inverse.clone().multiply(o.matrixWorld).multiply(rest[i]));mixer.setTime(t);scene.updateMatrixWorld(true);meshes.forEach(m=>m.skeleton.update());
+   const t=baked.times[Math.floor((baked.times.length-1)*tick/30)];vehicle.update(t,undefined,undefined,c);const matrices=parts.map((o,i)=>inverse.clone().multiply(o.matrixWorld).multiply(rest[i]));mixer.setTime(t);scene.updateMatrixWorld(true);meshes.forEach(m=>m.skeleton.update());
    // The exporters preserve vertex order within each material's group, but FBX may split meshes.
    for(const m of meshes){const pos=m.geometry.getAttribute('position'),joints=m.geometry.getAttribute('skinIndex');for(let i=0;i<pos.count;i+=Math.max(1,Math.floor(pos.count/150))){
     const actual=m.applyBoneTransform(i,new T.Vector3().fromBufferAttribute(pos,i)).applyMatrix4(m.matrixWorld);if(fmt==='fbx')actual.multiplyScalar(.01);

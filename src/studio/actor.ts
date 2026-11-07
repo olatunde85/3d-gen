@@ -24,6 +24,7 @@ export class StudioActor {
   readonly scale: number;
   readonly height: number;
   framingPadding = 0;
+  framingBounds?:THREE.Box3;
   private blockingOffset = new THREE.Vector3();
   /** Camera/selection follow authored entry footwork as well as the actor's travel track. */
   get stagePosition(){return this.group.localToWorld(this.blockingOffset.clone());}
@@ -183,7 +184,7 @@ export class StudioActor {
   }
   private vehicleChoice(track:ActorTrack,b:Beat):VehicleChoice{return (b.showVehicle??track.vehicle!=='none')?'auto':'none';}
   private props(project:StudioProject,time:number,track:ActorTrack,frame:Frame){
-    const stage=this.stage(project,time,track),current=stage.actor(track),keep=new Set<string>();this.framingPadding=0;
+    const stage=this.stage(project,time,track),current=stage.actor(track),keep=new Set<string>();this.framingPadding=0;this.framingBounds=undefined;
     for(const state of stage.vehicles.values()){
       if(state.owner.id!==track.id)continue;keep.add(state.id);let ride=this.rides.get(state.id);
       if(ride&&(ride.id!==state.model||ride.fit.clip.id!==ridingClip(state.reference.id))){ride.group.removeFromParent();ride.dispose();this.rides.delete(state.id);ride=undefined;}
@@ -194,8 +195,8 @@ export class StudioActor {
       const doors=stage.transitions(state.id),waiting=state.model==='helicopter'&&!!state.active&&!state.active.beat.move&&(state.active.beat.flightHeight??0)===0;
       ride.update(state.clip.loop?state.phase%state.clip.duration:Math.min(state.phase,state.clip.duration),state.parked?undefined:frame,state.distance,state.clip,state.parked||state.model==='helicopter'&&(doors.length>0||waiting));
       if(stage.armed(state.id))ride.group.traverse(o=>{if(o.name.startsWith('Window_'))o.scale.y=.001;});
-      ride.group.traverse(o=>{if(o.userData.doorSide){let opening=0;for(const door of doors){const rear=door.seat.startsWith('rear'),side=state.model==='helicopter'?(door.seat==='front-passenger'||door.seat==='rear-left'?1:-1):door.seat==='rear-left'?1:door.seat==='rear-right'||door.seat==='front-passenger'?-1:door.clip.id.includes('passenger')?-1:1;if(!!o.userData.rearDoor===rear&&o.userData.doorSide===side)opening=Math.max(opening,doorOpenAt(boardProgress(door.clip.vehicleTransition!,door.time,door.clip.duration)));}o.rotation.y=-o.userData.doorSide*opening*1.3;}if(o.name==='Boarding_gate'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.y=opening*1.5;}});
-      if(current.vehicle?.id===state.id&&state.visible){const size=ride.bounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}
+      ride.group.traverse(o=>{if(o.userData.doorSide){let opening=0;for(const door of doors){const rear=door.seat.startsWith('rear'),side=state.model==='helicopter'?(door.seat==='front-passenger'||door.seat==='rear-left'?1:-1):door.seat==='rear-left'?1:door.seat==='rear-right'||door.seat==='front-passenger'?-1:door.clip.id.includes('passenger')?-1:1;if(!!o.userData.rearDoor===rear&&o.userData.doorSide===side)opening=Math.max(opening,doorOpenAt(boardProgress(door.clip.vehicleTransition!,door.time,door.clip.duration)));}o.rotation.y=-o.userData.doorSide*opening*1.3;}if(o.name==='Canopy'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.z=-opening*1.3;}if(o.name==='Boarding_gate'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.y=opening*1.5;}});
+      if(current.vehicle?.id===state.id&&state.visible){this.framingBounds=ride.bounds;const size=this.framingBounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}
     }
     for(const [id,ride]of this.rides)if(!keep.has(id)){ride.group.removeFromParent();ride.dispose();this.rides.delete(id);}
   }

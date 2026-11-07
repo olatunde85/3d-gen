@@ -1,7 +1,7 @@
 /** Vehicle riders: car, passenger, bicycle, motorcycle, horse, canoe, kayak, rowing, boat helm. */
 import { type Ch, type Clip, type HandTarget } from './types';
 import { cyc, fingers, fist, FISTS, grip, normV, side, v } from './helpers';
-import { VEHICLE_TRANSITIONS } from '../../props/vehicle-actions';
+import { VEHICLE_TRANSITIONS,VEHICLE_STUNTS } from '../../props/vehicle-actions';
 import { TROT, trotBob } from '../../props/horse-gait';
 import { idle } from './basic';
 
@@ -264,11 +264,20 @@ const flyHelicopter:Clip={
  }
 };
 
+/** Seated, upright operators with controls inside a real cockpit. */
+const driveTank:Clip={id:'drive_tank',name:'Drive military tank',category:'Vehicles',duration:4,loop:true,sample:t=>{
+ const bones:Record<string,Ch>={Spine:[-3,0,0],Spine1:[2,0,0],Head:[0,Math.sin(t*Math.PI/2)*3,0]};seatedLegs(bones,80,-82,2,9);grip(bones,'Left');grip(bones,'Right');
+ const hand=(s:1|-1):HandTarget=>({pos:v(.23*s,-.43,.28+.008*s*Math.sin(t*Math.PI/2)),pole:v(s,-1,-.25),dir:v(0,-.1,1),palm:v(-s,0,0)});
+ return {bones,root:{ground:true},ik:{Left:hand(1),Right:hand(-1)},thumbs:{Left:.6,Right:.6}};
+}};
+const flyJet:Clip={...flyHelicopter,id:'fly_jet',name:'Pilot jet (fly / taxi)',sample:t=>{
+ const s=flyHelicopter.sample(t);return {...s,ik:{Right:{pos:v(-.12,-.43,.32),pole:v(-1,-.8,-.2),dir:v(0,-.1,1),palm:v(1,0,0)},Left:{pos:v(.26,-.46,.14),pole:v(1,-.8,-.2),dir:v(0,0,1),palm:v(0,-1,0)}}};
+}};
 export const VEHICLES: Clip[] = [driveCar, sitPassenger,
  {...driveCar,id:'drive_sports_car',name:'Drive modern sports car'},
  {...sitPassenger,id:'sit_sports_car_passenger',name:'Sit (sports car passenger)'},
  {...driveCar,id:'drive_suv',name:'Drive SUV'},
- {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat, flyHelicopter];
+ {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, {...driveCar,id:'drive_pickup',name:'Drive pickup truck'},{...sitPassenger,id:'sit_pickup_passenger',name:'Sit (pickup passenger)'},driveTank,flyJet, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat, flyHelicopter];
 
 /** Exact contact poses are fitted by Animator, shared by previews and exports. */
 export const BOARDING: Clip[] = VEHICLE_TRANSITIONS.flatMap(([id, ride, name, duration]) =>
@@ -277,3 +286,9 @@ export const BOARDING: Clip[] = VEHICLE_TRANSITIONS.flatMap(([id, ride, name, du
   category:'Vehicles' as const, duration, loop:false, vehicleTransition:{ride,direction}, sample:()=>idle.sample(0),
  })),
 );
+
+/** Controlled, complete stunt rolls; they return to the exact native driving pose. */
+export const VEHICLE_TUMBLES:Clip[]=VEHICLE_STUNTS.map(([model,ride])=>({
+ id:`tumble_${model}`,name:`Tumble ${model.replace(/_/g,' ')} (stunt roll)`,category:'Vehicles',duration:3,loop:false,
+ vehicleStunt:{model,ride},sample:()=>VEHICLES.find(c=>c.id===ride)!.sample(0),
+}));

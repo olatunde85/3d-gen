@@ -6,6 +6,8 @@ export function searchAnimations(query: string, category = '') {
   return CLIPS.filter(c=>animationMatches(c,query,category));
 }
 export function actionNote(id: string, weapon?: string, seats?: number) {
+  if(clipById.get(id)?.vehicleStunt)return 'Controlled 360° stunt roll: rider and vehicle remain aligned and finish upright. Use the full 3 seconds with movement off. Leave a wide clear stunt area; this is authored animation, not crash physics. Weapons are hidden during the roll.';
+  if(id==='fly_jet')return 'Pilot a single-seat jet. Use Flight height for takeoff, flight and landing, and Move through the set for forward travel. Set height 0 to taxi. Board/alight only on the ground. Wings need a wide clear route; the jet defaults to 18 m/s.';
   const transition=clipById.get(id)?.vehicleTransition;
   if(transition)return `${transition.direction==='board'?'Boards':'Leaves'} the ${VEHICLE_LABELS[VEHICLE_FOR_CLIP[id]].toLowerCase()}. Use the full clip length with movement off. ${transition.direction==='board'?`Follow with ${clipById.get(transition.ride)!.name}.`:'Ends upright beside the parked vehicle.'} Keep the entry side clear.${weapon&&weapon!=='none'?' The weapon is hidden during this transition.':''}`;
   if (['sit_down','sit_idle','stand_up'].includes(id)) return seats === 0

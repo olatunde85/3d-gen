@@ -83,7 +83,7 @@ export function stagingReport(project:StudioProject,bodies:ReadonlyMap<string,Sp
   for(const v of a.vehicles.values()){
    if(!v.visible)continue;const next=b.vehicles.get(v.id)!;const body=bodies.get(v.owner.id),scale=body?.scale??1,raw=body?.envelope?.(v.model),reference=VEHICLE_ENVELOPES[v.model];
    const bounds=raw?.bounds??reference.bounds.map(n=>n*scale)as Rect,height=raw?raw.top-raw.bottom:(reference.top-reference.bottom)*scale;
-   const mode=watercraft(v.model)?'boat':v.model==='helicopter'&&Math.min(v.y,next.y)>.15?'air':'ground-vehicle';
+   const mode=watercraft(v.model)?'boat':(v.model==='helicopter'||v.model==='jet')&&Math.min(v.y,next.y)>.15?'air':'ground-vehicle';
    check(`vehicle:${v.id}`,mode,v,next,bounds,height,watercraft(v.model)?0:.08,t0,t1);
   }
   for(const track of project.actors){const state=a.actor(track),beat=track.beats[timelineAt(project,t0+1e-8,track).index],transition=clipById.get(beat.clip)?.vehicleTransition;

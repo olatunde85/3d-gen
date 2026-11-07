@@ -1,6 +1,6 @@
 # Animations
 
-There are 117 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 142 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -126,3 +126,11 @@ Choose **Fly helicopter** for a fitted pilot at the controls, or **Board helicop
 The Studio helicopter carries a pilot and three shared passengers. **Flight height** is available on the pilot’s flight action: leave it blank for 3 m when moving or 0 m when stationary, set a positive value to hover, or choose 0 to stay on the ground. A continuous flight sequence takes off once and lands once. Forward travel defaults to 12 m/s. Boarding/alighting require a stationary, grounded aircraft; assign different doors/seats for simultaneous entries. The parked aircraft remains after everyone exits.
 
 GLB/FBX exports retain the fitted pilot and transition poses, doors and rotor joints/clips. World travel and altitude are Studio direction, so a game engine supplies its own aircraft movement. No aviation physics or automatic obstacle clearance is implied.
+
+### Expanded fleet and stunt rolls
+
+The pickup adds an enclosed two-seat cabin and open cargo bed; the military tank has fitted lever controls and animated tracks; the jet has a single pilot cockpit and hinged canopy. Use their matching board/drive-or-fly/alight clips. Studio flight height works for both aircraft; height 0 lets the jet taxi. The jet needs a wide clear route.
+
+Mechanical vehicles also have `tumble_MODEL` actions. These are controlled, three-second, 360° stunt rolls with a rigidly attached rider, returning to the original upright driving pose. They are authored animation, not crash physics. Keep movement off and leave extra clearance. The animation browser separates road vehicles, tracks, aircraft, watercraft, horse, boarding/alighting and tumbles.
+
+Pistol aim (one hand) uses a lower wrist and relaxed shoulder. Studio supports per-action left/right weapon yaw and up/down pitch for mounted and pistol/rifle performances. Positive pitch aims up; negative pitch aims down. Grenade is a fitted prop: `throw_grenade` releases it at 0.82 seconds, follows an animated arc and recovers upright over 2.2 seconds. No explosion or damage simulation.

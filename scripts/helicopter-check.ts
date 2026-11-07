@@ -19,9 +19,9 @@ import {DEFAULT_VEHICLE_STYLE,VEHICLE_CLIP,vehicleLift} from '../src/core/props/
 import {boardingScale} from '../src/core/props/vehicle-actions';
 import {boneFor} from '../src/core/rig/poses';
 import {vehicleActions,VEHICLES} from '../src/app/ui/quick-data';
-assert.equal(searchAnimations('chopper').length,3);assert.equal(defaultWeaponYaw('fly_helicopter','front-passenger'),80);assert.equal(defaultWeaponYaw('fly_helicopter','rear-left'),80);assert.equal(defaultWeaponYaw('fly_helicopter','rear-right'),-35);
+assert.equal(searchAnimations('chopper').length,4);assert.equal(defaultWeaponYaw('fly_helicopter','front-passenger'),80);assert.equal(defaultWeaponYaw('fly_helicopter','rear-left'),80);assert.equal(defaultWeaponYaw('fly_helicopter','rear-right'),-35);
 const p=parseProject(JSON.stringify(helicopterFilm()));
-assert.deepEqual(parseStudioInput(JSON.stringify(p)),p);assert.equal(seatsForVehicle('helicopter').length,4);assert.ok(VEHICLES.some(v=>v.id==='helicopter'));assert.deepEqual(vehicleActions('helicopter'),['board_helicopter','fly_helicopter','alight_helicopter']);
+assert.deepEqual(parseStudioInput(JSON.stringify(p)),p);assert.equal(seatsForVehicle('helicopter').length,4);assert.ok(VEHICLES.some(v=>v.id==='helicopter'));assert.deepEqual(vehicleActions('helicopter'),['board_helicopter','fly_helicopter','alight_helicopter','tumble_helicopter']);
 const body:VehicleBody={scale:1,boardingScale:1,hip:()=>[0,1,0]},bodies=new Map(p.actors.map(a=>[a.id,body]));
 for(const t of [0,2.2,4.4,5.2,7.2,9,11.2,13.2,15.4,16.4]){const stage=new VehicleStage(p,t,bodies);assert.equal(stage.vehicles.size,1);const vehicle=stage.vehicles.get('rescue')!;assert.ok(vehicle.y>=0);if(t>=7.2&&t<=11.2)assert.ok(vehicle.y>=4.9);if(t<5.2||t>=13.2)assert.ok(vehicle.y<1e-8);if(t>=4.4&&t<13.2)for(const a of p.actors){const q=stage.actor(a);assert.equal(q.y,vehicle.y);assert.ok(Math.hypot(q.x-vehicle.x,q.z-vehicle.z)<2);}}
 for(const at of [2.2,5.2,13.2]){const before=new VehicleStage(p,at-1e-6,bodies).vehicles.get('rescue')!,after=new VehicleStage(p,at+1e-6,bodies).vehicles.get('rescue')!;assert.ok(Math.hypot(before.x-after.x,before.y-after.y,before.z-after.z)<.001);}

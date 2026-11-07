@@ -1,3 +1,4 @@
+import {vehicleStunt} from '../props/vehicle-stunt';
 import {isFirearm} from '../props/weapons';
 /**
  * Evaluates clips on any rig: forward kinematics in world space from an
@@ -311,7 +312,7 @@ export class Animator {
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
   frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): Frame {
-    const pose=opts.weaponPose??(clip.vehicleTransition?'hidden':'hold'),weapon=this.rig.weapon??'none';
+    const pose=opts.weaponPose??(clip.vehicleTransition||clip.vehicleStunt?'hidden':'hold'),weapon=this.rig.weapon??'none';
     const mounted=weapon!=='none'&&weapon!=='grenade'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
     let sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
     if(!mounted&&isFirearm(weapon)&&supportsWeaponAim(clip.id)&&opts.weaponPose&&pose!=='hidden'){
@@ -338,6 +339,7 @@ export class Animator {
     }
     if(weapon==='grenade')this.placeGrenade(frame,clip,time,opts);
     if(pose==='hidden'&&weapon!=='none'&&this.socket>=0){frame.scale??=new Map();frame.scale.set(this.socket,[0,0,0]);const g=this.rig.bones.findIndex(b=>b.name==='Grenade');if(g>=0)frame.scale.set(g,[0,0,0]);}
+    if(clip.vehicleStunt){const {rotation,translation}=vehicleStunt(clip.vehicleStunt.model,time,clip.duration,this.scale);this.rig.bones.forEach((bone,i)=>{if(bone.parent>=0)return;frame.rot[i]=qmul(rotation,frame.rot[i]);const p=qrot(rotation,frame.rootPos.get(i)??bone.head);frame.rootPos.set(i,p.map((v,d)=>v+translation[d])as Vec3);});}
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
   }
