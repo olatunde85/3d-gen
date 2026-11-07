@@ -1,3 +1,6 @@
+import {boneFor} from './rig/poses';
+import {parachutePack,parachuteCanopy,parachuteLine,parachuteHarness,PACKED_CANOPY,SUSPENSION_ANCHORS} from './props/parachute';
+import {carryStyle} from './props/carry';
 /**
  * Builds a complete character: morphed body + fitted proxies (eyes, brows,
  * lashes, hair, clothes, shoes, hat) + skeleton, as one multi-material mesh.
@@ -486,7 +489,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
 
     // Carried bag: hangs straight down from the left hand with the arms relaxed at the sides (the
     // animation rest pose), and is bound rigidly to the hand bone.
-    if (p.carry !== 'none'&&p.carry!=='parcel') {
+    if (p.carry !== 'none'&&p.carry!=='parcel'&&p.carry!=='parachute') {
       const a = new Animator(rig);
       const hand = a.relaxedBone('LeftHand'), mid = a.relaxedBone('LeftHandMiddle1');
       const hi = bones.findIndex((b) => b.name === (p.rig === 'full' ? 'wrist.L' : 'LeftHand'));
@@ -509,6 +512,22 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
           out.push([{ ...cp.mesh, positions, skin: { j, w: wts } }, cp.material]);
         }
       }
+    }
+
+    if(p.carry==='parachute'){
+      // Fit the rig over clothing, not bare skin. Hair and small face parts never push the webbing out.
+      const worn=out.filter(([,m])=>!/hair|eye|brow|lash|teeth|tongue|hat|beard|stubble|earring|pearl/i.test(m.name)).map(([m])=>m.positions);
+      const P=new Float32Array(worn.reduce((n,a)=>n+a.length,0));worn.reduce((o,a)=>(P.set(a,o),o+a.length),0);
+      const chest=bones.findIndex(b=>b.name===boneFor(p.rig,'Spine2')),level=bones[chest].head[1];let back=0;
+      for(let i=0;i<P.length;i+=3)if(Math.abs(P[i+1]-level)<.13*sizeK&&Math.abs(P[i])<.22*sizeK)back=Math.min(back,P[i+2]);
+      const centre:Vec3=[0,level+.12*sizeK,back-.085*sizeK],style=carryStyle('parachute',p.garmentStyles);
+      const attach=(part:import('./props/carry').CarryPart,index:number,offset?:Vec3,k=1)=>{const positions=part.mesh.positions.map((v,i)=>v*k+(offset?.[i%3]??0)),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...part.mesh,positions,skin:{j,w}},part.material]);};
+      const harness=parachuteHarness(P,level,sizeK);
+      for(const part of parachutePack(centre,.32*sizeK,sizeK,style,harness))attach(part,chest);
+      // Packed rest geometry stays inside the pack, including static/bind-pose exports.
+      const addRoot=(name:string)=>{const i=bones.length;bones.push({name,parent:-1,head:[...centre],tail:[centre[0],centre[1]+.01*sizeK,centre[2]],rot:[1,0,0,0,1,0,0,0,1]});return i;};
+      const canopy=addRoot('ParachuteCanopy');for(const part of parachuteCanopy(style))attach(part,canopy,centre,sizeK*PACKED_CANOPY);
+      for(let n=0;n<SUSPENSION_ANCHORS.length+2;n++)attach(parachuteLine(),addRoot(`ParachuteLine${n}`),centre,sizeK*PACKED_CANOPY);
     }
 
     // A parcel has its own rigid root, so pickup can leave it on the floor until the grip and
@@ -539,6 +558,9 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
       }
       const parts = buildWeapon(p.weapon, { supportZ });
       weapon = { id: p.weapon, rot: fitRot, parts };
+      // A separate rigid root follows WeaponR until release, then travels independently.
+      const propIndex=p.weapon==='grenade'?bones.length:socket;
+      if(p.weapon==='grenade'){const sb=bones[socket];bones.push({...sb,name:'Grenade',parent:-1});}
       const sb = bones[socket];
       const sq = quatOf(sb.rot);
       for (const wp of parts) {
@@ -554,7 +576,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
         const n = P.length / 3;
         const j = new Uint16Array(n * 4), wts = new Float32Array(n * 4);
         for (let v = 0; v < n; v++) {
-          j[v * 4] = socket;
+          j[v * 4] = propIndex;
           wts[v * 4] = 1;
         }
         out.push([{ ...wp.mesh, positions, skin: { j, w: wts } }, wp.material]);

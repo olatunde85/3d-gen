@@ -1,3 +1,4 @@
+import {AERIAL} from './aerial';
 /**
  * All animation clips, in the order the app and exporters list them.
  * Each set lives in its own module; add new sets as new files and list them here.
@@ -9,7 +10,7 @@ import { fall, hit, jumpAir, jumpLand, jumpRunning, jumpStart, punch } from './a
 import { cheer, laugh, talk, wave } from './emotes';
 import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
-import { VEHICLES, BOARDING } from './vehicles';
+import { VEHICLES, BOARDING, VEHICLE_TUMBLES } from './vehicles';
 import { INTERACTIONS } from './interaction';
 import { REACTIONS } from './reactions';
 import { withFaces } from './faces';
@@ -85,6 +86,8 @@ export const CLIPS: Clip[] = withFaces(
     ...RIFLE,
     ...VEHICLES,
     ...BOARDING,
+    ...VEHICLE_TUMBLES,
+    ...AERIAL,
   ],
 );
 

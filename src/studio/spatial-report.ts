@@ -1,3 +1,6 @@
+import {vehicleStunt} from '../core/props/vehicle-stunt';
+import {qrot} from '../core/anim/quat';
+import {isAerialClip} from './aerial-motion';
 /** Advisory checks use the renderer's vehicle plan, including centred travel and persistent props. */
 import {clipById} from '../core/anim/clips';
 import {VEHICLE_FOR_CLIP} from '../core/props/vehicles';
@@ -83,8 +86,12 @@ export function stagingReport(project:StudioProject,bodies:ReadonlyMap<string,Sp
   for(const v of a.vehicles.values()){
    if(!v.visible)continue;const next=b.vehicles.get(v.id)!;const body=bodies.get(v.owner.id),scale=body?.scale??1,raw=body?.envelope?.(v.model),reference=VEHICLE_ENVELOPES[v.model];
    const bounds=raw?.bounds??reference.bounds.map(n=>n*scale)as Rect,height=raw?raw.top-raw.bottom:(reference.top-reference.bottom)*scale;
-   const mode=watercraft(v.model)?'boat':v.model==='helicopter'&&Math.min(v.y,next.y)>.15?'air':'ground-vehicle';
-   check(`vehicle:${v.id}`,mode,v,next,bounds,height,watercraft(v.model)?0:.08,t0,t1);
+   const mode=watercraft(v.model)?'boat':(v.model==='helicopter'||v.model==='jet')&&Math.min(v.y,next.y)>.15?'air':'ground-vehicle';
+   if(v.clip.vehicleStunt){
+    const rect:Rect=[Infinity,Infinity,-Infinity,-Infinity];let bottom=Infinity,top=-Infinity;
+    for(const state of [v,next]){const m=vehicleStunt(v.model,state.phase,v.clip.duration,scale);for(const x of [bounds[0],bounds[2]])for(const z of [bounds[1],bounds[3]])for(const y of [raw?.bottom??reference.bottom*scale,raw?.top??reference.top*scale]){const p=qrot(m.rotation,[x,y,z]).map((n,d)=>n+m.translation[d]);rect[0]=Math.min(rect[0],p[0]);rect[1]=Math.min(rect[1],p[2]);rect[2]=Math.max(rect[2],p[0]);rect[3]=Math.max(rect[3],p[2]);bottom=Math.min(bottom,p[1]);top=Math.max(top,p[1]);}}
+    check(`vehicle:${v.id}`,mode,{...v,y:v.y+bottom},{...next,y:next.y+bottom},rect,top-bottom,.08,t0,t1);
+   }else check(`vehicle:${v.id}`,mode,v,next,bounds,height,watercraft(v.model)?0:.08,t0,t1);
   }
   for(const track of project.actors){const state=a.actor(track),beat=track.beats[timelineAt(project,t0+1e-8,track).index],transition=clipById.get(beat.clip)?.vehicleTransition;
    if(isSeated(beat.clip))continue;if(state.vehicle&&!transition)continue;
@@ -96,7 +103,8 @@ export function stagingReport(project:StudioProject,bodies:ReadonlyMap<string,Sp
     // Exempt only the fitted vessel footprint, not the surrounding water.
     decks.push(poly);
    }
-   check(track.id,'pedestrian',p,q,[-r,-r,r,r],height,.025,t0,t1,decks);
+   const airborne=isAerialClip(beat.clip)&&Math.min(p.y,q.y)>.15,canopy=beat.clip.startsWith('parachute_')&&beat.clip!=='parachute_land'?2.9*(body?.scale??1):r;
+   check(track.id,airborne?'air':'pedestrian',p,q,[-canopy,-r,canopy,r],height+(airborne&&canopy>r?2.8*(body?.scale??1):0),.025,t0,t1,decks);
   }
  }
  if(report.transitions.some(t=>clipById.get(t.clip??'')?.vehicleTransition)&&!fitted)report.notes.push('Boarding footwork is provisional until the characters are built. No reference result certifies a custom-body dock contact.');

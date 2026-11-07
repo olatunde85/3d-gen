@@ -36,3 +36,5 @@ The plan is computed by `planExport()` (`src/export/plan.ts`) and executed by `r
 All formats use +Y up, with the character facing +Z and the feet at y = 0. `scripts/blender_check.py` imports exports into Blender and renders previews.
 
 For per-engine advice, see [Using characters in your engine](engines.md).
+
+Grenade motion uses the independent `Grenade` root after release. For a separate grenade file, attach it to `Grenade` to preserve the baked trajectory. Parachute deployment uses scale and translation channels on its own prop joints; GLB/FBX include those channels, while static OBJ keeps the pack closed.

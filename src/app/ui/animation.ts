@@ -2,7 +2,7 @@
  * Animation bar (quick clips, previous / next, root motion, speed, progress) and the animation
  * browser, a drawer that slides in from the right edge of the view.
  */
-import {VEHICLE_FOR_CLIP,VEHICLE_LABELS} from '../../core/props/vehicles';
+import {animationGroup,animationMatches} from '../../core/anim/groups';
 import { CLIPS, clipById } from '../../core/anim/clips';
 import type { Ctx } from './context';
 import { $, el } from './dom';
@@ -80,11 +80,11 @@ function animationBrowser(animBar: HTMLElement, browseBtn: HTMLButtonElement, ac
   const close = el('button', { className: 'anim-close', textContent: '×', title: 'Close' });
   const tabs = el('div', { className: 'anim-tabs', role: 'tablist' });
   const grid = el('div', { className: 'anim-grid' });
-  const cats = [...new Set(CLIPS.map((c) => c.category))];
+  const cats = [...new Set(CLIPS.map(animationGroup))];
   let cat = 'All';
   const tabButtons = new Map<string, HTMLButtonElement>();
   for (const c of ['All', ...cats]) {
-    const n = c === 'All' ? CLIPS.length : CLIPS.filter((x) => x.category === c).length;
+    const n = c === 'All' ? CLIPS.length : CLIPS.filter((x) => animationGroup(x) === c).length;
     const b = el('button', { className: 'anim-tab', role: 'tab' }, c, el('span', { className: 'n', textContent: String(n) }));
     b.addEventListener('click', () => { cat = c; render(); });
     tabButtons.set(c, b);
@@ -101,9 +101,9 @@ function animationBrowser(animBar: HTMLElement, browseBtn: HTMLButtonElement, ac
   function render() {
     tabButtons.forEach((b, k) => { b.classList.toggle('on', k === cat); b.setAttribute('aria-selected', String(k === cat)); });
     const q = search.value.trim().toLowerCase();
-    const match = (c: (typeof CLIPS)[number]) => !q || c.name.toLowerCase().includes(q) || c.category.toLowerCase().includes(q) || c.id.includes(q) || (VEHICLE_LABELS[VEHICLE_FOR_CLIP[c.id]]??'').toLowerCase().includes(q);
+    const match = (c: (typeof CLIPS)[number]) => animationMatches(c,q,cat==='All'?'':cat);
     grid.replaceChildren();
-    const groups = q || cat !== 'All' ? [[q ? 'Results' : cat, CLIPS.filter((c) => (q || c.category === cat) && match(c))] as const] : cats.map((k) => [k, CLIPS.filter((c) => c.category === k)] as const);
+    const groups = q || cat !== 'All' ? [[q ? 'Results' : cat, CLIPS.filter((c) => match(c))] as const] : cats.map((k) => [k, CLIPS.filter((c) => animationGroup(c) === k)] as const);
     for (const [name, list] of groups) {
       if (!list.length) continue;
       if (groups.length > 1) grid.append(el('div', { className: 'anim-group', textContent: name }));

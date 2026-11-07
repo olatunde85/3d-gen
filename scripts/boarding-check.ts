@@ -6,7 +6,7 @@ import {DEFAULT_PARAMS} from '../src/core/params';
 import {Animator} from '../src/core/anim/evaluate';
 import {clipById,CLIPS} from '../src/core/anim/clips';
 import {VEHICLE_FOR_CLIP,vehicleLift,DEFAULT_VEHICLE_STYLE,VEHICLE_FITS} from '../src/core/props/vehicles';
-import {boardingStand,boardingScale} from '../src/core/props/vehicle-actions';
+import {VEHICLE_TRANSITIONS,boardingStand,boardingScale} from '../src/core/props/vehicle-actions';
 import {boneFor} from '../src/core/rig/poses';
 import {Vehicle} from '../src/core/props/vehicle';
 import {studioTravel} from '../src/studio/motion';
@@ -15,16 +15,16 @@ import {vehicleStateAt} from '../src/studio/vehicle-state';
 import {planExport,DEFAULT_EXPORT} from '../src/export/plan';
 const lib=await nodeLibrary(),smoke=process.argv.includes('--smoke'),diagnose=process.argv.includes('--diagnose');
 const clips=CLIPS.filter(c=>c.vehicleTransition),gap=(a:number[],b:number[])=>Math.hypot(...a.map((x,d)=>x-b[d]));let checks=0;
-assert.equal(clips.length,28);assert.equal(new Set(CLIPS.map(c=>c.id)).size,CLIPS.length);
+assert.equal(clips.length,VEHICLE_TRANSITIONS.length*2);assert.equal(new Set(CLIPS.map(c=>c.id)).size,CLIPS.length);
 const priorLengths={bicycle:3.2,car:3.6,car_passenger:3.6,sports_car:4,sports_car_passenger:4,suv:4.2,suv_passenger:4.2,motorcycle:3.4,horse:4.4,canoe:3.8,kayak:4.2,rowboat:3.8,motorboat:4,helicopter:4.4};
-for(const c of clips)assert.equal(c.duration,priorLengths[c.id.replace(/^(board|alight)_/,'')as keyof typeof priorLengths]/2,'entry/exit defaults must play at twice the original speed');
+for(const c of clips.filter(c=>c.id.replace(/^(board|alight)_/,'')in priorLengths))assert.equal(c.duration,priorLengths[c.id.replace(/^(board|alight)_/,'')as keyof typeof priorLengths]/2,'entry/exit defaults must play at twice the original speed');
 for(const rig of smoke?['game']as const:['game','game_lite','full']as const)for(const restPose of smoke?['A']as const:['A','T']as const)for(const body of smoke?[{}]:[{},{gender:0,height:.15,weight:.3,proportions:.2},{gender:1,height:.9,weight:.85,muscle:.9}]){
  const ch=await buildHuman(lib,{...DEFAULT_PARAMS,...body,rig,restPose,detail:'low',hair:'none',outfit:'none',carry:'none',weapon:'none',vehicle:'auto',faceShapes:false}),B=ch.rig!.bones,A=new Animator(ch.rig!),s=Math.max(...B.flatMap(b=>[b.head[1],b.tail[1]]))/1.8;
  const feet=B.flatMap((b,i)=>/^(Left|Right)(Foot|ToeBase|Toe_End)$|^(foot|toe\d-\d)\.[LR]$/.test(b.name)?[i]:[]);
  const idle=A.positions(A.frame(clipById.get('idle')!,0)),floor=Math.min(...feet.map(i=>idle[i][1]));
  const rightFoot=B.findIndex(b=>b.name===boneFor(rig,'RightFoot'));
  for(const c of clips){
-  const meta=c.vehicleTransition!,id=VEHICLE_FOR_CLIP[c.id],lift=vehicleLift(id,s),ride=clipById.get(meta.ride)!,target=A.positions(A.frame(ride,0,{vehicleLift:lift}));
+  const meta=c.vehicleTransition!,id=VEHICLE_FOR_CLIP[c.id],lift=vehicleLift(id,s),ride=clipById.get(meta.ride)!,target=A.positions(A.frame(ride,0,{vehicleLift:lift,vehicleMotion:false}));
   assert.equal(studioTravel(c.id),undefined,'entry must not drive through the scene');
   const begin=A.positions(A.frame(c,meta.direction==='board'?0:c.duration,{vehicleLift:lift})),end=A.positions(A.frame(c,meta.direction==='board'?c.duration:0,{vehicleLift:lift}));
   const stand=boardingStand(meta.ride),bs=boardingScale(ch.rig!);

@@ -1,6 +1,6 @@
 /** Shooter set: rifle and pistol holds, firing, reload, grenade, death. */
 import { type Ch, type Clip, type HandTarget, type Sample } from './types';
-import { fingers, grip, lerp3, side, track, v } from './helpers';
+import { grip, lerp3, side, track, v } from './helpers';
 import { gait, WALK, type Gait } from './gait';
 import { armLayer, pace, recordedWalk, recordedRun, recordedStrafeLeft, recordedStrafeRight, walkBack } from './recorded';
 
@@ -140,28 +140,16 @@ const reload: Clip = {
   },
 };
 
-const grenade: Clip = {
-  id: 'throw_grenade', name: 'Throw grenade', category: 'Shooter', duration: 1.5, loop: false,
-  sample: (t) => {
-    const T = [0, 0.35, 0.7, 0.85, 1.05, 1.5];
-    const k = (vals: number[]) => track(T, vals)(t);
-    const out: Record<string, Ch> = {
-      Hips: [0, k([0, -15, -25, 10, 20, 0]), 0],
-      Spine1: [k([0, -5, -12, 10, 15, 0]), k([0, -15, -25, 15, 20, 0]), 0],
-      Head: [0, k([0, 10, 20, -10, -15, 0]), 0],
-    };
-    side(out, 'UpLeg', [k([6, 15, 20, 5, 0, 6]), 0, 0], [k([-4, -10, -15, 10, 15, -4]), 0, 0]);
-    side(out, 'Leg', [k([-6, -10, -15, -20, -10, -6]), 0, 0], [k([-4, -20, -25, -5, -5, -4]), 0, 0]);
-    side(out, 'Arm', [k([10, 50, 70, 40, 20, 10]), 0, k([4, 20, 25, 10, 5, 4])], [k([0, -20, -40, 110, 60, 0]), 0, k([4, 70, 95, 60, 20, 4])]);
-    side(out, 'ForeArm', [k([12, 20, 20, 15, 15, 12]), 0, 0], [k([12, 90, 120, 20, 30, 12]), 0, 0]);
-    side(out, 'Shoulder', [0, 0, 0], [0, 0, k([0, 8, 15, 10, 0, 0])]);
-    fingers(out, 14);
-    out.RightHandIndex1 = [k([14, 70, 70, 10, 10, 14]), 0, 0];
-    out.RightHandMiddle1 = [k([14, 70, 70, 10, 10, 14]), 0, 0];
-    out.RightHandRing1 = [k([14, 70, 70, 10, 10, 14]), 0, 0];
-    return { bones: out, root: { ground: true } };
-  },
-};
+/** Overarm throw: planted step, compact wind-up, release, follow-through and upright recovery. */
+const grenade:Clip={id:'throw_grenade',name:'Throw grenade',category:'Shooter',duration:2.2,loop:false,sample:t=>{
+ const T=[0,.35,.65,.82,1.12,1.55,2.2],k=(v:number[])=>track(T,v)(t),bones:Record<string,Ch>={
+  Hips:[0,k([0,-12,-18,8,14,5,0]),0],Spine:[k([0,-3,-5,6,12,4,0]),0,0],Spine1:[0,k([0,-12,-18,12,14,4,0]),0],Neck:[0,0,0],Head:[0,0,0]};
+ stance(bones);side(bones,'Arm',[k([0,12,18,22,12,4,0]),0,8],[0,0,0]);side(bones,'ForeArm',[16,0,0],[0,0,0]);
+ const points=[v(-.23,-.4,.14),v(-.36,-.05,.08),v(-.34,.13,-.12),v(-.20,.14,.38),v(-.18,-.25,.46),v(-.23,-.43,.15),v(-.23,-.45,.08)];
+ const pos=v(...[0,1,2].map(i=>track(T,points.map(p=>p[i]))(t))as [number,number,number]);
+ grip(bones,'Right',false,k([1,1,1,.05,0,0,0]));
+ return {bones,root:{ground:true},ik:{Right:{pos,pole:v(-1,-.5,-.45),dir:v(0,.1,1),palm:v(1,0,0)}},thumbs:{Right:k([.8,.8,.8,.05,0,0,0])},gaze:[0,0]};
+}};
 
 
 // --- Pistol --------------------------------------------------------------------------------
@@ -222,7 +210,7 @@ const pistolOneHand:Clip={
     for(const key of Object.keys(s.bones))if(key.startsWith('LeftHand'))delete s.bones[key];
     side(s.bones,'Arm',[0,0,3],[0,0,0]);side(s.bones,'ForeArm',[12,0,0],[0,0,0]);
     s.bones.Spine1=[0,0,0];s.bones.Neck=[0,0,0];s.bones.Head=[0,0,0];
-    return {...s,ik:{Right:{...PISTOL_AIM.Right,pos:v(-.2,.04,.5)}},gaze:[0,0]};
+    return {...s,ik:{Right:{...PISTOL_AIM.Right,pos:v(-.23,-.16,.46),pole:v(-1,-.8,-.25)}},gaze:[0,0]};
   },
 };
 const PISTOL_SPRINT:Sample['ik']={Right:{...PISTOL_READY.Right,pos:v(-.21,-.36,.17)}};

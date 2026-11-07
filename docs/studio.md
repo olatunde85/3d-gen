@@ -51,7 +51,7 @@ Removing a character also tidies up camera shots and captions that pointed at th
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **117 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **152 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. **Check staging** finds land/water and conservative static-obstacle conflicts, but playback does not stop at walls, furniture or other characters. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
 - **Props:** vehicle models follow the selected riding/driving action automatically. Dedicated modern sports-car and SUV actions sit alongside the classic car, bicycle, motorcycle, horse, canoe, kayak, rowboat, motorboat and helicopter performances. The selected action’s **Show vehicle** checkbox controls visibility; **Vehicle appearance** in Equipment edits colours, finish and styling. There is no separate model dropdown.
@@ -201,9 +201,9 @@ Character assets and motion capture keep their usual terms. Hosting, the speech 
 
 ### Entering and leaving vehicles
 
-Choose **Board…**, the matching riding/driving action, then **Alight from…** from the animation search. There are 28 entry/exit actions across all eleven vehicles, including driver/passenger roles for all three cars. Use the full clip duration for entry/exit and keep **Move through set** off; those actions contain their own footwork. Riding can travel at an adjustable speed between them. Car doors and the motorboat’s boarding gate open and close with the action.
+Choose **Board…**, the matching riding/driving action, then **Alight from…** from the animation search. There are 36 entry/exit actions across all fourteen vehicles, including driver/passenger roles for the convertible, coupe, SUV and pickup. Use the full clip duration for entry/exit and keep **Move through set** off; those actions contain their own footwork. Riding can travel at an adjustable speed between them. Car doors and the motorboat’s boarding gate open and close with the action.
 
-Boarding/alighting now play at twice their original speed: full actions take 1.6–2.2 seconds. New actions and **Original timing** use those durations; existing longer timeline beats finish the motion sooner and hold its end pose.
+Boarding/alighting now play at twice their original speed: existing actions take 1.6–2.2 seconds; jet entry/exit takes 2.8 seconds and tank entry/exit takes 4.2 seconds. New actions and **Original timing** use those durations; existing longer timeline beats finish the motion sooner and hold its end pose.
 
 Every scheduled vehicle is present from the beginning, waiting at its first entry. It stays parked after exit even when its actor boards a different vehicle. For **Ride motorcycle → Alight → Run → Board motorboat → Drive boat**, Studio places the boat at the end of the approach and retains the motorcycle behind. Scrubbing, Save/Open, Undo, reload and MP4 use the same timeline-derived state. Reusing an identity returns to that physical vehicle; different identities create separate props of the same model.
 
@@ -228,7 +228,7 @@ LLM Assist uses per-beat `vehicleId` and `vehicleSeat`. For example, the operato
 
 ### Armed riding
 
-Choose a weapon in Equipment, then a riding/driving action. In that action’s inspector, **Weapon action** chooses Wield, Aim / present, Fire (pistol/rifle) or Hide weapon; Match animation automatically wields while riding and hides during boarding/alighting. **Aim (°)** sets heading relative to the character: 0 forward, positive left, negative right. The vehicle and riding mechanics stay attached. Canoe/kayak/rowing strokes pause while armed; hidden resumes normal paddling.
+Choose a weapon in Equipment, then a riding/driving action. In that action’s inspector, **Weapon action** chooses Wield, Aim / present, Fire (pistol/rifle) or Hide weapon; Match animation automatically wields while riding and hides during boarding/alighting. **Aim left / right (°)** sets heading relative to the character: 0 forward, positive left, negative right. **Aim up / down (°)** adds elevation: positive up, negative down (−45° to 60°). Both controls are saved per action and also work on pistol/rifle performances on foot. The vehicle and riding mechanics stay attached. Canoe/kayak/rowing strokes pause while armed; hidden resumes normal paddling.
 
 The same actor can board with free hands, ride armed, then exit without changing its character recipe. For example, equip `weapon:pistol` once and use these sequential beats:
 
@@ -251,3 +251,28 @@ On the pilot action, enable **Move through the set** for forward travel and adju
 To carry others, give each character matching helicopter actions, the same **Vehicle** identity and a different **Seat**: front passenger, rear left or rear right. Passengers inherit travel and altitude; set their movement off and configure height only on the pilot. Four separate doors allow simultaneous boarding. A grounded, stationary pilot action (`move:false, flightHeight:0`) can wait while passengers enter. Keep every entry/exit on the ground; the importer rejects boarding a moving or airborne vehicle.
 
 The helicopter waits before entry and stays parked after exit, including transfers to another vehicle. Rotors stop during entry/exit, grounded waiting and parking. Leave about 4 m around the cabin for the main rotor and 6 m behind it for the tail. Use open outdoor routes, wide establishing shots and explicit camera angles. There is no collision avoidance, terrain landing solver, rotor audio or aircraft physics; add supported sound cues separately. LLM Assist includes these limits, all three animations, seat assignments and `flightHeight`.
+
+## Expanded vehicles and aerial actions
+
+Choose the action to select a fitted **pickup truck**, **military tank** or **jet**. They use the same paint/trim/upholstery/finish controls and export paths as existing vehicles. The pickup has a front passenger seat and open load bed. Tank and jet have one operator. The tank driver climbs onto the hull and sits enclosed under the roof hatch; weapons stay hidden while driving it. The jet is boarded from the pilot’s right, where the canopy opens. Use the matching board/drive-or-fly/alight sequence; for a full runway flight use **Board → Taxi jet on runway → Take off jet → Pilot jet → Land jet → Alight**. Taxi travels at 8 m/s on the ground. Take-off and landing always travel forward (about 80–85 m at the default 18 m/s). Take-off climbs to its Flight height (default: the following flight’s height, else 8 m) and landing starts from the previous flight’s height, touching down at 3.6 seconds. In the air the jet pitches with its climb, banks gently with the stick, folds its gear and shows exhaust glow. The jet’s Flight height otherwise works like the helicopter’s; set 0 to taxi. Leave sufficient wing clearance and use a clear runway.
+
+Vehicle animations are grouped per vehicle: each group (for example **Vehicles · Jet aircraft**) holds that vehicle’s ride, board/alight, stunt and take-off/landing clips. `tumble_MODEL` actions perform a complete controlled stunt roll over three seconds, return upright and keep the rider attached. Use movement off and a wide clear area. They are authored animation, not crash physics. Aircraft rolls also accept Flight height (default 3 m); place a roll between matching flight actions at the same height to preserve airborne continuity.
+
+**Fire tank machine gun** stands the tank driver in the open hatch behind the shielded roof gun, firing in bursts; the tank can keep moving. Switching between driving and the gun eases the driver up or down, and the hatch closes again for driving.
+
+To parachute from an aircraft, equip the parachute rig and use **Bail out of jet with parachute** or **Jump from helicopter with parachute** (pilot or passenger) during a high flight, about 20–30 m. Follow it with Skydive → Activate parachute → glide → land. Free fall starts just below the aircraft where the occupant left it, later aerial heights shrink to fit, and the empty aircraft flies on and leaves the shot. The jet bail-out always travels with the jet.
+
+Choose **Parachute / skydiving rig** under Carry, then use the **Aerial** category:
+
+1. **Skydive** — free-fall pose.
+2. **Activate parachute (deploy)** — full 2.4 seconds to pull the handle, inflate the canopy and take the risers.
+3. **Use parachute (glide)** — repeats with the canopy open; optional forward movement is 2 m/s.
+4. **Land parachute** — full three seconds for touchdown, impact absorption, canopy collapse and upright recovery.
+
+The inspector’s **Start height** specifies height above the actor’s elevation. Each aerial action descends toward the next aerial action’s start height; defaults are 20, 12, 8 and 2 metres respectively. Landing reaches zero at touchdown, then recovers on the ground. Keep actor elevation 0 for a ground landing. A final aerial action without a landing holds its height. Aircraft use Flight height for their separate takeoff/landing envelope.
+
+The pack, fitted harness, canopy and lines export with their animation joints; only prop joints scale. Weapons hide during aerial actions. Start the sequence in the air: mid-flight vehicle ejection, wind physics, cloth simulation and automatic terrain landing are not provided. Check the landing surface and the whole canopy path. LLM Assist includes the equipment, clips, heights, aiming controls and these limits.
+
+Choose **Grenade (prop)** under Weapon for **Throw grenade** (2.2 seconds). The prop releases at 0.82 seconds, follows an animated arc and stays on the ground when the actor walks away. A later throw supplies another prop. This provides choreography, without explosion or damage simulation.
+
+Try the [parachute descent example](examples/parachute-descent.ara-studio.json) using LLM Assist → Open JSON.

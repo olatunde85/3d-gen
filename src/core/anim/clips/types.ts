@@ -69,7 +69,7 @@ export interface Sample {
   blend?: { sample: Sample; w: number; /** Keep interpolated feet from sinking below the floor. */ ground?: boolean };
 }
 
-export type ClipCategory = 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction';
+export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction';
 
 export interface Clip {
   id: string;
@@ -77,6 +77,8 @@ export interface Clip {
   category: ClipCategory;
   duration: number;
   loop: boolean;
+  /** Rigid vehicle/rider stunt transform, applied after solving control contacts. */
+  vehicleStunt?:{model:string;ride:string};
   /** Fitted, non-looping entry/exit, solved against this rig's actual riding pose. */
   vehicleTransition?: import('../../props/vehicle-actions').VehicleTransition;
   /** Root-motion velocity (metres/second at 1.8 m height, character frame: +X left, +Z forward). */

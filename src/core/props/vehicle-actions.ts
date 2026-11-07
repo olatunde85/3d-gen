@@ -1,5 +1,6 @@
 /** Shared transition metadata; deliberately independent of the clip registry and renderer. */
 import {HELICOPTER} from './helicopter-layout';
+import {VEHICLE_MANOEUVRES} from './vehicle-motion';
 import type {Rig} from '../rig/rig';
 /** Anatomical height, excluding the game rig's extrapolated HeadTop_End tail. */
 export function boardingScale(rig:Rig){return rig.bones.find(b=>b.name==='Head'||b.name==='head')!.tail[1]/1.8;}
@@ -17,18 +18,27 @@ export const VEHICLE_TRANSITIONS = [
   ['kayak', 'paddle_kayak', 'kayak', 2.1],
   ['rowboat', 'row_boat', 'rowing boat', 1.9],
   ['motorboat', 'drive_boat', 'motorboat', 2.0],
+  ['pickup','drive_pickup','pickup (driver)',2.1],
+  ['pickup_passenger','sit_pickup_passenger','pickup (passenger)',2.1],
+  ['tank','drive_tank','tank',4.2],
+  ['jet','fly_jet','jet cockpit',2.8],
   ['helicopter', 'fly_helicopter', 'helicopter', 2.2],
 ] as const;
 export interface VehicleTransition { ride: string; direction: 'board' | 'alight' }
 export const TRANSITION_BY_CLIP: Readonly<Record<string, VehicleTransition>> = Object.fromEntries(
   VEHICLE_TRANSITIONS.flatMap(([id, ride]) => (['board', 'alight'] as const).map(direction => [`${direction}_${id}`, { ride, direction }])),
 );
-export const ridingClip = (id: string) => TRANSITION_BY_CLIP[id]?.ride ?? id;
+export const VEHICLE_STUNTS=[['bicycle','ride_bicycle'],['car','drive_car'],['sports_car','drive_sports_car'],['suv','drive_suv'],['pickup','drive_pickup'],['motorcycle','ride_motorcycle'],['tank','drive_tank'],['canoe','paddle_canoe'],['kayak','paddle_kayak'],['rowboat','row_boat'],['motorboat','drive_boat'],['helicopter','fly_helicopter'],['jet','fly_jet']]as const;
+export const STUNT_BY_CLIP:Readonly<Record<string,{ride:string;model:string}>>=Object.fromEntries(VEHICLE_STUNTS.map(([model,ride])=>[`tumble_${model}`,{ride,model}]));
+export const ridingClip = (id: string) => TRANSITION_BY_CLIP[id]?.ride ?? STUNT_BY_CLIP[id]?.ride ?? VEHICLE_MANOEUVRES[id]?.ride ?? id;
 /** Stand beside the appropriate door, saddle or gunwale, facing the vehicle's heading. */
 export function boardingStand(ride: string): [number, number] {
+  if(ride==='drive_tank')return [1.65,-.7];
+  // The canopy hinges on the pilot's left (+X); climb in from the open right-hand side.
+  if(ride==='fly_jet')return [-1.22,-.12];
   if(ride==='fly_helicopter')return [HELICOPTER.standRight,0];
   const side = ride.includes('passenger') ? -1 : 1;
-  const distance = ride.includes('suv') ? 1.13 : ride.includes('sports_car') ? 1.09 : ride.includes('car') || ride==='sit_passenger' ? .95 : ride==='drive_boat' ? 1.62 : ride==='row_boat' ? .95 : ride==='ride_horse' ? .90 : .76;
+  const distance = ride.includes('pickup')?1.13:ride.includes('suv') ? 1.13 : ride.includes('sports_car') ? 1.09 : ride.includes('car') || ride==='sit_passenger' ? .95 : ride==='drive_boat' ? 1.62 : ride==='row_boat' ? .95 : ride==='ride_horse' ? .90 : .76;
   return [side * distance, ride==='drive_boat' ? -.42 : ride==='ride_horse' ? -.12 : 0];
 }
 export const boardProgress = (transition: VehicleTransition, time: number, duration: number) => {
@@ -36,3 +46,7 @@ export const boardProgress = (transition: VehicleTransition, time: number, durat
 };
 const smooth=(x:number)=>{const t=Math.max(0,Math.min(1,x));return t*t*(3-2*t);};
 export const doorOpenAt = (p:number) => smooth((p-.08)/.16)*(1-smooth((p-.82)/.16));
+/** Roof height of the enclosed tank hull: just clear of the seated driver's head. */
+export const tankRoof=(headTop:number,scale:number)=>headTop+.07*scale;
+/** The tank's roof hatch opens once the driver is on the hull and closes after they are seated inside. */
+export const hatchOpenAt = (p:number) => smooth((p-.30)/.14)*(1-smooth((p-.92)/.08));

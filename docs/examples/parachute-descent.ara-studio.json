@@ -1,0 +1,78 @@
+{
+  "kind": "ara-studio",
+  "version": 2,
+  "title": "Parachute descent",
+  "template": "desert-outpost",
+  "actors": [
+    {
+      "id": "skydiver",
+      "preset": "The Adventurer",
+      "params": {
+        "name": "Skydiver",
+        "carry": "parachute",
+        "weapon": "none",
+        "vehicle": "none"
+      },
+      "detail": "medium",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "yaw": 0,
+      "beats": [
+        {
+          "clip": "skydive",
+          "duration": 3,
+          "move": false,
+          "flightHeight": 20
+        },
+        {
+          "clip": "parachute_deploy",
+          "duration": 2.4,
+          "move": false,
+          "flightHeight": 12
+        },
+        {
+          "clip": "parachute_glide",
+          "duration": 3,
+          "move": true,
+          "flightHeight": 8
+        },
+        {
+          "clip": "parachute_land",
+          "duration": 3,
+          "move": false,
+          "flightHeight": 2
+        },
+        {
+          "clip": "idle",
+          "duration": 1,
+          "move": false
+        }
+      ]
+    }
+  ],
+  "shots": [
+    {
+      "duration": 5.4,
+      "shot": "wide",
+      "target": "all"
+    },
+    {
+      "duration": 7,
+      "shot": "wide",
+      "target": "all"
+    }
+  ],
+  "camera": "locked",
+  "view": {
+    "azimuth": -30,
+    "elevation": 4,
+    "zoom": 1
+  },
+  "aspect": "landscape",
+  "caption": false,
+  "texts": [],
+  "audio": {
+    "muted": true
+  }
+}

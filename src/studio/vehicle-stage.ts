@@ -1,3 +1,4 @@
+import {aerialHeight} from './aerial-motion';
 /** A film-time vehicle plan. Future props wait at their first entry; abandoned props stay put. */
 import {clipById,type Clip} from '../core/anim/clips';
 import {boardingStand,ridingClip} from '../core/props/vehicle-actions';
@@ -8,10 +9,11 @@ import {vehicleCatalog,vehicleKey,type VehicleSeat} from './vehicle-seats';
 import {HELICOPTER} from '../core/props/helicopter-layout';
 import {helicopterHeight} from './helicopter-flight';
 import {studioTravel} from './motion';
+import {manoeuvre,bailoutExit} from '../core/props/vehicle-motion';
 export interface VehicleBody {scale:number;boardingScale:number;weapon?:string;hip(clip:string,model?:VehicleId):Vec3}
 export interface StagePoint {x:number;y:number;z:number;yaw:number}
 interface Row {actor:ActorTrack;beat:Beat;index:number;start:number;end:number;offset:Vec3;vehicle?:string}
-export interface StagedVehicle extends StagePoint {id:string;model:VehicleId;owner:ActorTrack;clip:Clip;reference:Clip;phase:number;distance:number;parked:boolean;visible:boolean;active?:Row}
+export interface StagedVehicle extends StagePoint {id:string;model:VehicleId;scale:number;owner:ActorTrack;clip:Clip;reference:Clip;phase:number;distance:number;parked:boolean;visible:boolean;active?:Row}
 export interface StagedActor extends StagePoint {vehicle?:StagedVehicle;seat:VehicleSeat;seatShift:Vec3;stand?:[number,number];passenger:boolean;deckFloor:number}
 const fallback:VehicleBody={scale:1,boardingScale:1,hip:()=>[0,1,0]};
 const turn=(x:number,z:number,yaw:number)=>{const a=yaw*Math.PI/180;return{x:x*Math.cos(a)+z*Math.sin(a),z:-x*Math.sin(a)+z*Math.cos(a)};};
@@ -41,13 +43,18 @@ export class VehicleStage {
    const rows=this.rows.get(entry.actor.id)!.filter(r=>r.vehicle===entry.id&&(r.beat.vehicleSeat??'operator')==='operator');
    const row=rows.find(r=>time>=r.start&&time<r.end)??[...rows].reverse().find(r=>time>=r.end)??rows[0];
    const sample=Math.max(row.start,Math.min(row.end,time)),point=this.nominal(row,sample),at=timelineAt(project,sample,entry.actor),active=time>=row.start&&time<row.end||time>=trackDuration(entry.actor)&&row===this.rows.get(entry.actor.id)!.at(-1)&&!clipById.get(row.beat.clip)?.vehicleTransition;
-   const clip=clipById.get(row.beat.clip)!,visible=row.beat.showVehicle??entry.actor.vehicle!=='none';
-   this.vehicles.set(entry.id,{...point,id:entry.id,model:entry.model,owner:entry.actor,clip,reference:clipById.get(entry.beat.clip)!,phase:active?at.phase:clip.duration,distance:at.z*(bodies.get(entry.actor.id)?.scale??1),parked:!active,visible,active:active?row:undefined});
+   const clip=clipById.get(row.beat.clip)!,scale=bodies.get(entry.actor.id)?.scale??1;let flying=false,visible=row.beat.showVehicle??entry.actor.vehicle!=='none',phase=active?at.phase:clip.duration;
+   // Abandoned in the air: the empty aircraft flies on, climbing away, and leaves the shot.
+   if(!active&&manoeuvre(row.beat.clip)==='bailout'&&time>=row.end){
+    const dt=time-row.end,speed=row.beat.move?Math.abs(studioTravel(row.beat.clip,row.beat.travelSpeed)![2]):0,ahead=speed?speed*dt:2*Math.min(dt,2.5)**2+Math.max(0,dt-2.5)*10,d=turn(0,ahead*scale,entry.actor.yaw);
+    point.x+=d.x;point.z+=d.z;point.y+=1.5*dt;phase=clip.duration+dt;visible&&=dt<8;flying=true;
+   }
+   this.vehicles.set(entry.id,{...point,id:entry.id,model:entry.model,scale,owner:entry.actor,clip,reference:clipById.get(entry.beat.clip)!,phase,distance:at.z*(bodies.get(entry.actor.id)?.scale??1),parked:!active&&!flying,visible,active:active?row:undefined});
   }
  }
  private nominal(row:Row,time:number):StagePoint{
   const at=timelineAt(this.project,time,row.actor),body=this.bodies.get(row.actor.id)??fallback,d=turn(at.x*body.scale+row.offset[0],at.z*body.scale+row.offset[2],row.actor.yaw);
-  return{x:row.actor.x+d.x,y:row.actor.y+(VEHICLE_FOR_CLIP[row.beat.clip]==='helicopter'?helicopterHeight(row.actor,row.index,time):0),z:row.actor.z+d.z,yaw:row.actor.yaw};
+  return{x:row.actor.x+d.x,y:row.actor.y+helicopterHeight(row.actor,row.index,time)+aerialHeight(row.actor,row.index,time,this.project.actors),z:row.actor.z+d.z,yaw:row.actor.yaw};
  }
  private seat(row:Row,vehicle:StagedVehicle):{shift:Vec3;stand?:[number,number]}{
   const seat=row.beat.vehicleSeat??'operator';if(seat==='operator')return{shift:[0,0,0]};
@@ -74,7 +81,8 @@ export class VehicleStage {
   // Ground spans connect the two actual doorway/gunwale positions, not two unrelated actor origins.
   let first=at.index,last=at.index;while(first>0&&!rows[first-1].vehicle)first--;while(last<rows.length-1&&!rows[last+1].vehicle)last++;
   const before=rows[first-1],after=rows[last+1],start=rows[first].start,end=rows[last].end,nominal=this.nominal(row,this.time);
-  const boundary=(r:Row,t:number)=>{const point=this.onVehicle(r,t),body=this.bodies.get(track.id)??fallback,transition=clipById.get(r.beat.clip)?.vehicleTransition,stand=transition?(point.stand??boardingStand(ridingClip(r.beat.clip))):[0,0],d=turn(stand[0]*body.boardingScale,stand[1]*body.boardingScale,point.yaw);return {...point,x:point.x+d.x,z:point.z+d.z};};
+  // After a bail-out, free fall continues where the occupant left the airframe (beside and behind it).
+  const boundary=(r:Row,t:number)=>{const point=this.onVehicle(r,t),body=this.bodies.get(track.id)??fallback,transition=clipById.get(r.beat.clip)?.vehicleTransition,exit=bailoutExit(r.beat.clip,r.beat.duration),stand=transition?(point.stand??boardingStand(ridingClip(r.beat.clip))):exit?[exit.x,-exit.behind/body.boardingScale]:[0,0],d=turn(stand[0]*body.boardingScale,stand[1]*body.boardingScale,point.yaw);return {...point,x:point.x+d.x,z:point.z+d.z};};
   const a=this.nominal(rows[first],start),b=this.nominal(rows[last],end),from=before?boundary(before,start):undefined,to=after?boundary(after,end):undefined;
   const distance=(t:number)=>{let sum=0;for(let i=first;i<=last;i++){const r=rows[i],dt=Math.max(0,Math.min(r.end,t)-r.start);if(r.beat.move){const x=this.nominal(r,r.start),z=this.nominal(r,r.start+dt);sum+=Math.hypot(z.x-x.x,z.z-x.z);}}return sum;};
   const total=distance(end),u=total>1e-8?distance(this.time)/total:after&&!before?1:0;
@@ -84,7 +92,7 @@ export class VehicleStage {
   if(travel&&total>1e-8){const body=this.bodies.get(track.id)??fallback,v=turn(travel[0]*body.scale,travel[2]*body.scale,yaw),speed=Math.hypot(v.x,v.z),vx=v.x+(dx1-dx0)*speed/total,vz=v.z+(dz1-dz0)*speed/total;if(Math.hypot(vx,vz)>1e-6)yaw=(Math.atan2(vx,vz)-Math.atan2(travel[0],travel[2]))*180/Math.PI;}
   return {...nominal,yaw,x:nominal.x+dx0+(dx1-dx0)*u,z:nominal.z+dz0+(dz1-dz0)*u,seat:'operator',seatShift:[0,0,0],passenger:false,deckFloor:0};
  }
- /** All physical doors used now, including passengers entering while the driver waits. */
- transitions(id:string){return [...this.rows.values()].flatMap(rows=>rows.filter(r=>r.vehicle===id&&this.time>=r.start&&this.time<r.end&&clipById.get(r.beat.clip)?.vehicleTransition).map(row=>({clip:clipById.get(row.beat.clip)!,time:this.time-row.start,seat:row.beat.vehicleSeat??'operator'})));}
- armed(id:string){return this.project.actors.some(actor=>{const row=this.rows.get(actor.id)![timelineAt(this.project,this.time,actor).index],weapon=this.bodies.get(actor.id)?.weapon;return row.vehicle===id&&weapon&&weapon!=='none'&&row.beat.weaponPose!=='hidden'&&!clipById.get(row.beat.clip)?.vehicleTransition;});}
+ /** All physical doors used now, including passengers entering while the driver waits and doors left open by a bail-out. */
+ transitions(id:string){return [...this.rows.values()].flatMap(rows=>rows.filter(r=>r.vehicle===id&&this.time>=r.start&&(this.time<r.end&&!!clipById.get(r.beat.clip)?.vehicleTransition||manoeuvre(r.beat.clip)==='bailout')).map(row=>({clip:clipById.get(row.beat.clip)!,time:this.time-row.start,seat:row.beat.vehicleSeat??'operator'})));}
+ armed(id:string){return this.project.actors.some(actor=>{const row=this.rows.get(actor.id)![timelineAt(this.project,this.time,actor).index],weapon=this.bodies.get(actor.id)?.weapon;return row.vehicle===id&&weapon&&weapon!=='none'&&weapon!=='grenade'&&row.beat.weaponPose!=='hidden'&&!clipById.get(row.beat.clip)?.vehicleTransition;});}
 }

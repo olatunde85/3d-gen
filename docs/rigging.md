@@ -26,3 +26,9 @@ Every rig has a `WeaponR` bone under the right hand, centred in the closed grip.
 - **ZIP:** adds `<name>.rig.json`, the bind pose in an engine-neutral form.
 
 `scripts/blender_rig_check.py` imports the exports into Blender and checks that posing deforms the mesh correctly.
+
+## Animated action props
+
+An equipped grenade adds a rigid root named `Grenade`. It follows `WeaponR` until the 0.82-second release in Throw grenade, then animates independently. Attach a separate grenade prop to `Grenade` when using that baked motion.
+
+The parachute adds `ParachuteCanopy` and `ParachuteLine0` through `ParachuteLine13`. Its pack and harness (fitted over clothing, with straps over both shoulders into the pack and a chest strap) follow the chest; only the prop joints receive deployment scale channels. Import scale animation in GLB/FBX. Do not include the prop joints in a humanoid retargeting bone map. The tiny packed rest geometry fits inside the pack, so static exports retain the packed appearance.

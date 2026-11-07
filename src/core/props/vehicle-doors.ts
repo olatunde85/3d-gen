@@ -21,10 +21,10 @@ function geometry(polygons:Vertex[][]){
  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(pos,3));geo.setAttribute('normal',new T.Float32BufferAttribute(normal,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));return geo;
 }
 export function articulateDoors(k:VehicleKit){
- const s=k.fit.scale,suv=k.fit.id==='suv',classic=k.fit.id==='car',driver=!k.fit.clip.id.includes('passenger'),cx=(driver?-.36:.36)*s,z=k.fit.average('hip').z;
+ const s=k.fit.scale,suv=k.fit.id==='suv'||k.fit.id==='pickup',classic=k.fit.id==='car',driver=!k.fit.clip.id.includes('passenger'),cx=(driver?-.36:.36)*s,z=k.fit.average('hip').z;
  const width=(suv?2.02:classic?1.62:1.94)*s,front=(suv?.64:classic?.55:.88)*s,rear=(suv?-.40:classic?-.55:-.42)*s;
  const hip=k.fit.average('hip').y,roof=Math.max(hip+.88*s,...k.fit.samples.map(c=>c.headTop.y+.12*s));
- for(const row of suv?[0,1]:[0])for(const side of [-1,1]){
+ for(const row of suv&&k.fit.id!=='pickup'?[0,1]:[0])for(const side of [-1,1]){
   const doorFront=row?-.40*s:front,doorRear=row?-1.43*s:rear;
   const hinge=v(cx+side*width*.465,(classic?.30:suv?.46:.19)*s,z+doorFront),door=k.component(`Door_${row?'rear_':''}${side>0?'left':'right'}`,hinge);
   const window=k.component(`Window_${row?'rear_':''}${side>0?'left':'right'}`,v(),door);

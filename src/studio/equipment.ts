@@ -7,7 +7,7 @@ export { CARRIED, CARRY_LABELS, WEAPONS, WEAPON_LABELS };
 /** Keep existing action tracks usable after an Equipment edit or a builder round trip. */
 export function reconcileWeaponActions(actor:ActorTrack){
   const weapon=decodeCharacter(actor.character,actor.detail)!.weapon;
-  for(const b of actor.beats){if(weapon==='none'){if(b.weaponPose!=='hidden')delete b.weaponPose;delete b.weaponYaw;}else if(b.weaponPose==='fire'&&!isFirearm(weapon))b.weaponPose='hold';}
+  for(const b of actor.beats){if(weapon==='none'||weapon==='grenade'){if(b.weaponPose!=='hidden')delete b.weaponPose;delete b.weaponYaw;delete b.weaponPitch;}else if(b.weaponPose==='fire'&&!isFirearm(weapon))b.weaponPose='hold';}
 }
 export function equipActor(actor: Pick<ActorTrack, 'character' | 'detail'>, slot: 'weapon' | 'carry', value: string): string {
   const params = decodeCharacter(actor.character, actor.detail);

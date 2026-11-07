@@ -1,7 +1,9 @@
 /** Vehicle riders: car, passenger, bicycle, motorcycle, horse, canoe, kayak, rowing, boat helm. */
 import { type Ch, type Clip, type HandTarget } from './types';
-import { cyc, fingers, fist, FISTS, grip, normV, side, v } from './helpers';
-import { VEHICLE_TRANSITIONS } from '../../props/vehicle-actions';
+import { cyc, fingers, fist, FISTS, grip, normV, side, track, v } from './helpers';
+import { skydive } from './aerial';
+import { BAILOUT_PATHS } from '../../props/vehicle-motion';
+import { VEHICLE_TRANSITIONS,VEHICLE_STUNTS } from '../../props/vehicle-actions';
 import { TROT, trotBob } from '../../props/horse-gait';
 import { idle } from './basic';
 
@@ -264,11 +266,54 @@ const flyHelicopter:Clip={
  }
 };
 
+/** Seated, upright operators with controls inside a real cockpit. */
+const driveTank:Clip={id:'drive_tank',name:'Drive military tank',category:'Vehicles',duration:4,loop:true,sample:t=>{
+ const bones:Record<string,Ch>={Spine:[-3,0,0],Spine1:[2,0,0],Head:[0,Math.sin(t*Math.PI/2)*3,0]};seatedLegs(bones,80,-82,2,9);grip(bones,'Left');grip(bones,'Right');
+ const hand=(s:1|-1):HandTarget=>({pos:v(.23*s,-.43,.28+.008*s*Math.sin(t*Math.PI/2)),pole:v(s,-1,-.25),dir:v(0,-.1,1),palm:v(-s,0,0)});
+ return {bones,root:{ground:true},ik:{Left:hand(1),Right:hand(-1)},thumbs:{Left:.6,Right:.6}};
+}};
+/** Jet pilot: right hand on the centre stick, left on the throttle. `stick` and `throttle` are small offsets in metres. */
+const jetPilot=(t:number,stick:[number,number],throttle:number)=>{
+ const s=flyHelicopter.sample(t);return {...s,ik:{Right:{pos:v(-.12+stick[0],-.43,.32+stick[1]),pole:v(-1,-.8,-.2),dir:v(0,-.1,1),palm:v(1,0,0)},Left:{pos:v(.26,-.46,.14+throttle),pole:v(1,-.8,-.2),dir:v(0,0,1),palm:v(0,-1,0)}}};
+};
+// Small, continuous stick inputs; Studio banks the airborne jet a beat behind them.
+const flyJet:Clip={...flyHelicopter,id:'fly_jet',name:'Pilot jet (fly / taxi)',sample:t=>{const a=t/6*Math.PI*2;return jetPilot(t,[.014*Math.sin(a),.006*Math.sin(2*a)],.03);}};
+const ease=(x:number)=>{const u=Math.max(0,Math.min(1,x));return u*u*(3-2*u);};
+const takeoffJet:Clip={...flyJet,id:'takeoff_jet',name:'Take off jet',loop:false,sample:t=>{const u=t/6;return jetPilot(t,[0,-.035*ease((u-.38)/.08)+.025*ease((u-.62)/.2)],.06*ease(u/.08));}};
+const landJet:Clip={...flyJet,id:'land_jet',name:'Land jet',loop:false,sample:t=>{const u=t/6;return jetPilot(t,[0,-.03*ease((u-.42)/.12)+.03*ease((u-.62)/.1)],.03-.06*ease((u-.3)/.25));}};
+const taxiJet:Clip={...flyJet,id:'taxi_jet',name:'Taxi jet on runway',sample:t=>jetPilot(t,[.005*Math.sin(t/6*Math.PI*2),0],0)};
+
+/**
+ * Bail out with a parachute: from the seat, out through the open side and clear of the airframe, turning
+ * belly-down into the free-fall pose (Skydive continues from here). Hands move from the controls to free fall.
+ */
+const lerp3=(a:V3,b:V3,w:number):V3=>v(a[0]+(b[0]-a[0])*w,a[1]+(b[1]-a[1])*w,a[2]+(b[2]-a[2])*w);
+const mixHand=(a:HandTarget|undefined,b:HandTarget|undefined,w:number):HandTarget|undefined=>!a||!b?(w<.5?a:b):{pos:lerp3(a.pos,b.pos,w),pole:lerp3(a.pole,b.pole,w),...(a.dir&&b.dir?{dir:lerp3(a.dir,b.dir,w)}:{}),...(a.palm&&b.palm?{palm:lerp3(a.palm,b.palm,w)}:{})};
+const bailout=(id:string,name:string,ride:Clip):Clip=>({id,name,category:'Vehicles',duration:2.6,loop:false,sample:t=>{
+ const P=BAILOUT_PATHS[id],k=(a:number[])=>track(P.T,a)(t),w=ease((t-P.pose[0])/P.pose[1]),a=ride.sample(0),b=skydive.sample(0),bones:Record<string,Ch>={};
+ for(const key of new Set([...Object.keys(a.bones),...Object.keys(b.bones)]))bones[key]=lerp3(a.bones[key]??[0,0,0],b.bones[key]??[0,0,0],w);
+ return {bones,root:{ground:true,lift:k(P.lift),x:k(P.x),pitch:k(P.pitch)},ik:{Left:mixHand(a.ik?.Left,b.ik?.Left,w),Right:mixHand(a.ik?.Right,b.ik?.Right,w)},thumbs:w<.5?a.thumbs:b.thumbs,gaze:[0,0]};
+}});
+const bailoutJet=bailout('bailout_jet','Bail out of jet with parachute',flyJet),bailoutHelicopter=bailout('bailout_helicopter','Jump from helicopter with parachute',flyHelicopter);
+
+/**
+ * Tank machine gunner: standing on the driver's floor, head and shoulders out of the open hatch behind the gun
+ * shield, both hands on the spade grips. The gun traverses slowly and fires in short bursts.
+ */
+export const TANK_GUN={pivot:.72,traverse:14,burst:[1.5,.6]as const};
+export const tankGunFiring=(t:number)=>t%TANK_GUN.burst[0]<TANK_GUN.burst[1];
+const gunTank:Clip={id:'gun_tank',name:'Fire tank machine gun',category:'Vehicles',duration:6,loop:true,sample:t=>{
+ const bones:Record<string,Ch>={Spine:[6,0,0],Spine1:[3,0,0],Neck:[-5,0,0],Head:[-4,0,0]};grip(bones,'Left');grip(bones,'Right');
+ const yaw=TANK_GUN.traverse*Math.sin(t/6*Math.PI*2)*Math.PI/180,kick=tankGunFiring(t)?.012*Math.abs(Math.sin(t*55)):0;
+ const hand=(s:1|-1):HandTarget=>{const x=s*.11,z=.40-kick-TANK_GUN.pivot;return {pos:v(x*Math.cos(yaw)+z*Math.sin(yaw),-.12,TANK_GUN.pivot-x*Math.sin(yaw)+z*Math.cos(yaw)),pole:v(s,-.8,-.3),dir:v(0,-.15,1),palm:v(-s,0,0)};};
+ bones.Spine[1]=yaw*180/Math.PI*.6;
+ return {bones,root:{y:.15},ik:{Left:hand(1),Right:hand(-1)},thumbs:{Left:.6,Right:.6},gaze:[0,0]};
+}};
 export const VEHICLES: Clip[] = [driveCar, sitPassenger,
  {...driveCar,id:'drive_sports_car',name:'Drive modern sports car'},
  {...sitPassenger,id:'sit_sports_car_passenger',name:'Sit (sports car passenger)'},
  {...driveCar,id:'drive_suv',name:'Drive SUV'},
- {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat, flyHelicopter];
+ {...sitPassenger,id:'sit_suv_passenger',name:'Sit (SUV passenger)'}, {...driveCar,id:'drive_pickup',name:'Drive pickup truck'},{...sitPassenger,id:'sit_pickup_passenger',name:'Sit (pickup passenger)'},driveTank,gunTank,taxiJet,flyJet,takeoffJet,landJet,bailoutJet, rideBicycle, rideMotorcycle, rideHorse, paddleCanoe, paddleKayak, rowBoat, driveBoat, flyHelicopter,bailoutHelicopter];
 
 /** Exact contact poses are fitted by Animator, shared by previews and exports. */
 export const BOARDING: Clip[] = VEHICLE_TRANSITIONS.flatMap(([id, ride, name, duration]) =>
@@ -277,3 +322,9 @@ export const BOARDING: Clip[] = VEHICLE_TRANSITIONS.flatMap(([id, ride, name, du
   category:'Vehicles' as const, duration, loop:false, vehicleTransition:{ride,direction}, sample:()=>idle.sample(0),
  })),
 );
+
+/** Controlled, complete stunt rolls; they return to the exact native driving pose. */
+export const VEHICLE_TUMBLES:Clip[]=VEHICLE_STUNTS.map(([model,ride])=>({
+ id:`tumble_${model}`,name:`Tumble ${model.replace(/_/g,' ')} (stunt roll)`,category:'Vehicles',duration:3,loop:false,
+ vehicleStunt:{model,ride},sample:()=>VEHICLES.find(c=>c.id===ride)!.sample(0),
+}));

@@ -15,11 +15,11 @@ import type { Material } from '../mesh';
  * Bags: carried in the hand (built here), or worn (the backpack, a garment with slot 'bag', built
  * with the clothes).
  */
-export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel'] as const;
+export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel', 'parachute'] as const;
 export type CarryId = (typeof CARRIED)[number];
-export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel' };
+export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel',parachute:'Parachute / skydiving rig' };
 /** Bags worn on the body rather than carried in the hand. */
-export const WORN_BAGS: readonly CarryId[] = ['backpack'];
+export const WORN_BAGS: readonly CarryId[] = ['backpack','parachute'];
 
 export interface BagStyle {
   pattern: Pattern;
@@ -35,6 +35,7 @@ export const CARRY_STYLES: Record<Exclude<CarryId, 'none' | 'backpack'>, { patte
   straw_tote: { patterns: ['straw'], color: '#cfae74', color2: '#8a6a3a', colorLabels: ['Straw', 'Trim'] },
   handbag: { patterns: ['nappa', 'patent', 'leather'], color: '#ece3d3', color2: '#d9b25a', colorLabels: ['Leather', 'Hardware'] },
   briefcase: { patterns: ['nappa', 'leather'], color: '#3a2214', color2: '#c9a45a', colorLabels: ['Leather', 'Hardware'] },
+  parachute:{patterns:['solid'],color:'#cc5937',color2:'#283c4b',colorLabels:['Canopy','Pack / canopy stripe']},
   parcel: {patterns:['solid'],color:'#ae8550',color2:'#c7a776',colorLabels:['Cardboard','Packing tape']},
 };
 

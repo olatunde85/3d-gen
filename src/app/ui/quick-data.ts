@@ -386,7 +386,9 @@ export function vehiclePatch(p: HumanParams, id: VehicleId): Patch {
 export const vehicleActions = (id: VehicleId, clip = VEHICLE_CLIP[id]) => {
   const ride = RIDING_VEHICLES[ridingClip(clip)] === id ? ridingClip(clip) : VEHICLE_CLIP[id];
   const transition = VEHICLE_TRANSITIONS.find(([, action]) => action === ride)?.[0];
-  return transition ? [`board_${transition}`, ride, `alight_${transition}`] : [ride];
+  // Runway, gunner and parachute manoeuvres sit in story order around the main ride.
+  const before = id === 'jet' ? ['taxi_jet', 'takeoff_jet'] : [], after = id === 'jet' ? ['land_jet', 'bailout_jet'] : id === 'helicopter' ? ['bailout_helicopter'] : id === 'tank' ? ['gun_tank'] : [];
+  return transition ? [`board_${transition}`, ...before, ride, ...after, `alight_${transition}`, ...(['horse'].includes(id)?[]:[`tumble_${id}`])] : [ride];
 };
 
 /** Clips to try, and more for whatever is in hand. */
@@ -394,10 +396,10 @@ export function actions(p: HumanParams, clip = 'idle'): Option[] {
   const base = ['idle', 'walk', 'model_walk', 'run', 'wave', 'talk', 'laugh', 'cheer', 'sit_idle', 'jump', 'punch'];
   const held: Record<string, string[]> = {
     pistol: ['pistol_idle', 'pistol_aim', 'pistol_fire'], rifle: ['rifle_idle', 'rifle_aim', 'rifle_fire_auto', 'rifle_walk', 'rifle_reload'],
-    sword: ['sword_idle', 'sword_slash', 'sword_block'], knife: [],
+    sword: ['sword_idle', 'sword_slash', 'sword_block'], knife: [], grenade:['throw_grenade'],
   };
   const vehicle = vehicleOf(p, clip);
-  return [...base, ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));
+  return [...base,...(p.carry==='parachute'?['skydive','parachute_deploy','parachute_glide','parachute_land']:[]), ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));
 }
 
 // --- Summary --------------------------------------------------------------------------------

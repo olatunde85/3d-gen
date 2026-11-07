@@ -1,3 +1,8 @@
+import {PACKED_CANOPY,SUSPENSION_ANCHORS} from '../props/parachute';
+import {track as propTrack} from './clips/helpers';
+import {vehicleStunt} from '../props/vehicle-stunt';
+import {clipVehicleMotion,bailoutDrift} from '../props/vehicle-motion';
+import {isFirearm} from '../props/weapons';
 /**
  * Evaluates clips on any rig: forward kinematics in world space from an
  * "animation rest" (bind pose with relaxed arms), producing per-bone local
@@ -8,12 +13,12 @@ import type { Vec3 } from '../math';
 import { boneFor } from '../rig/poses';
 import { boneFrame, quatOf, type Rig } from '../rig/rig';
 import { clipById, type Ch, type Clip, type HandTarget, type Sample } from './clips';
-import { fist } from './clips/helpers';
+import { fist,grip } from './clips/helpers';
 import { PARCEL_REST } from '../props/carry';
 import { carriesParcel, parcelHold } from './clips/interaction';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
 import {boardingFrame} from './boarding';
-import {mountedWeaponSample,PADDLING_CLIPS,type WeaponPose} from './riding-weapons';
+import {mountedWeaponSample,directedWeaponSample,supportsWeaponAim,PADDLING_CLIPS,ENCLOSED_CLIPS,type WeaponPose} from './riding-weapons';
 import {RIDING_VEHICLES} from '../props/vehicles';
 
 export interface Frame {
@@ -309,16 +314,24 @@ export class Animator {
    * `faceTime`: blink and glance on this continuous clock (seconds) instead of at fixed times inside
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
-  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number } = {}): Frame {
-    const pose=opts.weaponPose??(clip.vehicleTransition?'hidden':'hold'),weapon=this.rig.weapon??'none';
-    const mounted=weapon!=='none'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
-    const sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
+  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;/** false: Studio supplies vehicle flight motion. */vehicleMotion?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): Frame {
+    const weapon=this.rig.weapon??'none',pose=ENCLOSED_CLIPS.has(clip.id)?'hidden':opts.weaponPose??(clip.vehicleTransition||clip.vehicleStunt||clip.category==='Aerial'||weapon==='grenade'&&RIDING_VEHICLES[clip.id]?'hidden':'hold');
+    const mounted=weapon!=='none'&&weapon!=='grenade'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
+    let sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
+    if(!mounted&&isFirearm(weapon)&&supportsWeaponAim(clip.id)&&opts.weaponPose&&pose!=='hidden'){
+      const reference=clipById.get(clip.id==='pistol_aim_one_hand'&&pose==='aim'?'pistol_aim_one_hand':`${weapon}_${pose==='fire'?'fire':pose==='aim'?'aim':'idle'}`)!;
+      const upper=reference.sample(time%reference.duration);if(clip.id==='pistol_aim_one_hand'){upper.ik={Right:upper.ik?.Right?{...upper.ik.Right,pos:[-.23,upper.ik.Right.pos[1],upper.ik.Right.pos[2]]}:undefined};for(const key of Object.keys(upper.bones))if(key.startsWith('Left'))delete upper.bones[key];}
+      const bones={...sample.bones};
+      for(const [key,value]of Object.entries(upper.bones))if(!/(Hips|UpLeg|Leg|Foot|ToeBase)/.test(key))bones[key]=value;
+      sample={...sample,bones,ik:upper.ik,thumbs:upper.thumbs};
+    }
+    if(weapon==='grenade'&&clip.id!=='throw_grenade'&&pose!=='hidden'){sample={...sample,bones:{...sample.bones}};grip(sample.bones,'Right');}
     const carried=this.parcel>=0&&!opts.parcelGrounded&&carriesParcel(clip)?parcelHold(sample):sample;
     const controls=this.holding(this.withEyes(carried, clip, time, opts.faceTime));
     const contact=mounted?this.frameOf(controls,clip,time,opts):undefined;
     let counter=QI;
     if(contact){const world:Q[]=[];this.rig.bones.forEach((b,i)=>world[i]=b.parent<0?contact.rot[i]:qmul(world[b.parent],contact.rot[i]));const chest=this.idx.get('Spine2')!;counter=qconj(qmul(world[chest],qconj(this.animRest[chest])));}
-    const s=mounted?this.withEyes(mountedWeaponSample(controls,clip,time,weapon,pose,opts.weaponYaw,counter),clip,time,opts.faceTime):controls;
+    const s=mounted?this.withEyes(mountedWeaponSample(controls,clip,time,weapon,pose,opts.weaponYaw,counter,opts.weaponPitch),clip,time,opts.faceTime):weapon!=='none'&&supportsWeaponAim(clip.id)&&(opts.weaponYaw!==undefined||opts.weaponPitch!==undefined)?directedWeaponSample(controls,opts.weaponYaw,opts.weaponPitch):controls;
     const frame = clip.vehicleTransition
       ? boardingFrame(this,clip,time,clipById.get('idle')!,clipById.get(clip.vehicleTransition.ride)!,opts.vehicleLift??0)
       : this.frameOf(s, clip, time, opts);
@@ -328,9 +341,45 @@ export class Animator {
       if(opts.vehicleLift)for(const [i,p]of contact.rootPos)contact.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
       frame.vehicleControls=contact;frame.ridingWeapon=weapon;
     }
-    if(pose==='hidden'&&weapon!=='none'&&this.socket>=0)frame.scale=new Map([[this.socket,[0,0,0]]]);
+    if(weapon==='grenade')this.placeGrenade(frame,clip,time,opts);
+    if(pose==='hidden'&&weapon!=='none'&&this.socket>=0){frame.scale??=new Map();frame.scale.set(this.socket,[0,0,0]);const g=this.rig.bones.findIndex(b=>b.name==='Grenade');if(g>=0)frame.scale.set(g,[0,0,0]);}
+    if(clip.vehicleStunt){const {rotation,translation}=vehicleStunt(clip.vehicleStunt.model,time,clip.duration,this.scale);this.rig.bones.forEach((bone,i)=>{if(bone.parent>=0)return;frame.rot[i]=qmul(rotation,frame.rot[i]);const p=qrot(rotation,frame.rootPos.get(i)??bone.head);frame.rootPos.set(i,p.map((v,d)=>v+translation[d])as Vec3);});}
+    // Builder/export: the rider moves with the aircraft's clip-authored flight. Studio flies the aircraft itself,
+    // so it only keeps the bail-out's separation from the airframe.
+    if(opts.vehicleMotion!==false){const hips=this.rig.bones.findIndex(b=>b.parent<0),m=clipVehicleMotion(clip.id,time,clip.duration,(frame.rootPos.get(hips)?.[2]??0)-.85*this.scale);
+     if(m)this.rig.bones.forEach((bone,i)=>{if(bone.parent>=0)return;frame.rot[i]=qmul(m.rotation,frame.rot[i]);const p=qrot(m.rotation,frame.rootPos.get(i)??bone.head);frame.rootPos.set(i,p.map((v,d)=>v+m.translation[d])as Vec3);});}
+    else{const drift=bailoutDrift(clip.id,time);if(drift)for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1],p[2]-drift]);}
+    this.placeParachute(frame,clip,time);
     if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
     return frame;
+  }
+
+  /** Visual release only: deterministic, exportable and independent of the throwing hand. */
+  private placeGrenade(frame:Frame,clip:Clip,time:number,opts:Parameters<Animator['frame']>[2]){
+    const index=this.rig.bones.findIndex(b=>b.name==='Grenade');if(index<0)return;
+    if(clip.id==='throw_grenade'&&time>.82){
+      const release=this.frame(clip,.82,opts),p=release.rootPos.get(index)!,dt=Math.min(time,clip.duration)-.82,k=this.scale;
+      frame.rootPos.set(index,[p[0],Math.max(.04*k,p[1]+2.3*k*dt-4.9*k*dt*dt),p[2]+4*k*dt]);
+      frame.rot[index]=qmul(qaxis([1,0,0],dt*240),release.rot[index]);return;
+    }
+    const world:Q[]=[];this.rig.bones.forEach((b,i)=>world[i]=b.parent<0?frame.rot[i]:qmul(world[b.parent],frame.rot[i]));
+    frame.rootPos.set(index,this.positions(frame)[this.socket]);frame.rot[index]=world[this.socket];
+  }
+
+  private placeParachute(frame:Frame,clip:Clip,time:number){
+    const B=this.rig.bones,canopy=B.findIndex(b=>b.name==='ParachuteCanopy');if(canopy<0)return;
+    const open=clip.id==='parachute_deploy'?propTrack([0,.55,1.1,1.9,2.4],[0,0,.45,1,1])(time):clip.id==='parachute_glide'?1:clip.id==='parachute_land'?propTrack([0,.9,1.65,2.5,3],[1,1,.7,0,0])(time):0;
+    frame.scale??=new Map();const hidden=()=>{frame.scale!.set(canopy,[0,0,0]);for(let i=0;i<SUSPENSION_ANCHORS.length+2;i++)frame.scale!.set(B.findIndex(b=>b.name===`ParachuteLine${i}`),[0,0,0]);};if(!open){hidden();return;}
+    const P=this.positions(frame),head=P[this.idx.get('Head')!],chest=P[this.idx.get('Spine2')!],k=this.scale,land=clip.id==='parachute_land'?propTrack([.9,2.35],[0,1])(time):0;
+    const centre:Vec3=[head[0]+land*2.5*k,head[1]+2.0*k,head[2]-.08*k-land*1.3*k];centre[1]=centre[1]*(1-land)+.12*k*land;
+    const flatten=1-land*.92;frame.rootPos.set(canopy,centre);frame.rot[canopy]=QI;frame.scale.set(canopy,[open/PACKED_CANOPY,open*flatten/PACKED_CANOPY,open/PACKED_CANOPY]);
+    const hand=(side:'Left'|'Right')=>P[this.idx.get(side+'Hand')!].map((v,d)=>v+(d===1?.04*k:0))as Vec3;
+    for(let n=0;n<SUSPENSION_ANCHORS.length+2;n++){
+      const index=B.findIndex(b=>b.name===`ParachuteLine${n}`),anchor=SUSPENSION_ANCHORS[n],left=anchor?anchor[0]>0:n===SUSPENSION_ANCHORS.length;
+      const start=anchor?hand(left?'Left':'Right'):[chest[0]+(left?.14:-.14)*k,chest[1]-.1*k,chest[2]]as Vec3;
+      const end=anchor?anchor.map((v,d)=>centre[d]+v*open*k*(d===1?flatten:1))as Vec3:hand(left?'Left':'Right');
+      const delta=end.map((v,d)=>v-start[d])as Vec3,length=Math.hypot(...delta);frame.rootPos.set(index,start);frame.rot[index]=qfromTo([0,1,0],delta);frame.scale.set(index,[Math.min(1,open*5)/PACKED_CANOPY,length/(k*PACKED_CANOPY),Math.min(1,open*5)/PACKED_CANOPY]);
+    }
   }
 
   /** Pin an existing solved limb without changing any bone offset or scale. Handles split full-rig chains. */
@@ -772,7 +821,7 @@ export class Animator {
   }
 
   /** Frames sampled at `fps` over the clip (inclusive end), quaternion signs kept continuous. */
-  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number } = {}): { times: number[]; frames: Frame[] } {
+  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): { times: number[]; frames: Frame[] } {
     const n = Math.max(2, Math.round(clip.duration * fps) + 1);
     const times: number[] = [], frames: Frame[] = [];
     for (let f = 0; f < n; f++) {

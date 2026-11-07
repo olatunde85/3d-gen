@@ -194,7 +194,7 @@ for(const travelSpeed of [0,31,'fast'])assert.throws(()=>parseProject(JSON.strin
 assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{clip:'walk',duration:2,move:true,travelSpeed:1}]}]})));
 console.log('Vehicle travel: all actions, speed validation, held endings, legacy model migration and animation authority passed.');
 
-for(const id of ['board_suv','alight_suv','board_kayak']){const p=newProject();p.actors[0].beats=[beat(id,4,true)];assert.equal(parseProject(JSON.stringify(p)).actors[0].beats[0].move,false);assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{...p.actors[0].beats[0],travelSpeed:1}]}]})));assert.ok(guide.includes(id));}assert.ok(guide.includes('28 one-shot actions'));
+for(const id of ['board_suv','alight_suv','board_kayak']){const p=newProject();p.actors[0].beats=[beat(id,4,true)];assert.equal(parseProject(JSON.stringify(p)).actors[0].beats[0].move,false);assert.throws(()=>parseProject(JSON.stringify({...p,actors:[{...p.actors[0],beats:[{...p.actors[0].beats[0],travelSpeed:1}]}]})));assert.ok(guide.includes(id));}assert.ok(guide.includes(`${Object.keys(RIDING_VEHICLES).length*2} one-shot actions`));
 
 // Shot direction and loop flags must survive every import path without changing old projects.
 const customCamera=structuredClone(valid);customCamera.shots[0].view={azimuth:90,elevation:20,zoom:.8};customCamera.shots[0].camera='locked';

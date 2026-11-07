@@ -5,7 +5,7 @@ import {buildHuman} from '../src/core/human';
 import {DEFAULT_PARAMS} from '../src/core/params';
 import {Animator} from '../src/core/anim/evaluate';
 import {clipById} from '../src/core/anim/clips';
-import {defaultWeaponYaw,PADDLING_CLIPS} from '../src/core/anim/riding-weapons';
+import {defaultWeaponYaw,PADDLING_CLIPS,ENCLOSED_CLIPS,supportsWeaponAim} from '../src/core/anim/riding-weapons';
 import {VEHICLE_FITS,vehicleLift,DEFAULT_VEHICLE_STYLE,isCar} from '../src/core/props/vehicles';
 import {Vehicle} from '../src/core/props/vehicle';
 import {boneFor} from '../src/core/rig/poses';
@@ -20,6 +20,8 @@ for(const rig of smoke?['game']as const:['game','game_lite','full']as const)for(
  const ch=await buildHuman(lib,{...DEFAULT_PARAMS,rig,restPose,weapon,detail:'low',outfit:'none',hair:'none',carry:'none',vehicle:'auto',faceShapes:false}),B=ch.rig!.bones,A=new Animator(ch.rig!),idx=(name:string)=>B.findIndex(b=>b.name===boneFor(rig,name)),scale=ch.height/1.8;
  assert.equal(ch.rig!.weapon,weapon);
  for(const {clip:id,id:model}of VEHICLE_FITS){
+  // The enclosed tank driver never wields: the weapon stays hidden inside the hull.
+  if(ENCLOSED_CLIPS.has(id)){const f=A.frame(clipById.get(id)!,0,{vehicleLift:vehicleLift(model,scale),weaponPose:'aim'});assert.equal(f.ridingWeapon,undefined);assert.equal(supportsWeaponAim(id),false);continue;}
   const clip=clipById.get(id)!,lift=vehicleLift(model,scale),prop=new Vehicle(model,ch.rig!,A,clip,DEFAULT_VEHICLE_STYLE);
   for(const pose of weapon==='pistol'||weapon==='rifle'?['hold','aim','fire']as const:['hold','aim']as const){
    for(const fraction of [0,.12,.31,.6,.87,1]){

@@ -23,9 +23,9 @@ for(const rig of smoke?['game']as const:['game','game_lite','full']as const)for(
   const first=snapshot();ride.update(clip.duration);const last=snapshot();assert.equal(first.length,last.length);
   for(let i=0;i<first.length;i++)assert.ok(Math.abs(first[i]-last[i])<1e-5,label+' loop seam');
   for(let i=0;i<=32;i++){
-   const t=i/32*clip.duration,base=A.positions(A.frame(clip,t)),frame=A.frame(clip,t,{vehicleLift:ride.lift}),raised=A.positions(frame);ride.update(t,frame);
+   const t=i/32*clip.duration,base=A.positions(A.frame(clip,t,{vehicleMotion:false})),frame=A.frame(clip,t,{vehicleLift:ride.lift,vehicleMotion:false}),raised=A.positions(frame);ride.update(t,frame);
    for(let b=0;b<base.length;b++)for(let d=0;d<3;d++)assert.ok(Math.abs(raised[b][d]-base[b][d]-(d===1?vehicleLift(id,scale):0))<1e-5,label+' changes rider pose');
-   const box=new T.Box3().setFromObject(ride.group,true);assert.ok([...box.min.toArray(),...box.max.toArray()].every(Number.isFinite),label+' invalid bounds');assert.ok(box.min.y>(['canoe','kayak','rowboat'].includes(id)?-.95:-.12)*scale,label+' below ground');assert.ok(box.getSize(new T.Vector3()).length()<(id==='helicopter'?12:7)*scale,label+' oversized');
+   const box=new T.Box3().setFromObject(ride.group,true);assert.ok([...box.min.toArray(),...box.max.toArray()].every(Number.isFinite),label+' invalid bounds');assert.ok(box.min.y>(['canoe','kayak','rowboat'].includes(id)?-.95:-.12)*scale,label+' below ground');assert.ok(box.getSize(new T.Vector3()).length()<(id==='jet'?13:id==='helicopter'?12:id==='tank'?10:id==='pickup'?9:7)*scale,label+' oversized');
   }
   if(id==='sports_car'||id==='suv')for(const c of ride.fit.samples.filter((_,i)=>i%8===0)){
    const ray=new T.Raycaster(c.headTop.clone(),new T.Vector3(0,1,0),0,.6*scale),hit=ray.intersectObject(ride.group,true)[0];assert.ok(hit&&hit.distance>.03*scale,label+' '+id+' roof intersects the rider or leaves them uncovered: '+JSON.stringify({head:c.headTop.toArray(),bounds:ride.bounds.max.toArray(),hit:hit?.distance}));
