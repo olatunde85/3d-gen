@@ -245,7 +245,8 @@ MUSIC LIBRARY
 ${JSON.stringify(MUSIC_TRACKS.map(t=>({id:t.id,name:t.name,artist:t.artist,category:t.category,duration:t.duration,description:t.description})))}
 
 COMPLETE ANIMATION CATALOGUE
-${JSON.stringify(CLIPS.map(c => ({ id: c.id, name: c.name, category: c.category, group:animationGroup(c), duration: c.duration, loop: c.loop, travel: studioTravel(c.id) ? Array.from(studioTravel(c.id)!) : null, note: actionNote(c.id) })))}
+Each row: {id, name, group, duration (seconds), loop (only when true), travel (local metres per second with move:true; absent = no travel), note (key into ANIMATION NOTES)}.
+${animationCatalogue()}
 
 JSON SCHEMA
 ${JSON.stringify(assistSchema(catalog))}
@@ -258,6 +259,12 @@ Now create the complete importable JSON for the user's brief using only these ca
 }
 
 /** Headline and facts for the review card. */
+/** Compact catalogue: each distinct usage note appears once in ANIMATION NOTES and rows reference it by key. */
+function animationCatalogue(){
+  const keys=new Map<string,string>(),rows=CLIPS.map(c=>{const note=actionNote(c.id);if(!keys.has(note))keys.set(note,`n${keys.size+1}`);const travel=studioTravel(c.id);
+    return {id:c.id,name:c.name,group:animationGroup(c),duration:c.duration,...(c.loop?{loop:true}:{}),...(travel?{travel:Array.from(travel)}:{}),note:keys.get(note)};});
+  return `${JSON.stringify(rows)}\n\nANIMATION NOTES\n${JSON.stringify(Object.fromEntries([...keys].map(([note,key])=>[key,note])))}`;
+}
 export function describeAssistProject(project: StudioProject) {
   const names = project.actors.map(a => decodeCharacter(a.character, a.detail)?.name || a.id);
   const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

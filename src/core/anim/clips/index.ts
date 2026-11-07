@@ -7,7 +7,7 @@ import { type Clip } from './types';
 import { crouch, idle } from './basic';
 import { pace, recordedWalk, recordedRun, recordedStrafeLeft, recordedStrafeRight, walkBack } from './recorded';
 import { fall, hit, jumpAir, jumpLand, jumpRunning, jumpStart, punch } from './actions';
-import { cheer, laugh, talk, wave } from './emotes';
+import { cheer, laugh, talk, wave, SOCIAL_EMOTES } from './emotes';
 import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
 import { VEHICLES, BOARDING, VEHICLE_TUMBLES, VEHICLE_CRASHES } from './vehicles';
@@ -75,6 +75,7 @@ export const CLIPS: Clip[] = withFaces(
     laugh,
     talk,
     mocap('cry', 'Cry', 'Emotes'),
+    ...SOCIAL_EMOTES,
     SIT_DOWN,
     mocap('sit_idle', 'Sit idle (chair)', 'Sitting & lying'),
     reversed(SIT_DOWN, 'stand_up', 'Stand up (chair)'),

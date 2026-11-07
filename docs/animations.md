@@ -1,6 +1,6 @@
 # Animations
 
-There are 175 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 181 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -163,4 +163,8 @@ The **Swimming** category has **Tread water**, **Swim forward (front crawl)**, *
 - **Dive into water** (2 s) crouches on the bank, springs out head first, glides underwater and surfaces into a stroke, about 3.5 m forward.
 - **Climb out of water** (2.4 s) starts treading water facing the bank: hands on the edge, press up, knee on and stand, about 0.9 m forward onto a bank at water level.
 - The dive and climb-out author their path around an even `travel`, so they line up exactly with root motion and stay close to place without it. Weapons are hidden while swimming.
+
+### Social emotes
+
+In **Emotes**: **Clap** (loop), **Point** and **Thumbs up** (raise and hold), **Bow** (down and back up), and two loops for dancing: **Dance (groove)**, a step-touch at 120 bpm, and **Dance (party bounce)** with alternating raised hands.
 
