@@ -32,12 +32,13 @@ export function buildJet(k:VehicleKit){
   // Intake lips and dark recesses below the leading edge.
   k.ellipsoid(v(side*.48*s,belt-.14*s,z+.35*s),v(.19*s,.23*s,.37*s),k.trim);k.ellipsoid(v(side*.49*s,belt-.12*s,z+.64*s),v(.145*s,.175*s,.03*s),k.dark);
   k.tube(v(side*.61*s,deck,z-.85*s),v(side*.72*s,.26*s,z-.84*s),.035*s,k.trim);k.wheel(`Wheel_main_${side}`,v(side*.74*s,.24*s,z-.84*s),.24*s,.13*s,true);
-  k.tube(v(side*.55*s,.24*s,z-.12*s),v(side*.74*s,.24*s,z-.12*s),.025*s,k.dark);
+  k.box(v(side*.68*s,.31*s,z+.12*s),v(.26*s,.04*s,.30*s),k.dark);
  }
  const finShape=new T.Shape([new T.Vector2(-4*s,belt+.1*s),new T.Vector2(-3.85*s,belt+1.45*s),new T.Vector2(-3.35*s,belt+1.48*s),new T.Vector2(-2.3*s,belt+.1*s)]);
  const fin=k.mesh(new T.ExtrudeGeometry(finShape,{depth:.065*s,bevelEnabled:true,bevelSize:.015*s,bevelThickness:.015*s,bevelSegments:2}),k.paint);fin.rotation.y=-Math.PI/2;fin.position.set(.0325*s,0,z);
  const exhaust=k.mesh(new T.CylinderGeometry(.23*s,.27*s,.28*s,32),k.dark);exhaust.rotation.x=Math.PI/2;exhaust.position.set(0,belt-.025*s,z-4.22*s);k.ellipsoid(v(0,belt-.025*s,z-4.37*s),v(.16*s,.16*s,.015*s),k.trim);
  k.tube(v(0,deck,z+1.1*s),v(0,.19*s,z+1.25*s),.026*s,k.trim);k.wheel('Wheel_nose',v(0,.18*s,z+1.25*s),.18*s,.10*s,true);
+ if(k.style.variant==='sport')for(const side of [-1,1])k.box(v(side*3.65*s,belt+.06*s,z-1.96*s),v(.035*s,.31*s,.45*s),k.trim);
  controls(k);
 }
 export function buildTank(k:VehicleKit){
@@ -63,6 +64,11 @@ export function buildTank(k:VehicleKit){
   k.box(v(x,1.12*s,z-.2*s),v(.52*s,.10*s,4.15*s),k.paint);
   for(const zz of [-.9,.3])k.tube(v(x+side*.19*s,.3*s,z+zz*s),v(x+side*.19*s,.75*s,z+zz*s),.025*s,k.trim);
  }
+ // Actual tread-side climbing steps and grab rails match the entry solver.
+ for(const y of [.40,.78])k.box(v(1.13*s,y-.025*s,z-.55*s),v(.30*s,.05*s,.30*s),k.dark);
+ k.tube(v(1.1*s,1.10*s,z-.50*s),v(1.1*s,1.62*s,z-.50*s),.021*s,k.trim);
+ k.tube(v(1.1*s,1.62*s,z-.50*s),v(1.1*s,1.62*s,z-.10*s),.021*s,k.trim);
+ if(k.style.variant==='sport')for(const side of [-1,1])k.box(v(cx+side*1.5*s,.85*s,z-.2*s),v(.07*s,.48*s,3.65*s),k.paint);
  const turret=k.component('Turret',v(cx,top+.16*s,z-1.1*s));k.ellipsoid(v(0,.12*s,0),v(.91*s,.40*s,.78*s),k.paint,turret);k.box(v(0,.39*s,-.12*s),v(1.15*s,.12*s,.8*s),k.paint,turret);
  k.tube(v(0,.22*s,.48*s),v(0,.22*s,3.55*s),.085*s,k.paint,turret);k.tube(v(0,.22*s,3.50*s),v(0,.22*s,3.82*s),.115*s,k.dark,turret);
  for(let i=0;i<6;i++)k.box(v(cx+(i-2.5)*.24*s,top+.12*s,z-1.95*s),v(.15*s,.03*s,.31*s),k.dark);

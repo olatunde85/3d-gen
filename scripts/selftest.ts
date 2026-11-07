@@ -304,7 +304,7 @@ if (primary) {
     if (minor.bottom !== 'briefs' || !minor.underwear) fail('minor without underwear');
   }
 }
-// Weapons on every rig (weapon vertices skinned only to the WeaponR socket).
+// Weapons on every rig (rigid WeaponR attachment, or independently released Grenade root).
 for (const weapon of WEAPONS.filter((w) => w !== 'none'))
   for (const [rig, restPose] of [['game', 'A'], ['game', 'T'], ['full', 'A'], ['game_lite', 'T'], ['none', 'A']] as const)
     cases.push([`weapon ${weapon} ${rig} ${restPose}`, { ...DEFAULT_PARAMS, weapon, rig, restPose }]);
@@ -355,10 +355,10 @@ for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
     if (p.weapon && p.weapon !== 'none') {
       if (!!ch.weapon !== !!ch.rig) fail(`${label}: weapon present=${!!ch.weapon} rigged=${!!ch.rig}`);
       if (ch.weapon && ch.rig) {
-        const socket = ch.rig.bones.findIndex((b) => b.name === 'WeaponR');
+        const socket = ch.rig.bones.findIndex((b) => b.name === (ch.params.weapon==='grenade'?'Grenade':'WeaponR'));
         const n = ch.weapon.parts.length, g0 = ch.mesh.groups.length - n;
         for (const g of ch.mesh.groups.slice(g0))
-          for (const v of g.indices) if (ch.mesh.joints![v * 4] !== socket || ch.mesh.weights![v * 4] !== 1) { fail(`${label}: weapon vertex not bound to WeaponR`); break; }
+          for (const v of g.indices) if (ch.mesh.joints![v * 4] !== socket || ch.mesh.weights![v * 4] !== 1) { fail(`${label}: weapon vertex not bound to its prop joint`); break; }
       }
     }
     if (label.startsWith('look')) {

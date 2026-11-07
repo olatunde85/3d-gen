@@ -292,7 +292,7 @@ export function quickBuild(ctx: Ctx, hist: History): void {
         const t = id as HumanParams['tattoos'][number], now = p().tattoos;
         apply('tattoos', { tattoos: now.includes(t) ? now.filter((x) => x !== t) : [...now, t] });
       }, 'pills', undefined, (id) => Q.tattooOptions(p()).find((o) => o.id === id)?.blocked),
-      row('bag', 'Bag', Q.BAGS.map((o) => ({ ...o, on: o.id === q.carry })), (id) => apply('bag', { carry: id as HumanParams['carry'] })),
+      row('bag', 'Carry', Q.BAGS.map((o) => ({ ...o, on: o.id === q.carry })), (id) => apply('bag', { carry: id as HumanParams['carry'] })),
       row('held', 'In hand', Q.HELD.map((o) => ({ ...o, on: o.id === q.weapon })), (id) => {
         apply('held', { weapon: id as HumanParams['weapon'] }, id !== 'none' && id !== 'knife' ? ['New moves for it are in Action below.'] : []);
       }),

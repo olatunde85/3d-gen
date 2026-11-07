@@ -33,11 +33,12 @@ export function mountedWeaponSample(base:Sample,clip:Clip,time:number,weapon:Wea
  return {...base,bones,ik:{...base.ik,Right:right},thumbs:{...base.thumbs,Right:.8},gaze:aim?[angle*.15,elevation*.25]:base.gaze};
 }
 
-export function directedWeaponSample(base:Sample,_weapon:WeaponId,yaw=0,pitch=0):Sample{
+export function directedWeaponSample(base:Sample,yaw=0,pitch=0):Sample{
  const turn=qmul(qaxis([0,1,0],Math.max(-110,Math.min(110,yaw))),qaxis([1,0,0],-Math.max(-45,Math.min(60,pitch))));
  const transform=(h:HandTarget):HandTarget=>{
   const pivot:[number,number,number]=[0,-.15,0],offset=h.pos.map((x,i)=>x-pivot[i])as [number,number,number],p=qrot(turn,offset);
   return {...h,pos:p.map((x,i)=>x+pivot[i])as [number,number,number],pole:qrot(turn,h.pole),...(h.dir?{dir:qrot(turn,h.dir)}:{}),...(h.palm?{palm:qrot(turn,h.palm)}:{})};
  };
- return {...base,ik:{...(base.ik?.Right?{Right:transform(base.ik.Right)}:{}),...(base.ik?.Left?{Left:transform(base.ik.Left)}:{})},gaze:[yaw*.25,pitch*.25]};
+ const bones={...base.bones,Neck:[(base.bones.Neck?.[0]??0)-pitch*.3,yaw*.3,base.bones.Neck?.[2]??0]as [number,number,number],Head:[(base.bones.Head?.[0]??0)-pitch*.3,yaw*.45,base.bones.Head?.[2]??0]as [number,number,number]};
+ return {...base,bones,ik:{...(base.ik?.Right?{Right:transform(base.ik.Right)}:{}),...(base.ik?.Left?{Left:transform(base.ik.Left)}:{})},gaze:[yaw*.25,pitch*.25]};
 }

@@ -1,3 +1,4 @@
+import {AERIAL} from './aerial';
 /**
  * All animation clips, in the order the app and exporters list them.
  * Each set lives in its own module; add new sets as new files and list them here.
@@ -86,6 +87,7 @@ export const CLIPS: Clip[] = withFaces(
     ...VEHICLES,
     ...BOARDING,
     ...VEHICLE_TUMBLES,
+    ...AERIAL,
   ],
 );
 

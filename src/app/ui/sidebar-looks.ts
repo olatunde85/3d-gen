@@ -63,7 +63,7 @@ export function earringPanel(ctx: Ctx) {
 }
 
 /** Clip that shows off each weapon when it is picked. */
-const WEAPON_IDLE: Partial<Record<WeaponId, string>> = { rifle: 'rifle_idle', pistol: 'pistol_idle', sword: 'sword_idle', knife: 'sword_idle' };
+const WEAPON_IDLE: Partial<Record<WeaponId, string>> = { rifle: 'rifle_idle', pistol: 'pistol_idle', sword: 'sword_idle', knife: 'sword_idle', grenade:'throw_grenade' };
 
 export function weaponPanel(ctx: Ctx) {
   const { store } = ctx;

@@ -1,3 +1,4 @@
+import {aerialHeight} from './aerial-motion';
 /** A film-time vehicle plan. Future props wait at their first entry; abandoned props stay put. */
 import {clipById,type Clip} from '../core/anim/clips';
 import {boardingStand,ridingClip} from '../core/props/vehicle-actions';
@@ -47,7 +48,7 @@ export class VehicleStage {
  }
  private nominal(row:Row,time:number):StagePoint{
   const at=timelineAt(this.project,time,row.actor),body=this.bodies.get(row.actor.id)??fallback,d=turn(at.x*body.scale+row.offset[0],at.z*body.scale+row.offset[2],row.actor.yaw);
-  return{x:row.actor.x+d.x,y:row.actor.y+(helicopterHeight(row.actor,row.index,time)),z:row.actor.z+d.z,yaw:row.actor.yaw};
+  return{x:row.actor.x+d.x,y:row.actor.y+helicopterHeight(row.actor,row.index,time)+aerialHeight(row.actor,row.index,time),z:row.actor.z+d.z,yaw:row.actor.yaw};
  }
  private seat(row:Row,vehicle:StagedVehicle):{shift:Vec3;stand?:[number,number]}{
   const seat=row.beat.vehicleSeat??'operator';if(seat==='operator')return{shift:[0,0,0]};
@@ -86,5 +87,5 @@ export class VehicleStage {
  }
  /** All physical doors used now, including passengers entering while the driver waits. */
  transitions(id:string){return [...this.rows.values()].flatMap(rows=>rows.filter(r=>r.vehicle===id&&this.time>=r.start&&this.time<r.end&&clipById.get(r.beat.clip)?.vehicleTransition).map(row=>({clip:clipById.get(row.beat.clip)!,time:this.time-row.start,seat:row.beat.vehicleSeat??'operator'})));}
- armed(id:string){return this.project.actors.some(actor=>{const row=this.rows.get(actor.id)![timelineAt(this.project,this.time,actor).index],weapon=this.bodies.get(actor.id)?.weapon;return row.vehicle===id&&weapon&&weapon!=='none'&&row.beat.weaponPose!=='hidden'&&!clipById.get(row.beat.clip)?.vehicleTransition;});}
+ armed(id:string){return this.project.actors.some(actor=>{const row=this.rows.get(actor.id)![timelineAt(this.project,this.time,actor).index],weapon=this.bodies.get(actor.id)?.weapon;return row.vehicle===id&&weapon&&weapon!=='none'&&weapon!=='grenade'&&row.beat.weaponPose!=='hidden'&&!clipById.get(row.beat.clip)?.vehicleTransition;});}
 }

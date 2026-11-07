@@ -1,3 +1,4 @@
+import {flightHeight} from './helicopter-flight';
 /** Studio's render adapter. Uses the generator's unmodified mesh, materials and Animator. */
 import * as THREE from 'three';
 import type { Character } from '../core/human';
@@ -143,6 +144,11 @@ export class StudioActor {
       const index=this.character.rig!.bones.findIndex(b=>b.name==='Parcel'),position=frame.rootPos.get(index);
       if(position){const dropped=timelineAt(project,parcel.releasedAt,track);frame.rootPos.set(index,[position[0]+(dropped.x-at.x)*this.scale,position[1],position[2]+(dropped.z-at.z)*this.scale]);}
     }
+    // A released grenade belongs to the set, so a later walk cannot pull it back into the hand.
+    if(this.character.params.weapon==='grenade'&&clip.id!=='throw_grenade'){
+      let start=0,last:number|undefined;for(let i=0;i<at.index;i++){const beat=track.beats[i];if(beat.clip==='throw_grenade'&&beat.duration>=.82)last=start;start+=beat.duration;}
+      if(last!==undefined){const g=this.character.rig!.bones.findIndex(b=>b.name==='Grenade'),source=this.animator.frame(clipById.get('throw_grenade')!,Math.min(2.2,time-last)),origin=this.stage(project,last+.82,track).actor(track),rotation=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),(origin.yaw-state.yaw)*Math.PI/180),position=new THREE.Vector3(...source.rootPos.get(g)!).applyAxisAngle(new THREE.Vector3(0,1,0),origin.yaw*Math.PI/180).add(new THREE.Vector3(origin.x-state.x,origin.y-state.y,origin.z-state.z)).applyAxisAngle(new THREE.Vector3(0,1,0),-state.yaw*Math.PI/180);frame.rootPos.set(g,position.toArray());frame.rot[g]=new THREE.Quaternion(...source.rot[g]).premultiply(rotation).toArray();if(b.weaponPose!=='hidden')frame.scale?.delete(g);}
+    }
     return frame;
   }
   pose(project: StudioProject, time: number, track: ActorTrack = project.actors[0], seats: readonly Seat[] = [],vehicles?:VehicleStage) {
@@ -162,6 +168,7 @@ export class StudioActor {
     this.group.position.y += this.seatLift(project, track, seats, track.beats[at.index].clip, at.phase);
     this.group.updateMatrixWorld(true);
     this.props(project,time,track,frame);
+    if(this.character.params.carry==='parachute'&&track.beats[at.index].clip.startsWith('parachute_')){const canopy=this.bones.find(b=>b.name==='ParachuteCanopy');if(canopy&&canopy.scale.x>1){const open=canopy.scale.x*.002,centre=canopy.getWorldPosition(new THREE.Vector3()),r=Math.max(.35,2.9*open)*this.scale;if(open<.2)centre.lerp(this.group.position,1-open/.2);this.framingBounds=new THREE.Box3(new THREE.Vector3(centre.x-r,this.group.position.y,centre.z-1.1*this.scale),new THREE.Vector3(centre.x+r,Math.max(centre.y+.8*this.scale*open,this.group.position.y+this.height),centre.z+1.1*this.scale*open));}}
     this.group.updateMatrixWorld(true);
   }
   /** The scale and sitting-hip position the seating needs. */
@@ -192,7 +199,7 @@ export class StudioActor {
       ride.group.visible=state.visible;
       const angle=-this.group.rotation.y,delta=new THREE.Vector3(state.x-this.group.position.x,state.y-this.group.position.y,state.z-this.group.position.z).applyAxisAngle(new THREE.Vector3(0,1,0),angle);
       ride.group.position.copy(delta);ride.group.rotation.y=state.yaw*Math.PI/180-this.group.rotation.y;
-      const doors=stage.transitions(state.id),waiting=state.model==='helicopter'&&!!state.active&&!state.active.beat.move&&(state.active.beat.flightHeight??0)===0;
+      const doors=stage.transitions(state.id),waiting=state.model==='helicopter'&&!!state.active&&!state.active.beat.move&&flightHeight(state.active.beat)===0;
       ride.update(state.clip.loop?state.phase%state.clip.duration:Math.min(state.phase,state.clip.duration),state.parked?undefined:frame,state.distance,state.clip,state.parked||state.model==='helicopter'&&(doors.length>0||waiting));
       if(stage.armed(state.id))ride.group.traverse(o=>{if(o.name.startsWith('Window_'))o.scale.y=.001;});
       ride.group.traverse(o=>{if(o.userData.doorSide){let opening=0;for(const door of doors){const rear=door.seat.startsWith('rear'),side=state.model==='helicopter'?(door.seat==='front-passenger'||door.seat==='rear-left'?1:-1):door.seat==='rear-left'?1:door.seat==='rear-right'||door.seat==='front-passenger'?-1:door.clip.id.includes('passenger')?-1:1;if(!!o.userData.rearDoor===rear&&o.userData.doorSide===side)opening=Math.max(opening,doorOpenAt(boardProgress(door.clip.vehicleTransition!,door.time,door.clip.duration)));}o.rotation.y=-o.userData.doorSide*opening*1.3;}if(o.name==='Canopy'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.z=-opening*1.3;}if(o.name==='Boarding_gate'){const opening=Math.max(0,...doors.map(d=>doorOpenAt(boardProgress(d.clip.vehicleTransition!,d.time,d.clip.duration))));o.rotation.y=opening*1.5;}});

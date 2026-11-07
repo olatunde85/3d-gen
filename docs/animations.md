@@ -1,6 +1,6 @@
 # Animations
 
-There are 142 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 146 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -12,8 +12,9 @@ There are 142 clips. The character loads playing **Idle**. The animation bar at 
 | Emotes | Wave, Cheer, Laugh, Cry, Talk (loops) |
 | Turns | Left/right 45° and 90°, full 360° (recorded turn-in-place steps at 2× speed) |
 | Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade. |
+| Aerial | Skydive, activate/deploy parachute, glide/use parachute, land parachute |
 | Reactions | Hit from front / back / left / right, knockdown, death (fall forward), death (fall backward), get up (from back), get up (from front) (one-shots). Knockdown ends where Get up (from back) starts, and Death (fall forward) ends where Get up (from front) starts, so they chain without a pop |
-| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm), pilot helicopter (loops); plus 28 boarding/alighting one-shots |
+| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm), pilot helicopter (loops); pickup, tank and jet; plus 36 boarding/alighting one-shots and 13 vehicle stunt rolls |
 
 Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
 
@@ -52,7 +53,7 @@ Interaction hands use chest-space IK; the pickup reach uses floor-space targets 
 
 ## Vehicles and props
 
-Choose a riding or driving **animation** to add its matching vehicle automatically, in both the builder and Studio. There is no separate model selector. Use **Drive modern sports car / Sit (sports car passenger)** or **Drive SUV / Sit (SUV passenger)** for the enclosed cars. **Show vehicle** controls visibility; in Studio it applies to the selected action. Eleven procedural models cover fourteen riding/driving actions, plus 28 boarding/alighting actions, including both car occupant roles.
+Choose a riding or driving **animation** to add its matching vehicle automatically, in both the builder and Studio. There is no separate model selector. Use **Drive modern sports car / Sit (sports car passenger)** or **Drive SUV / Sit (SUV passenger)** for the enclosed cars. **Show vehicle** controls visibility; in Studio it applies to the selected action. Fourteen procedural models cover eighteen riding/driving actions, plus 36 boarding/alighting actions, including both car occupant roles.
 
 | Vehicle | Compatible clips | Moving components |
 | --- | --- | --- |
@@ -60,6 +61,9 @@ Choose a riding or driving **animation** to add its matching vehicle automatical
 | Classic convertible | `drive_car`, `sit_passenger` | Wheels, hinged doors and driver steering wheel |
 | Modern sports car | `drive_sports_car`, `sit_sports_car_passenger` | Wheels, hinged doors and driver steering wheel |
 | SUV | `drive_suv`, `sit_suv_passenger` | Wheels, hinged doors and driver steering wheel |
+| Pickup | `drive_pickup`, `sit_pickup_passenger` | Wheels, hinged doors and steering wheel |
+| Military tank | `drive_tank` | Tracks, road wheels and lever contacts |
+| Jet | `fly_jet` | Hinged canopy and fitted cockpit controls |
 | Motorcycle | `ride_motorcycle` | Wheels and handlebars |
 | Horse | `ride_horse` | Diagonal trot, tail, reins and stirrups |
 | Canoe | `paddle_canoe` | Single-bladed paddle |
@@ -105,7 +109,7 @@ To add a clip, see [CONTRIBUTING.md](../CONTRIBUTING.md#adding-an-animation).
 
 ### Boarding and alighting
 
-Search **Board** or **Alight** under Vehicles. Entry and exit now play at twice their former speed (1.6–2.2 seconds), with the same poses and limb paths. Every vehicle has a one-shot pair; the convertible, coupe and SUV have separate driver/passenger pairs. The motorboat opens its side boarding gate. Entry starts upright beside the vehicle, moves over the saddle or gunwale or through a hinged car door, and ends in that rig’s fitted riding pose. Exit follows the reverse path and finishes upright. Limbs retain their original lengths on all three rigs and both bind poses.
+Search **Board** or **Alight** under Vehicles. Entry and exit now play at twice their former speed (1.6–2.2 seconds), with the same poses and limb paths. Jet entry/exit takes 2.8 seconds and tank entry/exit takes 3 seconds. Every vehicle has a one-shot pair; the convertible, coupe, SUV and pickup have separate driver/passenger pairs. The motorboat opens its side boarding gate. Entry starts upright beside the vehicle, moves over the saddle or gunwale or through a hinged car door, and ends in that rig’s fitted riding pose. Exit follows the reverse path and finishes upright. Limbs retain their original lengths on all three rigs and both bind poses.
 
 Use **Board SUV → Drive SUV → Alight from SUV**, for example. Give each entry/exit its full clip length with movement off; use optional movement/speed only on the riding beat. A whole riding loop makes the cleanest join into exit. In Studio, the vehicle remains parked after exit while the actor walks away. Every scheduled vehicle waits at its first entry from frame zero and stays parked after exit, including during transfers to other vehicles. Shared seats support passenger boarding/alighting with synchronized physical doors or the boat’s gate. This is authored choreography, not navigation or a reach-to-any-vehicle system.
 
@@ -134,3 +138,7 @@ The pickup adds an enclosed two-seat cabin and open cargo bed; the military tank
 Mechanical vehicles also have `tumble_MODEL` actions. These are controlled, three-second, 360° stunt rolls with a rigidly attached rider, returning to the original upright driving pose. They are authored animation, not crash physics. Keep movement off and leave extra clearance. The animation browser separates road vehicles, tracks, aircraft, watercraft, horse, boarding/alighting and tumbles.
 
 Pistol aim (one hand) uses a lower wrist and relaxed shoulder. Studio supports per-action left/right weapon yaw and up/down pitch for mounted and pistol/rifle performances. Positive pitch aims up; negative pitch aims down. Grenade is a fitted prop: `throw_grenade` releases it at 0.82 seconds, follows an animated arc and recovers upright over 2.2 seconds. No explosion or damage simulation.
+
+### Parachuting
+
+The Aerial category contains `skydive`, `parachute_deploy`, `parachute_glide` and `parachute_land`. Equip `carry:parachute` for the pack, fitted harness, striped canopy and suspension lines. Deployment takes 2.4 seconds; landing takes three seconds and ends in the exact upright idle pose. Use original timing. Game engines supply altitude/physics; Studio supplies editable descent height. Only the canopy and line joints scale; the character skeleton keeps its original dimensions.

@@ -38,7 +38,7 @@ export class Vehicle{
   const progress=transition?boardProgress(transition,time,action.duration):1,x=Math.max(0,Math.min(1,(progress-.88)/.12));
   this.group.userData.parkedWeight=parked?1:transition?1-x*x*(3-2*x):0;
   if(this.bicycle)this.bicycle.update(this.fit.animator.positions(transition||action.vehicleStunt?this.fit.animator.frame(this.fit.clip,0,{weaponPose:'hidden'}):frame??this.fit.animator.frame(this.fit.clip,time,{weaponPose:'hidden'})),controlsTime/this.fit.clip.duration*Math.PI*6);
-  else{const c=transition||action.vehicleStunt?this.fit.at(0):frame?this.fit.fromFrame(frame):this.fit.at(time);if(armed&&this.id==='horse')c.right.copy(c.left);for(const fn of this.kit!.updates)fn(c,controlsTime);}
+  else{const c=transition||action.vehicleStunt?this.fit.at(0):frame?this.fit.fromFrame(frame):this.fit.at(time);if(armed&&this.id==='horse')c.right.copy(c.left);for(const fn of this.kit!.updates)fn(c,action.vehicleStunt&&this.id==='helicopter'?time:controlsTime);}
   const opening=transition?doorOpenAt(boardProgress(transition,time,action.duration)):0;
   this.group.traverse(o=>{if(o.userData.doorSide)o.rotation.y=o.userData.occupantDoor?-o.userData.doorSide*opening*1.3:0;if(o.name.startsWith('Window_'))o.scale.y=armed?.001:1;if(o.name==='Canopy')o.rotation.z=-opening*1.3;if(o.name==='Boarding_gate')o.rotation.y=opening*1.5;});
   if(travelDistance!==undefined)this.group.traverse(o=>{if(o.userData.wheelRadius)o.rotation.x=travelDistance/o.userData.wheelRadius;});

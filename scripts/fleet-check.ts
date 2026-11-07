@@ -1,3 +1,5 @@
+import {stagingReport} from '../src/studio/spatial-report';
+import {locationMap,VEHICLE_ENVELOPES} from '../src/studio/spatial-maps';
 import assert from 'node:assert/strict';
 import * as T from 'three';
 import {nodeLibrary} from './node-assets';
@@ -30,4 +32,6 @@ for(const rig of ['game','game_lite','full']as const){
 }
 assert.equal(seatsForVehicle('pickup').length,2);assert.equal(seatsForVehicle('tank').length,1);assert.equal(seatsForVehicle('jet').length,1);
 for(const model of ['pickup','tank','jet']as const){const p=newProject('highway');p.actors[0].beats=[beat(`board_${model}`,clipById.get(`board_${model}`)!.duration),beat(VEHICLE_CLIP[model],6,true),beat(`alight_${model}`,clipById.get(`alight_${model}`)!.duration)];if(model==='jet')p.actors[0].beats[1].flightHeight=5;assert.deepEqual(parseStudioInput(JSON.stringify(p),lib.catalog),parseProject(JSON.stringify(p)));if(model==='jet'){const start=p.actors[0].beats[0].duration;assert.equal(helicopterHeight(p.actors[0],1,start),0);assert.ok(helicopterHeight(p.actors[0],1,start+3)>4.9);assert.equal(helicopterHeight(p.actors[0],1,start+6),0);}}
+for(const model of ['jet','helicopter']){const p=newProject();p.actors[0].beats=[{...beat(`fly_${model}`,6),flightHeight:5},{...beat(`tumble_${model}`,3),flightHeight:5},{...beat(`fly_${model}`,6),flightHeight:5}];assert.doesNotThrow(()=>parseProject(JSON.stringify(p)));for(const t of [6,9]){const i=t===6?1:2;assert.ok(Math.abs(helicopterHeight(p.actors[0],i-1,t)-helicopterHeight(p.actors[0],i,t))<1e-6);assert.equal(helicopterHeight(p.actors[0],i,t),5);}}
+const edge=newProject('desert-outpost');edge.actors[0].x=locationMap(edge.template).bounds[2]-VEHICLE_ENVELOPES.tank.bounds[2]-.1;edge.actors[0].beats=[beat('tumble_tank',3)];assert.ok(stagingReport(edge).issues.some(i=>i.entity.startsWith('vehicle:')&&i.code==='outside-map'),'staging must inspect the swept tumble, not only the upright pose');
 console.log(`Expanded fleet: ${checks} rigid stunt samples across three rigs; native endpoints, matching prop transforms, entry JSON, seats and jet flight passed.`);

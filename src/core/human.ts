@@ -1,3 +1,6 @@
+import {boneFor} from './rig/poses';
+import {parachutePack,parachuteCanopy,parachuteLine,PACKED_CANOPY,SUSPENSION_ANCHORS} from './props/parachute';
+import {carryStyle} from './props/carry';
 /**
  * Builds a complete character: morphed body + fitted proxies (eyes, brows,
  * lashes, hair, clothes, shoes, hat) + skeleton, as one multi-material mesh.
@@ -486,7 +489,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
 
     // Carried bag: hangs straight down from the left hand with the arms relaxed at the sides (the
     // animation rest pose), and is bound rigidly to the hand bone.
-    if (p.carry !== 'none'&&p.carry!=='parcel') {
+    if (p.carry !== 'none'&&p.carry!=='parcel'&&p.carry!=='parachute') {
       const a = new Animator(rig);
       const hand = a.relaxedBone('LeftHand'), mid = a.relaxedBone('LeftHandMiddle1');
       const hi = bones.findIndex((b) => b.name === (p.rig === 'full' ? 'wrist.L' : 'LeftHand'));
@@ -509,6 +512,19 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
           out.push([{ ...cp.mesh, positions, skin: { j, w: wts } }, cp.material]);
         }
       }
+    }
+
+    if(p.carry==='parachute'){
+      const chest=bones.findIndex(b=>b.name===boneFor(p.rig,'Spine2')),P=xf(coords),level=bones[chest].head[1];let back=0;
+      for(let i=0;i<P.length;i+=3)if(Math.abs(P[i+1]-level)<.13*sizeK&&Math.abs(P[i])<.22*sizeK)back=Math.min(back,P[i+2]);
+      const centre:Vec3=[0,level+.12*sizeK,back-.085*sizeK],style=carryStyle('parachute',p.garmentStyles);
+      const attach=(part:import('./props/carry').CarryPart,index:number,offset?:Vec3,k=1)=>{const positions=part.mesh.positions.map((v,i)=>v*k+(offset?.[i%3]??0)),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...part.mesh,positions,skin:{j,w}},part.material]);};
+      const harness=[-1,1].map(side=>{const front:Vec3[]=[],rear:Vec3[]=[];for(let n=0;n<=12;n++){const y=level+(.19-.51*n/12)*sizeK,x=side*.12*sizeK;let near=Infinity,lo=0,hi=0;for(let j=0;j<P.length;j+=3){const d=Math.abs(P[j]-x)+Math.abs(P[j+1]-y);if(d<near-.012*sizeK){near=d;lo=hi=P[j+2];}else if(d<=near+.012*sizeK){lo=Math.min(lo,P[j+2]);hi=Math.max(hi,P[j+2]);}}front.push([x,y,hi+.014*sizeK]);rear.push([x,y,lo-.014*sizeK]);}return [...front,...rear.reverse(),front[0]];});
+      for(const part of parachutePack(centre,.32*sizeK,sizeK,style,harness))attach(part,chest);
+      // Packed rest geometry stays inside the pack, including static/bind-pose exports.
+      const addRoot=(name:string)=>{const i=bones.length;bones.push({name,parent:-1,head:[...centre],tail:[centre[0],centre[1]+.01*sizeK,centre[2]],rot:[1,0,0,0,1,0,0,0,1]});return i;};
+      const canopy=addRoot('ParachuteCanopy');for(const part of parachuteCanopy(style))attach(part,canopy,centre,sizeK*PACKED_CANOPY);
+      for(let n=0;n<SUSPENSION_ANCHORS.length+2;n++)attach(parachuteLine(),addRoot(`ParachuteLine${n}`),centre,sizeK*PACKED_CANOPY);
     }
 
     // A parcel has its own rigid root, so pickup can leave it on the floor until the grip and

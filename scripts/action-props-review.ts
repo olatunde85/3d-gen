@@ -14,5 +14,7 @@ export async function reviewActionProps({step,evaluate:e,ready,change}:{step:(n:
     const data=await e<string>(`(()=>{const s=studio.scene;s.resize(900,650);s.render(studio.project,${t});return s.output.toDataURL();})()`);writeFileSync(`out/action-props/${weapon}-${i}.png`,Buffer.from(data.split(',')[1],'base64'));
    }
   }
+  await e(`(async()=>{const p=structuredClone(studio.project);p.actors[0].beats=[{id:'t',clip:'throw_grenade',duration:2.2,move:false},{id:'w',clip:'walk',duration:2,move:true}];p.shots=[{id:'s',duration:4.2,shot:'wide',target:'all'}];await studio.setProject(p);})()`);await ready();
+  const drift=await e<number>(`(()=>{const s=studio.scene,p=studio.project;const position=()=>s.actor.mesh.skeleton.bones.find(b=>b.name==='Grenade').getWorldPosition(s.camera.position.clone());s.render(p,2.2);const a=position();s.render(p,4.1);return a.distanceTo(position());})()`);assert.ok(drift<1e-5,'released grenade follows the walking actor');
  });
 }

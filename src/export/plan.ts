@@ -149,7 +149,7 @@ export function planExport(ch: Character, s: ExportSettings): ExportPlan {
     if (propFile && weapon)
       files.push({
         path: base(`${stem}_${weapon.id}.${f}`), kind: 'prop', format: f, rigged: false, clips: [], meshless: false,
-        desc: `${wName} prop · static · origin at the grip: parent it to the WeaponR bone with zero offset`,
+        desc: `${wName} prop · static · origin at the grip: parent it to the ${weapon.id==='grenade'?'Grenade':'WeaponR'} bone with zero offset`,
       });
     if (separate)
       for (const c of clips) {
@@ -182,7 +182,7 @@ export function planExport(ch: Character, s: ExportSettings): ExportPlan {
   if (mode === 'animated' && s.loopSuffix && clips.some((c) => clipById.get(c)!.loop))
     notes.push('Looping clips are named "…-loop", which Godot imports as looping automatically.');
   if (weapon && mode !== 'static' && !propFile)
-    notes.push(`The ${wName.toLowerCase()} is skinned to the WeaponR bone (child of the right hand). To swap weapons in-engine, export it as a separate file and attach props to WeaponR.`);
+    notes.push(weapon.id==='grenade'?'The grenade is skinned to the Grenade root: it follows WeaponR until release, then animates independently. Attach a separately exported grenade to Grenade to retain its thrown motion.':`The ${wName.toLowerCase()} is skinned to the WeaponR bone (child of the right hand). To swap weapons in-engine, export it as a separate file and attach props to WeaponR.`);
   if (weapon && mode === 'static' && !propFile) notes.push(`The ${wName.toLowerCase()} is part of the static mesh, in the rest-pose hand.`);
   if (weapon && s.weaponFile === 'separate' && formats.includes('obj')) notes.push('OBJ keeps the weapon in the mesh (no separate prop file for OBJ).');
   if (separate && !s.clipMesh)

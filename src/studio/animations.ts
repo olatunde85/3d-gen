@@ -6,6 +6,7 @@ export function searchAnimations(query: string, category = '') {
   return CLIPS.filter(c=>animationMatches(c,query,category));
 }
 export function actionNote(id: string, weapon?: string, seats?: number) {
+  if(clipById.get(id)?.category==='Aerial')return 'Aerial performance. For parachuting equip Parachute / skydiving rig under Carry. Use skydive → parachute_deploy (2.4s) → parachute_glide → parachute_land (3s). Start height controls descent to the next aerial beat; landing reaches ground and finishes upright. Use full timing for deploy/land; optional glide movement travels forward. No wind or terrain-following simulation.';
   if(clipById.get(id)?.vehicleStunt)return 'Controlled 360° stunt roll: rider and vehicle remain aligned and finish upright. Use the full 3 seconds with movement off. Leave a wide clear stunt area; this is authored animation, not crash physics. Weapons are hidden during the roll.';
   if(id==='fly_jet')return 'Pilot a single-seat jet. Use Flight height for takeoff, flight and landing, and Move through the set for forward travel. Set height 0 to taxi. Board/alight only on the ground. Wings need a wide clear route; the jet defaults to 18 m/s.';
   const transition=clipById.get(id)?.vehicleTransition;

@@ -8,7 +8,7 @@ import {stagingReport,placeStart,type SpatialBody} from '../src/studio/spatial-r
 import {newProject,beat,timelineAt,type StudioProject} from '../src/studio/project';
 import {VehicleStage} from '../src/studio/vehicle-stage';
 import {clipById} from '../src/core/anim/clips';
-import {VEHICLE_CLIP,VEHICLE_FOR_CLIP,vehicleLift,type VehicleId,DEFAULT_VEHICLE_STYLE} from '../src/core/props/vehicles';
+import {VEHICLE_CLIP,RIDING_VEHICLES,VEHICLE_FOR_CLIP,vehicleLift,type VehicleId,DEFAULT_VEHICLE_STYLE} from '../src/core/props/vehicles';
 import {VEHICLE_TRANSITIONS,boardingScale} from '../src/core/props/vehicle-actions';
 import {generateAssistGuide,describeAssistProject} from '../src/studio/assist';
 import {buildHuman} from '../src/core/human';
@@ -97,5 +97,5 @@ for(const rig of ['game','game_lite','full']as const){
  assert.ok(!report.issues.some(i=>i.entity==='vehicle:boat'&&i.code==='boat-on-land'),rig+' boat stays in water');
  assert.ok(report.issues.every(i=>i.code==='ground-in-water'&&i.entity===a.id),'tight approach/deck contacts should be identified');console.log(`${rig} fitted transfer: ${report.issues.length} conservative findings; gate (${board.from.x},${board.from.z}), parked boat (${waiting.x.toFixed(3)},${waiting.z.toFixed(3)}).`);
 }
-assert.equal(VEHICLE_TRANSITIONS.length,14);
+assert.equal(VEHICLE_TRANSITIONS.length,Object.keys(RIDING_VEHICLES).length);
 console.log('Spatial staging checks passed.');
