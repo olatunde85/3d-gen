@@ -174,4 +174,36 @@ export const push: Clip = {
 export const putDown:Clip={...pickUp,id:'put_down',name:'Put down / drop (ground)',
   sample:t=>pickUp.sample(Math.max(0,Math.min(pickUp.duration,pickUp.duration-t))),
 };
-export const INTERACTIONS: Clip[] = [pickUp, putDown, usePress, openDoor, push, carryIdle, carryWalk];
+/**
+ * Head load: the right hand rests on the basin rim to steady it (chest space; the rim sits about half a
+ * metre above the base of the neck), elbow out to the side. The head and neck stay level under the load.
+ */
+const steadyHand = (): HandTarget => ({ pos: v(-0.3, 0.39, 0.03), pole: v(-1, -0.2, -0.3), dir: v(0.55, 0.85, 0), palm: v(0.85, -0.5, 0) });
+const levelHead = (bones: Record<string, Ch>, a: number) => { bones.Neck = [-1, 0, 0]; bones.Head = [0.4 * Math.sin(a), 0, 0]; };
+export const headLoadIdle: Clip = {
+  id: 'head_load_idle', name: 'Head-load idle', category: 'Interaction', duration: 3.6, loop: true,
+  sample: (t) => {
+    const a = (t / 3.6) * Math.PI * 2, s = idle.sample(t * 3.2 / 3.6);
+    const bones: Record<string, Ch> = { ...s.bones, Spine: [-1 + 0.6 * Math.sin(a), 0, 0], Spine1: [-1, 0, 0], Spine2: [0.6 * Math.sin(a + 0.7), 0, 0] };
+    for (const part of ['Arm', 'ForeArm', 'Hand']) delete bones[`Right${part}`];
+    levelHead(bones, a);
+    grip(bones, 'Right', false, 0.6);
+    return { ...s, bones, ik: { Right: steadyHand() }, thumbs: { Right: 0.2 } };
+  },
+};
+const HEAD_LOAD_PACE = 1.12;
+/** The recorded walk at a steadier pace: hips and footfalls kept, head level, right hand on the load, left arm swinging. */
+export const headLoadWalk: Clip = {
+  id: 'head_load_walk', name: 'Head-load walk', category: 'Interaction', loop: true,
+  duration: recordedWalk.duration * HEAD_LOAD_PACE,
+  travel: recordedWalk.travel?.map((x) => x / HEAD_LOAD_PACE) as Clip['travel'],
+  sample: (t) => {
+    const s = recordedWalk.sample(t / HEAD_LOAD_PACE), m = s.mocap!, rot = { ...m.rot };
+    for (const name of Object.keys(rot)) if (/^(Right(Shoulder|Arm|ForeArm|Hand)|Neck|Head)$/.test(name)) delete rot[name];
+    levelHead(s.bones, (t / (recordedWalk.duration * HEAD_LOAD_PACE)) * Math.PI * 2);
+    grip(s.bones, 'Right', false, 0.6);
+    return { ...s, mocap: { ...m, key: 'head_load_walk', rot }, ik: { Right: steadyHand() }, thumbs: { Right: 0.2 } };
+  },
+};
+
+export const INTERACTIONS: Clip[] = [pickUp, putDown, usePress, openDoor, push, carryIdle, carryWalk, headLoadIdle, headLoadWalk];

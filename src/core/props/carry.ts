@@ -5,7 +5,7 @@
  * human.ts fits bags to the relaxed hand. The parcel uses a separate rigid root in its centre,
  * following the two wrists during pickup/carry/put-down instead of hanging from a handle.
  */
-import { cord, frameOf, loftRings, merge, orientOutward, roundedBox, v3 } from '../garments/ring';
+import { cord, ellipsoid, frameOf, loftRings, merge, orientOutward, roundedBox, v3 } from '../garments/ring';
 import { makePattern, shade, type Pattern, type TexOut } from '../garments/textures';
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
@@ -15,11 +15,11 @@ import type { Material } from '../mesh';
  * Bags: carried in the hand (built here), or worn (the backpack, a garment with slot 'bag', built
  * with the clothes).
  */
-export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel', 'parachute'] as const;
+export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel', 'parachute', 'head_load'] as const;
 export type CarryId = (typeof CARRIED)[number];
-export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel',parachute:'Parachute / skydiving rig' };
+export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel',parachute:'Parachute / skydiving rig',head_load:'Head load (basin)' };
 /** Bags worn on the body rather than carried in the hand. */
-export const WORN_BAGS: readonly CarryId[] = ['backpack','parachute'];
+export const WORN_BAGS: readonly CarryId[] = ['backpack','parachute','head_load'];
 
 export interface BagStyle {
   pattern: Pattern;
@@ -37,6 +37,7 @@ export const CARRY_STYLES: Record<Exclude<CarryId, 'none' | 'backpack'>, { patte
   briefcase: { patterns: ['nappa', 'leather'], color: '#3a2214', color2: '#c9a45a', colorLabels: ['Leather', 'Hardware'] },
   parachute:{patterns:['solid'],color:'#cc5937',color2:'#283c4b',colorLabels:['Canopy','Pack / canopy stripe']},
   parcel: {patterns:['solid'],color:'#ae8550',color2:'#c7a776',colorLabels:['Cardboard','Packing tape']},
+  head_load: {patterns:['solid'],color:'#ece7dc',color2:'#c8381f',colorLabels:['Enamel basin','Produce']},
 };
 
 /** A carried bag's style from the params' saved styles (falling back to its defaults). */
@@ -64,6 +65,31 @@ function parcel(st:BagStyle):CarryPart[]{
     {mesh:tape,material:material('Parcel packing tape',st.color2,.6)},
     {mesh:box([.11,.02,.172],[.075,.06,.0005]),material:material('Parcel shipping label','#ece8dc',.85)},
     {mesh:ink,material:material('Parcel label ink','#30302c',.9)}];
+}
+
+/**
+ * Head load: an enamel basin heaped with round produce on a rolled cloth pad. Metres at 1.8 m height, origin at
+ * the crown of the head (+Y up). HEAD_LOAD_RIM is the rim the steadying hand rests on: [radius, height].
+ */
+export const HEAD_LOAD_RIM:[number,number]=[.285,.2];
+export function headLoad(st:BagStyle):CarryPart[]{
+ const mat=(name:string,color:string,roughness:number,metalness=0):Material=>({name,color,roughness,metalness,alpha:'opaque',doubleSided:false});
+ const ring=(r:number,y:number,n=40):Vec3[]=>Array.from({length:n},(_,i)=>{const a=i/n*Math.PI*2;return [Math.cos(a)*r,y,Math.sin(a)*r];});
+ // Rolled cloth pad, then a flared basin: base, belly and rim.
+ const pad=cord([...ring(.07,.022,24),ring(.07,.022,24)[0]],.024,true,8);
+ const [rim,top]=HEAD_LOAD_RIM,profile:[number,number][]=[[.001,.035],[.09,.035],[.14,.045],[.2,.08],[.25,.14],[.275,.185],[rim,top]];
+ const basin=orientOutward(loftRings(profile.map(([r,y])=>ring(r,y)),{closedAround:true}),[0,.3,0]);
+ const lip=cord([...ring(rim,top),ring(rim,top)[0]],.012,true,8);
+ // Produce heaped into a low dome above the rim.
+ const fruit:PolyMesh[]=[];
+ for(const [count,r,y] of [[1,0,.25],[6,.085,.235],[11,.165,.218],[15,.225,.205]]as const)for(let i=0;i<count;i++){
+  const a=(i/count+r*1.7)*Math.PI*2,c:Vec3=[Math.cos(a)*r,y+.012*Math.sin(i*2.3),Math.sin(a)*r];
+  fruit.push(ellipsoid(frameOf(c,[0,0,1],[0,1,0]),[.046,.042,.046],[.5,.5],10,6));
+ }
+ // A low mound under the fruit keeps the heap solid from above.
+ fruit.push(ellipsoid(frameOf([0,top-.01,0],[0,0,1],[0,1,0]),[rim-.01,.05,rim-.01],[.5,.5],24,6));
+ return [{mesh:pad,material:mat('Head pad cloth','#7c4a86',.95)},{mesh:basin,material:mat('Enamel basin',st.color,.32,.1)},
+  {mesh:lip,material:mat('Basin rim','#23427c',.3,.1)},{mesh:merge(fruit)!,material:mat('Basin produce',st.color2,.45)}];
 }
 
 /** Registers a generated texture and returns its file name (see GCtx.texture). */

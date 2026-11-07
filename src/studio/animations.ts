@@ -32,6 +32,7 @@ export function actionNote(id: string, weapon?: string, seats?: number) {
   if (id.startsWith('rifle')) return weapon==='rifle'?'Uses this character’s equipped rifle.':'Choose a rifle in Equipment for this performance.';
   if (id.startsWith('pistol')) return weapon==='pistol'?'Uses this character’s equipped pistol.':'Choose a pistol in Equipment for this performance.';
   if (id.startsWith('sword')) return weapon==='sword'?'Uses this character’s equipped sword.':'Choose a sword in Equipment for this performance.';
+  if(id==='head_load_idle'||id==='head_load_walk')return 'Choose Head load (basin) under Carry: an enamel basin of produce on a cloth head pad. The right hand steadies the rim and the head stays level; the walk keeps the recorded footfalls at a steadier pace. Keep Weapon set to None.';
   if(['carry_idle','carry_walk','pick_up','put_down'].includes(id))return 'Choose Box / parcel under Carry for a fitted box. Keep Weapon set to None for the two-hand grip. Pick up lifts it, carry clips hold it between the wrists, and Put down / drop returns it to the floor.';
   if (['open_door','use_press','push'].includes(id)) return 'Stage the character near the intended object. Prop contact is not solved automatically.';
   return clipById.get(id)?.loop ? 'Repeats naturally for the duration of this action.' : 'Plays once, then holds its last pose. Choose the clip length for its original timing.';
