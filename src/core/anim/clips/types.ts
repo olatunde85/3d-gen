@@ -79,6 +79,8 @@ export interface Clip {
   loop: boolean;
   /** Rigid vehicle/rider stunt transform, applied after solving control contacts. */
   vehicleStunt?:{model:string;ride:string};
+  /** Share (0..1) of the vehicle floor height applied at time t: 1 in the seat, 0 once the rider is on the ground. */
+  liftWeight?:(t:number)=>number;
   /** Fitted, non-looping entry/exit, solved against this rig's actual riding pose. */
   vehicleTransition?: import('../../props/vehicle-actions').VehicleTransition;
   /** Root-motion velocity (metres/second at 1.8 m height, character frame: +X left, +Z forward). */

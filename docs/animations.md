@@ -1,6 +1,6 @@
 # Animations
 
-There are 152 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 167 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -148,4 +148,10 @@ The Aerial category contains `skydive`, `parachute_deploy`, `parachute_glide` an
 **Bail out of jet with parachute** and **Jump from helicopter with parachute** (2.6 seconds each) take the occupant from the seat, out through the open right-hand side and clear of the airframe, turning belly-down into the free-fall pose that **Skydive** continues. Equip **Carry: Parachute / skydiving rig**. In the builder the aircraft hovers at a safe height while the jet flies on; in Studio the empty aircraft flies on and leaves the shot, and free fall starts just below it.
 
 **Fire tank machine gun** stands the tank driver in the open roof hatch, both hands on the spade grips of a pintle machine gun. Only the head and shoulders show above the gun shield. The gun traverses slowly and fires in short bursts with a muzzle flash. Personal weapons stay hidden.
+
+### Dodge, roll and crash escapes
+
+In **Actions**: **Forward roll** (`roll_forward`, 1.3 s) crouches, tucks and rolls over the back to standing; **Side dodge left/right** (`dodge_left`, `dodge_right`, 0.9 s) push off and land low on the near leg with the guard up. All three carry root motion (`travel`), so engines can play them in place or moving.
+
+Each road vehicle has **Crash and roll out** (`crash_car`, `crash_sports_car`, `crash_suv`, `crash_pickup`, `crash_motorcycle`, `crash_bicycle`, 3.6 s). The driver's door opens, the driver dives out to the left, shoulder-rolls along the ground and stands about 3 m away, facing the original heading. The empty vehicle slides on, rolls over away from them and comes to rest upside down. **Crash and fall down** (`crash_fall_MODEL`, 3.4 s) throws the driver out the same way; they land hard, tumble onto their back and lie still, ending in the starting pose of **Get up (from back)**. Like the stunt rolls, these are authored choreography, not crash physics; the vehicle's motion is exported on its prop joints.
 

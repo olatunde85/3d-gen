@@ -67,7 +67,7 @@ function hitFrom(dir: HitDir): Clip {
 // --- Lying poses (shared start and end frames) -------------------------------------------------
 
 /** Lying on the back: the pose Knockdown and Death (fall backward) end in, and Get up (from back) starts from. */
-const ON_BACK = {
+export const ON_BACK = {
   drop: 1, pitch: -88, z: -0.46,
   spine: [-2, -1, -4, -6], // Spine, Spine1, Neck, Head flex
   upLeg: [8, 12], leg: [-10, -16], foot: [-20, -18],

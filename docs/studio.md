@@ -51,7 +51,7 @@ Removing a character also tidies up camera shots and captions that pointed at th
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **152 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **167 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. **Check staging** finds land/water and conservative static-obstacle conflicts, but playback does not stop at walls, furniture or other characters. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
 - **Props:** vehicle models follow the selected riding/driving action automatically. Dedicated modern sports-car and SUV actions sit alongside the classic car, bicycle, motorcycle, horse, canoe, kayak, rowboat, motorboat and helicopter performances. The selected action’s **Show vehicle** checkbox controls visibility; **Vehicle appearance** in Equipment edits colours, finish and styling. There is no separate model dropdown.
@@ -259,6 +259,8 @@ Choose the action to select a fitted **pickup truck**, **military tank** or **je
 Vehicle animations are grouped per vehicle: each group (for example **Vehicles · Jet aircraft**) holds that vehicle’s ride, board/alight, stunt and take-off/landing clips. `tumble_MODEL` actions perform a complete controlled stunt roll over three seconds, return upright and keep the rider attached. Use movement off and a wide clear area. They are authored animation, not crash physics. Aircraft rolls also accept Flight height (default 3 m); place a roll between matching flight actions at the same height to preserve airborne continuity.
 
 **Fire tank machine gun** stands the tank driver in the open hatch behind the shielded roof gun, firing in bursts; the tank can keep moving. Switching between driving and the gun eases the driver up or down, and the hatch closes again for driving.
+
+**Crash and roll out** (one per road vehicle) has the driver dive clear while the vehicle rolls over; use it with movement off and follow it with on-foot actions, which start where the driver stood up. **Crash and fall down** throws the driver clear to land on their back; follow it with **Get up (from back)** or leave them lying. The wreck stays upside down where it came to rest. **Forward roll** and **Side dodge left/right** travel when movement is on.
 
 To parachute from an aircraft, equip the parachute rig and use **Bail out of jet with parachute** or **Jump from helicopter with parachute** (pilot or passenger) during a high flight, about 20–30 m. Follow it with Skydive → Activate parachute → glide → land. Free fall starts just below the aircraft where the occupant left it, later aerial heights shrink to fit, and the empty aircraft flies on and leaves the shot. The jet bail-out always travels with the jet.
 
