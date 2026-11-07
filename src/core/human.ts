@@ -8,7 +8,7 @@ import {carryStyle} from './props/carry';
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
 import { blendInfluences, compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
 import { archFeet, buildGarments, dressing, genTexture, outfitsUsed } from './garments';
-import { buildCarry, headLoad, PARCEL_REST, WORN_BAGS } from './props/carry';
+import { buildCarry, headLoad, PARCEL_REST, PROP_REST, WORN_BAGS } from './props/carry';
 import type { Vec3 } from './math';
 import { applyTPose, baseSkin, placeBones, quatOf, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
 import { socketBone, type HandJoints } from './rig/socket';
@@ -485,11 +485,11 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     const sizeK = ((maxBodyY - minY) * DM) / 1.8;
     bones.push(socketBone(hand, handIdx, sizeK));
     // A bag carried in the hand: that hand's fingers close round its handle.
-    rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && p.carry!=='parcel' && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
+    rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && p.carry!=='parcel' && p.carry!=='broom' && p.carry!=='phone' && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
 
     // Carried bag: hangs straight down from the left hand with the arms relaxed at the sides (the
     // animation rest pose), and is bound rigidly to the hand bone.
-    if (p.carry !== 'none'&&p.carry!=='parcel'&&!WORN_BAGS.includes(p.carry)) {
+    if (p.carry !== 'none'&&p.carry!=='parcel'&&p.carry!=='broom'&&p.carry!=='phone'&&!WORN_BAGS.includes(p.carry)) {
       const a = new Animator(rig);
       const hand = a.relaxedBone('LeftHand'), mid = a.relaxedBone('LeftHandMiddle1');
       const hi = bones.findIndex((b) => b.name === (p.rig === 'full' ? 'wrist.L' : 'LeftHand'));
@@ -537,6 +537,13 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
       const head=bones.findIndex(b=>b.name===boneFor(p.rig,'Head')),base=bones[head].head[1];let crown=base,z=0,top=-Infinity;
       for(const [m,mat] of out){if(/eye|brow|lash|teeth|tongue/i.test(mat.name))continue;const P=m.positions;for(let i=0;i<P.length;i+=3)if(Math.abs(P[i])<.04*sizeK&&P[i+1]>base){if(P[i+1]>crown)crown=P[i+1];if(!/hair|hat/i.test(mat.name)&&P[i+1]>top){top=P[i+1];z=P[i+2];}}}
       for(const part of headLoad(carryStyle('head_load',p.garmentStyles))){const positions=part.mesh.positions.map((v,i)=>v*sizeK+[0,crown-.01*sizeK,z][i%3]),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=head;w[i*4]=1;}out.push([{...part.mesh,positions,skin:{j,w}},part.material]);}
+    }
+
+    // Broom and phone: their own root joints, placed by the animator in the clips that use them (hidden otherwise).
+    // At rest (bind pose, static exports) they are packed to nothing inside the hips.
+    if(p.carry==='broom'||p.carry==='phone'){
+      const hips=bones.findIndex(b=>b.parent<0),head:Vec3=[...bones[hips].head],index=bones.length;bones.push({name:p.carry==='broom'?'Broom':'Phone',parent:-1,head,tail:[head[0],head[1]+.1*sizeK,head[2]],rot:[1,0,0,0,1,0,0,0,1]});
+      for(const cp of buildCarry(p.carry,(key,make)=>genTexture(lib,key,make),p.garmentStyles)){const positions=cp.mesh.positions.map((v,i)=>v*sizeK*PROP_REST+head[i%3]),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...cp.mesh,positions,skin:{j,w}},cp.material]);}
     }
 
     if(p.carry==='parcel'){

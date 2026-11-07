@@ -13,6 +13,7 @@ import { MELEE } from './melee';
 import { VEHICLES, BOARDING, VEHICLE_TUMBLES, VEHICLE_CRASHES } from './vehicles';
 import { DODGES } from './dodge';
 import { SWIMMING } from './swimming';
+import { EVERYDAY } from './everyday';
 import { INTERACTIONS } from './interaction';
 import { REACTIONS } from './reactions';
 import { withFaces } from './faces';
@@ -70,6 +71,7 @@ export const CLIPS: Clip[] = withFaces(
     ...REACTIONS,
     ...INTERACTIONS,
     ...SWIMMING,
+    ...EVERYDAY,
     wave,
     cheer,
     laugh,

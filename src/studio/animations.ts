@@ -37,6 +37,9 @@ export function actionNote(id: string, weapon?: string, seats?: number) {
   if (id.startsWith('rifle')) return weapon==='rifle'?'Uses this character’s equipped rifle.':'Choose a rifle in Equipment for this performance.';
   if (id.startsWith('pistol')) return weapon==='pistol'?'Uses this character’s equipped pistol.':'Choose a pistol in Equipment for this performance.';
   if (id.startsWith('sword')) return weapon==='sword'?'Uses this character’s equipped sword.':'Choose a sword in Equipment for this performance.';
+  if(id==='phone_call'||id==='texting')return 'Choose Mobile phone under Carry: the phone appears in these clips, at the ear on a call and in the left palm for texting. Keep Weapon set to None.';
+  if(id==='sweep')return 'Choose Broom under Carry: the broom appears while sweeping, through both hands with the bristles on the floor. Keep Weapon set to None.';
+  if(id==='lean_wall')return 'Leans back against a wall about 20 cm behind the heels, arms folded, one foot against it. Place the actor with their back to a wall.';
   if(id==='head_load_idle'||id==='head_load_walk')return 'Choose Head load (basin) under Carry: an enamel basin of produce on a cloth head pad. The right hand steadies the rim and the head stays level; the walk keeps the recorded footfalls at a steadier pace. Keep Weapon set to None.';
   if(['carry_idle','carry_walk','pick_up','put_down'].includes(id))return 'Choose Box / parcel under Carry for a fitted box. Keep Weapon set to None for the two-hand grip. Pick up lifts it, carry clips hold it between the wrists, and Put down / drop returns it to the floor.';
   if (['open_door','use_press','push'].includes(id)) return 'Stage the character near the intended object. Prop contact is not solved automatically.';
