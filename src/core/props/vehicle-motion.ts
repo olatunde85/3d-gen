@@ -11,7 +11,7 @@ export const CRASH_VEHICLES=[['car','drive_car'],['sports_car','drive_sports_car
 export const VEHICLE_MANOEUVRES:Readonly<Record<string,{ride:string;kind:ManoeuvreKind}>>={
  taxi_jet:{ride:'fly_jet',kind:'taxi'},takeoff_jet:{ride:'fly_jet',kind:'takeoff'},land_jet:{ride:'fly_jet',kind:'land'},
  bailout_jet:{ride:'fly_jet',kind:'bailout'},bailout_helicopter:{ride:'fly_helicopter',kind:'bailout'},gun_tank:{ride:'drive_tank',kind:'gun'},
- ...Object.fromEntries(CRASH_VEHICLES.map(([model,ride])=>[`crash_${model}`,{ride,kind:'crash'as const}])),
+ ...Object.fromEntries(CRASH_VEHICLES.flatMap(([model,ride])=>[`crash_${model}`,`crash_fall_${model}`].map(id=>[id,{ride,kind:'crash'as const}]))),
 };
 export const manoeuvre=(clip:string)=>VEHICLE_MANOEUVRES[clip]?.kind;
 /** Default speeds in metres per second. */
@@ -91,8 +91,15 @@ export const BAILOUT_PATHS:Readonly<Record<string,{T:number[];x:number[];lift:nu
 export const CRASH_PATH={T:[0,.3,.6,.85,1.1,1.35,1.6,1.9,2.3,2.8,3.6],x:[0,.1,.7,1.3,1.7,2,2.3,2.6,2.8,2.9,2.9],yaw:[0,20,70,90,90,90,90,90,90,60,0],
  pitch:[0,0,30,60,100,180,270,340,360,360,360],drop:[0,0,.3,.5,.8,.9,.85,.6,.4,.1,0],y:[0,0,.25,.2,0,0,0,0,0,0,0],floor:[1,1,1,.6,0,0,0,0,0,0,0]};
 export const CRASH_DURATION=3.6;
+/**
+ * Crash and fall down: thrown out of the driver's door, twisting in the air, landing hard and tumbling onto
+ * the back, ending in Get up (from back)'s starting pose about 3 m to the left.
+ */
+export const CRASH_FALL_PATH={T:[0,.3,.6,.85,1.1,1.4,1.7,2.1,2.6,3.4],x:[0,.1,.8,1.5,2,2.5,2.9,3.1,3.2,3.2],y:[0,0,.35,.25,0,0,0,0,0,0],yaw:[0,20,60,80,70,40,15,0,0,0],
+ pitch:[0,0,-20,-50,-80,-100,-95,-88,-88,-88],drop:[0,0,.3,.6,.9,1,1,1,1,1],z:[0,0,0,0,-.1,-.3,-.4,-.46,-.46,-.46],floor:[1,1,1,.5,0,0,0,0,0,0]};
+export const CRASH_FALL_DURATION=3.4;
 /** Where the occupant ends after leaving a vehicle mid-action: [x scaled to the rider, metres behind it, height change]. */
 export const vehicleExit=(clip:string,duration:number)=>{
- if(manoeuvre(clip)==='crash')return {x:CRASH_PATH.x.at(-1)!,lift:0,behind:0};
+ if(manoeuvre(clip)==='crash')return {x:(clip.startsWith('crash_fall_')?CRASH_FALL_PATH:CRASH_PATH).x.at(-1)!,lift:0,behind:0};
  const p=BAILOUT_PATHS[clip];return p?{x:p.x.at(-1)!,lift:p.lift.at(-1)!,behind:bailoutDrift(clip,duration)}:undefined;
 };

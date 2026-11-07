@@ -2,7 +2,8 @@
 import { type Ch, type Clip, type HandTarget, type Sample } from './types';
 import { cyc, fingers, fist, FISTS, grip, normV, side, track, v } from './helpers';
 import { skydive } from './aerial';
-import { BAILOUT_PATHS,CRASH_PATH,CRASH_DURATION,CRASH_VEHICLES } from '../../props/vehicle-motion';
+import { BAILOUT_PATHS,CRASH_PATH,CRASH_DURATION,CRASH_FALL_PATH,CRASH_FALL_DURATION,CRASH_VEHICLES } from '../../props/vehicle-motion';
+import { ON_BACK } from './reactions';
 import { VEHICLE_TRANSITIONS,VEHICLE_STUNTS } from '../../props/vehicle-actions';
 import { TROT, trotBob } from '../../props/horse-gait';
 import { idle } from './basic';
@@ -313,7 +314,24 @@ const crash=(model:string,ride:string):Clip=>({id:`crash_${model}`,name:`Crash a
  // Leave the seat from the exact riding pose.
  if(t<.5)s.blend={sample:VEHICLES.find(c=>c.id===ride)!.sample(0),w:1-ease(t/.5)};return s;
 }});
-export const VEHICLE_CRASHES:Clip[]=CRASH_VEHICLES.map(([model,ride])=>crash(model,ride));
+/** Crash and fall down: thrown clear, landing hard and tumbling onto the back, limp (Get up (from back) follows). */
+const crashFall=(model:string,ride:string):Clip=>({id:`crash_fall_${model}`,name:`Crash and fall down (${model.replace(/_/g,' ')})`,category:'Vehicles',duration:CRASH_FALL_DURATION,loop:false,
+ liftWeight:t=>track(CRASH_FALL_PATH.T,CRASH_FALL_PATH.floor)(t),sample:t=>{
+ const P=CRASH_FALL_PATH,k=(a:number[])=>track(P.T,a)(t),b=ON_BACK,end=(a:number[],v:number)=>k([...a,v,v,v]);
+ const bones:Record<string,Ch>={Spine:[end([0,10,-10,-20,-10,-5,-3],b.spine[0]),0,0],Spine1:[end([0,5,-6,-12,-6,-3,-2],b.spine[1]),0,0],
+  Neck:[end([0,0,-10,15,10,0,-4],b.spine[2]),0,0],Head:[end([0,0,-10,15,10,0,-5],b.spine[3]),k([0,0,10,-10,15,20,15,12,12,12]),0]};
+ for(const [i,name]of (['Left','Right']as const).entries()){
+  // Flailing arms thrown out, then the limp lying pose (the right side mirrored by sign, as `side` does).
+  const m=i?-1:1;
+  bones[`${name}UpLeg`]=[end([80,70,40,60,40,20,10],b.upLeg[i]),0,m*end([6,6,15,20,12,8,8],i?10:8)];
+  bones[`${name}Leg`]=[end([-80,-60,-30,-70,-40,-20,-12],b.leg[i]),0,0];bones[`${name}Foot`]=[end([0,10,-10,-10,-20,-20,-20],b.foot[i]),0,0];
+  bones[`${name}Arm`]=[end([10,40,100,140,60,10,0],b.arm[i]),0,m*end([5,10,40,60,50,35,28],b.armOut[i])];bones[`${name}ForeArm`]=[end([40,30,20,40,30,15,10],b.foreArm[i]),0,0];
+ }
+ fingers(bones,k([20,25,10,15,25,22,20,18,18,18]));
+ const s:Sample={bones,root:{x:k(P.x),y:k(P.y),z:k(P.z),yaw:k(P.yaw),pitch:k(P.pitch),drop:k(P.drop),floor:true},gaze:[0,0]};
+ if(t<.5)s.blend={sample:VEHICLES.find(c=>c.id===ride)!.sample(0),w:1-ease(t/.5)};return s;
+}});
+export const VEHICLE_CRASHES:Clip[]=CRASH_VEHICLES.flatMap(([model,ride])=>[crash(model,ride),crashFall(model,ride)]);
 
 /**
  * Tank machine gunner: standing on the driver's floor, head and shoulders out of the open hatch behind the gun

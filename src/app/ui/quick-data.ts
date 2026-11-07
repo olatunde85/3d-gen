@@ -388,7 +388,7 @@ export const vehicleActions = (id: VehicleId, clip = VEHICLE_CLIP[id]) => {
   const ride = RIDING_VEHICLES[ridingClip(clip)] === id ? ridingClip(clip) : VEHICLE_CLIP[id];
   const transition = VEHICLE_TRANSITIONS.find(([, action]) => action === ride)?.[0];
   // Runway, gunner and parachute manoeuvres sit in story order around the main ride.
-  const before = id === 'jet' ? ['taxi_jet', 'takeoff_jet'] : [], after = id === 'jet' ? ['land_jet', 'bailout_jet'] : id === 'helicopter' ? ['bailout_helicopter'] : id === 'tank' ? ['gun_tank'] : [`crash_${id}`].filter((c) => VEHICLE_MANOEUVRES[c]);
+  const before = id === 'jet' ? ['taxi_jet', 'takeoff_jet'] : [], after = id === 'jet' ? ['land_jet', 'bailout_jet'] : id === 'helicopter' ? ['bailout_helicopter'] : id === 'tank' ? ['gun_tank'] : [`crash_${id}`, `crash_fall_${id}`].filter((c) => VEHICLE_MANOEUVRES[c]);
   return transition ? [`board_${transition}`, ...before, ride, ...after, `alight_${transition}`, ...(['horse'].includes(id)?[]:[`tumble_${id}`])] : [ride];
 };
 
