@@ -74,6 +74,11 @@ export interface Sample {
    * Ankle targets in floor space (metres at 1.8 m, from the character's origin), for feet on rungs or ledges:
    * the leg is solved to reach them with the knee towards `pole`. Like floor-space hands, they move with root motion.
    */
+  /**
+   * Planted feet (0..1 per side): the ankle stays where it stood in the clip's first frame on this body, so turning
+   * hips and twisting stances don't slide it. For clips that don't travel; fade a foot out before it steps or kicks.
+   */
+  plant?: { Left?: number; Right?: number };
   /** How firmly each hand follows its IK target (0..1, default 1): fades a hand onto or off a contact. */
   ikWeight?: { Left?: number; Right?: number };
   feet?: { Left?: FootTarget; Right?: FootTarget };
@@ -92,7 +97,7 @@ export interface Sample {
   blend?: { sample: Sample; w: number; /** Keep interpolated feet from sinking below the floor. */ ground?: boolean };
 }
 
-export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday' | 'Climbing';
+export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday' | 'Climbing' | 'Combat';
 
 export interface Clip {
   id: string;

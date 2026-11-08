@@ -65,6 +65,19 @@ for(const rig of ['game','game_lite','full']as const)for(const restPose of ['A',
   const p=pos(id,clipById.get(id)!.duration*i/20),mid=p[idx('LeftHand')].map((v,d)=>(v+p[idx('RightHand')][d])/2);
   assert.ok(distance(p[parcel],mid)/scale<.09,label+' box detached from hands');
  }
+ // Combat: planted feet stay put, nothing jumps, and every move starts and ends in its stance so they chain.
+ const chains:Record<string,string>={punch_combo:'fight_idle',kick_front:'fight_idle',kick_roundhouse:'fight_idle',block:'fight_idle',sword_combo:'sword_idle',sword_thrust:'sword_idle',cover_fire:'cover_idle'};
+ for(const id of [...CLIPS.filter(c=>c.category==='Combat'&&c.id!=='punch_low').map(c=>c.id),'take_cover','cover_idle','cover_fire']){const c=clipById.get(id)!;let previous:number[][]|undefined;const start=pos(id,0);
+  for(let i=0;i<=60;i++){const t=c.duration*i/60,s=c.sample(t),p=pos(id,t);
+   for(const side of ['Left','Right']as const)if((s.plant?.[side]??0)>.999){const j=idx(side+'Foot');assert.ok(Math.hypot(p[j][0]-start[j][0],p[j][2]-start[j][2])/scale<.01,`${label} ${id}: planted ${side} foot slides at ${t.toFixed(2)}`);}
+   if(previous){const gap=Math.max(...p.map((v,j)=>B[j].name==='Parcel'?0:distance(v,previous![j])))/scale;assert.ok(gap<Math.max(.08,c.duration/60*14),`${label} ${id}: discontinuity ${gap.toFixed(3)} at ${t.toFixed(2)}`);}
+   previous=p;
+  }
+  if(c.loop){const b=pos(id,c.duration);assert.ok(Math.max(...start.map((v,j)=>distance(v,b[j])))/scale<.005,label+' '+id+' seam');}
+  const rest=chains[id];if(rest){const r=pos(rest,0),end=pos(id,c.duration),body=B.map((_,j)=>j).filter(j=>!/Hand(Index|Middle|Ring|Pinky|Thumb)|Parcel|Weapon/.test(B[j].name));
+   for(const [name,q]of [['start',start],['end',end]]as const)assert.ok(Math.max(...body.map(j=>distance(q[j],r[j])))/scale<.01,`${label} ${id} ${name} does not match ${rest}`);}
+  checks++;
+ }
  console.log('OK',label);
 }
 console.log(`Animation improvements: ${checks} clip/body checks across 18 bodies/rigs/binds passed.`);

@@ -18,7 +18,7 @@ type HitDir = 'front' | 'back' | 'left' | 'right';
  * A hit coming from `dir` (where the attacker is). The upper body is knocked away from the
  * hit, the character takes a recovery step the same way, then settles back to neutral.
  */
-function hitFrom(dir: HitDir): Clip {
+export function hitFrom(dir: HitDir): Clip {
   const names: Record<HitDir, string> = { front: 'Hit from front', back: 'Hit from back', left: 'Hit from left', right: 'Hit from right' };
   return {
     id: `hit_${dir}`, name: names[dir], category: 'Reactions', duration: 0.8, loop: false,
@@ -106,7 +106,7 @@ const knockdown: Clip = {
 };
 
 /** Collapse backward and stay down, limp. */
-const deathBackward: Clip = {
+export const deathBackward: Clip = {
   id: 'death_backward', name: 'Death (fall backward)', category: 'Reactions', duration: 1.8, loop: false,
   sample: (t) => {
     const T = [0, 0.25, 0.6, 0.85, 1.0, 1.8];
@@ -131,7 +131,7 @@ const deathBackward: Clip = {
 };
 
 /** Collapse forward, face down, and stay down. */
-const deathForward: Clip = {
+export const deathForward: Clip = {
   id: 'death_forward', name: 'Death (fall forward)', category: 'Reactions', duration: 1.7, loop: false,
   sample: (t) => {
     const T = [0, 0.2, 0.55, 0.8, 0.95, 1.7];

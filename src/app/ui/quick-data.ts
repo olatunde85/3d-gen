@@ -394,10 +394,10 @@ export const vehicleActions = (id: VehicleId, clip = VEHICLE_CLIP[id]) => {
 
 /** Clips to try, and more for whatever is in hand. */
 export function actions(p: HumanParams, clip = 'idle'): Option[] {
-  const base = ['idle', 'walk', 'model_walk', 'run', 'wave', 'talk', 'laugh', 'cheer', 'sit_idle', 'jump', 'punch'];
+  const base = ['idle', 'walk', 'model_walk', 'run', 'wave', 'talk', 'laugh', 'cheer', 'sit_idle', 'jump', 'punch', 'punch_combo', 'kick_roundhouse'];
   const held: Record<string, string[]> = {
-    pistol: ['pistol_idle', 'pistol_aim', 'pistol_fire'], rifle: ['rifle_idle', 'rifle_aim', 'rifle_fire_auto', 'rifle_walk', 'rifle_reload'],
-    sword: ['sword_idle', 'sword_slash', 'sword_block'], knife: [], grenade:['throw_grenade'],
+    pistol: ['pistol_idle', 'pistol_aim', 'pistol_fire'], rifle: ['rifle_idle', 'rifle_aim', 'rifle_fire_auto', 'rifle_walk', 'rifle_reload', 'cover_fire'],
+    sword: ['sword_idle', 'sword_slash', 'sword_block', 'sword_combo'], knife: [], grenade:['throw_grenade'],
   };
   const vehicle = vehicleOf(p, clip);
   return [...base,...(p.carry==='parachute'?['skydive','parachute_deploy','parachute_glide','parachute_land']:[]),...(p.carry==='head_load'?['head_load_idle','head_load_walk']:[]),...(p.carry==='phone'?['phone_call','texting']:[]),...(p.carry==='broom'?['sweep']:[]), ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));

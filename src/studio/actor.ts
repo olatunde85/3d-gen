@@ -1,6 +1,6 @@
 import {flightHeight} from './helicopter-flight';
 import {jetAttitude,type JetAttitude} from './jet-flight';
-import {climbPropFor,climbScenery} from '../core/props/climb-props';
+import {stagePropFor,stageScenery} from '../core/props/stage-props';
 import {manoeuvre} from '../core/props/vehicle-motion';
 /** Studio's render adapter. Uses the generator's unmodified mesh, materials and Animator. */
 import * as THREE from 'three';
@@ -37,7 +37,7 @@ export class StudioActor {
   private rides=new Map<string,Vehicle>();
   private base={position:new THREE.Vector3(),yaw:0};
   private jet?:JetAttitude;
-  private climbs=new Map<string,THREE.Group>();
+  private stageGroups=new Map<string,THREE.Group>();
   private vehiclePlan?:VehicleStage;
   private hipCache=new Map<string,[number,number,number]>();
   get vehicleBody():VehicleBody{return {scale:this.scale,boardingScale:boardingScale(this.character.rig!),weapon:this.character.params.weapon,hip:(clip,model)=>{
@@ -223,21 +223,21 @@ export class StudioActor {
       if(current.vehicle?.id===state.id&&state.visible){this.framingBounds=ride.bounds;const size=this.framingBounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}
     }
     for(const [id,ride]of this.rides)if(!keep.has(id)){ride.group.removeFromParent();ride.dispose();this.rides.delete(id);}
-    this.climbScenery(project,track);
+    this.stageScenery(project,track);
   }
   /**
-   * Ladders, obstacles and ledges belong to the set: each climbing span (consecutive ladder actions share a ladder; a
+   * Ladders, obstacles, ledges and cover belong to the set: each span (consecutive ladder actions share a ladder; a
    * ledge hang shares its wall with the climb up) places its scenery where the span begins, for the whole film.
    * Switching the prop off on any action of a span hides it for that span.
    */
-  private climbScenery(project:StudioProject,track:ActorTrack){
-    const kind=climbPropFor,spans:{key:string;clip:string;start:number;hidden:boolean}[]=[];
+  private stageScenery(project:StudioProject,track:ActorTrack){
+    const kind=stagePropFor,spans:{key:string;clip:string;start:number;hidden:boolean}[]=[];
     let start=0;track.beats.forEach((b,i)=>{const prop=kind(b.clip);if(prop&&(i===0||kind(track.beats[i-1].clip)!==prop))spans.push({key:`${prop}:${i}:${this.scale}`,clip:b.clip==='ladder_down'?'ladder_up':b.clip,start,hidden:false});if(prop&&b.showProp===false)spans.at(-1)!.hidden=true;start+=b.duration;});
     const keep=new Set(spans.map(x=>x.key));
-    for(const [key,g]of this.climbs)if(!keep.has(key)){g.removeFromParent();g.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.climbs.delete(key);}
+    for(const [key,g]of this.stageGroups)if(!keep.has(key)){g.removeFromParent();g.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.stageGroups.delete(key);}
     for(const span of spans){
-      let g=this.climbs.get(span.key);
-      if(!g){g=climbScenery(span.clip,this.scale);if(!g)continue;this.climbs.set(span.key,g);this.group.add(g);}
+      let g=this.stageGroups.get(span.key);
+      if(!g){g=stageScenery(span.clip,this.scale);if(!g)continue;this.stageGroups.set(span.key,g);this.group.add(g);}
       // Placed at the span's starting pose, in this actor group's frame.
       const origin=this.stage(project,span.start,track).actor(track);
       g.position.copy(new THREE.Vector3(origin.x-this.base.position.x,origin.y-this.base.position.y,origin.z-this.base.position.z).applyAxisAngle(new THREE.Vector3(0,1,0),-this.base.yaw));

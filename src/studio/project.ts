@@ -14,7 +14,7 @@ import {VEHICLE_SEATS,validateVehicleLinks,type VehicleSeat} from './vehicle-sea
 import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES,type VehicleChoice} from '../core/props/vehicles';
 import {WEAPON_POSES,type WeaponPose} from '../core/anim/riding-weapons';
 import {isFirearm} from '../core/props/weapons';
-import {climbPropFor} from '../core/anim/clips/climbing';
+import {stagePropFor} from '../core/anim/stage';
 export { SETS, type SetId } from './catalog';
 export const ACTIONS = CLIPS.map(c => c.id);
 export type Action = string;
@@ -88,7 +88,7 @@ export function parseProject(text: string): StudioProject {
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
       const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,MAX_TRAVEL_SPEED,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
-      if(b.showProp!==undefined&&(typeof b.showProp!=='boolean'||!climbPropFor(clip)))throw Error('Prop visibility is only available for climbing actions.');
+      if(b.showProp!==undefined&&(typeof b.showProp!=='boolean'||!stagePropFor(clip)))throw Error('Prop visibility is only available for actions with a stage prop (climbing and cover).');
       if(speed!==undefined&&!RIDING_VEHICLES[clip]&&!manoeuvre(clip))throw Error('Travel speed is only available for riding/driving actions.');
       const height=b.flightHeight===undefined?undefined:number(b.flightHeight,0,30,'helicopter flight height');if(height!==undefined&&!isFlightClip(clip)&&!isAerialClip(clip))throw Error('Flight height is only available for aircraft and aerial actions.');
       const pitch=b.weaponPitch===undefined?undefined:number(b.weaponPitch,-45,60,'weapon elevation');
@@ -125,13 +125,13 @@ export function shotAt(p: StudioProject, time: number) {
   throw new Error('Missing camera track.');
 }
 /** x/z: local travel, centred on the actor's placement; y: height climbed since the start of the film (ladders, ledges). */
-/** The consecutive climbing actions around `index` that share one prop (a ladder up and down, a ledge hang and climb up). */
-export function climbSpan<B extends { clip: string }>(beats: B[], index: number): B[] {
-  const prop = climbPropFor(beats[index].clip);
+/** The consecutive actions around `index` that share one stage prop (a ladder up and down, a ledge hang and climb up, cover). */
+export function propSpan<B extends { clip: string }>(beats: B[], index: number): B[] {
+  const prop = stagePropFor(beats[index].clip);
   if (!prop) return [];
   let first = index, last = index;
-  while (first > 0 && climbPropFor(beats[first - 1].clip) === prop) first--;
-  while (last < beats.length - 1 && climbPropFor(beats[last + 1].clip) === prop) last++;
+  while (first > 0 && stagePropFor(beats[first - 1].clip) === prop) first--;
+  while (last < beats.length - 1 && stagePropFor(beats[last + 1].clip) === prop) last++;
   return beats.slice(first, last + 1);
 }
 export interface TimelinePoint { index: number; time: number; local: number; phase: number; start: number; x: number; y: number; z: number }

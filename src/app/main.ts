@@ -46,7 +46,7 @@ $('#studio-btn').addEventListener('click', async () => {
   url.hash = params.toString();
   location.assign(url.href);
 });
-const syncPlayback = () => { viewer.rootMotion = store.exportSettings.rootMotion; viewer.climbProps = store.exportSettings.climbProps !== false; };
+const syncPlayback = () => { viewer.rootMotion = store.exportSettings.rootMotion; viewer.stageProps = store.exportSettings.stageProps !== false; };
 syncPlayback();
 store.on('export', syncPlayback);
 

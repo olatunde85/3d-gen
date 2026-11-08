@@ -40,6 +40,12 @@ export function actionNote(id: string, weapon?: string, seats?: number) {
   if(VEHICLE_FOR_CLIP[id])return `${VEHICLE_LABELS[VEHICLE_FOR_CLIP[id]]}, fitted to the rider and selected by this action. Move through the set travels at an adjustable speed; Show vehicle hides it for shared passengers.`;
   if (id === 'sleep' || id === 'lie_down') return 'Performed at floor level. Use character elevation to stage it on a raised surface.';
   if(id==='throw_grenade')return 'Equip Grenade under Weapon props. Releases at 0.82 seconds, follows a visual arc and settles on the ground. Use the full 2.2 second action. No explosion or damage simulation.';
+  const rifleNote=weapon==='rifle'?'Uses this character’s equipped rifle.':'Choose a rifle in Equipment for this performance.';
+  if(id==='take_cover')return `Two steps forward and down into a crouch behind a 1.1 m cover wall, which Studio places where the action starts; it stays in the set and Cover idle and Cover fire use it. Always travels about 0.46 m. Starts from Rifle idle. ${rifleNote}`;
+  if(id==='cover_idle')return `Crouched behind a 1.1 m cover wall, rifle muzzle up, glancing along the wall; the head stays hidden. Follows Take cover, which places the wall. ${rifleNote}`;
+  if(id==='cover_fire')return `Rises over the cover wall, aims, fires three shots and ducks back down; starts and ends in Cover idle. ${rifleNote}`;
+  if(id==='rifle_death_forward'||id==='rifle_death_backward')return `Falls ${id.endsWith('forward')?'face down':'on the back'} and lays the rifle beside the body; Get up (${id.endsWith('forward')?'from front':'from back'}) follows. ${rifleNote}`;
+  if(['fight_idle','punch_combo','kick_front','kick_roundhouse','block'].includes(id))return id==='fight_idle'?'Boxing guard, left foot forward, fists at the chin. Punch combo, the kicks and Block start and end in it, so they chain.':'Starts and ends in Fighting stance. Keep Weapon set to None.';
   if (id.startsWith('rifle')) return weapon==='rifle'?'Uses this character’s equipped rifle.':'Choose a rifle in Equipment for this performance.';
   if (id.startsWith('pistol')) return weapon==='pistol'?'Uses this character’s equipped pistol.':'Choose a pistol in Equipment for this performance.';
   if (id.startsWith('sword')) return weapon==='sword'?'Uses this character’s equipped sword.':'Choose a sword in Equipment for this performance.';

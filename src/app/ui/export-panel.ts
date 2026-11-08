@@ -1,6 +1,6 @@
 /** The Export panel, the export bar's summary and download button, and running exports. */
 import { CLIPS } from '../../core/anim/clips';
-import { climbPropFor } from '../../core/anim/clips/climbing';
+import { stagePropFor } from '../../core/anim/stage';
 import { RIG_LABELS, type RigType } from '../../core/rig/skeletons';
 import { MODE_LABELS, planExport } from '../../export';
 import type { Ctx } from './context';
@@ -133,8 +133,8 @@ export function exportPanel(ctx: Ctx): { open: () => void } {
         radio('separate', s.weaponFile, 'Separate prop file', (v) => setExport({ weaponFile: v }), { title: 'Character without the weapon + the weapon as its own file, to attach to WeaponR in your engine' })));
     }
 
-    const climbing = (s.mode === 'animated' ? s.clips : [viewer.playing?.id ?? '']).some((id) => climbPropFor(id));
-    if (current.rig && climbing) kids.push(check('Include climbing props (ladder, obstacle, ledge wall) as separate files', s.climbProps !== false, (v) => setExport({ climbProps: v })));
+    const staged = (s.mode === 'animated' ? s.clips : [viewer.playing?.id ?? '']).some((id) => stagePropFor(id));
+    if (current.rig && staged) kids.push(check('Include stage props (ladder, obstacle, ledge wall, cover) as separate files', s.stageProps !== false, (v) => setExport({ stageProps: v })));
     if(current.params.vehicle!=='none')kids.push(check('Include fitted vehicle props as separate files',s.vehicleFile!==false,v=>setExport({vehicleFile:v})));
     // Summary of exactly what will be downloaded
     kids.push(h('You will download'));

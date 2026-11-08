@@ -245,29 +245,29 @@ async function checkExportModes() {
   if (held.files.some((f) => f.kind === 'prop') || !held.files[0].desc.includes('holding')) fail('weapon held: plan wrong');
   console.log('weapon prop export checked');
 
-  // Climbing props: one static file per prop and format, standing on the floor; none when switched off.
-  const climbs = ['ladder_up', 'ladder_down', 'vault_over', 'ledge_hang', 'ledge_climb_up'];
+  // Stage props: one static file per prop and format, standing on the floor; none when switched off.
+  const climbs = ['ladder_up', 'ladder_down', 'vault_over', 'ledge_hang', 'ledge_climb_up', 'take_cover', 'cover_idle'];
   for (const format of ['glb', 'fbx', 'all'] as const) {
     const plan = planExport(ch, { ...DEFAULT_EXPORT, mode: 'animated', format, clips: climbs });
-    const props = plan.files.filter((f) => f.kind === 'climb');
-    if (props.length !== (format === 'all' ? 6 : 3)) fail(`climb props ${format}: ${props.length} files planned`);
+    const props = plan.files.filter((f) => f.kind === 'stage');
+    if (props.length !== (format === 'all' ? 8 : 4)) fail(`stage props ${format}: ${props.length} files planned`);
     const entries = unzipSync((await runExport(lib, ch, plan)).data);
     for (const f of props) {
       const data = entries[Object.keys(entries).find((k) => k.endsWith('/' + f.path))!];
-      if (!data) { fail(`climb props ${format}: missing ${f.path}`); continue; }
-      if (f.format === 'fbx' && (parseFbx(data, f.path).get('NodeAttribute') ?? 0)) fail(`climb props ${format}: ${f.path} has a rig`);
+      if (!data) { fail(`stage props ${format}: missing ${f.path}`); continue; }
+      if (f.format === 'fbx' && (parseFbx(data, f.path).get('NodeAttribute') ?? 0)) fail(`stage props ${format}: ${f.path} has a rig`);
       if (f.format !== 'glb') continue;
       const dv = new DataView(data.buffer, data.byteOffset);
       const j = JSON.parse(new TextDecoder().decode(data.subarray(20, 20 + dv.getUint32(12, true))));
       const low = Math.min(...j.meshes.flatMap((m: { primitives: { attributes: { POSITION: number } }[] }) => m.primitives.map((p) => j.accessors[p.attributes.POSITION].min[1])));
-      if (j.skins || j.animations?.length || Math.abs(low) > 1e-4) fail(`climb props ${format}: ${f.path} not a static prop on the floor (min y ${low})`);
+      if (j.skins || j.animations?.length || Math.abs(low) > 1e-4) fail(`stage props ${format}: ${f.path} not a static prop on the floor (min y ${low})`);
     }
   }
   const objClimb = planExport(ch, { ...DEFAULT_EXPORT, mode: 'static', format: 'obj', vehiclePreviewClip: 'ladder_up' });
   const objEntries = Object.keys(unzipSync((await runExport(lib, ch, objClimb)).data));
-  if (!objEntries.some((k) => k.includes('props/ladder/') && k.endsWith('_ladder.obj'))) fail(`climb props obj: ${objEntries.join(', ')}`);
-  if (planExport(ch, { ...DEFAULT_EXPORT, mode: 'animated', clips: climbs, climbProps: false }).files.some((f) => f.kind === 'climb')) fail('climb props: planned while switched off');
-  console.log('climbing prop export checked');
+  if (!objEntries.some((k) => k.includes('props/ladder/') && k.endsWith('_ladder.obj'))) fail(`stage props obj: ${objEntries.join(', ')}`);
+  if (planExport(ch, { ...DEFAULT_EXPORT, mode: 'animated', clips: climbs, stageProps: false }).files.some((f) => f.kind === 'stage')) fail('stage props: planned while switched off');
+  console.log('stage prop export checked');
 }
 if (primary) await checkExportModes();
 
@@ -454,9 +454,10 @@ for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
         };
       };
       const full = legs(ch.rig), ref = legs(game);
-      // Clips that pin the feet to floor-space holds (climbing) place them by each skeleton's own scale; their
-      // contacts are checked on every skeleton in climbing-check.ts.
-      for (const c of CLIPS.filter((c) => !c.sample(0).feet)) {
+      // Clips that pin the feet to floor-space holds (climbing) place them by each skeleton's own scale, and planted
+      // feet (fighting) hold against each skeleton's own hip pivot, so their knees differ; contacts are checked on
+      // every skeleton in stage-check.ts and animation-improvement-check.ts.
+      for (const c of CLIPS.filter((c) => !c.sample(0).feet && !c.sample(0).plant)) {
         let worst = 0;
         for (let i = 0; i <= 10; i++) {
           const a = full(c, (i / 10) * c.duration), b = ref(c, (i / 10) * c.duration);

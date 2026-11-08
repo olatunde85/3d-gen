@@ -141,6 +141,8 @@ export class Animator {
   private palmLocal = new Map<string, Vec3>();
   private idx = new Map<string, number>();
   private feet: number[];
+  /** Ankle positions in each planting clip's first frame (see Sample.plant). */
+  private planted = new Map<string, { Left: Vec3; Right: Vec3 }>();
   private restFootY: number;
   private recoveryFeet:number[];
   private recoveryFloor:number;
@@ -524,6 +526,7 @@ export class Animator {
       }
       return frame;
     }
+    if (s.plant) s = this.plantFeet(s, clip);
     const left = s.ik?.Left;
     if (left?.support && !opts.noSupport && this.socket >= 0) {
       // Two passes: solve without the support hand, see where the weapon ended up, then
@@ -583,20 +586,36 @@ export class Animator {
     return { ...frame, rot: frame.rot.map((q, i) => (chain.has(i) ? qslerp(free.rot[i], q, w(i)) : q)) };
   }
 
+  /** See Sample.plant: each planted foot becomes an ankle target where it stood in the clip's first frame on this body. */
+  private plantFeet(s: Sample, clip: Clip): Sample {
+    let start = this.planted.get(clip.id);
+    if (!start) {
+      const first = clip.sample(0), P = this.positions(this.solve({ ...first, plant: undefined, feet: undefined }, clip, 0, {}).frame);
+      start = { Left: P[this.idx.get('LeftFoot')!], Right: P[this.idx.get('RightFoot')!] };
+      this.planted.set(clip.id, start);
+    }
+    const feet = { ...s.feet };
+    for (const side of ['Left', 'Right'] as const) {
+      const w = s.plant![side];
+      if (w && !feet[side]) feet[side] = { pos: start[side].map((x) => x / this.scale) as Vec3, pole: [0, 0, 0], weight: w };
+    }
+    return { ...s, feet };
+  }
+
   /** Legs reach the sample's floor-space ankle targets (rungs, ledges), keeping each foot's posed orientation. */
   private placeFeet(s: Sample, frame: Frame): Frame {
     for (const side of ['Left', 'Right'] as const) {
       const f = s.feet?.[side];
       if (!f) continue;
       let target = f.pos.map((v, d) => v * this.scale + this.floorShift[d]) as Vec3, pole = f.pole;
-      const w = f.weight ?? 1;
-      if (w < 1) {
-        // Ease from the leg's own pose: blend the ankle and the knee's bend direction.
+      const w = f.weight ?? 1, own = f.pole.every((x) => x === 0);
+      if (w < 1 || own) {
+        // Ease from the leg's own pose: blend the ankle and the knee's bend direction (a zero pole keeps the posed bend).
         const P = this.positions(frame), [hip, knee, ankle] = ['UpLeg', 'Leg', 'Foot'].map((n) => P[this.idx.get(side + n)!]);
         const axis = norm(sub3(ankle, hip)), out = sub3(knee, hip), along = out.reduce((v, x, i) => v + x * axis[i], 0);
         const bend = norm(out.map((x, i) => x - along * axis[i]) as Vec3);
         target = ankle.map((x, d) => x + (target[d] - x) * w) as Vec3;
-        pole = bend.map((x, d) => x + (f.pole[d] - x) * w) as Vec3;
+        pole = own ? bend : (bend.map((x, d) => x + (f.pole[d] - x) * w) as Vec3);
       }
       this.pinLimb(frame, side, 'leg', target, pole);
     }

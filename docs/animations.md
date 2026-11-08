@@ -1,13 +1,14 @@
 # Animations
 
-There are 192 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 206 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
 | Idle & stance | Idle, Crouch idle (loops) |
 | Locomotion | Walk, Slouch walk, Model walk (catwalk), Run, Walk backwards, Strafe left/right (loops; in place, or with root motion) |
 | Turns | Left/right 45° and 90°, full 360° |
-| Actions | Jump, Fall, Punch, Low punch, Hit reaction; Jump start, Jump (in air) (loop), Jump land and Running jump for engine character controllers; Forward roll, Side dodge left/right; Sword idle (guard), Sword slash, Sword block |
+| Actions | Jump, Fall, Hit reaction; Jump start, Jump (in air) (loop), Jump land and Running jump for engine character controllers; Forward roll, Side dodge left/right |
+| Combat | Fighting stance (loop), Punch, Low punch, Punch combo (jab, cross, hook), Front kick, Roundhouse kick, Block (unarmed); Sword idle (guard) (loop), Sword slash, Sword block, Sword combo (three cuts), Sword thrust |
 | Reactions | Hit from front / back / left / right, Knockdown, Death (fall forward / backward), Get up (from back / front) |
 | Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push; Carry idle, Carry walk, Head-load idle, Head-load walk (loops) |
 | Everyday | Talk with gestures, Phone call, Texting, Lean on wall, Look around, Sweep (loops) |
@@ -15,11 +16,11 @@ There are 192 clips. The character loads playing **Idle**. The animation bar at 
 | Sitting & lying | Sit down, Sit idle, Stand up (on a chair); Lie down, Sleep (on the back) |
 | Swimming | Tread water, Swim forward (front crawl), Swim breaststroke, Swim backstroke (loops); Dive into water, Climb out of water |
 | Climbing | Climb ladder up / down, Ledge hang (loops); Vault over obstacle, Climb up ledge |
-| Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade |
+| Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Take cover, Cover idle (loop), Cover fire (pop up). Rifle hit from front / back, Rifle death (fall forward / backward). Throw grenade |
 | Aerial | Skydive, Activate parachute (deploy), Use parachute (glide), Land parachute |
 | Vehicles | Riding, driving and piloting for fourteen vehicles, with boarding/alighting, stunt rolls, crash escapes, jet runway manoeuvres, parachute bail-outs and the tank gunner. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) |
 
-Clips that end where another begins chain without a pop: Idle → Sit down → Sit idle → Stand up → Idle; Lie down, Sleep and Knockdown → Get up (from back); Death (fall forward) → Get up (from front); Pick up → Carry idle; Ledge hang → Climb up ledge → Idle. Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
+Clips that end where another begins chain without a pop: Idle → Sit down → Sit idle → Stand up → Idle; Lie down, Sleep and Knockdown → Get up (from back); Death (fall forward) → Get up (from front); Pick up → Carry idle; Ledge hang → Climb up ledge → Idle; Fighting stance → Punch combo, Front kick, Roundhouse kick or Block → Fighting stance; Sword idle → Sword combo or Sword thrust → Sword idle; Rifle idle → Take cover → Cover idle → Cover fire → Cover idle; Rifle death (fall forward / backward) → Get up (from front / back). Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
 
 ## Motion capture
 
@@ -91,6 +92,20 @@ Hands and feet are solved onto fixed holds, so nothing slides while the body mov
 | **Climb up ledge** | The same wall | 2.15 m up and 0.62 m forward in 2.8 s, ending standing on top |
 
 On the ladder each hand moves with the opposite foot. The vault plants the left hand on top and lifts both feet over it. The hang keeps the legs straight below the hips. The climb up starts from that hang, walks the feet up the wall, presses over the edge onto straight arms, steps the right foot up and stands. A hanging body rises only as far as it needs for its hands to reach the edge, so the hang fits every arm length. Movement is carried in `travel`: play the clips with root motion, or move the character yourself at that speed, and the hands and feet stay on the prop. Hand-carried bags are put away while climbing.
+
+## Combat
+
+**Fighting stance** is a boxing guard with the left foot forward. Punch combo (a jab, a cross driven off the back foot and a hook), Front kick, Roundhouse kick and Block start and end in it. The roundhouse pivots on the planted front foot. Sword combo (a diagonal cut, a backhand cut and an overhead chop) and Sword thrust (a lunge) start and end in Sword idle. Attacks and reactions are separate clips: time a hit or block on the other character to match.
+
+**Cover** clips hold a rifle and are built against a cover wall 1.1 m high, 58 cm in front of the crouched character:
+
+- **Take cover** (1.2 s) starts from Rifle idle, takes two steps (0.46 m, carried in `travel`, with the feet planted) and crouches with the muzzle up.
+- **Cover idle** keeps the head below the top of the wall and glances along it.
+- **Cover fire** (2.4 s) rises, brings the rifle down over the wall, fires three shots and ducks back into Cover idle.
+
+The wall is a stage prop like the climbing props: **Props** shows or hides it, and the export includes it as a separate file placed for Cover idle (Take cover starts 0.46 m further back).
+
+**Rifle hits and deaths** keep the rifle at low ready through the hit. In the deaths the support hand lets go and the rifle is laid flat beside the body, clear of the floor. The body ends where Death (fall forward / backward) ends, so Get up follows.
 
 ## Weapons
 
@@ -175,7 +190,7 @@ The **Aerial** category has `skydive`, `parachute_deploy`, `parachute_glide` and
 ## How clips work
 
 - **Keyframed clips** are defined once (`src/core/anim/clips/`, one file per set). Each bone is posed in its own frame (X = flex forward, Y = twist, Z = side), on an "animation rest" with relaxed arms and nearly straight elbows.
-- **Hand targets** are given relative to the chest (most clips) or to the floor (`HandTarget.space: 'floor'`, for hands on something fixed, like handlebars, a broom or a ladder rung). `HandTarget.tip` targets the index fingertip instead of the wrist, using the rig's own finger length. `Sample.feet` places the ankles on floor-space holds the same way, and `Sample.ikWeight` eases a hand onto or off its hold.
+- **Hand targets** are given relative to the chest (most clips) or to the floor (`HandTarget.space: 'floor'`, for hands on something fixed, like handlebars, a broom or a ladder rung). `HandTarget.tip` targets the index fingertip instead of the wrist, using the rig's own finger length. `Sample.feet` places the ankles on floor-space holds the same way, and `Sample.ikWeight` eases a hand onto or off its hold. `Sample.plant` keeps a foot where it stood in the clip's first frame on each body, so turning hips and twisting stances (punches, kicks, sword cuts) don't slide it.
 - **One evaluator:** `src/core/anim/evaluate.ts` drives the viewer and both exporters, so one clip works on every skeleton type and on A- or T-pose binds, and the preview matches the export exactly.
 
 GLB has one glTF animation per clip (30 fps, rotation channels plus root translation), and FBX has one AnimationStack (take) per clip. `scripts/blender_anim_check.py` imports the files into Blender and renders key frames of every action.

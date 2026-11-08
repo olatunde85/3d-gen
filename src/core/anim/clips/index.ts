@@ -10,6 +10,8 @@ import { fall, hit, jumpAir, jumpLand, jumpRunning, jumpStart, punch } from './a
 import { cheer, laugh, talk, wave, SOCIAL_EMOTES } from './emotes';
 import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
+import { COMBAT } from './combat';
+import { RIFLE_COMBAT } from './cover';
 import { VEHICLES, BOARDING, VEHICLE_TUMBLES, VEHICLE_CRASHES } from './vehicles';
 import { DODGES } from './dodge';
 import { SWIMMING } from './swimming';
@@ -66,7 +68,8 @@ export const CLIPS: Clip[] = withFaces(
     recover(jumpRunning,.24),
     fall,
     punch,
-    recover(easeFrom(mocap('punch_low', 'Low punch', 'Actions'),idle,.25,true),.45),
+    // Played at double the captured speed.
+    pace(recover(easeFrom(mocap('punch_low', 'Low punch', 'Combat'),idle,.25,true),.45),.5),
     hit,
     ...DODGES,
     ...REACTIONS,
@@ -91,8 +94,10 @@ export const CLIPS: Clip[] = withFaces(
     capturedTurn('turn_right_90', 'Turn right 90°', -90),
     capturedTurn('turn_360', 'Full turn 360°', 360),
     ...PISTOL,
+    ...COMBAT,
     ...MELEE,
     ...RIFLE,
+    ...RIFLE_COMBAT,
     ...VEHICLES,
     ...BOARDING,
     ...VEHICLE_TUMBLES,
