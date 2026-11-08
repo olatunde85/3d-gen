@@ -14,6 +14,7 @@ import { VEHICLES, BOARDING, VEHICLE_TUMBLES, VEHICLE_CRASHES } from './vehicles
 import { DODGES } from './dodge';
 import { SWIMMING } from './swimming';
 import { EVERYDAY } from './everyday';
+import { CLIMBING } from './climbing';
 import { INTERACTIONS } from './interaction';
 import { REACTIONS } from './reactions';
 import { withFaces } from './faces';
@@ -71,6 +72,7 @@ export const CLIPS: Clip[] = withFaces(
     ...REACTIONS,
     ...INTERACTIONS,
     ...SWIMMING,
+    ...CLIMBING,
     ...EVERYDAY,
     wave,
     cheer,

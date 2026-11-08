@@ -1,3 +1,4 @@
+import { climbScenery, placeClimbScenery } from '../core/props/climb-props';
 import * as THREE from 'three';
 import {Vehicle} from '../core/props/vehicle';
 import {DEFAULT_VEHICLE_STYLE,vehicleFor,vehicleLift,type VehicleChoice,type VehicleStyle} from '../core/props/vehicles';
@@ -26,6 +27,8 @@ export class Viewer {
   private lastFrame: Frame | null = null;
   /** One fitted vehicle at a time; shared with Studio and exports. */
   private ride:Vehicle|null=null;
+  private climb:THREE.Group|null=null;
+  private climbKey='';
   private floor!:{ground:THREE.Object3D;grid:THREE.Object3D;water:THREE.Object3D};
   private rideKey='';
   private vehicleStyle:VehicleStyle=DEFAULT_VEHICLE_STYLE;
@@ -308,6 +311,7 @@ export class Viewer {
       const w = this.blendFrom ? Math.min(1, (now - this.blendStart) / 0.25) : 1;
       want.forEach((x, i) => (inf[i] = inf[i] + (x - inf[i]) * w));
     }
+    this.updateClimbScenery(t);
     const swimming = this.clip?.category === 'Swimming';
     this.floor.water.visible = swimming;this.floor.ground.visible = this.floor.grid.visible = !swimming;
     this.updateVehicle(frame,t);
@@ -322,6 +326,17 @@ export class Viewer {
       if(!this.faceMode)this.frame();
     }
     this.ride!.update(time,frame);
+  }
+  /** Ladder, obstacle or ledge for climbing clips (rebuilt when the clip or character changes). */
+  private updateClimbScenery(t: number) {
+    const key = this.clip?.category === 'Climbing' ? `${this.clip.id}:${this.riderScale}` : '';
+    if (key !== this.climbKey) {
+      if (this.climb) { this.scene.remove(this.climb); this.climb.traverse((o) => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); } }); }
+      this.climb = key ? climbScenery(this.clip!.id, this.riderScale) ?? null : null;
+      if (this.climb) this.scene.add(this.climb);
+      this.climbKey = key;
+    }
+    if (this.climb) placeClimbScenery(this.climb, this.clip!.travel, t, this.riderScale, this.rootMotion);
   }
   private dropVehicle(){if(this.ride){this.scene.remove(this.ride.group);this.ride.dispose();this.ride=null;this.rideKey='';}}
 

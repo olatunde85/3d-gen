@@ -8,6 +8,12 @@ export function searchAnimations(query: string, category = '') {
 }
 export function actionNote(id: string, weapon?: string, seats?: number) {
   if(clipById.get(id)?.category==='Aerial')return 'Aerial performance. For parachuting equip Parachute / skydiving rig under Carry. Use skydive → parachute_deploy (2.4s) → parachute_glide → parachute_land (3s). Start height controls descent to the next aerial beat; landing reaches ground and finishes upright. Use full timing for deploy/land; optional glide movement travels forward. No wind or terrain-following simulation.';
+  if(clipById.get(id)?.category==='Climbing'){
+    if(id==='ladder_up'||id==='ladder_down')return 'Climbs a ladder that Studio places in front of the character where the climb starts (rungs every 30 cm), rising 0.5 m/s (down 0.43 m/s). Consecutive ladder actions share the ladder; for down after up, use up durations in multiples of 1.2 s so the rungs line up. Always travels. The ladder stays in the set.';
+    if(id==='vault_over')return 'Vaults a 90 cm-high, 35 cm-deep obstacle that Studio places 1.1 m ahead, landing and standing 2.8 m forward. Always travels; approach with a walk or run facing it. The obstacle stays in the set.';
+    if(id==='ledge_hang')return 'Hangs from a 2.15 m ledge that Studio places in front of the character, toes on the wall. Follow with Climb up ledge, which uses the same wall.';
+    return 'Climbs from the hang onto a 2.15 m ledge and stands on top, 0.62 m forward. Always travels; follows Ledge hang. Later actions continue on top of the ledge, which stays in the set.';
+  }
   if(clipById.get(id)?.category==='Swimming'){
     if(id==='dive_into_water')return 'Dive from the bank into the water: crouch, spring out head first, glide underwater and surface. Start at the water’s edge facing the water, with movement on (about 3.5 m). Follow with a stroke or Tread water. Weapons are hidden.';
     if(id==='climb_out_of_water')return 'Climb out onto a bank at water level: hands on the edge, press up, knee on, stand. Start in the water facing the bank, within half a metre of the edge, with movement on (about 0.9 m). Weapons are hidden.';

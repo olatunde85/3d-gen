@@ -25,6 +25,11 @@ export interface Root {
   lift?: number;
   /** Lift the body so no joint sinks below the floor (lying, crawling, getting up). */
   floor?: boolean;
+  /**
+   * Raise the body (never lower it) until the hands can reach their floor-space targets with the arms just short of
+   * straight, so a hang fits every body's arm length.
+   */
+  reach?: boolean;
 }
 
 /**
@@ -54,10 +59,20 @@ export interface HandTarget {
   space?: 'floor';
 }
 
+/** Ankle target in floor space; `rise` (0..1) is how much of a Root.reach lift it follows (feet braced on a wall rise with the body, feet on a ledge stay). */
+export interface FootTarget { pos: [number, number, number]; pole: [number, number, number]; rise?: number }
+
 export interface Sample {
   bones: Record<string, Ch>;
   root: Root;
   ik?: { Left?: HandTarget; Right?: HandTarget };
+  /**
+   * Ankle targets in floor space (metres at 1.8 m, from the character's origin), for feet on rungs or ledges:
+   * the leg is solved to reach them with the knee towards `pole`. Like floor-space hands, they move with root motion.
+   */
+  /** How firmly each hand follows its IK target (0..1, default 1): fades a hand onto or off a contact. */
+  ikWeight?: { Left?: number; Right?: number };
+  feet?: { Left?: FootTarget; Right?: FootTarget };
   /** A hand-held prop on its own joint (the phone), placed in chest space: centre, screen normal (+X) and top (+Z). */
   prop?: { pos: [number, number, number]; x: [number, number, number]; z: [number, number, number] };
   /** 0..1: wrap the thumb across the front of the index/middle fingers (fists). */
@@ -73,7 +88,7 @@ export interface Sample {
   blend?: { sample: Sample; w: number; /** Keep interpolated feet from sinking below the floor. */ ground?: boolean };
 }
 
-export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday';
+export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday' | 'Climbing';
 
 export interface Clip {
   id: string;

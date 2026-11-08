@@ -54,7 +54,7 @@ export class VehicleStage {
  }
  private nominal(row:Row,time:number):StagePoint{
   const at=timelineAt(this.project,time,row.actor),body=this.bodies.get(row.actor.id)??fallback,d=turn(at.x*body.scale+row.offset[0],at.z*body.scale+row.offset[2],row.actor.yaw);
-  return{x:row.actor.x+d.x,y:row.actor.y+helicopterHeight(row.actor,row.index,time)+aerialHeight(row.actor,row.index,time,this.project.actors),z:row.actor.z+d.z,yaw:row.actor.yaw};
+  return{x:row.actor.x+d.x,y:row.actor.y+at.y*body.scale+helicopterHeight(row.actor,row.index,time)+aerialHeight(row.actor,row.index,time,this.project.actors),z:row.actor.z+d.z,yaw:row.actor.yaw};
  }
  private seat(row:Row,vehicle:StagedVehicle):{shift:Vec3;stand?:[number,number]}{
   const seat=row.beat.vehicleSeat??'operator';if(seat==='operator')return{shift:[0,0,0]};

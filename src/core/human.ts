@@ -498,6 +498,10 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
         // the thigh); the fingers close round the handle there (rig.holds).
         const grip: Vec3 = [hand.pos[0] + (mid.pos[0] - hand.pos[0]) * 1.15 - 0.018, hand.pos[1] + (mid.pos[1] - hand.pos[1]) * 1.15, hand.pos[2] + (mid.pos[2] - hand.pos[2]) * 1.15];
         const toBind = qmul(quatOf(bones[hi].rot), qconj(hand.rot));
+        // The bag rides on its own joint under the hand, so clips that need the hand free (climbing, swimming)
+        // can put it away; everywhere else it moves exactly with the hand.
+        const bag = bones.length;
+        bones.push({ name: 'BagL', parent: hi, head: [...bones[hi].head], tail: [bones[hi].head[0], bones[hi].head[1] + 0.05 * sizeK, bones[hi].head[2]], rot: bones[hi].rot });
         for (const cp of buildCarry(p.carry, (key, make) => genTexture(lib, key, make), p.garmentStyles)) {
           const P = cp.mesh.positions, positions = new Float32Array(P.length);
           for (let i = 0; i < P.length; i += 3) {
@@ -506,7 +510,7 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
           }
           const n = P.length / 3, j = new Uint16Array(n * 4).fill(0), wts = new Float32Array(n * 4);
           for (let v = 0; v < n; v++) {
-            j[v * 4] = hi;
+            j[v * 4] = bag;
             wts[v * 4] = 1;
           }
           out.push([{ ...cp.mesh, positions, skin: { j, w: wts } }, cp.material]);

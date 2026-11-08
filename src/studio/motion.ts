@@ -11,5 +11,5 @@ export function studioTravel(clip:string,speed?:number):Vec3|undefined{
  const id=manoeuvre(clip)==='crash'?undefined:RIDING_VEHICLES[clip]??RIDING_VEHICLES[VEHICLE_MANOEUVRES[clip]?.ride];return id?[0,0,(id==='rowboat'?-1:1)*(speed??(manoeuvre(clip)==='taxi'?TAXI_SPEED:VEHICLE_SPEED[id]))]:clipById.get(clip)?.travel;
 }
 export {travelTime};
-/** Runway manoeuvres and the jet bail-out always travel; the jet cannot climb, flare or keep flying in place. */
-export const forcedTravel=(clip:string)=>['taxi','takeoff','land'].includes(manoeuvre(clip)!)||clip==='bailout_jet';
+/** Runway manoeuvres, the jet bail-out and travelling climbs always move: their hands and feet stay on fixed holds only while the body travels. */
+export const forcedTravel=(clip:string)=>['taxi','takeoff','land'].includes(manoeuvre(clip)!)||clip==='bailout_jet'||clipById.get(clip)?.category==='Climbing'&&!!clipById.get(clip)?.travel;

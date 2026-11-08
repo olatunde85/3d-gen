@@ -430,7 +430,9 @@ for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
         };
       };
       const full = legs(ch.rig), ref = legs(game);
-      for (const c of CLIPS) {
+      // Clips that pin the feet to floor-space holds (climbing) place them by each skeleton's own scale; their
+      // contacts are checked on every skeleton in climbing-check.ts.
+      for (const c of CLIPS.filter((c) => !c.sample(0).feet)) {
         let worst = 0;
         for (let i = 0; i <= 10; i++) {
           const a = full(c, (i / 10) * c.duration), b = ref(c, (i / 10) * c.duration);
