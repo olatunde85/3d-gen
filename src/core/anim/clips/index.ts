@@ -68,7 +68,8 @@ export const CLIPS: Clip[] = withFaces(
     recover(jumpRunning,.24),
     fall,
     punch,
-    recover(easeFrom(mocap('punch_low', 'Low punch', 'Combat'),idle,.25,true),.45),
+    // Played at double the captured speed.
+    pace(recover(easeFrom(mocap('punch_low', 'Low punch', 'Combat'),idle,.25,true),.45),.5),
     hit,
     ...DODGES,
     ...REACTIONS,
