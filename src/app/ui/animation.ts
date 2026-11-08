@@ -4,6 +4,7 @@
  */
 import {animationGroup,animationMatches} from '../../core/anim/groups';
 import { CLIPS, clipById } from '../../core/anim/clips';
+import { stagePropFor } from '../../core/anim/stage';
 import type { Ctx } from './context';
 import { $, el } from './dom';
 
@@ -53,8 +54,8 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
   rmBox.addEventListener('change', () => store.setExport({ rootMotion: rmBox.checked }));
   const rmLabel = el('label', { className: 'acc rm', title: 'Locomotion clips travel forward / sideways (also used for export)' }, rmBox, 'Root motion');
   const propBox = el('input', { type: 'checkbox' });
-  propBox.addEventListener('change', () => store.setExport({ climbProps: propBox.checked }));
-  const propLabel = el('label', { className: 'acc rm', title: 'Show the ladder, obstacle or ledge wall (also included in exports)' }, propBox, 'Props');
+  propBox.addEventListener('change', () => store.setExport({ stageProps: propBox.checked }));
+  const propLabel = el('label', { className: 'acc rm', title: 'Show the ladder, obstacle, ledge wall or cover (also included in exports)' }, propBox, 'Props');
   propLabel.hidden = true;
   const speed = el('select', { title: 'Playback speed' });
   for (const s of ['0.25', '0.5', '1', '1.5']) speed.append(new Option(`${s}×`, s));
@@ -62,12 +63,12 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
   speed.addEventListener('change', () => (viewer.speed = Number(speed.value)));
   animBar.append(rmLabel, propLabel, speed, progress);
   viewer.onTick = (clip, t) => {
-    const climbing = clip?.category === 'Climbing';
-    if (propLabel.hidden === climbing) propLabel.hidden = !climbing;
+    const staged = !!clip && !!stagePropFor(clip.id);
+    if (propLabel.hidden === staged) propLabel.hidden = !staged;
     (progress.firstChild as HTMLElement).style.width = clip ? `${(t / clip.duration) * 100}%` : '0%';
   };
 
-  const syncRootMotion = () => { rmBox.checked = store.exportSettings.rootMotion; propBox.checked = store.exportSettings.climbProps !== false; };
+  const syncRootMotion = () => { rmBox.checked = store.exportSettings.rootMotion; propBox.checked = store.exportSettings.stageProps !== false; };
   syncRootMotion();
   store.on('export', syncRootMotion);
   // A new character: show the bar if it's rigged and keep the current clip playing.

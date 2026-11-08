@@ -113,7 +113,7 @@ export const jumpRunning: Clip = {
 };
 
 export const punch: Clip = {
-  id: 'punch', name: 'Punch', category: 'Actions', duration: 0.9, loop: false,
+  id: 'punch', name: 'Punch', category: 'Combat', duration: 0.9, loop: false,
   sample: (t) => {
     const T = [0, 0.25, 0.4, 0.55, 0.9];
     const k = (v: number[]) => track(T, v)(t);

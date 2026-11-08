@@ -32,6 +32,14 @@ const hitFace = keyed([0, 0.12, 0.4, 1], {
   mouthStretch: [0, 0.6, 0.25, 0],
 });
 
+/** Fighting focus: brows down, jaw set. */
+const GUARD: FaceFn = constant({ browDownLeft: 0.35, browDownRight: 0.35, mouthPress: 0.3 });
+const KICK: FaceFn = keyed([0, 0.3, 0.5, 0.75, 1], {
+  ...both('browDownLeft', 'browDownRight', [0.35, 0.7, 0.85, 0.6, 0.35]),
+  ...both('noseSneerLeft', 'noseSneerRight', [0, 0.2, 0.35, 0.15, 0]),
+  mouthPress: [0.3, 0.7, 0.85, 0.6, 0.3],
+});
+
 const PUNCH: FaceFn = keyed([0, 0.22, 0.45, 0.65, 1], {
   ...both('browDownLeft', 'browDownRight', [0, 0.6, 0.8, 0.5, 0]),
   ...both('eyeSquintLeft', 'eyeSquintRight', [0, 0.3, 0.45, 0.3, 0]),
@@ -134,7 +142,42 @@ const FACES: Record<string, FaceFn> = {
     ...both('eyeSquintLeft', 'eyeSquintRight', [0, 0.45, 0.2]),
     mouthPress: [0.2, 0.5, 0.3],
   }),
+  sword_combo: keyed([0, 0.2, 0.45, 0.65, 1], {
+    ...both('browDownLeft', 'browDownRight', [0.2, 0.7, 0.7, 0.7, 0.2]),
+    mouthPress: [0.2, 0.7, 0.6, 0.7, 0.2],
+    ...both('noseSneerLeft', 'noseSneerRight', [0, 0.3, 0.3, 0.35, 0]),
+  }),
+  sword_thrust: keyed([0, 0.42, 0.6, 1], {
+    ...both('browDownLeft', 'browDownRight', [0.2, 0.75, 0.6, 0.2]),
+    mouthPress: [0.2, 0.75, 0.5, 0.2],
+  }),
+
+  fight_idle: GUARD,
+  punch_combo: keyed([0, 0.1, 0.3, 0.6, 0.75, 1], {
+    ...both('browDownLeft', 'browDownRight', [0.35, 0.8, 0.8, 0.8, 0.6, 0.35]),
+    ...both('eyeSquintLeft', 'eyeSquintRight', [0.1, 0.4, 0.45, 0.45, 0.3, 0.1]),
+    mouthPress: [0.3, 0.8, 0.8, 0.8, 0.6, 0.3],
+  }),
+  kick_front: KICK,
+  kick_roundhouse: KICK,
+  block: keyed([0, 0.3, 0.6, 1], {
+    ...both('eyeSquintLeft', 'eyeSquintRight', [0.1, 0.8, 0.4, 0.1]),
+    ...both('browDownLeft', 'browDownRight', [0.35, 0.7, 0.5, 0.35]),
+    mouthPress: [0.3, 0.7, 0.5, 0.3],
+  }),
+
+  take_cover: keyed([0, 0.5, 1], { ...both('browDownLeft', 'browDownRight', [0, 0.45, 0.45]), mouthPress: [0, 0.4, 0.35] }),
+  cover_idle: constant({ browDownLeft: 0.45, browDownRight: 0.45, mouthPress: 0.35 }),
+  cover_fire: keyed([0, 0.2, 0.3, 0.75, 0.85, 1], {
+    eyeSquintLeft: [0, 0, 0.55, 0.55, 0, 0], browDownLeft: [0.45, 0.45, 0.4, 0.4, 0.45, 0.45], browDownRight: [0.45, 0.45, 0.2, 0.2, 0.45, 0.45], mouthPress: [0.35, 0.35, 0.2, 0.2, 0.35, 0.35],
+  }),
+  rifle_hit_front: hitFace,
+  rifle_hit_back: hitFace,
 };
+
+// Rifle deaths fall the same way as the unarmed deaths.
+FACES.rifle_death_forward = FACES.death_forward;
+FACES.rifle_death_backward = FACES.death_backward;
 
 /** Clips with their facial animation added (clips without an entry keep a resting face). */
 export function withFaces(clips: Clip[]): Clip[] {

@@ -8,15 +8,15 @@ import { armLayer, pace, recordedWalk, recordedRun, recordedStrafeLeft, recorded
 // Hands are placed by IK in chest space; the weapon itself is supplied by the game
 // (attach it to RightHand). Right-handed, rifle along +Z.
 
-type Hold = { Left: HandTarget; Right: HandTarget };
+export type Hold = { Left: HandTarget; Right: HandTarget };
 
 // Shouldered aim: stock in the right shoulder pocket, grip below the bore, support hand on the handguard.
-const AIM: Hold = {
+export const AIM: Hold = {
   Right: { pos: v(-0.13, -0.19, 0.22), pole: v(-1, -0.9, -0.2), dir: v(0.1, -0.55, 0.83), palm: v(1, 0, 0) },
   Left: { pos: v(-0.01, -0.13, 0.5), pole: v(0.4, -1, 0), dir: v(-0.35, 0.2, 0.91), palm: v(0, 1, 0), support: 'rifle' },
 };
 // Low ready: same hold, muzzle angled down ~40 degrees.
-const READY: Hold = {
+export const READY: Hold = {
   Right: { pos: v(-0.15, -0.36, 0.17), pole: v(-1, -0.6, -0.4), dir: v(0.1, -0.75, 0.65), palm: v(1, 0, 0) },
   Left: { pos: v(0.03, -0.42, 0.4), pole: v(0.6, -1, 0), dir: v(-0.35, 0.05, 0.93), palm: v(0, 1, 0), support: 'rifle' },
 };
@@ -27,7 +27,7 @@ const SPRINT: Hold = {
 };
 
 /** Upper body for a rifle hold: shoulders square, head on the sights when aiming. */
-function rifleUpper(out: Record<string, Ch>, aiming: boolean, breathe = 0) {
+export function rifleUpper(out: Record<string, Ch>, aiming: boolean, breathe = 0) {
   out.Spine1 = [(aiming ? 4 : 2) + breathe, (out.Spine1?.[1] ?? 0), 0];
   out.Spine2 = [(aiming ? 3 : 1) + breathe * 0.5, (out.Spine2?.[1] ?? 0), 0];
   out.Neck = [aiming ? 6 : 0, aiming ? -6 : 0, 0];
@@ -37,7 +37,7 @@ function rifleUpper(out: Record<string, Ch>, aiming: boolean, breathe = 0) {
 }
 
 /** Bladed shooter stance (left foot forward). */
-function stance(out: Record<string, Ch>, crouch = false) {
+export function stance(out: Record<string, Ch>, crouch = false) {
   if (crouch) {
     side(out, 'UpLeg', [72, 0, 4], [65, 0, 2]);
     side(out, 'Leg', [-105, 0, 0], [-120, 0, 0]);
@@ -50,7 +50,7 @@ function stance(out: Record<string, Ch>, crouch = false) {
   }
 }
 
-const hold = (h: Hold, recoil = 0): Sample['ik'] => ({
+export const hold = (h: Hold, recoil = 0): Sample['ik'] => ({
   Right: { ...h.Right, pos: v(h.Right.pos[0], h.Right.pos[1] + recoil * 0.015, h.Right.pos[2] - recoil * 0.035) },
   Left: { ...h.Left, pos: v(h.Left.pos[0], h.Left.pos[1] + recoil * 0.02, h.Left.pos[2] - recoil * 0.03) },
 });

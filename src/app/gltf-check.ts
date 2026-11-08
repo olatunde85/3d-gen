@@ -39,7 +39,7 @@ async function check(lib: AssetLibrary, config: string, p: HumanParams, loopSuff
   log(`${config}: building`);
   const ch = await buildHuman(lib, p);
   log(`${config}: exporting`);
-  const settings = { ...DEFAULT_EXPORT, mode: 'animated' as const, format: 'glb' as const, packaging: 'embedded' as const, clips: CLIPS.map((c) => c.id), loopSuffix,vehicleFile:false,climbProps:false };
+  const settings = { ...DEFAULT_EXPORT, mode: 'animated' as const, format: 'glb' as const, packaging: 'embedded' as const, clips: CLIPS.map((c) => c.id), loopSuffix,vehicleFile:false,stageProps:false };
   const file = await runExport(lib, ch, planExport(ch, settings));
   const buf = file.data.buffer.slice(file.data.byteOffset, file.data.byteOffset + file.data.byteLength) as ArrayBuffer;
   log(`${config}: loading GLB (${(buf.byteLength / 1e6).toFixed(1)} MB)`);

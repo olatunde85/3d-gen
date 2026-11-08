@@ -10,7 +10,7 @@ import { exportOBJ } from './obj';
 import { exportClipName, planExport, stemOf, type ExportPlan, type ExportSettings, type PlannedFile } from './plan';
 import {Vehicle} from '../core/props/vehicle';
 import {vehicleFor,vehicleLift} from '../core/props/vehicles';
-import { climbPropMesh } from '../core/props/climb-props';
+import { stagePropMesh } from '../core/props/stage-props';
 
 export * from './plan';
 
@@ -132,8 +132,8 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
         return write(mesh,name,new Map(),f.rigged?rig:undefined,clips,{});
       }finally{vehicle.dispose();}
     }
-    if (f.kind === 'climb') {
-      const mesh = climbPropMesh(f.climbProp!, riderScale), name = `${stem}_${f.climbProp}`;
+    if (f.kind === 'stage') {
+      const mesh = stagePropMesh(f.stageProp!, riderScale), name = `${stem}_${f.stageProp}`;
       if (f.format === 'obj') { const { obj, mtl } = exportOBJ(mesh, name, `${name}.mtl`); return { [`${name}.obj`]: strToU8(obj), [`${name}.mtl`]: strToU8(mtl) }; }
       return (f.format === 'glb' ? exportGLB : exportFBX)(mesh, name, new Map(), undefined, [], {});
     }
@@ -154,7 +154,7 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
     if (f.path === 'preview.png' && !extras.previewPng) continue;
     const data = build(f);
     if (f.kind === 'obj') folder.obj = data as Zippable;
-    else if((f.kind==='vehicle'||f.kind==='climb')&&f.format==='obj')folder[f.path.replace(/\/$/,'')]=data as Zippable;
+    else if((f.kind==='vehicle'||f.kind==='stage')&&f.format==='obj')folder[f.path.replace(/\/$/,'')]=data as Zippable;
     else folder[f.path] = data instanceof Uint8Array && /\.(glb|png)$/.test(f.path) ? [data, { level: 0 }] : (data as Uint8Array);
   }
   progress('Compressing zip');
@@ -175,7 +175,7 @@ export async function exportCharacter(
     rootMotion: false,
     loopSuffix: false,
     weaponFile: 'held',
-    climbProps: false,
+    stageProps: false,
   };
   return runExport(lib, ch, planExport(ch, settings), extras);
 }

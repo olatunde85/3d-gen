@@ -59,7 +59,7 @@
     "test:character-assist": "tsx scripts/character-assist-check.ts",
     "test:action-props": "tsx scripts/action-props-check.ts && tsx scripts/action-props-export-check.ts",
     "test:fleet": "tsx scripts/fleet-check.ts && tsx scripts/studio-check.ts --fleet",
-    "test:climbing": "tsx scripts/climbing-check.ts",
+    "test:stage": "tsx scripts/stage-check.ts",
     "test:aerial": "tsx scripts/aerial-check.ts && tsx scripts/studio-check.ts --aerial"
   },
   "dependencies": {

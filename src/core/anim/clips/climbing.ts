@@ -103,18 +103,6 @@ export const vaultOver: Clip = {
 
 /** Ledge: a wall whose face is 26 cm in front of the origin and whose top edge is 2.15 m up (just above the raised hands). */
 export const LEDGE = { face: 0.26, top: 2.15 };
-
-/** The props the clips are authored against: a ladder, a vault obstacle and a ledge wall. */
-export type ClimbProp = 'ladder' | 'obstacle' | 'ledge';
-export const CLIMB_PROP_LABELS: Record<ClimbProp, string> = { ladder: 'Ladder', obstacle: 'Vault obstacle', ledge: 'Ledge wall' };
-
-/** The prop a climbing clip is authored against, or undefined for other clips. */
-export function climbPropFor(clipId: string): ClimbProp | undefined {
-  if (clipId === 'ladder_up' || clipId === 'ladder_down') return 'ladder';
-  if (clipId === 'vault_over') return 'obstacle';
-  if (clipId === 'ledge_hang' || clipId === 'ledge_climb_up') return 'ledge';
-  return undefined;
-}
 /** Hooked over the edge: fingers over the top, wrist just below and in front of the face. */
 const ledgeGrip = (s: 1 | -1): HandTarget => ({ space: 'floor', pos: v(s * 0.22, LEDGE.top - 0.075, LEDGE.face - 0.035), pole: v(s, 0.2, -1), dir: norm(v(0, 1, 0.55)), palm: norm(v(0, -0.55, 1)) });
 /** Palm flat on the top beside the body, fingers forward, for pressing up. */
