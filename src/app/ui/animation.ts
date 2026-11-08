@@ -52,16 +52,22 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
   const rmBox = el('input', { type: 'checkbox' });
   rmBox.addEventListener('change', () => store.setExport({ rootMotion: rmBox.checked }));
   const rmLabel = el('label', { className: 'acc rm', title: 'Locomotion clips travel forward / sideways (also used for export)' }, rmBox, 'Root motion');
+  const propBox = el('input', { type: 'checkbox' });
+  propBox.addEventListener('change', () => store.setExport({ climbProps: propBox.checked }));
+  const propLabel = el('label', { className: 'acc rm', title: 'Show the ladder, obstacle or ledge wall (also included in exports)' }, propBox, 'Props');
+  propLabel.hidden = true;
   const speed = el('select', { title: 'Playback speed' });
   for (const s of ['0.25', '0.5', '1', '1.5']) speed.append(new Option(`${s}×`, s));
   speed.value = '1';
   speed.addEventListener('change', () => (viewer.speed = Number(speed.value)));
-  animBar.append(rmLabel, speed, progress);
+  animBar.append(rmLabel, propLabel, speed, progress);
   viewer.onTick = (clip, t) => {
+    const climbing = clip?.category === 'Climbing';
+    if (propLabel.hidden === climbing) propLabel.hidden = !climbing;
     (progress.firstChild as HTMLElement).style.width = clip ? `${(t / clip.duration) * 100}%` : '0%';
   };
 
-  const syncRootMotion = () => (rmBox.checked = store.exportSettings.rootMotion);
+  const syncRootMotion = () => { rmBox.checked = store.exportSettings.rootMotion; propBox.checked = store.exportSettings.climbProps !== false; };
   syncRootMotion();
   store.on('export', syncRootMotion);
   // A new character: show the bar if it's rigged and keep the current clip playing.

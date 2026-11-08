@@ -10,6 +10,7 @@ import { triangleCount } from '../core/mesh';
 import { RIG_LABELS } from '../core/rig/skeletons';
 import { WEAPON_LABELS } from '../core/props/weapons';
 import {VEHICLE_IDS,VEHICLE_FOR_CLIP,VEHICLE_CLIP,VEHICLE_LABELS,vehicleFor,isCar,isPassengerClip,type VehicleId} from '../core/props/vehicles';
+import { CLIMB_PROP_LABELS, climbPropFor, type ClimbProp } from '../core/anim/clips/climbing';
 
 export type ExportMode = 'static' | 'rigged' | 'animated';
 export type FormatChoice = 'glb' | 'fbx' | 'obj' | 'all';
@@ -31,6 +32,8 @@ export interface ExportSettings {
   weaponFile: 'held' | 'separate';
   /** Include fitted vehicles as independent prop assets. Defaults to true. */
   vehicleFile?: boolean;
+  /** Show the ladder, vault obstacle and ledge wall with climbing clips, and include them as separate prop files. Defaults to true. */
+  climbProps?: boolean;
   /** Builder preview action used to fit a static/rigged vehicle prop. */
   vehiclePreviewClip?:string;
 }
@@ -62,8 +65,9 @@ export const MODE_LABELS: Record<ExportMode, { title: string; blurb: string }> =
 export interface PlannedFile {
   /** Path inside the zip (or the download name for single files). */
   path: string;
-  kind: 'model' | 'clip' | 'obj' | 'meta' | 'prop' | 'vehicle';
+  kind: 'model' | 'clip' | 'obj' | 'meta' | 'prop' | 'vehicle' | 'climb';
   vehicleId?: VehicleId;
+  climbProp?: ClimbProp;
   /** Fitting pose, including static and rigged vehicle exports. */
   vehicleClip?: string;
   format?: 'glb' | 'fbx' | 'obj';
@@ -176,6 +180,14 @@ export function planExport(ch: Character, s: ExportSettings): ExportPlan {
     }
     if(rig&&ids.length)notes.push('Vehicle props use the same origin as the rider. Keep both transforms aligned and play their matching clips together. Car, boat and helicopter clips include the fitted cabin/deck height. Static and rigged-only characters remain in their bind pose until a riding/driving clip is applied.');
     if(ch.params.vehicle==='auto'&&!ids.length)notes.push('Match animation includes vehicles for selected riding/driving clips. Play a vehicle action in the builder, or select a specific vehicle in the character recipe, to export a static or rigged vehicle prop.');
+  }
+  if (rig && s.climbProps !== false) {
+    const preview = mode !== 'animated' ? s.vehiclePreviewClip : undefined;
+    const props = [...new Set([...clips, ...(preview ? [preview] : [])].map(climbPropFor).filter((p): p is ClimbProp => !!p))];
+    for (const prop of props)
+      for (const format of formats)
+        files.push({ path: format === 'obj' ? `props/${prop}/` : `${formats.length > 1 ? format + '/' : ''}props/${stem}_${prop}.${format}`, kind: 'climb', climbProp: prop, format, rigged: false, clips: [], meshless: false, desc: `${CLIMB_PROP_LABELS[prop]} · static prop sized to the character` });
+    if (props.length) notes.push('Climbing props share the character\'s origin at the start of the climb. Play climbing clips with root motion and the hands and feet stay on the prop.');
   }
   if (mode === 'animated' && s.rootMotion && clips.some((c) => clipById.get(c)!.travel))
     notes.push('Root motion on: walk/run/strafe clips move the hips forward or sideways instead of playing in place.');

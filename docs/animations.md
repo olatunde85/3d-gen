@@ -1,6 +1,6 @@
 # Animations
 
-There are 187 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 192 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -14,11 +14,12 @@ There are 187 clips. The character loads playing **Idle**. The animation bar at 
 | Emotes | Wave, Cheer, Laugh, Talk, Cry, Clap, Dance (groove), Dance (party bounce) (loops); Point, Thumbs up, Bow |
 | Sitting & lying | Sit down, Sit idle, Stand up (on a chair); Lie down, Sleep (on the back) |
 | Swimming | Tread water, Swim forward (front crawl), Swim breaststroke, Swim backstroke (loops); Dive into water, Climb out of water |
+| Climbing | Climb ladder up / down, Ledge hang (loops); Vault over obstacle, Climb up ledge |
 | Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade |
 | Aerial | Skydive, Activate parachute (deploy), Use parachute (glide), Land parachute |
 | Vehicles | Riding, driving and piloting for fourteen vehicles, with boarding/alighting, stunt rolls, crash escapes, jet runway manoeuvres, parachute bail-outs and the tank gunner. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) |
 
-Clips that end where another begins chain without a pop: Idle → Sit down → Sit idle → Stand up → Idle; Lie down, Sleep and Knockdown → Get up (from back); Death (fall forward) → Get up (from front); Pick up → Carry idle. Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
+Clips that end where another begins chain without a pop: Idle → Sit down → Sit idle → Stand up → Idle; Lie down, Sleep and Knockdown → Get up (from back); Death (fall forward) → Get up (from front); Pick up → Carry idle; Ledge hang → Climb up ledge → Idle. Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
 
 ## Motion capture
 
@@ -77,6 +78,19 @@ The water surface is the floor plane: swimmers float with the body below it and 
 - **Climb out of water** (2.4 s) starts treading water facing the bank: hands on the edge, press up, knee on and stand, about 0.9 m forward onto a bank at water level.
 
 The dive and climb-out move around an even `travel`, so they line up with root motion and stay close to place without it.
+
+## Climbing
+
+Hands and feet are solved onto fixed holds, so nothing slides while the body moves. Each clip is built against a standard prop (metres at 1.8 m height, from the character's starting position, facing forward). The clips play the same with or without it: **Props** next to Root motion shows or hides it in the builder, and the export panel includes it as a separate static file (GLB, FBX or OBJ) sized to the character, with the same origin. Use it as is, or put your own ladder or wall at the same spot:
+
+| Clip | Prop | Movement |
+| --- | --- | --- |
+| **Climb ladder up / down** | Rungs every 30 cm (the lowest 45 cm up) in a vertical plane 36 cm ahead, 44 cm wide | Up 0.5 m/s, down 0.43 m/s (loops) |
+| **Vault over obstacle** | 90 cm high, 35 cm deep, near face 1.1 m ahead | 2.8 m forward in 1.2 s |
+| **Ledge hang** | Wall face 26 cm ahead, top edge 2.15 m up | In place (loop) |
+| **Climb up ledge** | The same wall | 2.15 m up and 0.62 m forward in 2.8 s, ending standing on top |
+
+On the ladder each hand moves with the opposite foot. The vault plants the left hand on top and lifts both feet over it. The hang keeps the legs straight below the hips. The climb up starts from that hang, walks the feet up the wall, presses over the edge onto straight arms, steps the right foot up and stands. A hanging body rises only as far as it needs for its hands to reach the edge, so the hang fits every arm length. Movement is carried in `travel`: play the clips with root motion, or move the character yourself at that speed, and the hands and feet stay on the prop. Hand-carried bags are put away while climbing.
 
 ## Weapons
 
@@ -161,7 +175,7 @@ The **Aerial** category has `skydive`, `parachute_deploy`, `parachute_glide` and
 ## How clips work
 
 - **Keyframed clips** are defined once (`src/core/anim/clips/`, one file per set). Each bone is posed in its own frame (X = flex forward, Y = twist, Z = side), on an "animation rest" with relaxed arms and nearly straight elbows.
-- **Hand targets** are given relative to the chest (most clips) or to the floor (`HandTarget.space: 'floor'`, for hands on something fixed, like handlebars or a broom). `HandTarget.tip` targets the index fingertip instead of the wrist, using the rig's own finger length.
+- **Hand targets** are given relative to the chest (most clips) or to the floor (`HandTarget.space: 'floor'`, for hands on something fixed, like handlebars, a broom or a ladder rung). `HandTarget.tip` targets the index fingertip instead of the wrist, using the rig's own finger length. `Sample.feet` places the ankles on floor-space holds the same way, and `Sample.ikWeight` eases a hand onto or off its hold.
 - **One evaluator:** `src/core/anim/evaluate.ts` drives the viewer and both exporters, so one clip works on every skeleton type and on A- or T-pose binds, and the preview matches the export exactly.
 
 GLB has one glTF animation per clip (30 fps, rotation channels plus root translation), and FBX has one AnimationStack (take) per clip. `scripts/blender_anim_check.py` imports the files into Blender and renders key frames of every action.

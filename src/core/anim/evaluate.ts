@@ -152,6 +152,8 @@ export class Animator {
   private socket: number;
   private parcel:number;
   private broom:number;
+  private bag:number;
+  private floorShift: Vec3 = [0, 0, 0];
   private phone:number;
   private fits = new Map<string, { rot: Q; supportZ: number }>();
 
@@ -269,6 +271,7 @@ export class Animator {
     this.socket = B.findIndex((b) => b.name === 'WeaponR');
     this.parcel=B.findIndex(b=>b.name==='Parcel');
     this.broom=B.findIndex(b=>b.name==='Broom');
+    this.bag=B.findIndex(b=>b.name==='BagL');
     this.phone=B.findIndex(b=>b.name==='Phone');
   }
 
@@ -341,6 +344,8 @@ export class Animator {
       : this.frameOf(s, clip, time, opts);
     this.placeParcel(frame,clip,time,opts.rootMotion,opts.parcelGrounded);
     this.placeBroom(frame,clip);
+    // A hand-carried bag is put away while the hands climb or swim.
+    if(this.bag>=0&&(clip.category==='Climbing'||clip.category==='Swimming')){frame.scale??=new Map();frame.scale.set(this.bag,[0,0,0]);}
     this.placePhone(frame,carried);
     if(opts.vehicleLift&&!clip.vehicleTransition){const lift=opts.vehicleLift*(clip.liftWeight?.(time)??1);for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+lift,p[2]]);}
     if(contact){
@@ -526,7 +531,8 @@ export class Animator {
       const first = this.solve({ ...s, ik: { ...s.ik, Left: undefined } }, clip, time, opts);
       s = { ...s, ik: { ...s.ik, Left: this.supportTarget(left, first.world, first.pos) } };
     }
-    const solved = this.solve(s, clip, time, opts).frame;
+    if (s.root.reach) s = this.reachHands(s, clip, time, opts);
+    const solved = this.weighIK(s, this.placeFeet(s, this.solve(s, clip, time, opts).frame), clip, time, opts);
     if (s.root.ground && !s.root.floor && !s.mocap && Object.values(s.ik ?? {}).some((h) => h?.space === 'floor')) {
       // Grounding moves the hips after IK. Compensate floor targets by that same offset,
       // otherwise a crouch drags a planted hand away from the object (or into a leg).
@@ -540,9 +546,61 @@ export class Animator {
         const h = ik[side];
         if (h?.space === 'floor') ik[side] = { ...h, pos: [h.pos[0], h.pos[1] - shift, h.pos[2]] };
       }
-      return this.solve({ ...s, ik }, clip, time, opts).frame;
+      return this.placeFeet(s, this.solve({ ...s, ik }, clip, time, opts).frame);
     }
     return solved;
+  }
+
+  /** See Root.reach: lift the root just enough for each held floor-space hand target to be within 98% of the arm. */
+  private reachHands(s: Sample, clip: Clip, time: number, opts: { rootMotion?: boolean }): Sample {
+    const { pos } = this.solve(s, clip, time, opts), B = this.rig.bones;
+    let lift = 0;
+    for (const side of ['Left', 'Right'] as const) {
+      const h = s.ik?.[side];
+      if (!h || h.space !== 'floor' || (s.ikWeight?.[side] ?? 1) < 0.5) continue;
+      const arm = this.idx.get(`${side}Arm`)!, fore = this.idx.get(`${side}ForeArm`)!, hand = this.idx.get(`${side}Hand`)!;
+      const reach = 0.98 * (dist(B[fore].head, B[arm].head) + dist(B[hand].head, B[fore].head));
+      const T = h.pos.map((v, d) => v * this.scale + this.floorShift[d]) as Vec3, S = pos[arm];
+      const flat = Math.hypot(T[0] - S[0], T[2] - S[2]);
+      if (flat < reach) lift = Math.max(lift, T[1] - Math.sqrt(reach * reach - flat * flat) - S[1]);
+    }
+    if (lift <= 0) return s;
+    const up = lift / this.scale, feet = { ...s.feet };
+    for (const side of ['Left', 'Right'] as const) { const f = feet[side]; if (f?.rise) feet[side] = { ...f, pos: [f.pos[0], f.pos[1] + up * f.rise, f.pos[2]] }; }
+    return { ...s, root: { ...s.root, y: (s.root.y ?? 0) + up }, feet };
+  }
+
+  /** Fade hands with an `ikWeight` below 1 between their IK pose and their posed (FK) arm. */
+  private weighIK(s: Sample, frame: Frame, clip: Clip, time: number, opts: { rootMotion?: boolean }): Frame {
+    const sides = (['Left', 'Right'] as const).filter((sd) => s.ik?.[sd] && (s.ikWeight?.[sd] ?? 1) < 1);
+    if (!sides.length) return frame;
+    const ik = { ...s.ik };
+    for (const sd of sides) delete ik[sd];
+    const free = this.placeFeet(s, this.solve({ ...s, ik }, clip, time, opts).frame), B = this.rig.bones;
+    const chain = new Set<number>();
+    for (const sd of sides) { const top = this.idx.get(`${sd}Arm`); if (top === undefined) continue; chain.add(top); B.forEach((b, i) => { if (chain.has(b.parent)) chain.add(i); }); }
+    const w = (i: number) => { for (const sd of sides) { const top = this.idx.get(`${sd}Arm`); let j = i; while (j >= 0) { if (j === top) return s.ikWeight![sd]!; j = B[j].parent; } } return 1; };
+    return { ...frame, rot: frame.rot.map((q, i) => (chain.has(i) ? qslerp(free.rot[i], q, w(i)) : q)) };
+  }
+
+  /** Legs reach the sample's floor-space ankle targets (rungs, ledges), keeping each foot's posed orientation. */
+  private placeFeet(s: Sample, frame: Frame): Frame {
+    for (const side of ['Left', 'Right'] as const) {
+      const f = s.feet?.[side];
+      if (!f) continue;
+      let target = f.pos.map((v, d) => v * this.scale + this.floorShift[d]) as Vec3, pole = f.pole;
+      const w = f.weight ?? 1;
+      if (w < 1) {
+        // Ease from the leg's own pose: blend the ankle and the knee's bend direction.
+        const P = this.positions(frame), [hip, knee, ankle] = ['UpLeg', 'Leg', 'Foot'].map((n) => P[this.idx.get(side + n)!]);
+        const axis = norm(sub3(ankle, hip)), out = sub3(knee, hip), along = out.reduce((v, x, i) => v + x * axis[i], 0);
+        const bend = norm(out.map((x, i) => x - along * axis[i]) as Vec3);
+        target = ankle.map((x, d) => x + (target[d] - x) * w) as Vec3;
+        pole = bend.map((x, d) => x + (f.pole[d] - x) * w) as Vec3;
+      }
+      this.pinLimb(frame, side, 'leg', target, pole);
+    }
+    return frame;
   }
 
   /** Socket-space fit of a weapon to its reference aiming clip (cached): see weaponFit. */
@@ -666,6 +724,8 @@ export class Animator {
     const rot: Q[] = new Array(B.length);
     const rootPos = new Map<number, Vec3>();
     const r = s.root;
+    // Floor-space contacts travel with root motion, so they stay put relative to the moving body's world.
+    this.floorShift = opts.rootMotion && clip.travel ? clip.travel.map((v) => v * time * this.scale) as Vec3 : [0, 0, 0];
     const k = this.scale;
     const rootRot = qmul(qaxis([0, 1, 0], r.yaw ?? 0), qaxis([1, 0, 0], r.pitch ?? 0));
     const ikDone: Record<string, { T: Vec3 } | undefined> = {};
@@ -799,7 +859,7 @@ export class Animator {
     const B = this.rig.bones;
     // Origin: base of the neck (just above the shoulder line), carried by the chest bone.
     const chest = this.chestSpace(world, pos);
-    const { cd, origin } = t.space === 'floor' ? { cd: QI, origin: [0, 0, 0] as Vec3 } : chest;
+    const { cd, origin } = t.space === 'floor' ? { cd: QI, origin: this.floorShift } : chest;
     const toWorld = (v: Vec3) => qrot(cd, v);
     const fore = this.idx.get(`${side}ForeArm`)!, hand = this.idx.get(`${side}Hand`)!;
     if (part === 'Arm') {
