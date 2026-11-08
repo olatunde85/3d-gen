@@ -1,6 +1,6 @@
 Ara Studio sound effects
 
-Recordings supplied by the project owner in sound-for-ara and new-sound-effects.
+Recordings supplied by the project owner in sound-for-ara, new-sound-effects and newer-sound-effects.
 Audio retains its own rights and is not covered by Ara's MIT code licence.
 Web versions use FFmpeg VBR MP3 compression at 48 kHz stereo, with 1 dB
 of additional headroom. No trimming, looping or time-stretching is applied.
@@ -40,3 +40,47 @@ Web file: forest-birds.mp3
 Ocean
 Original: new-sound-effects/sustained_ocean_soun_#1-1793963083248.wav
 Web file: ocean.mp3
+
+Fighting stance footwork
+Original: newer-sound-effects/Light_sneaker_shuffl_#1-1794175869066.wav
+Web file: fight-footwork.mp3
+
+Punch combo
+Original: newer-sound-effects/Three_fast_punches_w_#2-1794175947919.wav
+Web file: punch-combo.mp3
+
+Low punch
+Original: newer-sound-effects/A_quick_low_body_pun_#1-1794176000864.wav
+Web file: low-punch.mp3
+
+Front kick
+Original: newer-sound-effects/Trousers_rustle_as_t_#4-1794176081857.wav
+Web file: front-kick.mp3
+
+Roundhouse kick
+Original: newer-sound-effects/A_shoe_squeaks_as_th_#3-1794176241804.wav
+Web file: roundhouse-kick.mp3
+
+Block impact
+Original: newer-sound-effects/Forearms_snap_up_wit_#3-1794176296196.wav
+Web file: block-impact.mp3
+
+Block (late impact)
+Original: newer-sound-effects/Forearms_snap_up_wit_#1-1794176408066.wav
+Web file: block-late.mp3
+
+Take cover steps
+Original: newer-sound-effects/Two_quick_boot_steps_#2-1794176632198.wav
+Web file: take-cover-steps.mp3
+
+Cover fire
+Original: newer-sound-effects/A_soldier_rises_from_#4-1794176687617.wav
+Web file: cover-fire.mp3
+
+Bullet hit
+Original: newer-sound-effects/A_bullet_strikes_a_b_#2-1794176573282.wav
+Web file: bullet-hit.mp3
+
+Bullet hit and fall
+Original: newer-sound-effects/A_bullet_impact_and__#2-1794176488234.wav
+Web file: bullet-hit-fall.mp3

@@ -1,6 +1,7 @@
 import {flightHeight} from './helicopter-flight';
 import {jetAttitude,type JetAttitude} from './jet-flight';
 import {stagePropFor,stageScenery} from '../core/props/stage-props';
+import {Blood,type BloodHit} from '../core/props/blood';
 import {manoeuvre} from '../core/props/vehicle-motion';
 /** Studio's render adapter. Uses the generator's unmodified mesh, materials and Animator. */
 import * as THREE from 'three';
@@ -38,6 +39,7 @@ export class StudioActor {
   private base={position:new THREE.Vector3(),yaw:0};
   private jet?:JetAttitude;
   private stageGroups=new Map<string,THREE.Group>();
+  private bleed?:Blood;
   private vehiclePlan?:VehicleStage;
   private hipCache=new Map<string,[number,number,number]>();
   get vehicleBody():VehicleBody{return {scale:this.scale,boardingScale:boardingScale(this.character.rig!),weapon:this.character.params.weapon,hip:(clip,model)=>{
@@ -224,6 +226,7 @@ export class StudioActor {
     }
     for(const [id,ride]of this.rides)if(!keep.has(id)){ride.group.removeFromParent();ride.dispose();this.rides.delete(id);}
     this.stageScenery(project,track);
+    this.blood(project,time,track);
   }
   /**
    * Ladders, obstacles, ledges and cover belong to the set: each span (consecutive ladder actions share a ladder; a
@@ -244,7 +247,26 @@ export class StudioActor {
       g.rotation.set(0,origin.yaw*Math.PI/180-this.base.yaw,0);g.visible=!span.hidden;
     }
   }
+  /**
+   * Blood from gunshot reactions belongs to the set, like the scenery: it stays where it fell for the rest of the film,
+   * even when the actor gets up and moves on. Built the first time a film shows a gunshot on this actor.
+   */
+  private blood(project:StudioProject,time:number,track:ActorTrack){
+    const hits:BloodHit[]=[];let start=0;
+    for(const b of track.beats){
+      if(start>time)break;
+      const clip=clipById.get(b.clip)!;
+      if(clip.wounds&&b.showBlood!==false){
+        const origin=this.stage(project,start,track).actor(track),yaw=-this.base.yaw;
+        const offset=new THREE.Vector3(origin.x-this.base.position.x,origin.y-this.base.position.y,origin.z-this.base.position.z).applyAxisAngle(new THREE.Vector3(0,1,0),yaw);
+        hits.push({clip,elapsed:time-start,place:new THREE.Matrix4().makeRotationY(origin.yaw*Math.PI/180+yaw).setPosition(offset)});
+      }
+      start+=b.duration;
+    }
+    if(hits.length&&!this.bleed){this.bleed=new Blood(this.mesh,this.animator,this.scale);this.group.add(this.bleed.group);}
+    this.bleed?.update(hits);
+  }
   detach() { this.group.removeFromParent(); }
-  dispose() { this.rides.forEach(r=>r.dispose());this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
+  dispose() { this.bleed?.dispose();this.rides.forEach(r=>r.dispose());this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
     this.mesh.skeleton.dispose(); this.textures.forEach((t) => t.dispose()); this.group.removeFromParent(); }
 }

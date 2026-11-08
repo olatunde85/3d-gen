@@ -6,7 +6,7 @@
  */
 import { type Clip } from './types';
 import { track } from './helpers';
-import { speechFace, speechStress } from './speech';
+import { speechFace, speechStress, TALK_LEN } from './speech';
 
 type Face = Partial<Record<string, number>>;
 type FaceFn = (t: number, duration: number) => Face;
@@ -63,6 +63,12 @@ const FACES: Record<string, FaceFn> = {
   talk: (t) => {
     const st = speechStress(t);
     return { ...speechFace(t), browInnerUp: 0.25 * st, browOuterUpLeft: 0.3 * st, browOuterUpRight: 0.3 * st };
+  },
+  // On the phone: talking while the free hand gestures, mouth closed while listening (see everyday.ts).
+  phone_call: (t, d) => {
+    const talking = Math.min(1, Math.max(0, Math.sin((t / d) * Math.PI * 4)) * 4), tb = (t / d) * TALK_LEN, st = speechStress(tb) * talking;
+    const mouth = Object.fromEntries(Object.entries(speechFace(tb)).map(([k, w]) => [k, (w ?? 0) * talking]));
+    return { ...mouth, browInnerUp: 0.2 * st, browOuterUpLeft: 0.25 * st, browOuterUpRight: 0.25 * st };
   },
   laugh: (t, d) => {
     const ha = Math.abs(Math.sin((t / d) * Math.PI * 12));
@@ -175,9 +181,19 @@ const FACES: Record<string, FaceFn> = {
   rifle_hit_back: hitFace,
 };
 
-// Rifle deaths fall the same way as the unarmed deaths.
-FACES.rifle_death_forward = FACES.death_forward;
-FACES.rifle_death_backward = FACES.death_backward;
+// Rifle and gunshot deaths fall the same way as the unarmed deaths.
+FACES.rifle_death_forward = FACES.shot_back = FACES.shot_stomach = FACES.death_forward;
+FACES.rifle_death_backward = FACES.shot_chest = FACES.death_backward;
+FACES.shot_head = keyed([0, 0.04, 0.1, 1], {
+  ...both('eyeBlinkLeft', 'eyeBlinkRight', [0, 0, 0.7, 0.8]),
+  ...both('eyeWideLeft', 'eyeWideRight', [0, 0.8, 0, 0]),
+  jawOpen: [0, 0.3, 0.3, 0.25],
+});
+FACES.shot_leg = FACES.shot_arm = keyed([0, 0.06, 0.2, 0.5, 1], {
+  ...both('eyeSquintLeft', 'eyeSquintRight', [0, 0, 0.9, 0.7, 0.6]),
+  ...both('browDownLeft', 'browDownRight', [0, 0, 0.6, 0.5, 0.45]),
+  mouthStretch: [0, 0, 0.6, 0.35, 0.3],
+});
 
 /** Clips with their facial animation added (clips without an entry keep a resting face). */
 export function withFaces(clips: Clip[]): Clip[] {

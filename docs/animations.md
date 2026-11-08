@@ -1,6 +1,6 @@
 # Animations
 
-There are 206 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 212 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -8,7 +8,7 @@ There are 206 clips. The character loads playing **Idle**. The animation bar at 
 | Locomotion | Walk, Slouch walk, Model walk (catwalk), Run, Walk backwards, Strafe left/right (loops; in place, or with root motion) |
 | Turns | Left/right 45° and 90°, full 360° |
 | Actions | Jump, Fall, Hit reaction; Jump start, Jump (in air) (loop), Jump land and Running jump for engine character controllers; Forward roll, Side dodge left/right |
-| Combat | Fighting stance (loop), Punch, Low punch, Punch combo (jab, cross, hook), Front kick, Roundhouse kick, Block (unarmed); Sword idle (guard) (loop), Sword slash, Sword block, Sword combo (three cuts), Sword thrust |
+| Combat | Fighting stance (loop), Punch, Low punch, Punch combo (jab, cross, hook), Front kick, Roundhouse kick, Block (unarmed); Sword idle (guard) (loop), Sword slash, Sword block, Sword combo (three cuts), Sword thrust; Shot in the head, Shot in the chest, Shot in the back, Shot in the stomach, Shot in the leg, Shot in the arm |
 | Reactions | Hit from front / back / left / right, Knockdown, Death (fall forward / backward), Get up (from back / front) |
 | Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push; Carry idle, Carry walk, Head-load idle, Head-load walk (loops) |
 | Everyday | Talk with gestures, Phone call, Texting, Lean on wall, Look around, Sweep (loops) |
@@ -66,7 +66,7 @@ Interaction hands use chest-space IK; the pickup reach uses floor-space targets 
 
 ## Everyday and emotes
 
-**Talk with gestures**, **Phone call**, **Texting**, **Look around** and **Sweep** are loops for background characters. **Lean on wall** folds the arms, rests one foot on the wall and expects a wall about 20 cm behind the heels.
+**Talk with gestures**, **Phone call**, **Texting**, **Look around** and **Sweep** are loops for background characters. In **Phone call** the character talks in two bursts, with the mouth moving and the free hand gesturing, and listens in between. **Lean on wall** folds the arms, rests one foot on the wall and expects a wall about 20 cm behind the heels.
 
 **Clap**, **Dance (groove)** (a step-touch at 120 bpm) and **Dance (party bounce)** (alternating raised hands) loop. **Point** and **Thumbs up** raise the hand and hold; **Bow** goes down and back up. Wave keeps the head and eyes facing forward. Laugh loops every 4.8 seconds with matching facial timing.
 
@@ -106,6 +106,19 @@ On the ladder each hand moves with the opposite foot. The vault plants the left 
 The wall is a stage prop like the climbing props: **Props** shows or hides it, and the export includes it as a separate file placed for Cover idle (Take cover starts 0.46 m further back).
 
 **Rifle hits and deaths** keep the rifle at low ready through the hit. In the deaths the support hand lets go and the rifle is laid flat beside the body, clear of the floor. The body ends where Death (fall forward / backward) ends, so Get up follows.
+
+**Gunshot reactions** are unarmed and the bullet lands 0.05 s in:
+
+| Clip | Length | Reaction |
+|---|---|---|
+| Shot in the head | 1.5 s | The head snaps back and the body drops, falling backward. |
+| Shot in the chest | 2.6 s | A hand goes to the chest, a step back, then the fall backward. |
+| Shot in the back | 1.9 s | The back arches, a stumble forward and a fall face down. |
+| Shot in the stomach | 2.8 s | Doubled over with both hands on the wound, down to the knees, then forward. |
+| Shot in the leg | 1.8 s | Down on the left knee, a hand on the thigh, the other forearm on the raised knee; stays down. |
+| Shot in the arm | 1.4 s | The left hand clamps the right upper arm; stays standing. |
+
+The deaths end where Death (fall backward) (head, chest) or Death (fall forward) (back, stomach) end, so Get up follows. The preview adds blood: a wound on the body, a spray along the bullet's path that lands as drops on the floor and, after the deaths, a pool spreading under the body. **Blood** in the animation bar turns it off. Blood is a preview effect and is not exported; each clip lists its wounds (time, bone and bullet direction) as `Clip.wounds` for engines that add their own.
 
 ## Weapons
 

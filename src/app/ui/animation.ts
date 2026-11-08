@@ -57,14 +57,20 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
   propBox.addEventListener('change', () => store.setExport({ stageProps: propBox.checked }));
   const propLabel = el('label', { className: 'acc rm', title: 'Show the ladder, obstacle, ledge wall or cover (also included in exports)' }, propBox, 'Props');
   propLabel.hidden = true;
+  const bloodBox = el('input', { type: 'checkbox', checked: viewer.blood });
+  bloodBox.addEventListener('change', () => (viewer.blood = bloodBox.checked));
+  const bloodLabel = el('label', { className: 'acc rm', title: 'Show blood with the gunshot reactions (preview only, not exported)' }, bloodBox, 'Blood');
+  bloodLabel.hidden = true;
   const speed = el('select', { title: 'Playback speed' });
   for (const s of ['0.25', '0.5', '1', '1.5']) speed.append(new Option(`${s}×`, s));
   speed.value = '1';
   speed.addEventListener('change', () => (viewer.speed = Number(speed.value)));
-  animBar.append(rmLabel, propLabel, speed, progress);
+  animBar.append(rmLabel, propLabel, bloodLabel, speed, progress);
   viewer.onTick = (clip, t) => {
     const staged = !!clip && !!stagePropFor(clip.id);
     if (propLabel.hidden === staged) propLabel.hidden = !staged;
+    const shot = !!clip?.wounds;
+    if (bloodLabel.hidden === shot) bloodLabel.hidden = !shot;
     (progress.firstChild as HTMLElement).style.width = clip ? `${(t / clip.duration) * 100}%` : '0%';
   };
 

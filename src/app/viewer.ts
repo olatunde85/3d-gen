@@ -1,4 +1,5 @@
 import { stagePropFor, stageScenery, placeStageProp } from '../core/props/stage-props';
+import { Blood } from '../core/props/blood';
 import * as THREE from 'three';
 import {Vehicle} from '../core/props/vehicle';
 import {DEFAULT_VEHICLE_STYLE,vehicleFor,vehicleLift,type VehicleChoice,type VehicleStyle} from '../core/props/vehicles';
@@ -26,6 +27,9 @@ export class Viewer {
   rootMotion = false;
   /** Show the ladder, vault obstacle, ledge wall or cover with the clips built against them. */
   stageProps = true;
+  /** Show blood with the gunshot reactions. */
+  blood = true;
+  private bleed: Blood | null = null;
   private lastFrame: Frame | null = null;
   /** One fitted vehicle at a time; shared with Studio and exports. */
   private ride:Vehicle|null=null;
@@ -131,6 +135,8 @@ export class Viewer {
 
   show(ch: Character) {
     const { mesh: m } = ch;
+    this.bleed?.dispose();
+    this.bleed = null;
     if (this.mesh) {
       this.scene.remove(this.mesh);
       this.mesh.geometry.dispose();
@@ -267,10 +273,10 @@ export class Viewer {
   private tick() {
     if (!this.animator) return;
     const now = performance.now() / 1000;
-    let t = 0;
+    let t = 0, el = 0;
     let frame: Frame;
     if (this.clip) {
-      const el = (now - this.clipStart) * this.speed;
+      el = (now - this.clipStart) * this.speed;
       t = this.clip.loop ? el % this.clip.duration : Math.min(el, this.clip.duration);
       frame = this.animator.frame(this.clip, t, { rootMotion: this.rootMotion, faceTime: now,vehicleLift:vehicleFor(this.vehicle,this.clip.id)?vehicleLift(vehicleFor(this.vehicle,this.clip.id)!,this.riderScale):0 });
     } else frame = { ...this.animator.bind(), morph: this.animator.restFace(now) };
@@ -314,6 +320,8 @@ export class Viewer {
       want.forEach((x, i) => (inf[i] = inf[i] + (x - inf[i]) * w));
     }
     this.updateStageProp(t);
+    // Blood keeps spreading while the last pose holds.
+    this.updateBlood(el);
     const swimming = this.clip?.category === 'Swimming';
     this.floor.water.visible = swimming;this.floor.ground.visible = this.floor.grid.visible = !swimming;
     this.updateVehicle(frame,t);
@@ -339,6 +347,12 @@ export class Viewer {
       this.stageKey = key;
     }
     if (this.propGroup) placeStageProp(this.propGroup, this.clip!.travel, t, this.riderScale, this.rootMotion);
+  }
+  /** Blood for a gunshot reaction, built the first time one plays on this character. */
+  private updateBlood(t: number) {
+    const shot = this.blood && !!this.clip?.wounds && this.mesh instanceof THREE.SkinnedMesh && !!this.animator;
+    if (shot && !this.bleed) { this.bleed = new Blood(this.mesh as THREE.SkinnedMesh, this.animator!, this.riderScale); this.scene.add(this.bleed.group); }
+    this.bleed?.update(shot ? [{ clip: this.clip!, elapsed: t }] : []);
   }
   private dropVehicle(){if(this.ride){this.scene.remove(this.ride.group);this.ride.dispose();this.ride=null;this.rideKey='';}}
 
