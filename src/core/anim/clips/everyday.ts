@@ -103,12 +103,13 @@ export const leanWall: Clip = {
     side(bones, 'Leg', [-4, 0, 0], [-100, 0, 0]);
     side(bones, 'Foot', [0, 0, 0], [-25, 0, 0]);
     // Arms folded: each hand rests on the opposite upper arm, palm against it and the fingers wrapped round the
-    // outside; the left forearm lies in front of and above the right so they stack instead of crossing through.
+    // outside; the left forearm lies in front of and above the right so they stack instead of crossing through, both
+    // under the bust and clear of the chest on fuller figures.
     grip(bones, 'Left', false, 0.35); grip(bones, 'Right', false, 0.35);
     return { bones, gaze: [0, 0], root: { ground: true, pitch: -7, z: -0.08 }, thumbs: { Left: 0.3, Right: 0.3 },
       ik: {
-        Left: { pos: v(-0.14, -0.16, 0.2), pole: v(1, -1, 0.2), dir: v(-0.66, 0, -0.75), palm: v(0.75, 0, -0.66) },
-        Right: { pos: v(0.14, -0.26, 0.16), pole: v(-1, -1, 0.2), dir: v(0.66, 0, -0.75), palm: v(-0.75, 0, -0.66) },
+        Left: { pos: v(-0.14, -0.24, 0.25), pole: v(1, -1, 0.5), dir: v(-0.66, 0, -0.75), palm: v(0.75, 0, -0.66) },
+        Right: { pos: v(0.14, -0.33, 0.21), pole: v(-1, -1, 0.5), dir: v(0.66, 0, -0.75), palm: v(-0.75, 0, -0.66) },
       } };
   },
 };

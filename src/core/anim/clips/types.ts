@@ -97,6 +97,12 @@ export interface Sample {
   blend?: { sample: Sample; w: number; /** Keep interpolated feet from sinking below the floor. */ ground?: boolean };
 }
 
+/**
+ * Where a bullet hits, for blood effects: at clip time `t`, on `bone` (game-rig name), travelling along `dir`
+ * (character frame: +X left, +Y up, +Z forward), so blood sprays out along it. `pool`: the clip time a pool starts
+ * spreading under that bone once the body is down.
+ */
+export interface Wound { t: number; bone: 'Head' | 'Spine2' | 'Spine' | 'LeftUpLeg' | 'RightArm'; dir: [number, number, number]; pool?: number }
 export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday' | 'Climbing' | 'Combat';
 
 export interface Clip {
@@ -113,5 +119,7 @@ export interface Clip {
   vehicleTransition?: import('../../props/vehicle-actions').VehicleTransition;
   /** Root-motion velocity (metres/second at 1.8 m height, character frame: +X left, +Z forward). */
   travel?: [number, number, number];
+  /** Bullet hits (gunshot reactions). */
+  wounds?: Wound[];
   sample(t: number): Sample;
 }

@@ -11,6 +11,7 @@ import { cheer, laugh, talk, wave, SOCIAL_EMOTES } from './emotes';
 import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
 import { COMBAT } from './combat';
+import { GUNSHOT } from './gunshot';
 import { RIFLE_COMBAT } from './cover';
 import { VEHICLES, BOARDING, VEHICLE_TUMBLES, VEHICLE_CRASHES } from './vehicles';
 import { DODGES } from './dodge';
@@ -95,6 +96,7 @@ export const CLIPS: Clip[] = withFaces(
     capturedTurn('turn_360', 'Full turn 360°', 360),
     ...PISTOL,
     ...COMBAT,
+    ...GUNSHOT,
     ...MELEE,
     ...RIFLE,
     ...RIFLE_COMBAT,

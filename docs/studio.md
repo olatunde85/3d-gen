@@ -51,7 +51,7 @@ Removing a character also tidies up camera shots and captions that pointed at th
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **206 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **212 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. **Check staging** finds land/water and conservative static-obstacle conflicts, but playback does not stop at walls, furniture or other characters. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
 - **Vehicles:** choosing a riding or driving action brings its vehicle. See [Vehicles](#vehicles).
@@ -112,7 +112,14 @@ Music follows the whole film by default. Drag its timeline edges or enable **Cus
 
 ## Sound effects
 
-**Sound effects** above the timeline opens nine recordings, grouped by category: suppressed pistol, rifle shot, body fall, motorcycle/car/boat engines, wind, forest birds and ocean. Engine takes last eight seconds and ambient takes last four seconds. Enable **Loop until cue ends** for longer engine or ambience beds. The recording repeats from **Trim start** to its end at the chosen speed, stopping exactly at the cue’s end. Looping is off by default; longer non-looping windows leave silence after the recording. LLM Assist lists every ID, source duration and the optional `loop` field.
+**Sound effects** above the timeline opens twenty recordings, grouped by category:
+
+- **Weapon:** suppressed pistol, rifle shot and cover fire (rising from cover, two shots).
+- **Impact:** body fall, bullet hit, and bullet hit and fall.
+- **Combat:** fighting-stance footwork, punch combo, low punch, front kick, roundhouse kick, two block impacts and take-cover steps, made for the matching animations. Each description says where its hits fall in the recording; set the start or **Trim start** so they meet the moves.
+- **Vehicle** and **Ambience:** motorcycle, car and boat engines (eight seconds), wind, forest birds and ocean (four seconds).
+
+Enable **Loop until cue ends** for longer engine or ambience beds. The recording repeats from **Trim start** to its end at the chosen speed, stopping exactly at the cue’s end. Looping is off by default; longer non-looping windows leave silence after the recording. LLM Assist lists every ID, source duration and the optional `loop` field.
 
 1. Listen, then **Add at playhead**.
 2. Set the start time to the moment of the shot or impact.
@@ -270,6 +277,10 @@ Climbing actions bring a prop: a ladder for **Climb ladder up / down**, an obsta
 **Fighting stance**, **Punch combo**, **Front kick**, **Roundhouse kick** and **Block** chain through the stance; **Sword combo** and **Sword thrust** chain through Sword idle with a sword equipped. Strikes don't make contact on their own: time a hit reaction or a block on the other character to match, and stand them about a metre apart.
 
 With a rifle equipped, **Take cover** steps forward and crouches behind a 1.1 m cover wall that Studio places ahead of it and keeps in the set. Follow it with **Cover idle** and **Cover fire**, which use the same wall. Untick **Show cover wall** to use the set's own cover instead. **Rifle hit from front / back** and **Rifle death (fall forward / backward)** keep hold of the rifle; the deaths lay it beside the body and are followed by the matching Get up.
+
+### Gunshots
+
+**Shot in the head**, **chest**, **back**, **stomach**, **leg** and **arm** are reactions to a bullet that lands 0.05 s in. Pistol fire and Rifle fire fire 0.04 s in, so start the reaction with the shot; Cover fire fires at 0.75, 1.05 and 1.35 s. Face the shooter at the victim, and shoot Shot in the back from behind. Blood sprays from the wound, lands on the floor and, after the deaths, pools under the body. It stays in the set for the rest of the film, even if the character gets up and moves on. Untick **Show blood** on the action to play it without blood. The deaths end where Death (fall backward / forward) end, so Get up follows. The **Bullet hit** and **Bullet hit and fall** sound effects go with them.
 
 ### Rolls and dodges
 

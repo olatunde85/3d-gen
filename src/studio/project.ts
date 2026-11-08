@@ -20,7 +20,7 @@ export const ACTIONS = CLIPS.map(c => c.id);
 export type Action = string;
 export type Shot = 'wide' | 'medium' | 'close';
 export type CameraMove = 'locked' | 'orbit' | 'dolly';
-export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;flightHeight?:number;showVehicle?:boolean;showProp?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number;vehicleId?:string;vehicleSeat?:VehicleSeat }
+export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;flightHeight?:number;showVehicle?:boolean;showProp?:boolean;showBlood?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number;vehicleId?:string;vehicleSeat?:VehicleSeat }
 export interface ActorTrack { id: string; character: string; detail: Detail; x: number; y: number; z: number; yaw: number; beats: Beat[];vehicle?:VehicleChoice }
 export interface CameraShot { view?: View; camera?: CameraMove; id: string; duration: number; shot: Shot; target: string }
 export interface View { azimuth: number; elevation: number; zoom: number }
@@ -89,6 +89,7 @@ export function parseProject(text: string): StudioProject {
       const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,MAX_TRAVEL_SPEED,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
       if(b.showProp!==undefined&&(typeof b.showProp!=='boolean'||!stagePropFor(clip)))throw Error('Prop visibility is only available for actions with a stage prop (climbing and cover).');
+      if(b.showBlood!==undefined&&(typeof b.showBlood!=='boolean'||!clipById.get(clip)?.wounds))throw Error('Blood visibility is only available for gunshot reactions.');
       if(speed!==undefined&&!RIDING_VEHICLES[clip]&&!manoeuvre(clip))throw Error('Travel speed is only available for riding/driving actions.');
       const height=b.flightHeight===undefined?undefined:number(b.flightHeight,0,30,'helicopter flight height');if(height!==undefined&&!isFlightClip(clip)&&!isAerialClip(clip))throw Error('Flight height is only available for aircraft and aerial actions.');
       const pitch=b.weaponPitch===undefined?undefined:number(b.weaponPitch,-45,60,'weapon elevation');
@@ -101,7 +102,7 @@ export function parseProject(text: string): StudioProject {
       if(pose==='fire'&&!isFirearm(weapon))throw Error('Only a pistol or rifle can use Fire.');
       if(b.vehicleId!==undefined&&(typeof b.vehicleId!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(b.vehicleId)))throw Error('Use a vehicle ID of 1–80 letters, numbers, underscores or hyphens.');
       if(b.vehicleSeat!==undefined&&!member(b.vehicleSeat,VEHICLE_SEATS))throw Error('Choose a supported vehicle seat.');
-      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: (b.move||forcedTravel(clip)) && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(b.showProp!==undefined?{showProp:b.showProp as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}) };
+      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: (b.move||forcedTravel(clip)) && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(b.showProp!==undefined?{showProp:b.showProp as boolean}:{}),...(b.showBlood!==undefined?{showBlood:b.showBlood as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}) };
     });
     if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');
     return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -STAGE_LIMIT, STAGE_LIMIT, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -STAGE_LIMIT, STAGE_LIMIT, 'character Z'), yaw: number(a.yaw, -180, 180, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
