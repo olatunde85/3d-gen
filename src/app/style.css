@@ -211,6 +211,7 @@ button.mini { padding: 2px 7px; font-size: 11px; }
 #export-summary { background: #2f3a55; }
 #export-go { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .acc.rm { color: var(--muted); font-size: 12px; }
+.acc.rm[hidden] { display: none; }
 #anim-bar select.on { border-color: var(--accent); color: #fff; }
 
 /* Animation browser: a drawer that slides in from the right edge of the view. */

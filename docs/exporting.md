@@ -14,8 +14,9 @@ The export bar always shows what you're about to get, for example `📦 FBX · R
 4. **Weapon** (when the character holds one):
    - **In the hand:** one file, with the weapon skinned to `WeaponR`.
    - **Separate prop file:** the character without the weapon, plus `<name>_<weapon>.glb/.fbx`. The prop's origin is at the grip, so it attaches to `WeaponR` with zero offset.
-5. **Format:** GLB, FBX, OBJ (static only; disabled for rigged modes), or All formats (zip).
-6. **You will download:** the exact file name and every file in it, each with a description: triangles, textures, bones and pose, which clips, and whether it's skeleton-only. Notes explain any adjustment, for example that OBJ can't hold a rig.
+5. **Climbing props** (when climbing clips are selected, or one is previewed): `props/<name>_ladder`, `_obstacle` or `_ledge` as static files in the chosen format, sized to the character and sharing its origin at the start of the climb. Untick it to export only the character.
+6. **Format:** GLB, FBX, OBJ (static only; disabled for rigged modes), or All formats (zip).
+7. **You will download:** the exact file name and every file in it, each with a description: triangles, textures, bones and pose, which clips, and whether it's skeleton-only. Notes explain any adjustment, for example that OBJ can't hold a rig.
 
 The plan is computed by `planExport()` (`src/export/plan.ts`) and executed by `runExport()`, so the download always matches the list. Zips also contain:
 - `params.json`, to regenerate the character

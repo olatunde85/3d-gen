@@ -81,16 +81,16 @@ The dive and climb-out move around an even `travel`, so they line up with root m
 
 ## Climbing
 
-Hands and feet are solved onto fixed holds, so nothing slides while the body moves. The clips are built against standard scenery (metres at 1.8 m height, from the character's starting position, facing forward), which the builder and Studio show and your game supplies:
+Hands and feet are solved onto fixed holds, so nothing slides while the body moves. Each clip is built against a standard prop (metres at 1.8 m height, from the character's starting position, facing forward). The clips play the same with or without it: **Props** next to Root motion shows or hides it in the builder, and the export panel includes it as a separate static file (GLB, FBX or OBJ) sized to the character, with the same origin. Use it as is, or put your own ladder or wall at the same spot:
 
-| Clip | Scenery | Movement |
+| Clip | Prop | Movement |
 | --- | --- | --- |
 | **Climb ladder up / down** | Rungs every 30 cm (the lowest 45 cm up) in a vertical plane 36 cm ahead, 44 cm wide | Up 0.5 m/s, down 0.43 m/s (loops) |
 | **Vault over obstacle** | 90 cm high, 35 cm deep, near face 1.1 m ahead | 2.8 m forward in 1.2 s |
 | **Ledge hang** | Wall face 26 cm ahead, top edge 2.15 m up | In place (loop) |
 | **Climb up ledge** | The same wall | 2.15 m up and 0.62 m forward in 2.8 s, ending standing on top |
 
-On the ladder each hand moves with the opposite foot. The vault plants the left hand on top and lifts both feet over it. The climb up walks the feet up the wall, presses over the edge onto straight arms, steps the right foot up and stands. A hanging body rises only as far as it needs for its hands to reach the edge, so the hang fits every arm length. Movement is carried in `travel`: play the clips with root motion, or move the character yourself at that speed and the holds stay put. Hand-carried bags are put away while climbing.
+On the ladder each hand moves with the opposite foot. The vault plants the left hand on top and lifts both feet over it. The hang keeps the legs straight below the hips. The climb up starts from that hang, walks the feet up the wall, presses over the edge onto straight arms, steps the right foot up and stands. A hanging body rises only as far as it needs for its hands to reach the edge, so the hang fits every arm length. Movement is carried in `travel`: play the clips with root motion, or move the character yourself at that speed, and the hands and feet stay on the prop. Hand-carried bags are put away while climbing.
 
 ## Weapons
 

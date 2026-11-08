@@ -263,7 +263,7 @@ Place swimmers inside a set’s water (beach, pools, spa, lake, harbour, yacht d
 
 ### Climbing
 
-Climbing actions bring their scenery: a ladder for **Climb ladder up / down**, an obstacle for **Vault over obstacle**, and a wall with a ledge for **Ledge hang** and **Climb up ledge**. It is placed where each climb starts and stays in the set for the whole film, so later actions continue from the top of a ledge or ladder. Consecutive ladder actions share one ladder, and a hang shares its wall with the climb up. Climbs always travel. Start each climb clear of the set's own walls and furniture, facing the way it should go: the vault needs about 3 m ahead.
+Climbing actions bring a prop: a ladder for **Climb ladder up / down**, an obstacle for **Vault over obstacle**, and a wall with a ledge for **Ledge hang** and **Climb up ledge**. It is placed where each climb starts and stays in the set for the whole film, so later actions continue from the top of a ledge or ladder. Consecutive ladder actions share one ladder, and a hang shares its wall with the climb up. Untick **Show ladder** (or obstacle, or ledge wall) on a climbing action to hide the prop for that climb; the motion stays the same. Climbs always travel. Start each climb clear of the set's own walls and furniture, facing the way it should go: the vault needs about 3 m ahead.
 
 ### Rolls and dodges
 

@@ -244,6 +244,30 @@ async function checkExportModes() {
   const held = planExport(armed, { ...DEFAULT_EXPORT, mode: 'rigged', format: 'glb' });
   if (held.files.some((f) => f.kind === 'prop') || !held.files[0].desc.includes('holding')) fail('weapon held: plan wrong');
   console.log('weapon prop export checked');
+
+  // Climbing props: one static file per prop and format, standing on the floor; none when switched off.
+  const climbs = ['ladder_up', 'ladder_down', 'vault_over', 'ledge_hang', 'ledge_climb_up'];
+  for (const format of ['glb', 'fbx', 'all'] as const) {
+    const plan = planExport(ch, { ...DEFAULT_EXPORT, mode: 'animated', format, clips: climbs });
+    const props = plan.files.filter((f) => f.kind === 'climb');
+    if (props.length !== (format === 'all' ? 6 : 3)) fail(`climb props ${format}: ${props.length} files planned`);
+    const entries = unzipSync((await runExport(lib, ch, plan)).data);
+    for (const f of props) {
+      const data = entries[Object.keys(entries).find((k) => k.endsWith('/' + f.path))!];
+      if (!data) { fail(`climb props ${format}: missing ${f.path}`); continue; }
+      if (f.format === 'fbx' && (parseFbx(data, f.path).get('NodeAttribute') ?? 0)) fail(`climb props ${format}: ${f.path} has a rig`);
+      if (f.format !== 'glb') continue;
+      const dv = new DataView(data.buffer, data.byteOffset);
+      const j = JSON.parse(new TextDecoder().decode(data.subarray(20, 20 + dv.getUint32(12, true))));
+      const low = Math.min(...j.meshes.flatMap((m: { primitives: { attributes: { POSITION: number } }[] }) => m.primitives.map((p) => j.accessors[p.attributes.POSITION].min[1])));
+      if (j.skins || j.animations?.length || Math.abs(low) > 1e-4) fail(`climb props ${format}: ${f.path} not a static prop on the floor (min y ${low})`);
+    }
+  }
+  const objClimb = planExport(ch, { ...DEFAULT_EXPORT, mode: 'static', format: 'obj', vehiclePreviewClip: 'ladder_up' });
+  const objEntries = Object.keys(unzipSync((await runExport(lib, ch, objClimb)).data));
+  if (!objEntries.some((k) => k.includes('props/ladder/') && k.endsWith('_ladder.obj'))) fail(`climb props obj: ${objEntries.join(', ')}`);
+  if (planExport(ch, { ...DEFAULT_EXPORT, mode: 'animated', clips: climbs, climbProps: false }).files.some((f) => f.kind === 'climb')) fail('climb props: planned while switched off');
+  console.log('climbing prop export checked');
 }
 if (primary) await checkExportModes();
 

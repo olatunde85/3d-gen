@@ -587,7 +587,18 @@ export class Animator {
   private placeFeet(s: Sample, frame: Frame): Frame {
     for (const side of ['Left', 'Right'] as const) {
       const f = s.feet?.[side];
-      if (f) this.pinLimb(frame, side, 'leg', f.pos.map((v, d) => v * this.scale + this.floorShift[d]) as Vec3, f.pole);
+      if (!f) continue;
+      let target = f.pos.map((v, d) => v * this.scale + this.floorShift[d]) as Vec3, pole = f.pole;
+      const w = f.weight ?? 1;
+      if (w < 1) {
+        // Ease from the leg's own pose: blend the ankle and the knee's bend direction.
+        const P = this.positions(frame), [hip, knee, ankle] = ['UpLeg', 'Leg', 'Foot'].map((n) => P[this.idx.get(side + n)!]);
+        const axis = norm(sub3(ankle, hip)), out = sub3(knee, hip), along = out.reduce((v, x, i) => v + x * axis[i], 0);
+        const bend = norm(out.map((x, i) => x - along * axis[i]) as Vec3);
+        target = ankle.map((x, d) => x + (target[d] - x) * w) as Vec3;
+        pole = bend.map((x, d) => x + (f.pole[d] - x) * w) as Vec3;
+      }
+      this.pinLimb(frame, side, 'leg', target, pole);
     }
     return frame;
   }

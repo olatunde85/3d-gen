@@ -46,8 +46,9 @@ $('#studio-btn').addEventListener('click', async () => {
   url.hash = params.toString();
   location.assign(url.href);
 });
-viewer.rootMotion = store.exportSettings.rootMotion;
-store.on('export', () => (viewer.rootMotion = store.exportSettings.rootMotion));
+const syncPlayback = () => { viewer.rootMotion = store.exportSettings.rootMotion; viewer.climbProps = store.exportSettings.climbProps !== false; };
+syncPlayback();
+store.on('export', syncPlayback);
 
 // URL options: #c=<shared character> | #preset=<name> | &clip=<id> &skeleton &export &face
 const hash = new URLSearchParams(location.hash.slice(1));

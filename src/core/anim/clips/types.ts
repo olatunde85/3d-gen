@@ -60,7 +60,11 @@ export interface HandTarget {
 }
 
 /** Ankle target in floor space; `rise` (0..1) is how much of a Root.reach lift it follows (feet braced on a wall rise with the body, feet on a ledge stay). */
-export interface FootTarget { pos: [number, number, number]; pole: [number, number, number]; rise?: number }
+export interface FootTarget {
+  pos: [number, number, number]; pole: [number, number, number]; rise?: number;
+  /** How firmly the ankle follows the target (0..1, default 1): eases a foot from its FK pose onto a hold. */
+  weight?: number;
+}
 
 export interface Sample {
   bones: Record<string, Ch>;

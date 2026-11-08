@@ -103,10 +103,29 @@ export const vaultOver: Clip = {
 
 /** Ledge: a wall whose face is 26 cm in front of the origin and whose top edge is 2.15 m up (just above the raised hands). */
 export const LEDGE = { face: 0.26, top: 2.15 };
+
+/** The props the clips are authored against: a ladder, a vault obstacle and a ledge wall. */
+export type ClimbProp = 'ladder' | 'obstacle' | 'ledge';
+export const CLIMB_PROP_LABELS: Record<ClimbProp, string> = { ladder: 'Ladder', obstacle: 'Vault obstacle', ledge: 'Ledge wall' };
+
+/** The prop a climbing clip is authored against, or undefined for other clips. */
+export function climbPropFor(clipId: string): ClimbProp | undefined {
+  if (clipId === 'ladder_up' || clipId === 'ladder_down') return 'ladder';
+  if (clipId === 'vault_over') return 'obstacle';
+  if (clipId === 'ledge_hang' || clipId === 'ledge_climb_up') return 'ledge';
+  return undefined;
+}
 /** Hooked over the edge: fingers over the top, wrist just below and in front of the face. */
 const ledgeGrip = (s: 1 | -1): HandTarget => ({ space: 'floor', pos: v(s * 0.22, LEDGE.top - 0.075, LEDGE.face - 0.035), pole: v(s, 0.2, -1), dir: norm(v(0, 1, 0.55)), palm: norm(v(0, -0.55, 1)) });
 /** Palm flat on the top beside the body, fingers forward, for pressing up. */
 const ledgePress = (s: 1 | -1, z: number): HandTarget => ({ space: 'floor', pos: v(s * 0.26, LEDGE.top + 0.035, z), pole: v(s, 0.3, -0.6), dir: v(0, 0, 1), palm: v(0, -1, 0) });
+
+/** Legs hanging straight below the hips, toes pointed, swaying slightly with the body. */
+function hangLegs(bones: Record<string, Ch>, swing = 0) {
+  side(bones, 'UpLeg', [6 + 2 * swing, 0, -5], [6 + 2 * swing, 0, -5]);
+  side(bones, 'Leg', [-8, 0, 0], [-8, 0, 0]);
+  side(bones, 'Foot', [-30, 0, 0], [-30, 0, 0]);
+}
 
 export const ledgeHang: Clip = {
   id: 'ledge_hang', name: 'Ledge hang', category: 'Climbing', duration: 2.4, loop: true,
@@ -114,12 +133,10 @@ export const ledgeHang: Clip = {
     const swing = Math.sin((t / 2.4) * Math.PI * 2);
     const bones: Record<string, Ch> = { Spine: [-2 + swing, 0, 0], Neck: [-16, 0, 0], Head: [-10, 0, 0] };
     side(bones, 'Arm', [170, 0, 10], [170, 0, 10]);
-    side(bones, 'Foot', [-20, 0, 0], [-20, 0, 0]);
+    hangLegs(bones, swing);
     grip(bones, 'Left'); grip(bones, 'Right');
-    // Toes braced against the wall below.
-    const foot = (s: 1 | -1) => ({ pos: v(s * 0.13, 0.3 + 0.02 * swing, LEDGE.face - 0.17), pole: v(s, 0, 0.3), rise: 1 });
     return { bones, gaze: [0, 0], root: { y: 0.15, z: -0.02, pitch: 4, reach: true }, thumbs: { Left: 0.6, Right: 0.6 },
-      ik: { Left: ledgeGrip(1), Right: ledgeGrip(-1) }, feet: { Left: foot(1), Right: foot(-1) } };
+      ik: { Left: ledgeGrip(1), Right: ledgeGrip(-1) } };
   },
 };
 
@@ -141,7 +158,10 @@ export const ledgeClimb: Clip = {
     side(bones, 'ForeArm', [k([5, 40, 60, 10, 15, 15, 12]), 0, 0], [k([5, 40, 60, 10, 15, 15, 12]), 0, 0]);
     // Feet stay level with the wall and the top: undo the body's forward lean at the ankles.
     const lean = k([4, 6, 16, 35, 20, 4, 0]);
-    side(bones, 'Foot', [k([-20, 0, 10, 10, 10, 5, 0]) + lean, 0, 0], [k([-20, 0, 10, 10, 10, 5, 0]) + lean, 0, 0]);
+    // Starts from the straight-legged hang, easing the feet onto the wall.
+    hangLegs(bones);
+    side(bones, 'Foot', [k([-34, 0, 10, 10, 10, 5, 0]) + lean, 0, 0], [k([-34, 0, 10, 10, 10, 5, 0]) + lean, 0, 0]);
+    const onWall = smooth(t / 0.45);
     grip(bones, 'Left'); grip(bones, 'Right');
     // Hands: hooked grip, then palms flat on top for the press, let go once the right foot is up.
     const press = smooth((t - 0.6) / 0.35), release = smooth((t - 1.4) / 0.3);
@@ -158,12 +178,12 @@ export const ledgeClimb: Clip = {
     // Knees turn out to the side while the feet walk up the wall (forward would push them into it), then point up and
     // forward once the foot is going over the top.
     // ...and forward again once standing on the top.
-    const knee = (sd: 1 | -1, over: number, onTop: number): V3 => { const w = smooth((t - over) / 0.45), f = smooth((t - onTop) / 0.35); return v(sd * (1 - 0.5 * w) * (1 - f), (0.3 + 0.7 * w) * (1 - f) + 0.3 * f, 0.3 * w * (1 - f) + f); };
+    const knee = (sd: 1 | -1, over: number, onTop: number): V3 => { const w = smooth((t - over) / 0.45), f = smooth((t - onTop) / 0.35); return v(sd * 0.55 * (1 - 0.3 * w) * (1 - f), (0.5 + 0.5 * w) * (1 - f) + 0.3 * f, (0.15 + 0.15 * w) * (1 - f) + f); };
     const s: Sample = {
       bones, gaze: [0, 0], root: { y: y - CLIMB_V[1] * t, z: z - CLIMB_V[2] * t, pitch: k([4, 6, 16, 35, 20, 4, 0]), reach: true }, thumbs: { Left: 0.6, Right: 0.6 },
       ik: { Left: hand(1), Right: hand(-1) },
       // Feet on the wall rise with a short-armed body's higher hang; on the top they stay put.
-      feet: { Left: { pos: at(leftFoot), pole: knee(1, 1.55, 1.8), rise: 1 - smooth((t - 1.6) / 0.3) }, Right: { pos: at(rightFoot), pole: knee(-1, 0.85, 1.42), rise: 1 - smooth((t - 1.15) / 0.2) } },
+      feet: { Left: { pos: at(leftFoot), pole: knee(1, 1.55, 1.8), rise: 1 - smooth((t - 1.6) / 0.3), weight: onWall }, Right: { pos: at(rightFoot), pole: knee(-1, 0.85, 1.42), rise: 1 - smooth((t - 1.15) / 0.2), weight: onWall } },
       ikWeight: { Left: 1 - release, Right: 1 - release },
     };
     // Straighten into a standing idle on top.

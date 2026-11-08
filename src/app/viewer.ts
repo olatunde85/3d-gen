@@ -24,6 +24,8 @@ export class Viewer {
   speed = 1;
   /** Preview root motion (travel) for locomotion clips. */
   rootMotion = false;
+  /** Show the ladder, vault obstacle or ledge wall with climbing clips. */
+  climbProps = true;
   private lastFrame: Frame | null = null;
   /** One fitted vehicle at a time; shared with Studio and exports. */
   private ride:Vehicle|null=null;
@@ -327,9 +329,9 @@ export class Viewer {
     }
     this.ride!.update(time,frame);
   }
-  /** Ladder, obstacle or ledge for climbing clips (rebuilt when the clip or character changes). */
+  /** Ladder, obstacle or ledge for climbing clips (rebuilt when the clip, character or switch changes). */
   private updateClimbScenery(t: number) {
-    const key = this.clip?.category === 'Climbing' ? `${this.clip.id}:${this.riderScale}` : '';
+    const key = this.climbProps && this.clip?.category === 'Climbing' ? `${this.clip.id}:${this.riderScale}` : '';
     if (key !== this.climbKey) {
       if (this.climb) { this.scene.remove(this.climb); this.climb.traverse((o) => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); } }); }
       this.climb = key ? climbScenery(this.clip!.id, this.riderScale) ?? null : null;

@@ -27,7 +27,7 @@ for (const rig of ['game', 'game_lite', 'full'] as const) for (const body of [{}
         const h = s.ik?.[side];
         if (h?.space === 'floor' && (s.ikWeight?.[side] ?? 1) > 0.99) { const T = h.pos.map((v, d) => v * k + tr[d]); assert.ok(Math.hypot(...p[idx(side + 'Hand')].map((x, d) => x - T[d])) / k < 0.006, `${label} ${side} hand off its hold at ${t.toFixed(2)}`); }
         const fo = s.feet?.[side];
-        if (fo) { const T = fo.pos.map((v, d) => v * k + tr[d]); assert.ok(Math.hypot(...p[idx(side + 'Foot')].map((x, d) => (fo.rise && d === 1 ? 0 : x - T[d]))) / k < 0.006, `${label} ${side} foot off its hold at ${t.toFixed(2)}`); }
+        if (fo && (fo.weight ?? 1) > 0.99) { const T = fo.pos.map((v, d) => v * k + tr[d]); assert.ok(Math.hypot(...p[idx(side + 'Foot')].map((x, d) => (fo.rise && d === 1 ? 0 : x - T[d]))) / k < 0.006, `${label} ${side} foot off its hold at ${t.toFixed(2)}`); }
       }
       // Nothing passes through the scenery (5 cm of flesh round body joints; hands and feet may touch it).
       for (const name of JOINTS) {
