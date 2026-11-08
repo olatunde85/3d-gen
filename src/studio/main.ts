@@ -319,7 +319,7 @@ const timeline=timelineHandles(document.querySelector<HTMLElement>('.timeline-sc
     if(ref.kind==='camera'||ref.kind==='action'){cameraSelection=ref.kind==='camera';characterSelected=ref.kind==='action';selected=ref.index;if(ref.kind==='action')selectedActor=ref.actor;}
     renderUI();
   },
-  preview:(next,ref)=>{project=next;time=Math.min(time,durationOf(project));dirty=true;renderTiming();renderTracks();renderPosition();
+  preview:(next,ref)=>{project=next;time=Math.min(time,durationOf(project));if(ref.kind==='camera'||ref.kind==='action')selected=ref.index;dirty=true;renderTiming();renderTracks();renderPosition();
     const timing=clipWindow(project,ref);if(ref.kind==='camera')input('shot-duration').value=String(Number(timing.duration.toFixed(3)));else if(ref.kind==='action')input('beat-duration').value=String(Number(timing.duration.toFixed(3)));
     $('key-help').textContent=`${timing.start.toFixed(2)}s – ${(timing.start+timing.duration).toFixed(2)}s · ${timing.duration.toFixed(2)}s · Esc: cancel`;
     for(const b of $('tracks').querySelectorAll<HTMLButtonElement>('button'))b.disabled=true;

@@ -60,6 +60,8 @@ The timeline has a **camera lane** and a **performance lane for each character**
 - **Camera shots:** full-body, medium or close framing, on the **whole cast** or **one character**.
 - **Limits:** up to **16 actions per character**, **12 camera shots** and **60 seconds** per film. Each item lasts 0.1–12 seconds.
 
+Drag a timeline clip to rearrange it. Actions and camera shots reorder within their own track: the others close up around the dragged clip, and the film keeps its length. Text, speech, sound effects and music move in time with their length and source trims unchanged, within the 60-second limit. **Alt + Left/Right** on a selected clip does the same from the keyboard: one place for actions and shots, one frame (Shift: 0.1 seconds) for the others. A click without a drag selects the clip. On touch screens, drag a clip sideways to move it.
+
 Drag either edge of a timeline clip to adjust its timing. The right edge of an action or shot changes its duration and shifts later clips; its left edge adjusts the boundary with the previous clip, keeping the selected clip’s end fixed. The first action/shot starts at zero. Text, speech, sound effects and music have independent start/end handles. Timing respects the film limits and shared-vehicle boarding constraints. **Escape** cancels; **Undo** reverses a completed drag in one step. Handles also accept Left/Right (one frame), or Shift + Left/Right (0.1 seconds). Audio edges change the playback window; source trimming remains a separate control.
 
 ## Move the camera

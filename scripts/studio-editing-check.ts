@@ -29,6 +29,30 @@ export async function checkStudioEditing(h:Harness){
   await edge('.beat:not([data-actor])[data-index="0"]','end',.6);await check('Math.abs(studio.project.shots[0].duration-3.6)<.06','Camera right edge');await baseline();await edge('.beat:not([data-actor])[data-index="1"]','start',-.4);await check('Math.abs(studio.project.shots[0].duration-2.6)<.06&&Math.abs(studio.project.shots[1].duration-3.4)<.06','Camera left edge');
   const cancelBefore=await e<string>('JSON.stringify(studio.project)');await edge('.beat:not([data-actor])[data-index="1"]','end',.7,true);if(await e<string>('JSON.stringify(studio.project)')!==cancelBefore)throw Error('Escape did not restore timing');
  });
+ async function body(selector:string,seconds:number,cancel=false){
+  const r=await e<{x:number;y:number;scale:number}>(`(()=>{const b=document.querySelector(${JSON.stringify(selector)});b.closest('.timeline-clip').scrollIntoView({block:'center',inline:'center'});const r=b.getBoundingClientRect(),scale=b.closest('.timeline-clip').parentElement.getBoundingClientRect().width/Number(document.getElementById('scrub').max);return{x:r.left+r.width/2,y:r.top+r.height/2,scale};})()`);
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',x:r.x,y:r.y,button:'left',clickCount:1});
+  for(let i=1;i<=4;i++){await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:r.x+r.scale*seconds*i/4,y:r.y,button:'left',buttons:1});await pause(35);}
+  if(cancel){await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape'});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'});}
+  await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:r.x+r.scale*seconds,y:r.y,button:'left',clickCount:1});await pause(100);
+ }
+ await step('Editing drags reorder actions and shots, move cues in time, cancel with Escape and undo in one step',async()=>{
+  await baseline();const before=await e<string>('JSON.stringify(studio.project)');
+  await body('.beat[data-actor][data-index="0"]',0);
+  if(await e<string>('JSON.stringify(studio.project)')!==before)throw Error('A click without movement changed the film');
+  await body('.beat[data-actor][data-index="0"]',3.2);await check('studio.project.actors[0].beats.map(b=>b.clip).join()==="wave,idle"','Action drag did not reorder');await check('!document.querySelector(".moving")','Move did not finish');
+  await click('undo');await ready();if(await e<string>('JSON.stringify(studio.project)')!==before)throw Error('Reorder did not undo in one step');
+  await e(`(async()=>{const p=structuredClone(__editingBase);p.shots[1].shot='close';await studio.setProject(p);})()`);await ready();
+  await body('.beat:not([data-actor])[data-index="1"]',-3.2);await check('studio.project.shots.map(s=>s.shot).join()==="close,wide"','Shot drag did not reorder');await baseline();
+  await body('.beat[data-actor][data-index="0"]',3.2,true);
+  await check('studio.project.actors[0].beats[0].clip==="idle"','Escape did not cancel the reorder');
+  await e(`(async()=>{const p=structuredClone(__editingBase);p.texts=[{id:'caption',text:'A short scene',start:1,duration:2,style:'subtitle',anchor:'screen'}];p.audio.effects=[{id:'thump',sound:'body-fall-thump',start:1,offset:.1}];await studio.setProject(p);})()`);await ready();
+  await body('.text-beat:not(.audio-beat,.effect-beat,.music-beat)',1);await check('Math.abs(studio.project.texts[0].start-2)<.08&&studio.project.texts[0].duration===2','Text move');
+  await body('.effect-beat',.5);await check('Math.abs(studio.project.audio.effects[0].start-1.5)<.08&&studio.project.audio.effects[0].offset===.1','Effect move');
+  await e(`document.querySelector('.beat[data-actor][data-index="0"]').focus()`);await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',modifiers:1});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',modifiers:1});
+  await check('studio.project.actors[0].beats.map(b=>b.clip).join()==="wave,idle"&&document.activeElement?.closest(".timeline-clip")?.dataset.clip.includes(\'"index":1\')','Alt+Right did not reorder or keep focus');
+  await shot('timeline-drag');
+ });
  await step('Editing text, speech, effect and music edges preserve source trims and support keyboard nudges',async()=>{
   await baseline();await e(`(async()=>{const p=structuredClone(studio.project);p.texts=[{id:'caption',text:'A short scene',start:1,duration:3,style:'subtitle',anchor:'screen'}];p.audio.speech=[{id:'voice',text:'Hello',source:'tts',voice:'F1',start:1,duration:3,offset:.2}];p.audio.effects=[{id:'engine',sound:'car-engine',start:1,duration:3,offset:1,loop:true,speed:1.5}];p.audio.music.track='spy-mission';await studio.setProject(p);window.__editingCues=structuredClone(studio.project);})()`);await ready();
   for(const [selector,path]of [['.text-beat:not(.audio-beat,.effect-beat,.music-beat)','texts[0]'],['.audio-beat','audio.speech[0]'],['.effect-beat','audio.effects[0]']]){

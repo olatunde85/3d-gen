@@ -27,3 +27,31 @@ export function resizeTimelineClip(original:StudioProject,ref:TimelineClip,edge:
   }
   return parseProject(JSON.stringify(p));
 }
+/** Moves a text, speech, sound-effect or music clip by `delta` seconds, keeping its length, within the film limits. */
+export function moveTimelineClip(original:StudioProject,ref:TimelineClip,delta:number):StudioProject{
+  if(!Number.isFinite(delta))throw Error('Use a finite timing adjustment.');
+  if(ref.kind==='camera'||ref.kind==='action')throw Error('Actions and camera shots are reordered, not moved.');
+  const p=structuredClone(original),old=clipWindow(original,ref),round=(n:number)=>Math.round(n*1e6)/1e6;
+  if(ref.kind==='music'){
+    const music=p.audio.music,latest=music.duration===undefined?durationOf(original)-.1:MAX_DURATION-music.duration;
+    music.start=Math.max(0,Math.min(Math.min(59.9,latest),round(old.start+delta)));
+  }else{
+    const cue=(ref.kind==='text'?p.texts:ref.kind==='speech'?p.audio.speech:p.audio.effects).find(c=>c.id===ref.id)!;
+    cue.start=Math.max(0,Math.min(Math.min(59.9,MAX_DURATION-old.duration),round(old.start+delta)));
+  }
+  return parseProject(JSON.stringify(p));
+}
+/** Where an action or shot of these lengths, taken from `from`, lands when its centre is dropped at `centre` seconds. */
+export function dropIndex(durations:readonly number[],from:number,centre:number){
+  let start=0,to=0;
+  durations.forEach((d,i)=>{if(i===from)return;if(centre>start+d/2)to++;start+=d;});
+  return to;
+}
+/** Moves action or camera shot `ref.index` to position `to` in its track; the others close up around it. */
+export function reorderTimelineClip(original:StudioProject,ref:TimelineClip,to:number):StudioProject{
+  if(ref.kind!=='camera'&&ref.kind!=='action')throw Error('Only actions and camera shots are reordered.');
+  const p=structuredClone(original),items:{duration:number}[]=ref.kind==='camera'?p.shots:p.actors.find(a=>a.id===ref.actor)!.beats;
+  if(!Number.isInteger(to)||to<0||to>=items.length)throw Error('Choose a position in the same track.');
+  items.splice(to,0,...items.splice(ref.index,1));
+  return parseProject(JSON.stringify(p));
+}
