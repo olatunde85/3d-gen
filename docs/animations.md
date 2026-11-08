@@ -6,169 +6,164 @@ There are 187 clips. The character loads playing **Idle**. The animation bar at 
 | --- | --- |
 | Idle & stance | Idle, Crouch idle (loops) |
 | Locomotion | Walk, Slouch walk, Model walk (catwalk), Run, Walk backwards, Strafe left/right (loops; in place, or with root motion) |
-| Sitting & lying | Sit down, Sit idle, Stand up (on a chair; Idle → Sit down → Sit idle → Stand up → Idle chain without a jump); Lie down, Sleep (on the back; they chain into Get up (from back)) |
-| Actions | Jump, Fall, Punch, Low punch, Hit reaction (one-shots); Jump start, Jump (in air) (loop), Jump land and Running jump, split for engine character controllers; sword idle (guard), sword slash, sword block |
-| Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push (one-shots); Carry idle and Carry walk (loops) |
-| Emotes | Wave, Cheer, Laugh, Cry, Talk (loops) |
-| Turns | Left/right 45° and 90°, full 360° (recorded turn-in-place steps at 2× speed) |
-| Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade. |
-| Aerial | Skydive, activate/deploy parachute, glide/use parachute, land parachute |
-| Reactions | Hit from front / back / left / right, knockdown, death (fall forward), death (fall backward), get up (from back), get up (from front) (one-shots). Knockdown ends where Get up (from back) starts, and Death (fall forward) ends where Get up (from front) starts, so they chain without a pop |
-| Vehicles | Drive car, sit (passenger), ride bicycle, ride motorcycle, ride horse (trot), paddle canoe, paddle kayak, row boat, drive boat (helm), pilot helicopter (loops); pickup, tank and jet, with jet taxi, take-off, landing and bail-out, a helicopter parachute jump and the tank machine gunner; plus 36 boarding/alighting one-shots and 13 vehicle stunt rolls. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) holding all of its clips |
+| Turns | Left/right 45° and 90°, full 360° |
+| Actions | Jump, Fall, Punch, Low punch, Hit reaction; Jump start, Jump (in air) (loop), Jump land and Running jump for engine character controllers; Forward roll, Side dodge left/right; Sword idle (guard), Sword slash, Sword block |
+| Reactions | Hit from front / back / left / right, Knockdown, Death (fall forward / backward), Get up (from back / front) |
+| Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push; Carry idle, Carry walk, Head-load idle, Head-load walk (loops) |
+| Everyday | Talk with gestures, Phone call, Texting, Lean on wall, Look around, Sweep (loops) |
+| Emotes | Wave, Cheer, Laugh, Talk, Cry, Clap, Dance (groove), Dance (party bounce) (loops); Point, Thumbs up, Bow |
+| Sitting & lying | Sit down, Sit idle, Stand up (on a chair); Lie down, Sleep (on the back) |
+| Swimming | Tread water, Swim forward (front crawl), Swim breaststroke, Swim backstroke (loops); Dive into water, Climb out of water |
+| Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Throw grenade |
+| Aerial | Skydive, Activate parachute (deploy), Use parachute (glide), Land parachute |
+| Vehicles | Riding, driving and piloting for fourteen vehicles, with boarding/alighting, stunt rolls, crash escapes, jet runway manoeuvres, parachute bail-outs and the tank gunner. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) |
 
-Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
+Clips that end where another begins chain without a pop: Idle → Sit down → Sit idle → Stand up → Idle; Lie down, Sleep and Knockdown → Get up (from back); Death (fall forward) → Get up (from front); Pick up → Carry idle. Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
 
 ## Motion capture
 
 These clips are recorded performances from the [CMU motion capture database](http://mocap.cs.cmu.edu), retargeted onto each character:
-- Walk, Walk backwards (the same performance reversed), Slouch walk, Run and Strafe left/right. Strafes keep their recorded feet and pelvis with a more upright upper body. Carry walk and armed locomotion reuse these recordings with arm IK layers; Model walk uses the recorded Walk with the legs closed.
-- All five turns use CMU 69_17's recorded turn-in-place steps. Right turns mirror the performance; 45° turns adapt the quarter-turn heading. The full turn preserves the recorded sequence of four quarter-turns. The named angles are exact and finish standing in the new direction. All turns play at twice the captured speed: 0.95 seconds for 45°/90° turns and 3.6 seconds for a full turn.
-- Jump and Low punch, including their recovery. Jump, Running jump and Low punch finish in the upright Idle pose instead of holding a crouch.
-- Cry
-- Sit down and Sit idle (Stand up is Sit down in reverse)
+
+- Walk, Walk backwards (the same performance reversed), Slouch walk, Run and Strafe left/right. Strafes keep their recorded feet and pelvis with a more upright upper body. Carry walk, Head-load walk and armed locomotion use these recordings with arm IK layers; Model walk uses the recorded Walk with the legs closed.
+- All five turns use CMU 69_17's turn-in-place steps, played at twice the captured speed: 0.95 seconds for 45°/90° turns and 3.6 seconds for a full turn. Right turns mirror the performance; 45° turns adapt the quarter-turn heading. The named angles are exact and finish standing in the new direction.
+- Jump and Low punch, including their recovery. Jump, Running jump and Low punch finish in the upright Idle pose.
+- Cry.
+- Sit down and Sit idle (Stand up is Sit down in reverse).
 
 The retargeting:
+
 - **Alignment:** limbs are aligned to the recording's rest pose.
 - **Calibration for the body:** arm hang, stance width, flat planted feet, and each actor's neutral head position.
 - **Loops:** close seamlessly.
-- **Floor contact:** the feet keep it, and the toes bend instead of dipping through the floor.
+- **Floor contact:** the feet keep it, and the toes bend rather than dipping through the floor.
 
 The takes and cuts are listed in `scripts/mocap-takes.ts`. `npm run build-mocap` bakes them into compact data (`src/core/anim/clips/mocap-data.ts`), so the app, the exporters and the tests have them without the source files.
 
-## Interaction
+## Interaction and carried props
 
-The **Interaction** category contains nine clips. Choose **Carry: Box / parcel** to include a fitted box for pickup and carry. **Head-load idle** and **Head-load walk** carry a load on the head, common across Africa and elsewhere: choose **Carry: Head load (basin)** for an enamel basin of produce on a rolled cloth pad, fitted on the crown over the hair and rigid with the head. The right hand rests on the rim and the head stays level; the walk keeps the recorded footfalls at a steadier pace, with the left arm swinging. Your game supplies other interaction objects such as buttons and doors.
+Choose a prop under **Carry**. Props that clips hold have their own rigid joint, export in GLB/FBX/OBJ, and animate in GLB and FBX. Set **Weapon: None** for two-hand holds.
 
-- **Pick up (ground)** (3.4 s): look down, reach forward, squat with the hands clear of the knees, close both hands on a low object, then lift with the legs. Grip at about 1.5 s; the clip ends in the first pose of **Carry idle**, so the two chain without a pop.
-- **Put down / drop (ground)** (3.4 s): the matching reverse of pickup. Start holding the parcel, lower it to the floor around 1.6 s, release it, then return upright. Chain Carry idle/walk → Put down → Idle. The parcel stays on the floor after release.
+- **Pick up (ground)** (3.4 s): look down, reach forward, squat with the hands clear of the knees, close both hands on a low object, then lift with the legs. Grip at about 1.5 s; the clip ends in the first pose of **Carry idle**.
+- **Put down / drop (ground)** (3.4 s): the reverse of pickup. Lower the object to the floor around 1.6 s, release it, then return upright. Chain Carry idle/walk → Put down → Idle.
 - **Use / press** (1.65 s): reach with the right hand, press with the extended index finger around 0.88 s, then retract.
-- **Open door** (2.8 s): reach for a handle on the right, turn the latch around 1.0 s, pull through a 32° arc, release and return. The door hinge is to the character's right, so the pull clears the torso. Animate your door to match the handle path; this is a pull-open action.
+- **Open door** (2.8 s): reach for a handle on the right, turn the latch around 1.0 s, pull through a 32° arc, release and return. The hinge is to the character's right. Animate your door to match the handle path.
 - **Push** (2.6 s): reach with both open palms, brace in a staggered stance and drive forward, then recover. The main effort is between 1.15 and 1.65 s.
-- **Carry idle** (3.6 s loop): a balanced two-hand hold with restrained breathing.
-- **Carry walk**: the existing recorded Walk with a cadence about 15% slower, retaining its footfalls, hip motion and stride distance. The arms use IK instead of swinging; both wrists stay at the sides of the same object. Root motion travels the recorded stride distance per loop; turn it off when your controller supplies movement.
+- **Carry idle** (3.6 s loop) and **Carry walk**: a two-hand hold of a roughly 40 cm-wide object in front of the torso, wrists 46 cm apart with palms facing inward (scaled to the character's height). Carry walk is the recorded Walk about 15% slower, with its footfalls, hips and stride distance.
 
-The carry clips hold a roughly 40 cm-wide object in front of the torso. Wrist targets are 46 cm apart, with fingers forward and palms facing inward (scaled to the character's height). The **Box / parcel** is 42 × 32 × 34 cm at reference height, with configurable cardboard/tape colours and a shipping label. When equipped, it automatically stays in a two-hand grip during ordinary Walk, Run, backwards/slouch/model walk, strafes, turns, Idle, Talk and Laugh. These keep their original footwork and speed. Pickup starts with the box on the floor and ends exactly at Carry idle's box position. The dedicated carry clips are still available. Its rigid **Parcel** bone and mesh export in GLB/FBX/OBJ; GLB and FBX also contain its animation. Set **Weapon: None** for the two-hand grip. In Studio, Put down / drop releases it: the box stays on the ground as the actor walks away, and stays released when you seek or reload. Return the actor to the box before using Pick up again. Combat, jumps, gestures, sitting/lying and vehicle performances keep their original arm poses rather than this carry layer. Arbitrary set props are not grabbed automatically. With your own box, drive its centre from the two wrists. Handbags and briefcases remain one-hand accessories.
+**Box / parcel** is 42 × 32 × 34 cm at reference height, with cardboard and tape colours and a shipping label. When equipped, ordinary Walk, Run, backwards/slouch/model walk, strafes, turns, Idle, Talk and Laugh hold it in both hands at their normal speed. Pickup starts with the box on the floor and ends at Carry idle's box position. In Studio, Put down / drop leaves the box on the ground as the actor walks away; return to it before picking it up again. Combat, jumps, gestures, sitting/lying and vehicle performances keep their own arm poses. With your own box, drive its centre from the two wrists; `Animator.frame` accepts `parcelGrounded` to play a clip with the parcel released.
 
-Interaction hands use chest-space IK; the pickup reach uses floor-space targets that account for the body’s grounding offset while it squats. The door hand follows the forearm with a small latch twist, avoiding a forced sideways wrist bend. Actions ease in from and back to the relaxed pose, except pickup, which ends holding the object, and put-down, which starts there. The parcel stays part of the exported character rig; game engines manage attachment/detachment themselves. Animator callers can use parcelGrounded to play an ordinary clip with the parcel released. Studio derives that state and the dropped position from the timeline, including during scrubbing and offline rendering. Timings are authoring references for game events, not automatic interaction with set props.
+**Head load (basin)** is an enamel basin of produce on a rolled cloth pad, fitted on the crown over the hair and rigid with the head. **Head-load idle** and **Head-load walk** keep the head level with the right hand on the rim; the walk is the recorded Walk at a steadier pace with the left arm swinging. Carrying on the head is common across Africa and elsewhere.
 
-## Vehicles and props
+**Mobile phone** is a smartphone on its own joint. In **Phone call** it rests against the left ear and cheek with the palm on its back; in **Texting** it lies in the left palm while the right index finger taps the screen. It appears only in those two clips.
 
-Choose a riding or driving **animation** to add its matching vehicle automatically, in both the builder and Studio. There is no separate model selector. Use **Drive modern sports car / Sit (sports car passenger)** or **Drive SUV / Sit (SUV passenger)** for the enclosed cars. **Show vehicle** controls visibility; in Studio it applies to the selected action. Fourteen procedural models cover eighteen riding/driving actions, plus 36 boarding/alighting actions, including both car occupant roles.
+**Broom** appears only in **Sweep**: both fists hold the handle with the thumbs up it and the bristles on the floor.
 
-| Vehicle | Compatible clips | Moving components |
-| --- | --- | --- |
-| Bicycle | `ride_bicycle` | Wheels, crank and level pedals |
-| Classic convertible | `drive_car`, `sit_passenger` | Wheels, hinged doors and driver steering wheel |
-| Modern sports car | `drive_sports_car`, `sit_sports_car_passenger` | Wheels, hinged doors and driver steering wheel |
-| SUV | `drive_suv`, `sit_suv_passenger` | Wheels, hinged doors and driver steering wheel |
-| Pickup | `drive_pickup`, `sit_pickup_passenger` | Wheels, hinged doors and steering wheel |
-| Military tank | `drive_tank`, `gun_tank` | Tracks, road wheels, lever contacts and a shielded roof machine gun |
-| Jet | `fly_jet`, `taxi_jet`, `takeoff_jet`, `land_jet`, `bailout_jet` | Hinged canopy, fitted cockpit controls, retractable gear and exhaust glow |
-| Motorcycle | `ride_motorcycle` | Wheels and handlebars |
-| Horse | `ride_horse` | Diagonal trot, tail, reins and stirrups |
-| Canoe | `paddle_canoe` | Single-bladed paddle |
-| Kayak | `paddle_kayak` | Double-bladed paddle with continuous side changes |
-| Rowing boat | `row_boat` | Two oars passing through the rowlocks |
-| Motorboat | `drive_boat` | Helm wheel and outboard propeller; two aft passenger seats |
-| Helicopter / chopper | `fly_helicopter` | Upright pilot, cyclic/collective controls, four doors, animated main/tail rotors and landing skids |
+**Bags:** a straw tote, structured handbag or leather briefcase is carried in the left hand, bound to the hand bone with the fingers closed round the handle in every clip. A canvas backpack and the parachute rig are worn. Each bag has its own colours.
 
-Body/coat, trim/mane and seats/tack colours, paint finish and classic/sport variants are saved in `vehicleStyle`. The coupe has a rounded two-door cabin, solid rear pillars, a split grille and alloy wheels. The SUV has an upright five-door cabin, separate rounded rectangular windows, circular LED headlights, flared arches, running boards and a rear spare wheel. Choosing one with untouched colours applies its teal coupe or red SUV factory appearance; edited colours are preserved. Fitting measures the rider’s existing hips, palms, knees, feet and headroom; it never stretches limbs or changes the original rider pose. Car and boat fittings raise the complete rider onto their cabin/deck floor. The clips still work without a vehicle, using their original grounding.
+Interaction hands use chest-space IK; the pickup reach uses floor-space targets that follow the body while it squats. Actions ease in from and back to the relaxed pose, except pickup, which ends holding the object, and put-down, which starts there. Timings are references for game events; the game supplies doors, buttons and other objects.
 
-Exports include a **separate vehicle prop** by default when a ride is selected; turn this off in the export panel if you only need the rider. GLB/FBX can contain the matching animated controls, wheels and tack as rigid joints; OBJ is static. Animated exports include props for selected vehicle clips. In static or rigged mode, the builder uses the currently previewed vehicle action to choose and fit the prop. Driver and passenger car clips have separately fitted assets.
+## Everyday and emotes
 
-Place the rider and vehicle at the **same origin and transform**, and play their matching clips together. Rider animation exports include the fitted cabin/deck elevation whenever a compatible vehicle is selected. Static and rigged-only characters remain in their bind pose until a riding/driving clip is applied. To supply your own game vehicle, uncheck Show vehicle and use the original rider animations with your seat transform.
+**Talk with gestures**, **Phone call**, **Texting**, **Look around** and **Sweep** are loops for background characters. **Lean on wall** folds the arms, rests one foot on the wall and expects a wall about 20 cm behind the heels.
 
-The motorboat has room for its helm operator and two passengers. In Studio, choose the operator’s vehicle in the action’s **Vehicle** selector and assign **Passenger left/right**. Seat placement, body fit, travel and entry/exit are handled by the shared vehicle. Cars, the SUV, motorcycle, canoe and rowing boat also offer their supported passenger seats. See [shared vehicles](studio.md#share-a-vehicle). These film seat settings do not add new builder animation IDs; game exports retain the native rider and prop clips.
+**Clap**, **Dance (groove)** (a step-touch at 120 bpm) and **Dance (party bounce)** (alternating raised hands) loop. **Point** and **Thumbs up** raise the hand and hold; **Bow** goes down and back up. Wave keeps the head and eyes facing forward. Laugh loops every 4.8 seconds with matching facial timing.
 
-In Studio, enable **Move through the set** on a vehicle action and optionally set **Travel speed (m/s)**. The whole rider/vehicle group travels together while the original animation cadence stays the same; wheels roll with the distance travelled. Turning the option off keeps it in place. Movement follows actor yaw and is centred on its placement, like walking. Linked passengers inherit the operator’s travel automatically. Default vehicle travel is now three times the former values; a saved explicit travel speed is preserved. Travel does not add navigation, road collision or water simulation. Add the explicit boarding/alighting actions for entry/exit. In Studio, review clearance against set furniture and other actors. Use Carry: None to leave the hands available. Equipped weapons now use mounted wielding poses.
+## Swimming
+
+The water surface is the floor plane: swimmers float with the body below it and only the head and shoulders above. The builder shows see-through water while a swimming clip plays, and weapons are hidden.
+
+- **Tread water** stays in place. **Swim forward (front crawl)**, **Swim breaststroke** and **Swim backstroke** carry their speed in `travel`: 1.1, 0.75 and 0.9 m/s (backstroke travels head first).
+- **Dive into water** (2 s) crouches on the bank, springs out head first, glides underwater and surfaces, about 3.5 m forward.
+- **Climb out of water** (2.4 s) starts treading water facing the bank: hands on the edge, press up, knee on and stand, about 0.9 m forward onto a bank at water level.
+
+The dive and climb-out move around an even `travel`, so they line up with root motion and stay close to place without it.
 
 ## Weapons
 
-Pistol walk, run, sprint and left/right strafes use recorded locomotion beneath their weapon holds. **Pistol aim (one hand)** keeps the free arm relaxed. Rifle walk, backwards walk, run, sprint and strafes use the same recorded mechanics; sprint retimes the recorded run, including root velocity, to preserve stride distance. Crouch walk retains its separate low gait.
+Pick an assault rifle, pistol, sword, combat knife or grenade under *Props*. Weapons are held in the right hand on the `WeaponR` socket (see [Rigging](rigging.md#weapon-socket)), and the viewer switches to the matching idle.
 
-Wave keeps the head and eyes facing forward. Laugh plays at half speed (4.8 seconds per loop), with matching facial timing.
+- **Aiming:** firearms are fitted to the aiming pose. The barrel lines up with the chest's forward axis, and the rifle's handguard sits under the support hand. **Pistol aim (one hand)** uses a lower wrist, a relaxed shoulder and a relaxed free arm.
+- **Locomotion:** pistol and rifle walk, run, sprint and strafes use recorded locomotion beneath their weapon holds. Sprint retimes the recorded run, including root velocity, to keep the stride distance. Crouch walk has its own low gait.
+- **Hands stay on the weapon:** two-bone arm IK places the right hand first, then the left hand onto the rifle's handguard wherever the rifle is. The left hand slides along the handguard if a pose would over-stretch the arm, so the hands stay on the weapon on every body and skeleton.
+- **Grips:** fingers curl toward the palm, detected from each hand's joints, so fists and grips close correctly on A- and T-pose binds.
+- **Grenade:** `throw_grenade` (2.2 s) releases the grenade at 0.82 seconds; it follows an arc to the ground while the thrower recovers upright.
+- **Your own props:** the shooter clips work without a weapon, with your own prop parented to `WeaponR`.
 
-**Bags:** under *Props*, *Carry* picks a straw tote, a structured handbag or a leather briefcase (carried in the left hand, bound to the hand bone, its fingers closed round the handle in every clip) or a canvas backpack (worn). Each bag has its own colours: the straw and trim of the tote; the leather (smooth, patent on the handbag, or grained) and hardware of the handbag and briefcase; and the canvas and accent of the backpack.
+## Vehicles
 
-Pick an assault rifle, pistol, sword or combat knife under *Props*. It's held in the right hand on the `WeaponR` socket (see [Rigging](rigging.md#weapon-socket)), and the viewer switches to the matching idle.
+Choose a riding or driving animation and its vehicle appears, fitted to the rider, in the builder and Studio. **Show vehicle** controls visibility. Fourteen models cover eighteen riding, driving and piloting actions:
 
-- **Aiming:** firearms are fitted to the aiming pose. The barrel lines up with the chest's forward axis, and the rifle's handguard sits under the support hand.
-- **Your own props:** the shooter clips also work without a weapon, with your own prop parented to `WeaponR`.
-- **Hands stay on the weapon:** two-bone arm IK places the right hand first, then the left hand onto the rifle's handguard wherever the rifle actually is. The left hand slides along the handguard if a pose would over-stretch the arm, so the hands stay on the weapon on every body shape and skeleton.
-- **Grips:** fingers curl toward the palm, which is detected from each hand's joints, so fists and grips close correctly on A- and T-pose binds.
+| Vehicle | Clips | Moving parts |
+| --- | --- | --- |
+| Bicycle | `ride_bicycle` | Wheels, crank and pedals |
+| Classic convertible | `drive_car`, `sit_passenger` | Wheels, hinged doors and steering wheel |
+| Modern sports car | `drive_sports_car`, `sit_sports_car_passenger` | Wheels, hinged doors and steering wheel |
+| SUV | `drive_suv`, `sit_suv_passenger` | Wheels, hinged doors and steering wheel |
+| Pickup | `drive_pickup`, `sit_pickup_passenger` | Wheels, hinged doors and steering wheel |
+| Military tank | `drive_tank`, `gun_tank` | Tracks, road wheels, levers, roof hatch and a shielded machine gun |
+| Jet | `fly_jet`, `taxi_jet`, `takeoff_jet`, `land_jet`, `bailout_jet` | Hinged canopy, cockpit controls, retractable gear and exhaust glow |
+| Motorcycle | `ride_motorcycle` | Wheels and handlebars |
+| Horse | `ride_horse` | Diagonal trot, tail, reins and stirrups |
+| Canoe | `paddle_canoe` | Single-bladed paddle |
+| Kayak | `paddle_kayak` | Double-bladed paddle with side changes |
+| Rowing boat | `row_boat` | Two oars in the rowlocks |
+| Motorboat | `drive_boat` | Helm wheel, outboard propeller and side boarding gate |
+| Helicopter | `fly_helicopter`, `bailout_helicopter` | Cyclic/collective, four doors, main/tail rotors and skids |
+
+Body/coat, trim/mane and seats/tack colours, paint finish and classic/sport variants are saved in `vehicleStyle`. Choosing the sports car, SUV, pickup, tank, jet or helicopter with untouched colours applies its factory appearance; edited colours are kept. Fitting measures the rider's hips, palms, knees, feet and headroom and builds the vehicle around them; limbs are never stretched. Car and boat fittings raise the rider onto the cabin or deck floor. The clips also work without a vehicle.
+
+Exports include a **separate vehicle prop** when a ride is selected; turn it off in the export panel if you only need the rider. GLB and FBX contain the animated controls, wheels, doors and tack as rigid joints; OBJ is static. Static and rigged-only exports use the currently previewed vehicle action to choose and fit the prop. Place the rider and vehicle at the **same origin and transform** and play their matching clips together. To use your own game vehicle, uncheck Show vehicle and use the rider animations with your seat transform.
+
+### Boarding and alighting
+
+Search **Board** or **Alight**. Every vehicle has an entry/exit pair (1.6–2.2 seconds); the convertible, sports car, SUV and pickup have separate driver and passenger pairs. Entry starts upright beside the vehicle, moves over the saddle or gunwale, through a hinged car door or the motorboat's gate, and ends in the fitted riding pose. Exit reverses it and finishes upright.
+
+- **Jet** (2.8 s): from the pilot's right, where the canopy opens.
+- **Tank** (4.2 s): up the tread steps onto the hull and down through the roof hatch, which closes over the driver.
+
+Use **Board SUV → Drive SUV → Alight from SUV**, for example. Give entries and exits their full clip length with movement off. Limbs keep their lengths on all three rigs and both bind poses. Human clips and matching prop animations export together; each fitted vehicle/occupant role is one prop file containing its riding and door animations.
+
+### Armed riders
+
+Equip a pistol, rifle, sword or knife and choose a riding or driving action. Mounted wielding keeps the seat, legs and left control hand; car windows lower and both horse reins stay in the left hand. Canoe, kayak and rowing strokes pause while armed. Boarding and alighting hide the weapon. The tank driver, swimmers and aerial actions keep weapons hidden. Builder and game exports use the default wield pose; Studio adds per-action aim and fire (see [Armed riding](studio.md#armed-riding)), and code can pass `weaponPose`, `weaponYaw` and `weaponPitch` to `Animator.frame`/`bake`.
+
+### Aircraft
+
+**Helicopter:** **Fly helicopter** seats the pilot at the controls; the cabin has four doors for a pilot and three passengers in Studio.
+
+**Jet:** the jet clips carry their own motion in the builder and exports. **Taxi jet on runway** rolls along on its wheels; **Take off jet** (6 s) accelerates, rotates and climbs to a demonstration height while the gear folds; **Pilot jet** flies with gentle banking; **Land jet** (6 s) descends with the gear down, flares and rolls to a stop. In Studio the jet follows the film's route and Flight height instead.
+
+**Bail-outs:** **Bail out of jet with parachute** and **Jump from helicopter with parachute** (2.6 s) take the occupant out through the open right-hand side, clear of the airframe, and turn them belly-down into the pose that **Skydive** continues. Equip the parachute rig. In the builder the aircraft holds a safe height while the occupant leaves it.
+
+Game engines supply aircraft movement and altitude; the exports carry the pilot pose, controls, doors, rotors and gear.
+
+### Tank
+
+The driver sits enclosed under the closed roof hatch with hands on the levers, and the tracks run. **Fire tank machine gun** stands the driver in the open hatch with both hands on the spade grips of a roof-mounted machine gun. Only the head and shoulders show above the gun shield; the gun traverses slowly and fires in short bursts with a muzzle flash.
+
+### Stunt rolls and crashes
+
+Each mechanical vehicle has `tumble_MODEL` (3 s): a controlled 360° roll with the rider attached, returning to the upright riding pose. Keep movement off and leave extra clearance.
+
+Road vehicles (convertible, sports car, SUV, pickup, motorcycle, bicycle) have two crash escapes. In both, the driver's door opens and the empty vehicle slides on, rolls over away from the driver and comes to rest upside down; its motion is exported on the prop joints.
+
+- **Crash and roll out** (`crash_MODEL`, 3.6 s): the driver dives out to the left, shoulder-rolls and stands about 3 m away, facing the original heading.
+- **Crash and fall down** (`crash_fall_MODEL`, 3.4 s): the driver is thrown out, lands hard and tumbles onto their back, ending in the starting pose of **Get up (from back)**.
+
+## Parachuting
+
+The **Aerial** category has `skydive`, `parachute_deploy`, `parachute_glide` and `parachute_land`. Equip `carry:parachute` for the pack, a harness fitted over the clothes with straps over both shoulders, a striped canopy and suspension lines. Deployment takes 2.4 seconds; landing takes three seconds and ends in the upright idle pose. Only the canopy and line joints scale; the skeleton keeps its dimensions. Game engines supply altitude and physics; Studio supplies an editable descent.
+
+## Dodge and roll
+
+**Forward roll** (`roll_forward`, 1.3 s) crouches, tucks and rolls over the back to standing. **Side dodge left/right** (`dodge_left`, `dodge_right`, 0.9 s) push off and land low on the near leg with the guard up. All three carry root motion in `travel`, so engines can play them in place or moving.
 
 ## How clips work
 
 - **Keyframed clips** are defined once (`src/core/anim/clips/`, one file per set). Each bone is posed in its own frame (X = flex forward, Y = twist, Z = side), on an "animation rest" with relaxed arms and nearly straight elbows.
-- **Hand targets** can be given relative to the chest (most clips) or to the floor (`HandTarget.space: 'floor'`, for hands on something fixed, like handlebars).
-- **One evaluator:** `src/core/anim/evaluate.ts` drives the viewer and both exporters. So one clip works on every skeleton type and on A- or T-pose binds, and the preview matches the export exactly.
+- **Hand targets** are given relative to the chest (most clips) or to the floor (`HandTarget.space: 'floor'`, for hands on something fixed, like handlebars or a broom). `HandTarget.tip` targets the index fingertip instead of the wrist, using the rig's own finger length.
+- **One evaluator:** `src/core/anim/evaluate.ts` drives the viewer and both exporters, so one clip works on every skeleton type and on A- or T-pose binds, and the preview matches the export exactly.
 
-In the exports, GLB has one glTF animation per clip (30 fps, rotation channels plus root translation), and FBX has one AnimationStack (take) per clip. `scripts/blender_anim_check.py` imports the files into Blender and renders key frames of every action.
+GLB has one glTF animation per clip (30 fps, rotation channels plus root translation), and FBX has one AnimationStack (take) per clip. `scripts/blender_anim_check.py` imports the files into Blender and renders key frames of every action.
 
 To add a clip, see [CONTRIBUTING.md](../CONTRIBUTING.md#adding-an-animation).
-
-### Boarding and alighting
-
-Search **Board** or **Alight** under Vehicles. Entry and exit now play at twice their former speed (1.6–2.2 seconds), with the same poses and limb paths. Jet entry/exit takes 2.8 seconds, from the pilot’s right, where the canopy opens. Tank entry/exit takes 4.2 seconds: the driver climbs the tread steps onto the hull and lowers through the roof hatch, which closes over them. Every vehicle has a one-shot pair; the convertible, coupe, SUV and pickup have separate driver/passenger pairs. The motorboat opens its side boarding gate. Entry starts upright beside the vehicle, moves over the saddle or gunwale or through a hinged car door, and ends in that rig’s fitted riding pose. Exit follows the reverse path and finishes upright. Limbs retain their original lengths on all three rigs and both bind poses.
-
-Use **Board SUV → Drive SUV → Alight from SUV**, for example. Give each entry/exit its full clip length with movement off; use optional movement/speed only on the riding beat. A whole riding loop makes the cleanest join into exit. In Studio, the vehicle remains parked after exit while the actor walks away. Every scheduled vehicle waits at its first entry from frame zero and stays parked after exit, including during transfers to other vehicles. Shared seats support passenger boarding/alighting with synchronized physical doors or the boat’s gate. This is authored choreography, not navigation or a reach-to-any-vehicle system.
-
-Human clips and matching prop animations export together in GLB/FBX. Each fitted vehicle/occupant role is one prop file, containing its selected riding and door animations. Keep human and vehicle origins aligned, play matching clips together, and preserve the authored lateral root movement even when optional locomotion root motion is off.
-
-### Armed riders
-
-Equip a pistol, rifle, sword or knife and choose an ordinary riding/driving action. Mounted wielding applies automatically in the builder, Studio and character animation exports. It preserves the riding root, seat, leg motion and left control hand. Car windows lower; both horse reins stay in the left hand. Canoe, kayak and rowing strokes pause while armed; hide the weapon to resume two-hand paddling.
-
-Studio’s **Weapon action** selector adds Wield, Aim / present, Fire (guns only) and Hide weapon. **Aim (°)** controls heading: 0 forward, positive left, negative right, from −110° to +110°. Defaults aim out the driver/passenger window or to the side of the animal; custom directions need visual clearance review. Fire supplies repeating recoil, without automatic sound, bullets or muzzle flashes. Add timed sound effects separately. Boarding/alighting automatically hide the weapon; it reappears for riding and ordinary actions. Hiding it on other beats is also supported. The equipped model stays in the character recipe; visibility and mounted pose are timed per action.
-
-Builder/game exports use the default mounted wield pose. Studio’s optional `weaponPose` and `weaponYaw` belong to film beats. Code using `Animator.frame`/`bake` may also supply those options directly.
-
-## Helicopter
-
-Choose **Fly helicopter** for a fitted pilot at the controls, or **Board helicopter / Alight from helicopter** for step-through cabin entry and exit. Both transitions last 2.2 seconds, keep limb lengths unchanged, and return to the exact standing/pilot endpoints. Quick Build’s Vehicle choices include the helicopter and its three matching actions; body, trim, seats, finish and style remain customizable.
-
-The Studio helicopter carries a pilot and three shared passengers. **Flight height** is available on the pilot’s flight action: leave it blank for 3 m when moving or 0 m when stationary, set a positive value to hover, or choose 0 to stay on the ground. A continuous flight sequence takes off once and lands once. Forward travel defaults to 12 m/s. Boarding/alighting require a stationary, grounded aircraft; assign different doors/seats for simultaneous entries. The parked aircraft remains after everyone exits.
-
-GLB/FBX exports retain the fitted pilot and transition poses, doors and rotor joints/clips. World travel and altitude are Studio direction, so a game engine supplies its own aircraft movement. No aviation physics or automatic obstacle clearance is implied.
-
-### Expanded fleet and stunt rolls
-
-The pickup adds an enclosed two-seat cabin and open cargo bed; the military tank has an enclosed hull with the driver seated under a closed roof hatch, fitted lever controls and animated tracks (weapons stay hidden inside); the jet has a single pilot cockpit, hinged canopy and retractable gear. Use their matching board/drive-or-fly/alight clips. The jet clips play their own motion in the builder and in exported animations: **Taxi jet on runway** rolls along on its wheels, **Take off jet** accelerates, rotates and climbs to a demonstration height with the gear folding, **Pilot jet** flies with gentle banking, and **Land jet** descends, flares and rolls out. Studio replaces that motion with the film’s route and Flight height. **Take off jet** and **Land jet** are 6-second runway manoeuvres: in Studio the take-off accelerates, rotates, lifts off and climbs while the gear folds, and the landing descends, flares, touches down and brakes to a stop. In flight the jet pitches with its climb and banks gently with the stick. Studio flight height works for both aircraft; height 0 lets the jet taxi. The jet needs a wide clear route.
-
-Mechanical vehicles also have `tumble_MODEL` actions. These are controlled, three-second, 360° stunt rolls with a rigidly attached rider, returning to the original upright driving pose. They are authored animation, not crash physics. Keep movement off and leave extra clearance. The animation browser separates road vehicles, tracks, aircraft, watercraft, horse, boarding/alighting and tumbles.
-
-Pistol aim (one hand) uses a lower wrist and relaxed shoulder. Studio supports per-action left/right weapon yaw and up/down pitch for mounted and pistol/rifle performances. Positive pitch aims up; negative pitch aims down. Grenade is a fitted prop: `throw_grenade` releases it at 0.82 seconds, follows an animated arc and recovers upright over 2.2 seconds. No explosion or damage simulation.
-
-### Parachuting
-
-The Aerial category contains `skydive`, `parachute_deploy`, `parachute_glide` and `parachute_land`. Equip `carry:parachute` for the pack, fitted harness, striped canopy and suspension lines. Deployment takes 2.4 seconds; landing takes three seconds and ends in the exact upright idle pose. Use original timing. Game engines supply altitude/physics; Studio supplies editable descent height. Only the canopy and line joints scale; the character skeleton keeps its original dimensions.
-
-### Parachute jumps from aircraft and the tank gunner
-
-**Bail out of jet with parachute** and **Jump from helicopter with parachute** (2.6 seconds each) take the occupant from the seat, out through the open right-hand side and clear of the airframe, turning belly-down into the free-fall pose that **Skydive** continues. Equip **Carry: Parachute / skydiving rig**. In the builder the aircraft hovers at a safe height while the jet flies on; in Studio the empty aircraft flies on and leaves the shot, and free fall starts just below it.
-
-**Fire tank machine gun** stands the tank driver in the open roof hatch, both hands on the spade grips of a pintle machine gun. Only the head and shoulders show above the gun shield. The gun traverses slowly and fires in short bursts with a muzzle flash. Personal weapons stay hidden.
-
-### Dodge, roll and crash escapes
-
-In **Actions**: **Forward roll** (`roll_forward`, 1.3 s) crouches, tucks and rolls over the back to standing; **Side dodge left/right** (`dodge_left`, `dodge_right`, 0.9 s) push off and land low on the near leg with the guard up. All three carry root motion (`travel`), so engines can play them in place or moving.
-
-Each road vehicle has **Crash and roll out** (`crash_car`, `crash_sports_car`, `crash_suv`, `crash_pickup`, `crash_motorcycle`, `crash_bicycle`, 3.6 s). The driver's door opens, the driver dives out to the left, shoulder-rolls along the ground and stands about 3 m away, facing the original heading. The empty vehicle slides on, rolls over away from them and comes to rest upside down. **Crash and fall down** (`crash_fall_MODEL`, 3.4 s) throws the driver out the same way; they land hard, tumble onto their back and lie still, ending in the starting pose of **Get up (from back)**. Like the stunt rolls, these are authored choreography, not crash physics; the vehicle's motion is exported on its prop joints.
-
-### Swimming
-
-The **Swimming** category has **Tread water**, **Swim forward (front crawl)**, **Swim breaststroke**, **Swim backstroke**, **Dive into water** and **Climb out of water**. The water surface is the floor plane: swimmers float with the body below it and only the head and shoulders above, and the builder shows see-through water while a swimming clip plays.
-
-- Strokes carry their speed in `travel` (front crawl 1.1 m/s, breaststroke 0.75 m/s, backstroke 0.9 m/s head first); Tread water stays in place.
-- **Dive into water** (2 s) crouches on the bank, springs out head first, glides underwater and surfaces into a stroke, about 3.5 m forward.
-- **Climb out of water** (2.4 s) starts treading water facing the bank: hands on the edge, press up, knee on and stand, about 0.9 m forward onto a bank at water level.
-- The dive and climb-out author their path around an even `travel`, so they line up exactly with root motion and stay close to place without it. Weapons are hidden while swimming.
-
-### Social emotes
-
-In **Emotes**: **Clap** (loop), **Point** and **Thumbs up** (raise and hold), **Bow** (down and back up), and two loops for dancing: **Dance (groove)**, a step-touch at 120 bpm, and **Dance (party bounce)** with alternating raised hands.
-
-### Everyday NPCs
-
-The **Everyday** category has **Talk with gestures**, **Phone call**, **Texting**, **Lean on wall**, **Look around** and **Sweep** (all loops). Choose **Carry: Mobile phone** for a smartphone on its own prop joint: on a call it rests against the left ear and cheek with the palm on its back, and for texting it lies in the left palm while the right index finger taps the screen. It appears only in these two clips. Choose **Carry: Broom** for sweeping: the broom has its own prop joint, held in both fists with the thumbs up the handle and the bristles on the floor, and appears only while sweeping. **Lean on wall** (arms folded, one foot against the wall) expects a wall about 20 cm behind the heels; place the character with their back to one.
-

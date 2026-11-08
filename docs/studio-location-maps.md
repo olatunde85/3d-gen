@@ -18,7 +18,7 @@ Coordinates are world metres. Rectangles use `[minX,minZ,maxX,maxZ]`. Yaw is in 
 
 Lanes and anchors assume rig scale and anatomical boarding scale of 1. These scales can differ on real characters. Vehicle envelopes include fitted reference geometry. Check custom cast sizes and tight contacts after building. Conservative rectangles overestimate some curved props and furniture; the maps do not model water depth, buoyancy, traffic or physics. Pools are not automatically verified boating locations.
 
-Boat shoreline/dock checks inset the conservative envelope by **15 cm** to tolerate minor edge contact and rectangular hull-corner overestimation. Boats no longer receive the former extra 1.5 cm outward padding. Larger overlaps and paths across land or the interior of a dock still warn. Static obstacles, map limits and land-actor water checks retain their normal rules. Reference routes and starts are still verified without the docking allowance. Downloaded maps expose this policy as `validation.boatEdgeTolerance` in metres.
+Boat shoreline/dock checks inset the conservative envelope by **15 cm** to tolerate minor edge contact and rectangular hull-corner overestimation. Larger overlaps and paths across land or the interior of a dock still warn. Static obstacles, map limits and land-actor water checks retain their normal rules. Reference routes and starts are still verified without the docking allowance. Downloaded maps expose this policy as `validation.boatEdgeTolerance` in metres.
 
 ## Travel is centred over the whole track
 
