@@ -52,7 +52,6 @@
     "test:studio:spatial": "tsx scripts/build-studio-maps.ts --check && tsx scripts/studio-spatial-check.ts",
     "test:studio:model": "tsx scripts/studio-model-check.ts",
     "test:studio": "tsx scripts/studio-check.ts",
-    "build:studio-example-gif": "tsx scripts/build-studio-example-gif.ts",
     "build:studio-reel": "tsx scripts/build-studio-reel.ts",
     "build:studio-effects": "tsx scripts/build-studio-effects.ts",
     "build:studio-music": "tsx scripts/build-studio-music.ts",

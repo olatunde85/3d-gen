@@ -3,15 +3,17 @@
  * Render first: npm run test:studio -- --reel. Then: npm run build:studio-reel.
  * The kept part of each scene, played a little faster, with short crossfades, each scene's own sound effects, and one music track whose ending lands on the
  * finale. The finale ends by zooming out of the picture into the editor that made it. Writes
- * public/media/ara-studio-reel.mp4 and its poster.
+ * public/media/ara-studio-reel.mp4 and its poster, and the silent README preview docs/media/ara-studio-reel.gif.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import sharp from 'sharp';
 import { REEL } from '../src/studio/examples/reel';
 
 const root = resolve(import.meta.dirname, '..'), folder = resolve(process.argv[2] ?? join(root, 'out/studio-expansion'));
-const output = join(root, 'public/media/ara-studio-reel.mp4'), poster = join(root, 'public/media/ara-studio-reel-poster.jpg');
+const output = join(root, 'public/media/ara-studio-reel.mp4'), poster = join(root, 'public/media/ara-studio-reel-poster.jpg'), gif = join(root, 'docs/media/ara-studio-reel.gif');
 const music = join(root, 'public/media/music/adventure-trailer-600429.mp3'), MUSIC_END = 74.2, FADE = 0.2, SPEED = 1.25;
 const scenes = REEL.map((_, i) => join(folder, `reel-${String(i + 1).padStart(2, '0')}.mp4`)), editor = join(folder, 'reel-editor.png');
 for (const file of [...scenes, editor]) if (!existsSync(file)) throw Error(`Render the reel scenes first (npm run test:studio -- --reel): ${file} is missing.`);
@@ -25,17 +27,18 @@ const probe = (file: string) => JSON.parse(execFileSync('ffprobe', ['-v', 'error
 const info = scenes.map((file, i) => { const p = probe(file), { from, to } = REEL[i]; return { file, from, length: Math.min(Number(p.format.duration), to) - from, duration: (Math.min(Number(p.format.duration), to) - from) / SPEED, audio: p.streams.some((s) => s.codec_type === 'audio') }; });
 const total = info.reduce((sum, s) => sum + s.duration, 0) - FADE * (info.length - 1);
 
-// Inputs: the scenes, a silent track for scenes without sound, then the music starting where its ending meets ours.
+// Inputs: the scenes, then the music starting where its ending meets ours.
 const args = ['-hide_banner', '-loglevel', 'error', '-nostdin', '-y'];
 for (const s of info) args.push('-ss', String(s.from), '-t', String(s.length), '-i', s.file);
-args.push('-f', 'lavfi', '-t', String(Math.ceil(total + 2)), '-i', 'anullsrc=r=48000:cl=stereo');
 args.push('-ss', String(Math.max(0, MUSIC_END - total)), '-i', music);
 args.push('-loop', '1', '-t', String(REVEAL + 1), '-i', editor);
-const silence = info.length, track = info.length + 1, still = info.length + 2;
+const track = info.length, still = info.length + 1;
 const graph: string[] = [];
 info.forEach((s, i) => {
   graph.push(`[${i}:v]setpts=(PTS-STARTPTS)/${SPEED},fps=30,scale=1280:720:flags=lanczos,setsar=1,format=yuv420p[v${i}]`);
-  graph.push(`${s.audio ? `[${i}:a]` : `[${silence}:a]`}atrim=0:${s.audio ? s.length : s.duration},asetpts=PTS-STARTPTS,${s.audio ? `atempo=${SPEED},` : ''}aresample=48000,aformat=channel_layouts=stereo[a${i}]`);
+  // Every scene's sound lasts exactly as long as its picture; scenes without sound get silence.
+  const sound = s.audio ? `[${i}:a]asetpts=PTS-STARTPTS,atempo=${SPEED},` : `anullsrc=r=48000:cl=stereo,`;
+  graph.push(`${sound}aresample=48000,aformat=channel_layouts=stereo,apad,atrim=0:${s.duration.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`);
 });
 let video = 'v0', audio = 'a0', offset = info[0].duration;
 for (let i = 1; i < info.length; i++) {
@@ -61,3 +64,15 @@ execFileSync('ffmpeg', args, { stdio: 'inherit' });
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-ss', (total - REVEAL - 0.2).toFixed(2), '-i', output, '-frames:v', '1', '-q:v', '4', poster], { stdio: 'inherit' });
 console.log(`Studio reel: ${total.toFixed(1)} s, ${(statSync(output).size / 1024 / 1024).toFixed(2)} MiB → ${output}`);
 console.log(`Poster: ${(statSync(poster).size / 1024).toFixed(0)} KiB → ${poster}`);
+
+// The README preview: full RGB until the final quantization (a single global palette bands skin and clothing), within GitHub's image budget.
+const scratch = mkdtempSync(join(tmpdir(), 'ara-reel-')), frames = join(scratch, 'reel.webp');
+let fits = false;
+for (const { width, fps, colours } of [{ width: 640, fps: 10, colours: 256 }, { width: 640, fps: 8, colours: 192 }, { width: 560, fps: 8, colours: 160 }]) {
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-i', output, '-vf', `fps=${fps},scale=${width}:-2:flags=lanczos`, '-an', '-c:v', 'libwebp_anim', '-lossless', '1', '-compression_level', '4', '-loop', '0', frames], { stdio: 'inherit' });
+  await sharp(frames, { animated: true }).gif({ reuse: false, effort: 10, dither: 0, colours, interFrameMaxError: 8, interPaletteMaxError: 8 }).toFile(gif);
+  console.log(`README GIF: ${width}px, ${fps} fps, ${colours} colours, ${(statSync(gif).size / 1024 / 1024).toFixed(2)} MiB → ${gif}`);
+  if ((fits = statSync(gif).size <= 9 * 1024 * 1024)) break;
+}
+rmSync(scratch, { recursive: true, force: true });
+if (!fits) throw Error('The README GIF exceeds its 9 MiB budget. Adjust the encoding before publishing.');

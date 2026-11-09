@@ -69,7 +69,7 @@
         <a href="https://github.com/olatunde85/3d-gen">GitHub</a>
       </nav>
       <a class="btn btn-ghost btn-sm nav-studio" href="studio/">Open Studio</a>
-      <a class="btn btn-primary btn-sm" href="app/">Launch app</a>
+      <a class="btn btn-primary btn-sm" href="app/">Open Builder</a>
     </header>
 
     <main>
@@ -83,8 +83,8 @@
             or cast it in a short film in Ara 3D Studio. It runs in your browser: no accounts, no credits, no limits.
           </p>
           <div class="cta">
-            <a class="btn btn-primary" href="app/">Launch the app <span aria-hidden="true">→</span></a>
-            <a class="btn btn-ghost" href="studio/">Open Ara 3D Studio</a>
+            <a class="btn btn-primary" href="app/">Build a character <span aria-hidden="true">→</span></a>
+            <a class="btn btn-ghost" href="studio/">Make a film</a>
           </div>
           <ul class="facts">
             <li><b>32</b> presets</li>
@@ -103,7 +103,7 @@
           <figcaption>Every shot in this reel was made and exported in Ara 3D Studio.</figcaption>
         </figure>
 
-        <div class="gallery" aria-label="Presets: open any of them in the app">
+        <div class="gallery" aria-label="Presets: open any of them in the builder">
           <a class="card" href="app/#preset=The%20Female%20Executive"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive preset" loading="eager" /><span>Executive</span></a>
           <a class="card" href="app/#preset=The%20Miami%20Dealer"><img src="./docs/media/presets/miami-dealer.jpg" alt="The Miami Dealer preset" /><span>Dealer</span></a>
           <a class="card" href="app/#preset=The%20Gangster"><img src="./docs/media/presets/gangster.jpg" alt="The Gangster preset" /><span>Gangster</span></a>
@@ -113,7 +113,7 @@
           <a class="card" href="app/#preset=The%20Arabian%20Oil%20Tycoon"><img src="./docs/media/presets/arabian-oil-tycoon.jpg" alt="The Arabian Oil Tycoon preset" /><span>Oil Tycoon</span></a>
           <a class="card" href="app/#preset=The%20Adventurer"><img src="./docs/media/presets/adventurer.jpg" alt="The Adventurer preset" /><span>Adventurer</span></a>
         </div>
-        <p class="gallery-hint">Click any character to open it in the app.</p>
+        <p class="gallery-hint">Click any character to open it in the builder.</p>
       </section>
 
       <!-- Numbers -->
@@ -146,16 +146,6 @@
         </div>
       </section>
 
-      <!-- Video -->
-      <section class="video-block reveal">
-        <button class="video-poster" data-video="cinematic" type="button" aria-label="Play the 30 second cinematic video">
-          <img src="./docs/media/cinematic-poster.jpg" alt="" loading="lazy" />
-          <span class="video-overlay" aria-hidden="true">
-            <span class="video-play"><svg viewBox="0 0 24 24"><path d="m9 5 11 7-11 7z" /></svg></span>
-            <span class="video-caption">Watch the builder in action <span>30-second cinematic</span></span>
-          </span>
-        </button>
-      </section>
 
       <!-- Features -->
       <section id="features" class="section">
@@ -262,9 +252,9 @@
         <div>
           <p class="eyebrow">Get started</p>
           <h2>Use it online, or own the whole pipeline</h2>
-          <p>The online app has every feature for making characters by hand. Self-host it for batch generation, offline use and your own garments, hair and animations. Works on Windows, macOS and Linux with Node 20+ and git.</p>
+          <p>The online builder has every feature for making characters by hand. Self-host it for batch generation, offline use and your own garments, hair and animations. Works on Windows, macOS and Linux with Node 20+ and git.</p>
           <div class="cta">
-            <a class="btn btn-primary" href="app/">Launch the app <span aria-hidden="true">→</span></a>
+            <a class="btn btn-primary" href="app/">Open the builder <span aria-hidden="true">→</span></a>
             <a class="btn btn-ghost" href="https://github.com/olatunde85/3d-gen">View on GitHub</a>
           </div>
         </div>
@@ -281,13 +271,13 @@ npm run dev</code></pre>
     <footer class="footer">
       <div><b><span class="brand-mark">Ara</span> 3D Gen</b> · <i>Ara</i> is Yoruba for "body".</div>
       <div>Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a> · Your exports are yours.</div>
-      <div><a href="docs/">Docs</a> · <a href="https://github.com/olatunde85/3d-gen">GitHub</a> · <a href="app/">Launch app</a></div>
+      <div><a href="docs/">Docs</a> · <a href="https://github.com/olatunde85/3d-gen">GitHub</a> · <a href="app/">Builder</a> · <a href="studio/">Studio</a></div>
       <div><a href="mailto:josholatunde@gmail.com">Hire me for a private project</a></div>
     </footer>
 
-    <dialog class="video-modal" aria-label="Demo video">
+    <dialog class="video-modal" aria-label="Ara 3D Studio reel">
       <button class="close" type="button" aria-label="Close video">✕</button>
-      <video controls playsinline preload="none" poster="./docs/media/cinematic-poster.jpg"></video>
+      <video controls playsinline preload="none" poster="/media/ara-studio-reel-poster.jpg"></video>
     </dialog>
 
     <script type="module" src="/src/landing/landing.ts"></script>

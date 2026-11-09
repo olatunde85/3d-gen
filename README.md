@@ -12,10 +12,7 @@ Shape a body, dress it, give it hair, a beard, tattoos and a weapon, pick from 2
 
 <p align="center"><img src="docs/media/demo.gif" alt="A motion-captured walk, a face with expressions that talks, and riding a bicycle in Ara 3D Gen" width="560"></p>
 
-<p align="center"><a href="https://ara3dgen.com/media/ARA_3D_GEN_Cinematic_Cut_v9_4K.mp4"><img src="docs/media/cinematic-poster.jpg" alt="Watch the Ara 3D Gen cinematic (0:30)" width="720"></a><br><sub>▶ <a href="https://ara3dgen.com/media/ARA_3D_GEN_Cinematic_Cut_v9_4K.mp4">Watch the cinematic (0:30)</a></sub></p>
-
-
-<p align="center"><a href="https://ara3dgen.com/studio/"><img src="docs/media/studio-warehouse.gif" alt="Agents of Mild Competence: The Warehouse — five Ara characters perform a short film with camera cuts and comic dialogue" width="640"></a><br><sub><strong>Made in Ara Studio:</strong> Agents of Mild Competence: The Warehouse · full 30-second preview, without audio · <a href="https://ara3dgen.com/studio/">Try Studio</a></sub></p>
+<p align="center"><a href="https://ara3dgen.com/studio/"><img src="docs/media/ara-studio-reel.gif" alt="The Ara 3D Studio reel: a tank and a helicopter, a jet takeoff, a parachute jump, a shootout, a highway race, a street café, a rooftop chase and a beach scene, ending in the Studio editor" width="640"></a><br><sub><strong>Made in Ara 3D Studio:</strong> every shot was made and exported in Studio · preview without audio · <a href="https://ara3dgen.com/media/ara-studio-reel.mp4">Watch with sound</a> · <a href="https://ara3dgen.com/studio/">Try Studio</a></sub></p>
 
 
 ## Why self-hosted?

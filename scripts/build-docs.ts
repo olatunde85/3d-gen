@@ -144,7 +144,7 @@ function page(p: (typeof pages)[number]): string {
 <header class="nav">
   <a class="brand" href="${BASE}"><span>Ara</span> 3D Gen</a>
   <nav><a href="${BASE}#features">Features</a><a href="${BASE}docs/" class="on">Docs</a><a href="https://github.com/olatunde85/3d-gen">GitHub</a></nav>
-  <a class="btn" href="${BASE}app/">Launch app</a>
+  <a class="btn" href="${BASE}app/">Open Builder</a>
 </header>
 <div class="wrap">
   <aside class="side" aria-label="Documentation pages">${side}</aside>

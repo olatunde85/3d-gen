@@ -96,27 +96,16 @@ npm run test:studio -- --audio    # voice effects, music, device voices, real sp
 
 Screenshots and videos from the browser suites are saved in `out/studio-expansion/`. `--audio` uses a simulated microphone; set `STUDIO_TTS_FIXTURE` to use a model directory you already have.
 
-## Rebuild the Studio README preview
-
-The checked-in GIF shows the current warehouse example. To regenerate it, install FFmpeg and a supported Chrome, Chromium or Edge browser, then run:
-
-```bash
-npm run test:studio -- --example
-npm run build:studio-example-gif
-```
-
-The first command renders the complete example to an ignored MP4 under `out/studio-expansion/`. The second preserves its 30-second timing and creates the compressed GIF under `docs/media/`. Normal site builds use that checked-in asset and do not need to render it again.
-
 ## Rebuild the Studio reel
 
-The home page plays `media/ara-studio-reel.mp4`, cut from the films in `src/studio/examples/reel.ts` (the same films LLM Assist offers as examples). To regenerate it after changing a film, install FFmpeg and a supported browser, then run:
+The home page plays `media/ara-studio-reel.mp4` and the README shows it as a GIF. Both are cut from the films in `src/studio/examples/reel.ts` (the same films LLM Assist offers as examples). To regenerate them after changing a film, install FFmpeg and a supported browser, then run:
 
 ```bash
 npm run test:studio -- --reel
 npm run build:studio-reel
 ```
 
-The first command renders each film with Studio's MP4 export, plus a screenshot of the editor, to `out/studio-expansion/`; `REEL_SCENES=2,5` renders only those films. The second keeps the part of each film listed in `REEL`, speeds it up slightly, joins the films with short crossfades and the music, and ends by zooming out into the editor. It writes the MP4 and its poster to `public/media/`.
+The first command renders each film with Studio's MP4 export, plus a screenshot of the editor, to `out/studio-expansion/`; `REEL_SCENES=2,5` renders only those films. The second keeps the part of each film listed in `REEL`, speeds it up slightly, joins the films with short crossfades and the music, and ends by zooming out into the editor. It writes the MP4 and its poster to `public/media/`, and a silent GIF of it for the README to `docs/media/ara-studio-reel.gif`.
 
 Vehicle validation: `npm run test:vehicles` checks fitting across body shapes, rigs and bind poses and loads animated GLB/FBX props through real importers. `npm run test:studio -- --vehicles` exercises vehicle controls, recovery, deterministic scrubbing and GPU disposal, and writes visual reviews under `out/vehicles/`. Vehicles use local procedural geometry; they require no external downloads.
 
