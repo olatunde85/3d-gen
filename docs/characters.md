@@ -60,7 +60,7 @@ Realism comes from data, not hand-built shapes. The generator uses the MakeHuman
   - diffuse and normal maps for clothes, and alpha textures for hair and lashes
   - 11 eye colours: MakeHuman's 9, plus dark brown and black-brown, the most common shades
 
-There are 30 presets (athletes, a detective, a secret agent, a soldier, a cyberpunk hacker, a wasteland survivor, African warriors, Nigerian Police and FRSC officers, an American sheriff, a beach girl, a gangster, a prison escapee, an 80s Miami dealer, an Arabian oil tycoon, a female executive, a priest, a professional hitman, a bodyguard and a corporate high-flier), and *Randomize* makes reproducible random characters from a seed. Random eye colours follow the ethnicity mix.
+There are 32 presets (athletes, a detective, a secret agent, a soldier, a cyberpunk hacker, a wasteland survivor, African warriors, Nigerian Police and FRSC officers, an American sheriff, a beach girl, a gangster, a prison escapee, an 80s Miami dealer, an Arabian oil tycoon, a female executive, a priest, a professional hitman, a bodyguard, a corporate high-flier, a bride and a covert spy), and *Randomize* makes reproducible random characters from a seed. Random eye colours follow the ethnicity mix.
 
 ## Detail levels
 
