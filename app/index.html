@@ -27,7 +27,12 @@
     <link rel="stylesheet" href="/src/app/style.css" />
   </head>
   <body>
-    <aside id="panel">
+    <aside id="panel" aria-label="Character editor">
+      <div id="sheet-heading">
+        <div class="sheet-toolbar"><button id="sheet-handle" type="button" aria-controls="panel-scroll" aria-expanded="false"><span class="sheet-grip" aria-hidden="true"></span><span id="sheet-handle-label">Edit character</span><span class="sheet-chevron" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m7 14 5-5 5 5" /></svg></span></button><button id="mobile-actions" type="button" title="Character actions" aria-label="Character actions" aria-haspopup="menu" aria-expanded="false" aria-controls="mobile-action-menu"><span id="mobile-actions-label" class="sr-only">Actions</span><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div>
+        <p id="sheet-summary"></p><p id="sheet-file-status" role="status"></p>
+      </div>
+      <div id="panel-scroll">
       <header>
         <h1><a href="../" title="Ara 3D Gen home">Ara 3D Gen</a> <span>realistic humans</span> <a class="hdr-docs" href="../docs/" title="Documentation">Docs</a></h1>
         <div class="row detailed-only">
@@ -42,18 +47,19 @@
         <button id="character-assist-btn" title="Create a character with a JSON from your AI assistant">LLM Assist <span>Build from a description ↗</span></button>
       </header>
       <div id="controls"></div>
+      </div>
     </aside>
     <main>
       <canvas id="viewport"></canvas>
       <div id="loading"><span class="spin"></span><span id="loading-text">Loading character assets…</span></div>
       <div id="busy-bar"></div>
-      <div id="stats"></div>
+      <div id="view-hud"><div id="stats"></div>
       <div id="status" aria-live="polite"><span class="spin"></span><span id="status-text"></span></div>
       <div id="view-tools">
         <label><input type="checkbox" id="wireframe" /> Wireframe</label>
         <label><input type="checkbox" id="skeleton" /> Skeleton</label>
         <label><input type="checkbox" id="face" /> Face close-up</label>
-      </div>
+      </div></div>
       <div id="anim-bar"></div>
       <div id="export-panel" hidden></div>
       <div id="export">

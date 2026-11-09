@@ -1,3 +1,4 @@
+import {PHONE_LAYOUT} from './responsive';
 /**
  * Animation bar (quick clips, previous / next, root motion, speed, progress) and the animation
  * browser, a drawer that slides in from the right edge of the view.
@@ -14,6 +15,7 @@ const QUICK = ['bind', 'idle', 'walk', 'run'];
 export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setActive: (id: string) => void } {
   const { store, viewer } = ctx;
   const animBar = $('#anim-bar');
+  const quick = el('div', {className:'anim-quick',role:'group',ariaLabel:'Quick animations'}),player=el('div',{className:'anim-player'}),options=el('div',{id:'anim-options',className:'anim-options'});
   const progress = el('div', { className: 'anim-progress' }, el('div'));
   // Idle plays by default ("rigged idle").
   let activeClip = 'idle';
@@ -25,6 +27,7 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
     animButtons.forEach((b, k) => b.classList.toggle('on', k === id));
     const other = !QUICK.includes(id);
     browseBtn.classList.toggle('on', other);
+    browseBtn.setAttribute('aria-label',other?`Browse animations: ${clipById.get(id)!.name}`:'Browse all animations');
     browseLabel.textContent = other ? clipById.get(id)!.name : 'All animations';
     browser.sync();
     store.emit('clip', id);
@@ -34,20 +37,26 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
     const b = el('button', { textContent: id === 'bind' ? 'Bind pose' : clipById.get(id)!.name });
     b.addEventListener('click', () => playClip(id));
     animButtons.set(id, b);
-    animBar.append(b);
+    quick.append(b);
   }
   // Previous / next step through every clip in list order.
   const step = (d: number) => {
     const i = CLIPS.findIndex((c) => c.id === activeClip);
     playClip(CLIPS[(i + d + CLIPS.length) % CLIPS.length].id);
   };
-  const prevBtn = el('button', { className: 'anim-step', textContent: '‹', title: 'Previous animation' });
-  const nextBtn = el('button', { className: 'anim-step', textContent: '›', title: 'Next animation' });
+  const prevBtn = el('button', { className: 'anim-step', textContent: '‹', title: 'Previous animation',ariaLabel:'Previous animation' });
+  const nextBtn = el('button', { className: 'anim-step', textContent: '›', title: 'Next animation',ariaLabel:'Next animation' });
   prevBtn.addEventListener('click', () => step(-1));
   nextBtn.addEventListener('click', () => step(1));
   const browseLabel = el('span', { textContent: 'All animations' });
   const browseBtn = el('button', { className: 'anim-browse', title: `Browse all ${CLIPS.length} animations` }, browseLabel, el('span', { className: 'caret', textContent: '▾' }));
-  animBar.append(prevBtn, browseBtn, nextBtn);
+  const settings=el('button',{className:'anim-settings',title:'Playback options',ariaLabel:'Playback options',ariaExpanded:'false',ariaControls:'anim-options'});
+  const sliders=document.createElementNS('http://www.w3.org/2000/svg','svg');sliders.setAttribute('viewBox','0 0 24 24');sliders.setAttribute('width','18');sliders.setAttribute('height','18');sliders.setAttribute('fill','none');sliders.setAttribute('stroke','currentColor');sliders.setAttribute('stroke-width','1.6');sliders.setAttribute('stroke-linecap','round');sliders.setAttribute('aria-hidden','true');sliders.innerHTML='<path d="M4 7h7m4 0h5M4 17h1m4 0h11"/><circle cx="13" cy="7" r="2"/><circle cx="7" cy="17" r="2"/>';settings.append(sliders);
+  const closeSettings=()=>settings.setAttribute('aria-expanded','false');
+  settings.addEventListener('click',()=>settings.setAttribute('aria-expanded',String(settings.getAttribute('aria-expanded')!=='true')));
+  document.addEventListener('pointerdown',e=>{if(!options.contains(e.target as Node)&&!settings.contains(e.target as Node))closeSettings();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&settings.getAttribute('aria-expanded')==='true'){closeSettings();settings.focus();}});
+  player.append(prevBtn,browseBtn,nextBtn,settings);animBar.append(quick,player,options);
   const browser = animationBrowser(animBar, browseBtn, () => activeClip, playClip);
 
   const rmBox = el('input', { type: 'checkbox' });
@@ -65,7 +74,8 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
   for (const s of ['0.25', '0.5', '1', '1.5']) speed.append(new Option(`${s}×`, s));
   speed.value = '1';
   speed.addEventListener('change', () => (viewer.speed = Number(speed.value)));
-  animBar.append(rmLabel, propLabel, bloodLabel, speed, progress);
+  options.append(rmLabel,propLabel,bloodLabel,speed);animBar.append(progress);
+  rmBox.setAttribute('aria-label','Root motion');speed.setAttribute('aria-label','Playback speed');
   viewer.onTick = (clip, t) => {
     const staged = !!clip && !!stagePropFor(clip.id);
     if (propLabel.hidden === staged) propLabel.hidden = !staged;
@@ -108,7 +118,7 @@ function animationBrowser(animBar: HTMLElement, browseBtn: HTMLButtonElement, ac
       el('span', { textContent: c.name }), c.loop ? el('span', { className: 'loop', textContent: '↻', title: 'Loops' }) : '');
     b.dataset.id = c.id;
     b.classList.toggle('on', c.id === active());
-    b.addEventListener('click', () => playClip(c.id));
+    b.addEventListener('click', () => {if(matchMedia(PHONE_LAYOUT).matches){toggle(false);browseBtn.focus({preventScroll:true});requestAnimationFrame(()=>playClip(c.id));}else playClip(c.id);});
     return b;
   };
   function render() {
@@ -131,17 +141,19 @@ function animationBrowser(animBar: HTMLElement, browseBtn: HTMLButtonElement, ac
   });
   const isOpen = () => pop.classList.contains('open');
   const toggle = (open = !isOpen()) => {
+    pop.hidden=!open&&matchMedia(PHONE_LAYOUT).matches;
     pop.classList.toggle('open', open);
     pop.setAttribute('aria-hidden', String(!open));
     browseBtn.setAttribute('aria-expanded', String(open));
     if (open) {
+      animBar.dispatchEvent(new Event('open-animation-browser',{bubbles:true}));
       render();
       search.focus({ preventScroll: true });
       grid.querySelector('.anim-clip.on')?.scrollIntoView({ block: 'nearest' });
     }
   };
   browseBtn.addEventListener('click', () => toggle());
-  close.addEventListener('click', () => toggle(false));
+  close.addEventListener('click', () => {toggle(false);browseBtn.focus();});
   // Stays open while browsing (the character remains in view); Esc, × or the button close it.
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) toggle(false); });
   pop.append(el('div', { className: 'anim-pop-head' }, el('span', { className: 'anim-pop-title', textContent: 'Animations' }), close), search, tabs, grid);

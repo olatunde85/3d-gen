@@ -60,7 +60,8 @@
     "test:action-props": "tsx scripts/action-props-check.ts && tsx scripts/action-props-export-check.ts",
     "test:fleet": "tsx scripts/fleet-check.ts && tsx scripts/studio-check.ts --fleet",
     "test:stage": "tsx scripts/stage-check.ts",
-    "test:aerial": "tsx scripts/aerial-check.ts && tsx scripts/studio-check.ts --aerial"
+    "test:aerial": "tsx scripts/aerial-check.ts && tsx scripts/studio-check.ts --aerial",
+    "test:ui:mobile": "tsx scripts/ui-check.ts --mobile"
   },
   "dependencies": {
     "fflate": "^0.8.3",

@@ -1,3 +1,5 @@
+import {checkMobileBuilder} from './mobile-builder-check';
+const mobileOnly=process.argv.includes('--mobile');
 /**
  * UI smoke test: builds the app, opens it in headless Chrome and drives it through the main
  * flows (load, Quick build, slider, preset, animation browser, export panel, export), failing on
@@ -98,6 +100,7 @@ async function waitFor(js: string, what: string, ms = 120000): Promise<void> {
 // --- The checks -------------------------------------------------------------------------------
 const results: [string, boolean, string?][] = [];
 async function step(name: string, fn: () => Promise<void>) {
+  if(mobileOnly&&!/loads and builds|^Mobile /.test(name))return;
   if(gownsOnly&&!/loads and builds|^Gown /.test(name))return;
   try {
     await fn();
@@ -105,6 +108,7 @@ async function step(name: string, fn: () => Promise<void>) {
   } catch (e) {
     results.push([name, false, (e as Error).message]);
   }
+  if(mobileOnly){const [,ok,error]=results.at(-1)!;console.log(`${ok?'PASS':'FAIL'} ${name}${error?`: ${error}`:''}`);}
 }
 /** Resolves after the next finished build (the stats line changes). */
 const statsNow = () => evaluate<string>("document.querySelector('#stats').textContent");
@@ -116,11 +120,13 @@ try {
   ({ sessionId: session } = await send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true }, false));
   await send('Runtime.enable');
   await send('Page.enable');
-  await send('Page.navigate', { url: 'http://localhost:4398/app/'+(gownsOnly?'#demo':'') });
+  if(mobileOnly){await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await send('Emulation.setTouchEmulationEnabled',{enabled:true});}
+  await send('Page.navigate', { url: 'http://localhost:4398/app/'+(gownsOnly||mobileOnly?'#demo':'') });
 
   await step('loads and builds a character', async () => {
     await waitFor("document.querySelector('#loading')?.hidden === true && !!document.querySelector('#stats').textContent", 'the first character');
   });
+  await checkMobileBuilder({enabled:mobileOnly,step,evaluate,waitFor,send});
   await buildGownThumbnails({enabled:gownsOnly,step,evaluate,waitFor,send});
   // Quick build: new visitors start there.
   const quick = (k: string) => `document.querySelector('#quick [data-k="${k}"]')`;
