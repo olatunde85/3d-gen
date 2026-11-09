@@ -15,7 +15,9 @@ import {VEHICLE_IDS,VEHICLE_CLIP,DEFAULT_VEHICLE_STYLE} from '../src/core/props/
 const noop=()=>{},context=new Proxy({createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),measureText:()=>({width:100})},{get:(target,key)=>Reflect.get(target,key)??noop});
 Object.assign(globalThis,{document:{createElement:()=>({width:1,height:1,getContext:()=>context})}});
 const lib=await nodeLibrary(),human=await buildHuman(lib,{...DEFAULT_PARAMS,detail:'low',rig:'game',outfit:'none',hair:'none',faceShapes:false}),animator=new Animator(human.rig!),envelopes:Record<string,VehicleEnvelope>={};
-for(const id of VEHICLE_IDS){const ride=new Vehicle(id,human.rig!,animator,clipById.get(VEHICLE_CLIP[id])!,DEFAULT_VEHICLE_STYLE),box=ride.bounds;
+// Envelopes are a vehicle's size on the ground: Fly jet holds the jet in the air, so it is measured taxiing.
+const MEASURED_WITH:Partial<Record<string,string>>={jet:'taxi_jet'};
+for(const id of VEHICLE_IDS){const ride=new Vehicle(id,human.rig!,animator,clipById.get(MEASURED_WITH[id]??VEHICLE_CLIP[id])!,DEFAULT_VEHICLE_STYLE),box=ride.bounds;
  // Include the complete animated prop envelope, including paddles and rotor clearance.
  for(let i=0;i<=24;i++){ride.update(ride.clip.duration*i/24);box.union(ride.bounds);}const s=ride.fit.scale;
  envelopes[id]={bounds:[box.min.x/s,box.min.z/s,box.max.x/s,box.max.z/s].map(n=>Math.round(n*1000)/1000)as VehicleEnvelope['bounds'],bottom:box.min.y/s,top:box.max.y/s};ride.dispose();}

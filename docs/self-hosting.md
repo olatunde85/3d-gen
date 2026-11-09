@@ -86,7 +86,7 @@ The speech runtime (about 14 MiB, single-threaded, no cross-origin isolation hea
 npm run test:studio:model         # project format, validation, timelines and seating
 npm run test:parcel               # ordinary held-parcel movement, two-hand contact, unchanged gait, clearance and release state
 npm run test:animations           # animation poses, recovered landings, recorded gait layers and parcels on 18 bodies/rigs/binds
-npm run test:studio               # every set, the editor, LLM Assist, recovery, MP4 export and the builder round trip
+npm run test:studio               # every set, the editor, Assist, recovery, MP4 export and the builder round trip
 npm run test:studio -- --new-project # fresh projects, save-first downloads, recordings, Undo and mobile controls
 npm run test:studio -- --cast     # five characters, arrangements, framing and an MP4 with music
 npm run test:studio -- --sfx      # sound-effect timing, mixing, editing and export
@@ -98,7 +98,7 @@ Screenshots and videos from the browser suites are saved in `out/studio-expansio
 
 ## Rebuild the Studio reel
 
-The home page plays `media/ara-studio-reel.mp4` and the README shows it as a GIF. Both are cut from the films in `src/studio/examples/reel.ts` (the same films LLM Assist offers as examples). To regenerate them after changing a film, install FFmpeg and a supported browser, then run:
+The home page plays `media/ara-studio-reel.mp4` and the README shows it as a GIF. Both are cut from the films in `src/studio/examples/reel.ts` (the same films Studio's Assist offers as examples). To regenerate them after changing a film, install FFmpeg and a supported browser, then run:
 
 ```bash
 npm run test:studio -- --reel

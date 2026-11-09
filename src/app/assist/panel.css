@@ -1,4 +1,4 @@
-/* LLM Assist panel. Each app themes it through these variables. */
+/* Assist panel. Each app themes it through these variables. */
 dialog.ai-assist {
   --ai-bg: #1e2128; --ai-field: #16181d; --ai-raised: #262a33; --ai-line: #353a46;
   --ai-text: #e6e8ec; --ai-muted: #959dab; --ai-accent: #5b8cff; --ai-accent-hover: #7aa2ff; --ai-on-accent: #fff;
@@ -82,8 +82,16 @@ dialog.ai-assist::backdrop { background: #080b11bb; backdrop-filter: blur(6px); 
 .ai-assist .ai-build { margin-top: auto; }
 .ai-assist .ai-review > .ai-note:last-child { margin-top: 8px; }
 
+/* The guide and build actions stay in view at the foot of the panel while it scrolls. */
+.ai-assist .ai-actions { position: sticky; bottom: -24px; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: center;
+  margin: 18px -28px -24px; padding: 14px 28px 16px; background: var(--ai-bg); border-top: 1px solid var(--ai-line); }
+.ai-assist .ai-actions-guide { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.ai-assist .ai-actions-guide .ai-note { margin: 0; }
+.ai-assist .ai-actions-guide .ai-note:empty { display: none; }
+
 @media (max-width: 760px) {
   dialog.ai-assist { padding: 20px 18px; }
+  .ai-assist .ai-actions { grid-template-columns: 1fr; gap: 10px; bottom: -20px; margin: 18px -18px -20px; padding: 12px 18px 14px; }
   .ai-assist h2 { font-size: 23px; }
   .ai-assist .ai-grid { grid-template-columns: 1fr; gap: 24px; }
   .ai-assist .ai-review { border-top: 1px solid var(--ai-line); padding-top: 22px; }
@@ -131,3 +139,31 @@ dialog.ai-assist::backdrop { background: #080b11bb; backdrop-filter: blur(6px); 
 .ai-assist .ai-location-preview>img { width:100%; height:auto; aspect-ratio:8/5; object-fit:cover; border-radius:7px; background:var(--ai-field); }
 .ai-assist .ai-location-preview>p { color:var(--ai-muted); font-size:12px; line-height:1.6; margin:12px 0; }
 @media(max-width:420px){.ai-assist .ai-reference-card{flex-basis:140px}.ai-assist .ai-location-preview{padding:15px}}
+
+/* Build progress: covers the panel while the result is built. */
+dialog.ai-assist.is-building { overflow: hidden; }
+.ai-assist .ai-building { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 28px; background: var(--ai-bg); }
+.ai-assist .ai-building[hidden] { display: none; }
+.ai-assist .ai-building-card { width: min(460px, 100%); }
+.ai-assist .ai-building-picture { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; margin-bottom: 20px; border-radius: 12px; border: 1px solid var(--ai-line); background: var(--ai-raised); }
+.ai-assist .ai-building-picture[hidden] { display: none; }
+.ai-assist .ai-building h2 { margin: 12px 0 4px; }
+.ai-assist .ai-building-headline { margin: 0 0 22px; color: var(--ai-muted); }
+.ai-assist .ai-meter { position: relative; height: 6px; border-radius: 99px; overflow: hidden; background: var(--ai-raised); }
+.ai-assist .ai-meter > span { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: var(--ai-accent); transition: width .35s ease; }
+.ai-assist .ai-meter.unknown > span { width: 32% !important; animation: ai-slide 1.3s ease-in-out infinite; }
+.ai-assist .ai-building-stage { margin: 10px 0 18px; min-height: 1.5em; font-size: 12px; color: var(--ai-text); }
+.ai-assist .ai-building-items { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 2px; }
+.ai-assist .ai-building-items li { display: flex; align-items: center; gap: 11px; padding: 7px 10px; border-radius: 8px; color: var(--ai-muted); }
+.ai-assist .ai-building-items li.active { background: var(--ai-raised); color: var(--ai-text); }
+.ai-assist .ai-building-items li.done { color: var(--ai-text); }
+.ai-assist .ai-state { width: 16px; height: 16px; flex: none; border-radius: 50%; border: 1.5px solid var(--ai-line); display: grid; place-items: center; }
+.ai-assist .active .ai-state { border-color: var(--ai-raised); border-top-color: var(--ai-accent); border-width: 2px; animation: ai-spin .8s linear infinite; }
+.ai-assist .done .ai-state { border-color: var(--ai-ok); background: var(--ai-ok); }
+.ai-assist .done .ai-state::after { content: ''; width: 4px; height: 7px; margin-top: -2px; border: solid var(--ai-bg); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+@keyframes ai-slide { from { transform: translateX(-100%); } to { transform: translateX(320%); } }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ai-assist .ai-meter > span { transition: none; }
+  .ai-assist .ai-meter.unknown > span, .ai-assist .active .ai-state { animation: none; }
+}

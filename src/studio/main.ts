@@ -24,6 +24,7 @@ import { AudioPlayback, SpeechAudioRequired } from './audio/mix';
 import { hasAudio, resolveSpeechActor } from './audio/schema';
 import { audioProjectBundle, openAudioBundle } from './audio/bundle';
 import { setupAssist } from './assist-ui';
+import type { BuildProgress } from '../app/assist/panel';
 import { setupStudioTour } from './tour';
 import { seatCast } from './seating';
 import { addCastActor, arrangeCast, castArrangement, ARRANGEMENTS, ARRANGEMENT_LABELS, type Arrangement } from './staging';
@@ -47,8 +48,9 @@ const BASE = import.meta.env.BASE_URL, STORAGE = 'ara.studio.project.v2', HANDOF
 if (import.meta.env.DEV) $<HTMLAnchorElement>('video-licence').href = 'https://github.com/Vanilagy/mediabunny/blob/main/LICENSE';
 const soundtrack=new AudioPlayback();let playToken=0,preparingSound=false;
 const scene = new StudioScene($<HTMLCanvasElement>('film'));
-let project = newProject(), time = 0, selectedActor = project.actors[0].id, selected = 0, cameraSelection = false;
-let characterSelected=true;
+// A film opens with no character selected: the whole picture shows, without a selection ring.
+let project = newProject(), time = 0, selectedActor = project.actors[0].id, selected = 0, cameraSelection = true;
+let characterSelected=false;
 let playing = false, repeat = true, loading = true, exporting = false, dirty = true, titleEditing = false;
 let engine: Engine, lib: AssetLibrary;
 let speechToFix:string|undefined;
@@ -279,16 +281,22 @@ function renderUI() {
   const pending=pendingSpeech();$('speech-needed').hidden=!pending.length;$('speech-needed-copy').textContent=`${pending.length===1?'1 dialogue clip is':`${pending.length} dialogue clips are`} ready for a voice.`;
   textEditor.render();soundEditor.render();$('sound-readout').textContent=project.audio.muted?'Sound muted':hasAudio(project.audio)?'Sound on':'Silent film';lock();renderPosition();fitFilm();dirty=true;scheduleSessionSave();
 }
+/** Set while Assist builds a film: it shows each character's progress. */
+let castProgress:((p:BuildProgress)=>void)|undefined;
 async function syncActors() {
   const next=new Map<string,StudioActor>(),made:StudioActor[]=[];
+  const todo=project.actors.filter(a=>!(scene.actors.get(a.id)&&builtRecipes.get(a.id)===`${a.detail}:${a.character}`));
+  const report=(stage:string,fraction:number)=>castProgress?.({stage,fraction,items:project.actors.map(a=>({label:actorName(a),state:next.has(a.id)?'done':a===todo[made.length]&&todo.includes(a)?'active':'waiting'}))});
   try{
     for(const a of project.actors){const recipe=`${a.detail}:${a.character}`,existing=scene.actors.get(a.id);
       if(existing&&builtRecipes.get(a.id)===recipe){next.set(a.id,existing);continue;}
       const params=decodeCharacter(a.character,a.detail);if(!params)throw Error('The character recipe could not be opened.');
-      $('loading-label').textContent=`Building character ${project.actors.indexOf(a)+1}…`;
-      const ch=await engine.build({...params,rig:params.rig==='none'?'game':params.rig,animations:true},label=>$('loading-label').textContent=label);
+      const step=`Building ${actorName(a)} · ${made.length+1} of ${todo.length}`,share=(k:number,frac:number)=>.05+.85*(k+frac)/todo.length;
+      $('loading-label').textContent=`Building character ${project.actors.indexOf(a)+1}…`;report(step,share(made.length,0));
+      const ch=await engine.build({...params,rig:params.rig==='none'?'game':params.rig,animations:true},(label,frac)=>{$('loading-label').textContent=label;report(step,share(made.length,frac??0));});
       const actor=new StudioActor(ch,file=>lib.textureUrl(file));made.push(actor);await actor.ready();next.set(a.id,actor);
     }
+    if(todo.length)report('Placing the cast on the set',.95);
     await scene.setActors(next,project);builtRecipes.clear();for(const a of project.actors)builtRecipes.set(a.id,`${a.detail}:${a.character}`);
   }catch(e){for(const actor of made)if(![...scene.actors.values()].includes(actor))actor.dispose();throw e;}
 }
@@ -528,7 +536,7 @@ async function importStudioProject(source: string | File): Promise<boolean> {
     if(!bundle&&typeof source!=='string'&&source.size>100_000)throw Error('Use JSON smaller than 100 KB.');
     const next=bundle?await openAudioBundle(source as File,lib.catalog):parseStudioInput(typeof source==='string'?source:await source.text(),lib.catalog);
     if(!await apply(next))return false;
-    selectedActor=project.actors[0].id;characterSelected=true;cameraSelection=false;selected=0;time=0;
+    selectedActor=project.actors[0].id;characterSelected=false;cameraSelection=true;selected=0;time=0;
     renderUI();return true;
   } finally {importing=false;lock();saveSession();}
 }
@@ -544,7 +552,7 @@ const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>ch
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
 const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,bodies:()=>fittedSpatialBodies(scene.actors),canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
-  load:next=>importStudioProject(JSON.stringify(next))});
+  load:(next,progress)=>{castProgress=progress;return importStudioProject(JSON.stringify(next)).finally(()=>castProgress=undefined);}});
 setupSpatialReview({project:()=>project,actors:()=>scene.actors,canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,pause:()=>setPlaying(false),seek:t=>{time=t;renderPosition();dirty=true;},download});
 const tour=setupStudioTour({canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,begin:()=>{
   const wide=document.querySelector('.workspace')!.classList.contains('wide');setPlaying(false);setWide(false,false);

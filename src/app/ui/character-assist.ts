@@ -23,7 +23,7 @@ export function characterAssist(ctx: Ctx) {
   const dialog = document.body.appendChild(document.createElement('dialog'));
   dialog.id = 'character-assist-dialog';
   const panel = assistPanel<HumanParams>({
-    dialog, id: 'ca', app: 'CHARACTER BUILDER', noun: 'character',
+    dialog, id: 'ca', name: 'LLM Assist', app: 'CHARACTER BUILDER', noun: 'character',
     title: 'Describe your character',
     intro: 'Describe someone in your own words. An AI assistant turns it into a character you can keep editing here.',
     placeholder: 'A confident explorer in her thirties, with cornrows, cargo shorts and a backpack.',
@@ -33,7 +33,8 @@ export function characterAssist(ctx: Ctx) {
     parse: json => parseCharacterInput(json, ctx.cat),
     describe,
     example: characterExample,
-    async build(next) {
+    async build(next, progress) {
+      progress({ stage: 'Shaping, dressing and rigging your character…' });
       const previous = structuredClone(ctx.store.params);
       await ctx.whenIdle(); ctx.store.replaceAll(next); await ctx.whenIdle();
       if (JSON.stringify(ctx.store.current?.params) !== JSON.stringify(next)) {
@@ -46,7 +47,7 @@ export function characterAssist(ctx: Ctx) {
       window.history.replaceState(window.history.state, '', url);
     },
     canOpen: async () => { await ctx.whenIdle(); return true; },
-    footnote: 'Characters only; for scenes and films, use LLM Assist in Ara Studio. Undo restores your previous character.',
+    footnote: 'Characters only; for scenes and films, use Assist in Ara Studio. Undo restores your previous character.',
     storageKey: 'ara.character.assist.v1',
   });
   $('#character-assist-btn').addEventListener('click', () => void panel.open());

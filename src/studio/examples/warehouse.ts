@@ -12,19 +12,19 @@ export const WAREHOUSE_EXAMPLE = {
       "detail": "high",
       "x": 0.9,
       "y": 0,
-      "z": 6.4,
+      "z": 4.5,
       "yaw": -180,
       "beats": [
         {
           "id": "a0-0",
           "clip": "walk",
-          "duration": 3.225,
+          "duration": 0.8,
           "move": true
         },
         {
           "id": "a0-1",
           "clip": "pistol_idle",
-          "duration": 0.275,
+          "duration": 2.7,
           "move": false
         },
         {
@@ -53,7 +53,7 @@ export const WAREHOUSE_EXAMPLE = {
         },
         {
           "id": "a0-6",
-          "clip": "crouch",
+          "clip": "cover_idle",
           "duration": 4.4,
           "move": false
         },
@@ -89,19 +89,19 @@ export const WAREHOUSE_EXAMPLE = {
       "detail": "high",
       "x": -0.9,
       "y": 0,
-      "z": 6.6,
+      "z": 4.5,
       "yaw": -180,
       "beats": [
         {
           "id": "a1-0",
           "clip": "walk",
-          "duration": 3.225,
+          "duration": 0.8,
           "move": true
         },
         {
           "id": "a1-1",
           "clip": "pistol_idle",
-          "duration": 2.375,
+          "duration": 4.8,
           "move": false
         },
         {
@@ -184,7 +184,7 @@ export const WAREHOUSE_EXAMPLE = {
       "detail": "medium",
       "x": 0,
       "y": 0,
-      "z": -4,
+      "z": -5.0,
       "yaw": 0,
       "beats": [
         {
@@ -225,8 +225,8 @@ export const WAREHOUSE_EXAMPLE = {
         },
         {
           "id": "a2-6",
-          "clip": "death_backward",
-          "duration": 1.8,
+          "clip": "shot_chest",
+          "duration": 2.6,
           "move": false
         }
       ]
@@ -237,7 +237,7 @@ export const WAREHOUSE_EXAMPLE = {
       "detail": "medium",
       "x": 1.8,
       "y": 0,
-      "z": -4.5,
+      "z": -5.1,
       "yaw": -10,
       "beats": [
         {
@@ -260,8 +260,8 @@ export const WAREHOUSE_EXAMPLE = {
         },
         {
           "id": "a3-3",
-          "clip": "death_forward",
-          "duration": 1.7,
+          "clip": "shot_stomach",
+          "duration": 2.8,
           "move": false
         }
       ]
@@ -272,7 +272,7 @@ export const WAREHOUSE_EXAMPLE = {
       "detail": "medium",
       "x": -1.8,
       "y": 0,
-      "z": -4.5,
+      "z": -5.1,
       "yaw": 10,
       "beats": [
         {
@@ -289,8 +289,8 @@ export const WAREHOUSE_EXAMPLE = {
         },
         {
           "id": "a4-2",
-          "clip": "death_backward",
-          "duration": 1.8,
+          "clip": "shot_head",
+          "duration": 1.5,
           "move": false
         }
       ]
@@ -319,13 +319,23 @@ export const WAREHOUSE_EXAMPLE = {
       "id": "shot-3",
       "duration": 2.4,
       "shot": "close",
-      "target": "dez"
+      "target": "dez",
+      "view": {
+        "azimuth": 180,
+        "elevation": 4,
+        "zoom": 1
+      }
     },
     {
       "id": "shot-4",
       "duration": 1.4,
       "shot": "close",
-      "target": "ngozi"
+      "target": "ngozi",
+      "view": {
+        "azimuth": 180,
+        "elevation": 4,
+        "zoom": 1
+      }
     },
     {
       "id": "shot-5",
@@ -349,7 +359,12 @@ export const WAREHOUSE_EXAMPLE = {
       "id": "shot-8",
       "duration": 3.4,
       "shot": "medium",
-      "target": "dez"
+      "target": "dez",
+      "view": {
+        "azimuth": 180,
+        "elevation": 4,
+        "zoom": 1
+      }
     },
     {
       "id": "shot-9",
@@ -358,7 +373,7 @@ export const WAREHOUSE_EXAMPLE = {
       "target": "all"
     }
   ],
-  "camera": "orbit",
+  "camera": "locked",
   "aspect": "landscape",
   "caption": false,
   "texts": [
@@ -766,7 +781,7 @@ export const WAREHOUSE_EXAMPLE = {
         "name": "Wiry thug hits floor",
         "sound": "body-fall-thump",
         "actor": "thug_wiry",
-        "start": 13.92,
+        "start": 13.7,
         "duration": 0.6065,
         "offset": 0,
         "speed": 1,
@@ -790,7 +805,7 @@ export const WAREHOUSE_EXAMPLE = {
         "name": "Heavy thug hits floor",
         "sound": "body-fall-thump",
         "actor": "thug_heavy",
-        "start": 14.54,
+        "start": 15.56,
         "duration": 0.713529411764706,
         "offset": 0,
         "speed": 0.85,
@@ -802,7 +817,7 @@ export const WAREHOUSE_EXAMPLE = {
         "name": "Boss hits floor",
         "sound": "body-fall-thump",
         "actor": "thug_boss",
-        "start": 15.19,
+        "start": 15.99,
         "duration": 0.6065,
         "offset": 0,
         "speed": 1,
@@ -821,7 +836,7 @@ export const WAREHOUSE_EXAMPLE = {
   },
   "view": {
     "azimuth": 0,
-    "elevation": 5,
+    "elevation": 11,
     "zoom": 1
   }
 };

@@ -2,7 +2,7 @@ import { ASSIST_EXAMPLES, assistExample, describeAssistProject, generateAssistGu
 import { WAREHOUSE_BRIEF } from './examples/warehouse';
 import { prepareExampleDialogue } from './audio/example';
 import { hasScriptedSpeech } from './audio/prepare';
-import { assistPanel } from '../app/assist/panel';
+import { assistPanel, type BuildProgress } from '../app/assist/panel';
 import type { Catalog } from '../core/assets';
 import type { StudioProject } from './project';
 import {SETS,type SetId} from './catalog';
@@ -14,7 +14,7 @@ interface AssistEditor {
   catalog(): Catalog;
   canEdit(): boolean;
   bodies():ReadonlyMap<string,SpatialBody>;
-  load(project: StudioProject): Promise<boolean>;
+  load(project: StudioProject, progress: (p: BuildProgress) => void): Promise<boolean>;
 }
 
 export function setupAssist(editor: AssistEditor) {
@@ -22,7 +22,7 @@ export function setupAssist(editor: AssistEditor) {
   const filmContext=()=>{const project=editor.project(),key=JSON.stringify(project);if(key!==contextKey){contextReport=stagingReport(project,editor.bodies());contextKey=key;}return contextReport;};
   const panel = assistPanel<StudioProject>({
     dialog: document.getElementById('assist-dialog') as HTMLDialogElement,
-    id: 'assist', app: 'ARA STUDIO', noun: 'film',
+    id: 'assist', name: 'Assist', app: 'ARA STUDIO', noun: 'film',
     title: 'Describe a film. Bring it to life.',
     intro: 'Describe a scene in your own words. An AI assistant turns it into a film you can play, edit and export.',
     placeholder: WAREHOUSE_BRIEF,
@@ -33,6 +33,7 @@ export function setupAssist(editor: AssistEditor) {
       file:id=>({name:`ara-studio-${id}-map.json`,text:JSON.stringify(locationMapFile(id as SetId),null,2)}),all:{name:'ara-studio-all-location-maps.json',text:()=>JSON.stringify(allLocationMapsFile())}},
     parse: json => parseStudioInput(json, editor.catalog()),
     describe: describeAssistProject,
+    picture: project => `${import.meta.env.BASE_URL}studio-location-previews/${project.template}.webp`,
     revisionContext:project=>JSON.stringify(locationMapFile(project.template)),
     example: assistExample,
     examples: ASSIST_EXAMPLES,
@@ -42,7 +43,7 @@ export function setupAssist(editor: AssistEditor) {
       run:(project,options)=>prepareExampleDialogue(project,editor.catalog(),options),
       write:(project,json)=>JSON.stringify({...JSON.parse(json),audio:project.audio},null,2),
     },
-    build: async project => { if (!await editor.load(project)) throw Error('The film could not be loaded. Your previous film has been kept.'); },
+    build: async (project, progress) => { if (!await editor.load(project, progress)) throw Error('The film could not be loaded. Your previous film has been kept.'); },
     canOpen: () => editor.canEdit(),
     footnote: 'Building replaces the current film. Undo brings it back. Use Check staging in the left panel to review paths with your loaded characters before exporting.',
   });
