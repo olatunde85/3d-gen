@@ -1,10 +1,13 @@
 /**
- * LLM Assist: describe something, get JSON from any AI chat, review it and build.
+ * Assist: describe something, get JSON from any AI chat, review it and build.
  * Shared by the character builder and Ara Studio.
  */
 import './panel.css';
 import { extractJson, fixRequest, hadSurroundingText } from './extract';
 import {referencePickerMarkup,setupReferencePicker,type ReferenceChoice} from './reference-picker';
+
+/** What the build is doing, for the progress view: a stage line, how far along (0–1, or unknown) and optional parts, such as the cast. */
+export interface BuildProgress { stage: string; fraction?: number; items?: { label: string; state: 'waiting' | 'active' | 'done' }[] }
 
 export interface AssistDraft { brief: string; json: string; context: boolean; open: boolean; guideOpen: boolean; reference?:string }
 
@@ -13,6 +16,8 @@ export interface AssistConfig<T> {
   dialog?: HTMLDialogElement;
   /** Prefix for element ids. */
   id: string;
+  /** The panel's name: "Assist" in Studio, "LLM Assist" in the builder. */
+  name: string;
   app: string;
   noun: 'film' | 'character';
   title: string;
@@ -24,6 +29,8 @@ export interface AssistConfig<T> {
   guide(brief: string, current: boolean, reference?:string): string;
   parse(json: string): T;
   describe(value: T): { headline: string; facts: string[]; warnings?:string[] };
+  /** Optional picture for the build progress view (Studio's location). */
+  picture?(value: T): string;
   /** Optional machine-readable reference beside the guide (Studio location maps). */
   reference?:{label:string;choices:ReferenceChoice[];current():string;file(id:string):{name:string;text:string};all?:{name:string;text():string}};
   revisionContext?(value:T):string;
@@ -31,8 +38,8 @@ export interface AssistConfig<T> {
   example(id?: string): unknown;
   /** Several examples to choose from: "Try an example" becomes a list. */
   examples?: { id: string; label: string }[];
-  /** Applies the result; throws a readable error if it can't. */
-  build(value: T): Promise<void>;
+  /** Applies the result, reporting progress as it goes; throws a readable error if it can't. */
+  build(value: T, progress: (p: BuildProgress) => void): Promise<void>;
   canOpen(): boolean | Promise<boolean>;
   /** Optional local preparation of a validated reply before building (Studio dialogue). */
   prepare?: {
@@ -57,7 +64,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   dialog.classList.add('ai-assist');
   dialog.setAttribute('aria-labelledby', `${id}-title`);
   dialog.innerHTML = `
-    <div class="ai-top"><span class="ai-eyebrow">LLM ASSIST · ${html(cfg.app)}</span><button class="ai-icon" id="${id}-close" data-r="close" aria-label="Close LLM Assist">✕</button></div>
+    <div class="ai-top"><span class="ai-eyebrow">${html(cfg.name.toUpperCase())} · ${html(cfg.app)}</span><button class="ai-icon" id="${id}-close" data-r="close" aria-label="Close ${html(cfg.name)}">✕</button></div>
     <h2 id="${id}-title">${html(cfg.title)}</h2>
     <p class="ai-intro">${html(cfg.intro)}</p>
     <div class="ai-grid">
@@ -75,8 +82,6 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
             <li>Paste it into ChatGPT, Claude, Gemini or another assistant. If the chat says it's too long, attach the .txt file instead.</li>
             <li>Copy the assistant's whole reply and press <b>Paste reply</b> on the right.</li>
           </ol>
-          <div class="ai-row"><button class="ai-btn ai-primary" id="${id}-copy" data-r="copy">Copy guide</button><button class="ai-btn" id="${id}-download" data-r="save">Save as .txt</button></div>
-          <p class="ai-note" id="${id}-copy-status" data-r="copy-status" role="status"></p>
           <details id="${id}-guide-details" data-r="guide-details"><summary>Preview the guide</summary><textarea class="ai-guide" id="${id}-guide" data-r="guide" rows="8" readonly spellcheck="false" aria-label="LLM guide text"></textarea></details>
         </div>
       </section>
@@ -88,11 +93,26 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         <textarea id="${id}-json" class="ai-json" data-r="json" rows="12" spellcheck="false" aria-describedby="${id}-status" placeholder="Paste the assistant's whole reply here. Ara finds the JSON in it."></textarea>
         <div class="ai-result" id="${id}-status" data-r="result" role="status" aria-live="polite"></div>
         <div class="ai-preparation" data-r="preparation" hidden><p class="ai-note" id="${id}-speech-status" data-r="preparation-status" role="status"></p><div class="ai-row"><button class="ai-btn" id="${id}-speech-cancel" data-r="preparation-cancel">Stop generation</button><button class="ai-btn" id="${id}-speech-retry" data-r="preparation-retry" hidden>Retry speech generation</button></div></div>
-        <button class="ai-btn ai-primary ai-wide ai-build" id="${id}-create" data-r="build" disabled>Build ${noun} <span aria-hidden="true">↗</span></button>
         <p class="ai-note">${html(cfg.footnote)}</p>
       </section>
     </div>
-    <input type="file" id="${id}-file" data-r="file" accept=".json,.txt,application/json,text/plain" hidden />`;
+    <div class="ai-actions">
+      <div class="ai-actions-guide"><button class="ai-btn ai-primary" id="${id}-copy" data-r="copy">Copy guide</button><button class="ai-btn" id="${id}-download" data-r="save">Save as .txt</button><p class="ai-note" id="${id}-copy-status" data-r="copy-status" role="status"></p></div>
+      <button class="ai-btn ai-primary ai-wide ai-build" id="${id}-create" data-r="build" disabled>Build ${noun} <span aria-hidden="true">↗</span></button>
+    </div>
+    <input type="file" id="${id}-file" data-r="file" accept=".json,.txt,application/json,text/plain" hidden />
+    <div class="ai-building" data-r="building" hidden>
+      <div class="ai-building-card" role="status" aria-live="polite">
+        <img class="ai-building-picture" data-r="building-picture" alt="" hidden />
+        <span class="ai-eyebrow">${html(cfg.name.toUpperCase())} · BUILDING</span>
+        <h2>Building your ${noun}</h2>
+        <p class="ai-building-headline" data-r="building-headline"></p>
+        <div class="ai-meter" data-r="building-meter" role="progressbar" aria-label="Build progress" aria-valuemin="0" aria-valuemax="100"><span data-r="building-bar"></span></div>
+        <p class="ai-building-stage" data-r="building-stage"></p>
+        <ol class="ai-building-items" data-r="building-items"></ol>
+        <p class="ai-note">Undo brings back what you had before.</p>
+      </div>
+    </div>`;
 
   const $ = <E extends HTMLElement = HTMLElement>(r: string) => dialog.querySelector<E>(`[data-r="${r}"]`)!;
   const brief = $<HTMLTextAreaElement>('brief'), context = $<HTMLInputElement>('context'), guide = $<HTMLTextAreaElement>('guide');
@@ -257,16 +277,36 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     const choice = $('example') as HTMLSelectElement;
     choice.addEventListener('change', () => { if (choice.value) setReply(JSON.stringify(cfg.example(choice.value))); choice.value = ''; });
   } else $('example').addEventListener('click', () => setReply(JSON.stringify(cfg.example())));
+  // ---- Build progress ----
+  const view = $('building'), meter = $('building-meter'), bar = $('building-bar'), items = $('building-items');
+  function progress(p: BuildProgress) {
+    $('building-stage').textContent = p.stage;
+    meter.classList.toggle('unknown', p.fraction === undefined);
+    if (p.fraction === undefined) meter.removeAttribute('aria-valuenow');
+    else { const percent = Math.round(Math.min(1, Math.max(0, p.fraction)) * 100); bar.style.width = `${percent}%`; meter.setAttribute('aria-valuenow', String(percent)); }
+    if (p.items) items.innerHTML = p.items.map(item => `<li class="${item.state}"><span class="ai-state" aria-hidden="true"></span><span>${html(item.label)}</span><span class="sr-only">${item.state === 'done' ? 'ready' : item.state === 'active' ? 'building' : 'waiting'}</span></li>`).join('');
+  }
+  function showBuilding(value: T) {
+    dialog.scrollTop = 0; dialog.classList.add('is-building'); view.hidden = false;
+    $('building-headline').textContent = cfg.describe(value).headline;
+    const picture = $<HTMLImageElement>('building-picture'), src = cfg.picture?.(value);
+    picture.hidden = !src; if (src) picture.src = src;
+    items.innerHTML = ''; bar.style.width = '0%';
+    progress({ stage: `Checking your ${noun}…` });
+  }
   build.addEventListener('click', async () => {
     if(building||preparing)return;
     check();
     if (!parsed) return;
-    building = true; lock();
-    const label = build.innerHTML;
-    build.textContent = `Building your ${noun}…`;
-    try { await cfg.build(parsed); dialog.close(); }
+    building = true; lock(); showBuilding(parsed);
+    try {
+      await cfg.build(parsed, progress);
+      progress({ stage: `Ready. Opening your ${noun}…`, fraction: 1 });
+      await new Promise(r => setTimeout(r, 300));
+      dialog.close();
+    }
     catch (e) { error = (e as Error).message; parsed = undefined; showResult(); }
-    finally { building = false; build.innerHTML = label; check(); persist(); }
+    finally { building = false; view.hidden = true; dialog.classList.remove('is-building'); check(); persist(); }
   });
 
   // ---- Describe ----

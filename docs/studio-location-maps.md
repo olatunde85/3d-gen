@@ -1,6 +1,6 @@
 # Location staging maps
 
-Studio's maps come from the geometry recipes that render all 66 sets. In **LLM Assist**, choose **Location for this film**, then copy the guide or save the map as JSON. The guide contains an index of every set and the selected set’s full contract. **All location maps** downloads the collection. These are reference documents; do not add their fields to a film project.
+Studio's maps come from the geometry recipes that render all 66 sets. In **Assist**, choose **Location for this film**, then copy the guide or save the map as JSON. The guide contains an index of every set and the selected set’s full contract. **All location maps** downloads the collection. These are reference documents; do not add their fields to a film project.
 
 ## Reading a map
 
@@ -49,7 +49,7 @@ Keep the motorcycle on land, the approach on the pier, and the future boat fully
 
 **Check staging & location map** uses the loaded characters’ scales, fitted props and boarding root footwork. It reports both sides of every action transition. Travel uses swept footprints, detecting thin barriers or water between safe endpoints. Boarding footwork and helicopter altitude are sampled at 30 fps. Parked and future vehicles are checked from frame zero. Raising an ordinary actor’s Y does not turn water into ground.
 
-The reply preview in LLM Assist performs a provisional reference-body check. After building, run the fitted check and save its report for your assistant to correct. Each finding identifies an entity, time range and reason; selecting it seeks to that time. The report also exports each actor’s rig scale, anatomical boarding scale, height and operator-owned vehicle envelopes. With **Start from my current film** enabled, the guide includes these fitted measurements and positions for the unchanged cast; new or redesigned characters require a fresh fitted check.
+The reply preview in Assist performs a provisional reference-body check. After building, run the fitted check and save its report for your assistant to correct. Each finding identifies an entity, time range and reason; selecting it seeks to that time. The report also exports each actor’s rig scale, anatomical boarding scale, height and operator-owned vehicle envelopes. With **Start from my current film** enabled, the guide includes these fitted measurements and positions for the unchanged cast; new or redesigned characters require a fresh fitted check.
 
 Checks are advisory against static scenery and conservative body/prop envelopes. They do not stop playback, solve routes, move the cast, simulate hand/foot collisions or check person-to-person and prop-to-prop avoidance. Furniture overlap during seated clips is intentional. Review tight contacts, boarding gaps and moving cast visually before export.
 

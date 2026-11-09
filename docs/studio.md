@@ -4,9 +4,9 @@ Studio turns Ara characters into short films with dialogue, sound and music. Ope
 
 ## First visit
 
-An animated **Quick tour of Studio** opens once the first set is ready. It highlights the real controls and demonstrates selecting, dragging, keyboard movement, turning, elevation and orbiting, then covers the timeline, cameras, sound, text, LLM Assist and export. Use **Back / Next** or **Left / Right** to move through the guide; **Skip tour** or **Escape** closes it. The illustrations leave your film and Undo history untouched. The guide adapts to small screens and respects reduced-motion settings.
+An animated **Quick tour of Studio** opens once the first set is ready. It highlights the real controls and demonstrates selecting, dragging, keyboard movement, turning, elevation and orbiting, then covers the timeline, cameras, sound, text, Assist and export. Use **Back / Next** or **Left / Right** to move through the guide; **Skip tour** or **Escape** closes it. The illustrations leave your film and Undo history untouched. The guide adapts to small screens and respects reduced-motion settings.
 
-Replay it from **Quick tour of Studio** in the left panel, or press **?** with the preview focused. Dismissal is remembered in this browser. A recovered text, sound or LLM Assist dialog stays open; the first-use tour waits until you close it.
+Replay it from **Quick tour of Studio** in the left panel, or press **?** with the preview focused. Dismissal is remembered in this browser. A recovered text, sound or Assist dialog stays open; the first-use tour waits until you close it.
 
 ## The workspace
 
@@ -25,18 +25,18 @@ Search **66 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisu
 
 There are also hospital and police rooms, a military base, a prison cell and yard, public and private bathrooms, a highway, a neon-lit street, a neon alley, a daylight alley, a football stadium, fine dining, a nightclub, an elevator and a church.
 
-Each location has its own layout, with clear acting space, and its chairs, pews and benches are real seats. The highway and base have long driving routes; outdoor sets extend across a 360 m area with paths, landscaping and waterfronts, and characters can be placed up to ±200 m on X/Z. The stadium has a 68 × 105 m association-football pitch without crowd or players. Doors, toilets, taps and lift controls are scenery. LLM Assist includes the layouts and staging notes; plan movement around obstacles yourself.
+Each location has its own layout, with clear acting space, and its chairs, pews and benches are real seats. The highway and base have long driving routes; outdoor sets extend across a 360 m area with paths, landscaping and waterfronts, and characters can be placed up to ±200 m on X/Z. The stadium has a 68 × 105 m association-football pitch without crowd or players. Doors, toilets, taps and lift controls are scenery. Assist includes the layouts and staging notes; plan movement around obstacles yourself.
 
 Use **Check staging & location map** in the left panel for a top-down map and a review of the entire film. It checks land/water and conservative obstacle envelopes using the loaded characters’ scales and fitted vehicle bounds. Findings link to their time in the film. Save a location map and a staging report containing every action’s world start/end position and facing. Checks are advisory; they do not change the film or add collision response.
 
-In **LLM Assist**, choose **Location for this film** before copying the guide. Locations are grouped into six categories, with all 66 real set thumbnails in a horizontal scrolling strip. Filter by category or search, swipe/scroll or use the arrow buttons, then click a thumbnail for a larger preview. **Use this location** selects it; closing the preview keeps your previous choice. The selected location is shown above the strip. Use Left/Right to browse focused thumbnail cards and Enter to expand. Every guide enumerates the sets’ terrain, paths and seats and includes the selected set’s full map. **Save map .json** exports that contract; **All location maps** exports all 66. Reference lanes, starts and harbour boarding anchors are checked at reference scale; custom sizes and tight dock contacts require **Check staging** after building. See [Location staging maps](studio-location-maps.md) for coordinates, centring and boarding rules.
+In **Assist**, choose **Location for this film** before copying the guide. Locations are grouped into six categories, with all 66 real set thumbnails in a horizontal scrolling strip. Filter by category or search, swipe/scroll or use the arrow buttons, then click a thumbnail for a larger preview. **Use this location** selects it; closing the preview keeps your previous choice. The selected location is shown above the strip. Use Left/Right to browse focused thumbnail cards and Enter to expand. Every guide enumerates the sets’ terrain, paths and seats and includes the selected set’s full map. **Save map .json** exports that contract; **All location maps** exports all 66. Reference lanes, starts and harbour boarding anchors are checked at reference scale; custom sizes and tight dock contacts require **Check staging** after building. See [Location staging maps](studio-location-maps.md) for coordinates, centring and boarding rules.
 
 Changing the set keeps your cast, performances, camera shots and title. Every set is original, built in the browser, with no downloads.
 
 ## Direct the cast
 
 - **Add characters:** bring your exact character from the builder, or pick an Ara preset. **Add character** grows the cast to **five**. New characters start in a free spot and the others stay where they are.
-- **Select:** click a character in the picture, or their name under **The cast**. The selected character gets a gold ring and a name tag. Click the background, press **Escape** or use **Deselect** to clear it. Equipment and placement say so if you try to use them with nobody selected.
+- **Select:** a film opens with nobody selected. Click a character in the picture, or their name under **The cast**. The selected character gets a gold ring and a name tag. Click the background, press **Escape** or use **Deselect** to clear it. Equipment and placement say so if you try to use them with nobody selected.
 - **Move:**
   - Drag a character across the floor, or choose **Click to place** (or Shift-click the ground).
   - **Arrow keys** move the selected character 0.1 m, relative to your view. With the preview focused, hold **Ctrl** (or **Command ⌘** on Mac) with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m. **Shift** is also supported as an alternative. Selecting a character focuses the preview. Releasing the modifier completes the move even if the browser misses the arrow-key release.
@@ -121,7 +121,7 @@ Music follows the whole film by default. Drag its timeline edges or enable **Cus
 - **Combat:** fighting-stance footwork, punch combo, low punch, front kick, roundhouse kick, two block impacts and take-cover steps, made for the matching animations. Each description says where its hits fall in the recording; set the start or **Trim start** so they meet the moves.
 - **Vehicle** and **Ambience:** motorcycle, car and boat engines (eight seconds), wind, forest birds and ocean (four seconds).
 
-Enable **Loop until cue ends** for longer engine or ambience beds. The recording repeats from **Trim start** to its end at the chosen speed, stopping exactly at the cue’s end. Looping is off by default; longer non-looping windows leave silence after the recording. LLM Assist lists every ID, source duration and the optional `loop` field.
+Enable **Loop until cue ends** for longer engine or ambience beds. The recording repeats from **Trim start** to its end at the chosen speed, stopping exactly at the cue’s end. Looping is off by default; longer non-looping windows leave silence after the recording. Assist lists every ID, source duration and the optional `loop` field.
 
 1. Listen, then **Add at playhead**.
 2. Set the start time to the moment of the shot or impact.
@@ -129,16 +129,16 @@ Enable **Loop until cue ends** for longer engine or ambience beds. The recording
 
 Up to **64 effects** can overlap the dialogue and music. Tag an effect with a character to keep things organised, or leave it as a **Scene sound**. Effects don't make anything happen on screen: a thump doesn't make a character fall, so direct the matching action yourself.
 
-## LLM Assist
+## Assist
 
-**LLM Assist** in the top bar turns a description into an editable film, using any AI assistant you like: ChatGPT, Claude, Gemini or another. No API key is needed and Studio sends nothing on its own.
+**Assist** in the top bar turns a description into an editable film, using any AI assistant you like: ChatGPT, Claude, Gemini or another. No API key is needed and Studio sends nothing on its own.
 
 1. **Describe your film,** or pick one of the **Ideas**. Tick **Start from my current film** to revise what you have.
 2. **Get the film JSON:** **Copy guide** (or **Save as .txt**) and give it to your assistant. The guide holds your description and everything the assistant needs: the locations, character controls, animations, equipment, text, speech, sound effects, music, the JSON format, an example and Studio's limits.
-3. **Review and build:** **Paste reply**, paste into the box, or **Open file**. You can paste the whole reply; Studio finds the JSON inside it. A summary card lists the location, cast, length, shots, actions, text, sound and music. If something's wrong, it says what and offers **Copy fix request** to send back. **Build film** replaces your project, and Undo brings the old one back.
+3. **Review and build:** **Paste reply**, paste into the box, or **Open file**. You can paste the whole reply; Studio finds the JSON inside it. A summary card lists the location, cast, length, shots, actions, text, sound and music. If something's wrong, it says what and offers **Copy fix request** to send back. **Copy guide**, **Save as .txt** and **Build film** stay at the foot of the panel. **Build film** shows each character as it is built, then replaces your project; Undo brings the old one back.
 
 - **Voices are prepared for you:** typed dialogue in a valid reply is generated while you review, with progress, **Stop generation** and retry.
-- **Try an example:** choose a film to load. Nine are the scenes of the Ara 3D Studio reel on the home page: a tank and a helicopter at the military base, a jet takeoff, a skydive and parachute landing, a shootout from cover, a highway race, a street café, an alley fight, a rooftop chase and a sunset beach. Each comes with its sound effects, caption and music. The tenth, *Agents of Mild Competence: The Warehouse*, is a 30-second, five-character spy comedy with its original dialogue; no speech download is needed.
+- **Try an example:** choose a film to load. Nine are the scenes of the Ara 3D Studio reel on the home page: a tank and a helicopter at the military base, a jet takeoff, a skydive and parachute landing, a shootout from cover, a highway race, a street café, an alley fight, a rooftop chase and a sunset beach. Each comes with its sound effects, caption and music. The tenth, *Agents of Mild Competence: The Warehouse*, is a 30-second, five-character spy comedy with its original dialogue, a shootout with blood and a cover wall; no speech download is needed.
 - **Shortcuts:** Ctrl/Cmd+Enter in the description copies the guide; in the JSON box it builds. Drafts survive reloads.
 
 The guide is built from Studio's own catalogues, so new sets, presets, animations and equipment appear in it automatically.
@@ -208,7 +208,7 @@ A vehicle waits at its first entry from the start of the film and stays parked a
 
 Passengers use a seated or pillion performance fitted to their own body. Exit leaves them on the ground while the vehicle can drive off.
 
-LLM Assist uses per-beat `vehicleId` and `vehicleSeat`. For example, the operator’s `{"clip":"drive_boat","duration":5,"move":true,"vehicleId":"launch","vehicleSeat":"operator"}` is shared by a passenger with the same `vehicleId`, `vehicleSeat:"passenger-left"` and `move:false`. Keep those fields on entry and exit too. The other aft seat is `passenger-right`; car and helicopter seats are `front-passenger`, `rear-left` and `rear-right` where supported. The operator’s character supplies the vehicle’s colours and fit.
+Assist uses per-beat `vehicleId` and `vehicleSeat`. For example, the operator’s `{"clip":"drive_boat","duration":5,"move":true,"vehicleId":"launch","vehicleSeat":"operator"}` is shared by a passenger with the same `vehicleId`, `vehicleSeat:"passenger-left"` and `move:false`. Keep those fields on entry and exit too. The other aft seat is `passenger-right`; car and helicopter seats are `front-passenger`, `rear-left` and `rear-right` where supported. The operator’s character supplies the vehicle’s colours and fit.
 
 ### Armed riding
 
@@ -260,7 +260,7 @@ The inspector’s **Start height** is the height above the actor’s elevation. 
 
 To jump from an aircraft, use **Bail out of jet with parachute** or **Jump from helicopter with parachute** (pilot or passenger) during a flight about 20–30 m up, then Skydive → Activate parachute → glide → land. Free fall starts just below the aircraft where the occupant left it, later aerial heights shrink to fit, and the empty aircraft flies on out of the shot. The jet bail-out travels with the jet.
 
-Try the [parachute descent example](examples/parachute-descent.ara-studio.json) with LLM Assist → Open JSON.
+Try the [parachute descent example](examples/parachute-descent.ara-studio.json) with Assist → Open JSON.
 
 ### Grenade
 
@@ -290,7 +290,7 @@ With a rifle equipped, **Take cover** steps forward and crouches behind a 1.1 m 
 
 ## Save and export
 
-- **Automatic:** Studio saves on this device as you work. A reload brings back the film, the view, your selection, the playhead, open editors, LLM Assist drafts and your Undo history.
+- **Automatic:** Studio saves on this device as you work. A reload brings back the film, the view, your selection, the playhead, open editors, Assist drafts and your Undo history.
 - **Save project:** downloads an editable `.ara-studio.json`. Films with recorded or generated voices save as a `.ara-studio.zip` bundle with the audio included (up to 128 MB). **Open** loads either one, on any device.
 - **Save frame:** the current picture as a PNG.
 - **Export film:** a 30 fps MP4 at 720p or 1080p, with sound. **Save soundtrack WAV** exports the audio on its own.

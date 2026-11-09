@@ -1,5 +1,5 @@
 /**
- * The Ara 3D Studio reel: short films made in Studio, one per location. They are Studio's examples (LLM Assist → Try an
+ * The Ara 3D Studio reel: short films made in Studio, one per location. They are Studio's examples (Assist → Try an
  * example), and scripts/reel/capture.ts and scripts/build-studio-reel.ts render them with Studio's own MP4 export and
  * cut them into the landing-page reel. Each scene carries its own sound effects and caption; the reel adds one music
  * track across the cuts, and the examples add it to each film.
@@ -113,9 +113,9 @@ export function finaleScene() {
 
 /** The military base: a tank rolls up the access road with its gunner in the hatch as a helicopter sweeps overhead. */
 export function baseScene() {
-  // Both run past the 6 s the reel uses, so the helicopter is still climbing when the scene is cut.
+  // Both run past the 6 s the reel uses, so the helicopter is still climbing when the scene is cut. Its lane clears the lamp posts.
   const tank = { id: 'tank', character: cast('The Bodyguard', paint('#4d5a32', '#363f24', 'matte')), detail: 'high', x: 2, y: 0, z: 43, yaw: 0, beats: [B('gun_tank', 9, true, { travelSpeed: 4 })] };
-  const chopper = { id: 'chopper', character: cast('The Covert Spy', paint('#2f3a44', '#9aa4ad')), detail: 'high', x: -10, y: 0, z: 51, yaw: 0, beats: [B('fly_helicopter', 9, true, { flightHeight: 10, travelSpeed: 8 })] };
+  const chopper = { id: 'chopper', character: cast('The Covert Spy', paint('#2f3a44', '#9aa4ad')), detail: 'high', x: -14, y: 0, z: 51, yaw: 0, beats: [B('fly_helicopter', 9, true, { flightHeight: 10, travelSpeed: 8 })] };
   return film('Base', 'military-base', [tank, chopper],
     [shot(2, 'wide', 'tank', view(25, 8, 1.8)), shot(2, 'wide', 'chopper', view(60, 2, 1.3)), shot(5, 'wide', 'tank', view(40, 18, 1.2))],
     [caption('Tanks, helicopters and jets', 5)],

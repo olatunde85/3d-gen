@@ -19,7 +19,7 @@ const scenes = REEL.map((_, i) => join(folder, `reel-${String(i + 1).padStart(2,
 for (const file of [...scenes, editor]) if (!existsSync(file)) throw Error(`Render the reel scenes first (npm run test:studio -- --reel): ${file} is missing.`);
 // The editor screenshot and where the film picture sits in it; the zoom-out is worked at twice the output size.
 const shot = JSON.parse(readFileSync(join(folder, 'reel-editor.json'), 'utf8')) as { width: number; height: number; film: { x: number; y: number; width: number; height: number } };
-const W = 2560, H = 1440, k = W / shot.width, even = (n: number) => Math.round(n / 2) * 2;
+const W = 3840, H = 2160, k = W / shot.width, even = (n: number) => Math.round(n / 2) * 2;
 const film = { x: Math.round(shot.film.x * k), y: Math.round(shot.film.y * k), w: even(shot.film.width * k), h: even(shot.film.width * k * 9 / 16) };
 const REVEAL = 3, ZOOM = 1.4;
 
@@ -35,7 +35,7 @@ args.push('-loop', '1', '-t', String(REVEAL + 1), '-i', editor);
 const track = info.length, still = info.length + 1;
 const graph: string[] = [];
 info.forEach((s, i) => {
-  graph.push(`[${i}:v]setpts=(PTS-STARTPTS)/${SPEED},fps=30,scale=1280:720:flags=lanczos,setsar=1,format=yuv420p[v${i}]`);
+  graph.push(`[${i}:v]setpts=(PTS-STARTPTS)/${SPEED},fps=30,scale=1920:1080:flags=lanczos,setsar=1,format=yuv420p[v${i}]`);
   // Every scene's sound lasts exactly as long as its picture; scenes without sound get silence.
   const sound = s.audio ? `[${i}:a]asetpts=PTS-STARTPTS,atempo=${SPEED},` : `anullsrc=r=48000:cl=stereo,`;
   graph.push(`${sound}aresample=48000,aformat=channel_layouts=stereo,apad,atrim=0:${s.duration.toFixed(3)},asetpts=PTS-STARTPTS[a${i}]`);
@@ -52,13 +52,14 @@ const T0 = total - REVEAL, ease = `st(0,clip((in/30-0.0)/${ZOOM},0,1));ld(0)*ld(
 graph.push(`[${video}]split[main][tail]`, `[main]trim=0:${T0.toFixed(3)},setpts=PTS-STARTPTS[head]`);
 graph.push(`[tail]trim=start=${T0.toFixed(3)},setpts=PTS-STARTPTS,scale=${film.w}:${film.h}:flags=lanczos[inset]`);
 graph.push(`[${still}:v]fps=30,scale=${W}:${H}:flags=lanczos,format=yuv420p[desk]`, `[desk][inset]overlay=${film.x}:${film.y}:shortest=1[stage]`);
-graph.push(`[stage]zoompan=z='${W}/(${film.w}+(${W}-${film.w})*(${ease}))':x='${film.x}*(1-(${ease}))':y='${film.y}*(1-(${ease}))':d=1:s=1280x720:fps=30,setsar=1[zoomed]`);
+graph.push(`[stage]zoompan=z='${W}/(${film.w}+(${W}-${film.w})*(${ease}))':x='${film.x}*(1-(${ease}))':y='${film.y}*(1-(${ease}))':d=1:s=1920x1080:fps=30,setsar=1[zoomed]`);
 graph.push(`[head][zoomed]concat=n=2:v=1:a=0[joined]`);
 graph.push(`[joined]fade=t=in:st=0:d=0.4,fade=t=out:st=${(total - 0.6).toFixed(3)}:d=0.6[vout]`);
 graph.push(`[${track}:a]atrim=0:${total.toFixed(3)},asetpts=PTS-STARTPTS,volume=0.55,afade=t=in:st=0:d=0.6,afade=t=out:st=${(total - 1.2).toFixed(3)}:d=1.2[music]`);
 graph.push(`[${audio}][music]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[aout]`);
 args.push('-filter_complex', graph.join(';'), '-map', '[vout]', '-map', '[aout]', '-t', total.toFixed(3),
-  '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', output);
+  // Level 4.1 and a keyframe every second keep phone and Safari decoders exact when pausing or seeking.
+  '-c:v', 'libx264', '-preset', 'slow', '-crf', '21', '-profile:v', 'high', '-level:v', '4.1', '-g', '30', '-keyint_min', '30', '-sc_threshold', '0', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', output);
 execFileSync('ffmpeg', args, { stdio: 'inherit' });
 // The poster is the finale under the title, just before the zoom-out.
 execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-ss', (total - REVEAL - 0.2).toFixed(2), '-i', output, '-frames:v', '1', '-q:v', '4', poster], { stdio: 'inherit' });

@@ -175,6 +175,8 @@ try{
   await sharp({create:{width:1600,height:Math.ceil(SETS.length/5)*204,channels:3,background:'#1b2027'}}).composite(tiles).png().toFile(`${folder}/all-scenes.png`);
  });
  await step('Animation search exposes all registered performances',async()=>{
+  // Films open with nobody selected; pick the first character to edit their actions.
+  await evaluate("document.querySelector('#cast-roster button').click()");
   if(!await evaluate(`document.querySelector("#animation-count").textContent.includes("${CLIPS.length} / ${CLIPS.length}")`))throw Error('Missing animations');
   await search('animation-search','laugh');await change('action','laugh');if(!await evaluate("window.studio.project.actors[0].beats[0].clip==='laugh'"))throw Error('Action search selection');
   await evaluate("document.querySelector('#clip-length').click()");if(!await evaluate(`window.studio.project.actors[0].beats[0].duration===${CLIPS.find(c=>c.id==='laugh')!.duration}`))throw Error('Clip timing');

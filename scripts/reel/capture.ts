@@ -11,7 +11,7 @@ export async function captureStudioReel(h:Harness){
  const only=process.env.REEL_SCENES?.split(',').map(Number);
  for(const [i,scene] of REEL.entries())if(!only||only.includes(i+1))await step(`Reel scene ${i+1}: ${scene.name}`,async()=>{
   await ready();await e(`(async()=>{await studio.setProject(${JSON.stringify(scene.film())});})()`);await ready();await pause(800);
-  await e(`(()=>{const p=structuredClone(studio.project);window.__reel={done:0,total:1,ready:false};studio.exportMovie(studio.scene,p,{width:1280,height:720,signal:new AbortController().signal,progress:(done,total)=>Object.assign(__reel,{done,total})}).then(blob=>{window.__reelMovie=blob;__reel.ready=true;},error=>{__reel.error=error.message;});})()`);
+  await e(`(()=>{const p=structuredClone(studio.project);window.__reel={done:0,total:1,ready:false};studio.exportMovie(studio.scene,p,{width:1920,height:1080,signal:new AbortController().signal,progress:(done,total)=>Object.assign(__reel,{done,total})}).then(blob=>{window.__reelMovie=blob;__reel.ready=true;},error=>{__reel.error=error.message;});})()`);
   const deadline=Date.now()+20*60*1000;let last=0;
   for(;;){
    const status=await e<{done:number;total:number;ready:boolean;error?:string}>('window.__reel');

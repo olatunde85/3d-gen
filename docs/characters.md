@@ -33,7 +33,7 @@ Quick build always reflects the current character, however it was made: in Detai
 
 ## Character LLM Assist
 
-**LLM Assist** in the builder header creates a single character from a description. It works like [Studio's LLM Assist](studio.md#llm-assist):
+**LLM Assist** in the builder header creates a single character from a description. It works like [Studio's Assist](studio.md#assist):
 
 1. **Describe** the character, or pick one of the **Ideas**. Optionally start from the current character.
 2. **Get the JSON:** **Copy guide** (or **Save as .txt**) and give it to your AI assistant. No API key is needed, and the builder sends nothing automatically.

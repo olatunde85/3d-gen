@@ -32,7 +32,7 @@ export const TOUR_STEPS:readonly TourStep[] = [
   {title:'Give your film a voice',demo:'sound',targets:['#open-sound','#open-effects','#open-text'],
     body:'Sound adds typed, recorded or uploaded dialogue and music. Use Generate all speech for scripted lines. Sound effects adds timed impacts or gunshots. Text & subtitles adds captions and comic bubbles that can follow a character.'},
   {title:'Start with an idea',demo:'assist',targets:['#open-assist'],
-    body:'LLM Assist gives you a guide to take to your AI assistant. Paste or open its JSON, review, then Build film. Try an example loads the five-character warehouse film, including its original voices. Undo brings your previous film back.'},
+    body:'Assist gives you a guide to take to your AI assistant. Paste or open its JSON, review, then Build film. Try an example offers ready-made films, from a military base to a beach, and a warehouse comedy with voices. Undo brings your previous film back.'},
   {title:'Play, save, share',demo:'export',targets:['#save-project','#open-export'],
     body:'Preview with Space, expand with F, and undo with Ctrl/⌘ + Z while the preview is focused. Edit the title at the top. Save project keeps an editable copy and its recordings; New starts a fresh film, with the option to save first. Export film creates your MP4. Replay this tour from the left panel whenever you need it.',
     keys:[{keys:['Space'],label:'Play / pause'},{keys:['F'],label:'Expand / show editor'},{keys:['Ctrl / ⌘','Z'],label:'Undo'}]},

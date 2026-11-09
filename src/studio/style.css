@@ -1547,7 +1547,7 @@ progress {
 .coordinate-row > div { display: flex; align-items: center; gap: 5px; }
 .coordinate-row label { margin: 0; font-size: 9px; flex: none; }
 #blocking { margin-top: 8px; }
-/* LLM Assist stays local: a portable brief/contract beside a validated JSON import. */
+/* Assist stays local: a portable brief/contract beside a validated JSON import. */
 textarea { width: 100%; resize: vertical; color: var(--text); background: #15181d; border: 1px solid #393d45; border-radius: 7px; padding: 10px; font: inherit; }
 textarea:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 textarea:disabled { opacity: .55; }
