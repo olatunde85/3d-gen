@@ -1,3 +1,4 @@
+import {mobileBuilder} from './ui/mobile-builder';
 /**
  * The web app: creates the services and mounts each part of the UI (see ./ui/). Parts talk
  * through the store's events, not each other's variables.
@@ -64,6 +65,7 @@ gen.regenerate();
 // Undo history starts from the character the app opened with; Quick build mounts above the sidebar.
 quickBuild(ctx, history(store));
 characterAssist(ctx);
+mobileBuilder(ctx);
 const clipName = hash.get('clip');
 if (clipName && clipById.has(clipName)) anim.setActive(clipName);
 if (hash.has('skeleton')) {

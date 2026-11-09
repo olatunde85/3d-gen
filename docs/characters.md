@@ -29,6 +29,8 @@ Quick build always reflects the current character, however it was made: in Detai
 
 **Detailed** has every slider and setting, described in the rest of this page.
 
+**On a phone:** drag the sheet's top handle to collapse, partially open or expand the controls; tapping it opens or collapses them. The character summary stays visible while the controls scroll, and the sheet remembers its height. The **⋯** menu contains download, export options, Studio, sharing, save/open settings and LLM Assist. Playback stays above the sheet, with additional options behind the sliders icon. Choosing an animation in the expanded browser closes it before playback so you can see the character.
+
 **Bridal & evening** in Quick build includes the red cocktail dress and wedding gown, with garment thumbnails. Both also appear under **Clothing** in Detailed. The wedding outfit includes its veil, pearl necklace and heels; the cocktail dress includes heels. Quick build explains the existing gender and age requirements when an option is unavailable.
 
 ## Character LLM Assist
