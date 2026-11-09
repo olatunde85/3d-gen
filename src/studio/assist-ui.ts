@@ -1,4 +1,4 @@
-import { assistExample, describeAssistProject, generateAssistGuide, parseStudioInput } from './assist';
+import { ASSIST_EXAMPLES, assistExample, describeAssistProject, generateAssistGuide, parseStudioInput } from './assist';
 import { WAREHOUSE_BRIEF } from './examples/warehouse';
 import { prepareExampleDialogue } from './audio/example';
 import { hasScriptedSpeech } from './audio/prepare';
@@ -35,8 +35,9 @@ export function setupAssist(editor: AssistEditor) {
     describe: describeAssistProject,
     revisionContext:project=>JSON.stringify(locationMapFile(project.template)),
     example: assistExample,
+    examples: ASSIST_EXAMPLES,
     prepare:{
-      note:'Dialogue is prepared automatically after paste or Open. New voices need about 265 MB on first use and run on your device. The built-in example includes its recorded dialogue.',
+      note:'Dialogue is prepared automatically after paste or Open. New voices need about 265 MB on first use and run on your device. The warehouse example includes its recorded dialogue.',
       needed:hasScriptedSpeech,
       run:(project,options)=>prepareExampleDialogue(project,editor.catalog(),options),
       write:(project,json)=>JSON.stringify({...JSON.parse(json),audio:project.audio},null,2),

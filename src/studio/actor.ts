@@ -222,7 +222,7 @@ export class StudioActor {
       // Boarding doors follow the entry; a bail-out opens the right-hand door or canopy (a crash escape the driver's door) and leaves it open.
       const doorOpening=(d:{clip:Clip;time:number})=>d.clip.vehicleTransition?doorOpenAt(boardProgress(d.clip.vehicleTransition,d.time,d.clip.duration)):Math.min(1,d.time/.3);
       ride.group.traverse(o=>{if(o.userData.doorSide){let opening=0;for(const door of doors){const rear=door.seat.startsWith('rear'),side=!door.clip.vehicleTransition?(manoeuvre(door.clip.id)==='crash'?1:-1):state.model==='helicopter'?(door.seat==='front-passenger'||door.seat==='rear-left'?1:-1):door.seat==='rear-left'?1:door.seat==='rear-right'||door.seat==='front-passenger'?-1:door.clip.id.includes('passenger')?-1:1;if(!!o.userData.rearDoor===rear&&o.userData.doorSide===side)opening=Math.max(opening,doorOpening(door));}o.rotation.y=-o.userData.doorSide*opening*1.3;}if(o.name==='Canopy'){const opening=Math.max(0,...doors.map(d=>doorOpening(d)));o.rotation.z=-opening*1.3;}if(o.name==='Boarding_gate'){const opening=Math.max(0,...doors.map(d=>doorOpening(d)));o.rotation.y=opening*1.5;}});
-      if(current.vehicle?.id===state.id&&state.visible){this.framingBounds=ride.bounds;const size=this.framingBounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}
+      if(current.vehicle?.id===state.id&&state.visible){this.framingBounds=ride.framingBounds;const size=this.framingBounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}
     }
     for(const [id,ride]of this.rides)if(!keep.has(id)){ride.group.removeFromParent();ride.dispose();this.rides.delete(id);}
     this.stageScenery(project,track);

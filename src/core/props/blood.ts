@@ -80,7 +80,7 @@ export class Blood {
           }
         }
         if (shot.pool && hit.elapsed > shot.pool.start && pools < this.pools.length) {
-          const pool = this.pools[pools++], r = 0.45 * this.scale * (1 - Math.exp(-(hit.elapsed - shot.pool.start) / 1.6));
+          const pool = this.pools[pools++], r = 0.45 * this.scale * (1 - Math.exp(-(hit.elapsed - shot.pool.start) / 1.1));
           pool.visible = true;
           pool.matrix.compose(shot.pool.at, q.identity(), s.set(r, 1, r * 0.8)).premultiply(place);
           pool.matrixWorldNeedsUpdate = true;

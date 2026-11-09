@@ -107,6 +107,17 @@ npm run build:studio-example-gif
 
 The first command renders the complete example to an ignored MP4 under `out/studio-expansion/`. The second preserves its 30-second timing and creates the compressed GIF under `docs/media/`. Normal site builds use that checked-in asset and do not need to render it again.
 
+## Rebuild the Studio reel
+
+The home page plays `media/ara-studio-reel.mp4`, cut from the films in `src/studio/examples/reel.ts` (the same films LLM Assist offers as examples). To regenerate it after changing a film, install FFmpeg and a supported browser, then run:
+
+```bash
+npm run test:studio -- --reel
+npm run build:studio-reel
+```
+
+The first command renders each film with Studio's MP4 export, plus a screenshot of the editor, to `out/studio-expansion/`; `REEL_SCENES=2,5` renders only those films. The second keeps the part of each film listed in `REEL`, speeds it up slightly, joins the films with short crossfades and the music, and ends by zooming out into the editor. It writes the MP4 and its poster to `public/media/`.
+
 Vehicle validation: `npm run test:vehicles` checks fitting across body shapes, rigs and bind poses and loads animated GLB/FBX props through real importers. `npm run test:studio -- --vehicles` exercises vehicle controls, recovery, deterministic scrubbing and GPU disposal, and writes visual reviews under `out/vehicles/`. Vehicles use local procedural geometry; they require no external downloads.
 
 Additional sound-effect originals can be kept in `new-sound-effects/` and `newer-sound-effects/`. Run `npm run build:studio-effects` to create the optimized MP3 assets declared in `src/studio/audio/effects-catalog.ts`. Existing shipped effects are retained when their original WAVs are absent. Only the optimized files under `public/media/effects` are deployed.

@@ -1,6 +1,7 @@
 import {animationGroup} from '../core/anim/groups';
 /** A portable LLM contract, derived from the same registries as the editor. No API calls. */
 import { WAREHOUSE_EXAMPLE } from './examples/warehouse';
+import { REEL } from './examples/reel';
 import type { Catalog } from '../core/assets';
 import { parseCharacterInput, characterSchema, characterReference } from '../app/character-assist';
 import { PRESETS } from '../core/params';
@@ -88,8 +89,13 @@ export function parseStudioInput(text: string, catalog?: Catalog): StudioProject
   return parseProject(JSON.stringify(value));
 }
 
-export function assistExample() {
-  return structuredClone(WAREHOUSE_EXAMPLE);
+/** The examples LLM Assist offers: the reel's films (with the reel's music), then the warehouse comedy, which is also the example in the guide. */
+export const ASSIST_EXAMPLES = [...REEL.map((r, i) => ({ id: `reel-${i + 1}`, label: r.label })), { id: 'warehouse', label: 'The Warehouse: a spy comedy with dialogue' }];
+export function assistExample(id = 'warehouse') {
+  const reel = /^reel-(\d+)$/.exec(id), scene = reel ? REEL[Number(reel[1]) - 1] : undefined;
+  if (!scene) return structuredClone(WAREHOUSE_EXAMPLE);
+  const film = scene.film();
+  return { ...film, audio: { ...film.audio, music: { track: 'adventure-trailer', volume: 0.25, ducking: true, fadeIn: 0.4, fadeOut: 1 } } };
 }
 
 /** JSON Schema describes the portable input; total timeline duration is additionally validated at import. */

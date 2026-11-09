@@ -70,6 +70,16 @@ export class Vehicle{
   this.group.updateMatrixWorld(true);
  }
  get bounds(){return new T.Box3().setFromObject(this.group);}
+ private shape?:T.Box3;
+ /**
+  * A steady box for framing a camera on the vehicle: its shape measured once in its own frame, then moved with it, so
+  * spinning wheels and rotors and a pose from the previous frame cannot make a following camera judder.
+  */
+ get framingBounds(){
+  this.group.updateMatrixWorld(true);
+  if(!this.shape)this.shape=new T.Box3().setFromObject(this.group).applyMatrix4(this.group.matrixWorld.clone().invert());
+  return this.shape.clone().applyMatrix4(this.group.matrixWorld);
+ }
  dispose(){if(this.bicycle)this.bicycle.dispose();else this.kit!.dispose();}
 
  /** Rigid components become separate joints, keeping steering, paddles and wheels editable. */
