@@ -138,7 +138,7 @@ Up to **64 effects** can overlap the dialogue and music. Tag an effect with a ch
 3. **Review and build:** **Paste reply**, paste into the box, or **Open file**. You can paste the whole reply; Studio finds the JSON inside it. A summary card lists the location, cast, length, shots, actions, text, sound and music. If something's wrong, it says what and offers **Copy fix request** to send back. **Build film** replaces your project, and Undo brings the old one back.
 
 - **Voices are prepared for you:** typed dialogue in a valid reply is generated while you review, with progress, **Stop generation** and retry.
-- **Try an example:** loads *Agents of Mild Competence: The Warehouse*, a 30-second, five-character spy comedy with its original dialogue, sound effects and music. No speech download needed.
+- **Try an example:** choose a film to load. Nine are the scenes of the Ara 3D Studio reel on the home page: a tank and a helicopter at the military base, a jet takeoff, a skydive and parachute landing, a shootout from cover, a highway race, a street café, an alley fight, a rooftop chase and a sunset beach. Each comes with its sound effects, caption and music. The tenth, *Agents of Mild Competence: The Warehouse*, is a 30-second, five-character spy comedy with its original dialogue; no speech download is needed.
 - **Shortcuts:** Ctrl/Cmd+Enter in the description copies the guide; in the JSON box it builds. Drafts survive reloads.
 
 The guide is built from Studio's own catalogues, so new sets, presets, animations and equipment appear in it automatically.

@@ -26,6 +26,8 @@
     <meta name="twitter:image" content="https://ara3dgen.com/og.jpg" />
     <meta name="theme-color" content="#0f1116" />
     <link rel="stylesheet" href="/src/landing/landing.css" />
+    <!-- Scroll reveals hide sections until the page script shows them; without the script, nothing stays hidden. -->
+    <script>document.documentElement.classList.add('js');setTimeout(function(){if(!window.__landing)document.documentElement.classList.remove('js')},3000);</script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -43,7 +45,7 @@
             "license": "https://opensource.org/licenses/MIT",
             "isAccessibleForFree": true,
             "sameAs": ["https://github.com/olatunde85/3d-gen"],
-            "featureList": ["Realistic human characters", "Automatic rigging", "117 game-ready animations", "GLB, FBX and OBJ export", "Clothing, hair, beards and tattoos", "Weapons on a socket bone", "Unlimited, no account"]
+            "featureList": ["Realistic human characters", "Automatic rigging", "212 game-ready animations", "Ara 3D Studio: short films with 66 locations, dialogue, sound and MP4 export", "GLB, FBX and OBJ export", "Clothing, hair, beards and tattoos", "Weapons on a socket bone", "Unlimited, no account"]
           },
           {
             "@type": "WebSite",
@@ -59,12 +61,14 @@
     <header class="nav">
       <a class="brand" href="./"><span class="brand-mark">Ara</span> 3D Gen</a>
       <nav>
+        <a href="#studio">Studio</a>
         <a href="#features">Features</a>
         <a href="#why">Why self-host</a>
         <a href="#start">Get started</a>
         <a href="docs/">Docs</a>
         <a href="https://github.com/olatunde85/3d-gen">GitHub</a>
       </nav>
+      <a class="btn btn-ghost btn-sm nav-studio" href="studio/">Open Studio</a>
       <a class="btn btn-primary btn-sm" href="app/">Launch app</a>
     </header>
 
@@ -73,22 +77,31 @@
       <section class="hero">
         <div class="hero-copy">
           <p class="eyebrow">Open source · MIT licence · Free assets</p>
-          <h1>Realistic 3D characters.<br /><span class="grad">Rigged, animated, yours.</span></h1>
+          <h1>Realistic 3D characters.<br /><span class="grad">Rigged, animated, directed.</span></h1>
           <p class="lede">
-            Shape a body, dress it, give it hair, tattoos and a weapon, pick from 212 animations and export to any engine.
-            It runs in your browser: no accounts, no credits, no limits.
+            Shape a body, dress it, give it hair, tattoos and a weapon, pick from 212 animations and export to any engine,
+            or cast it in a short film in Ara 3D Studio. It runs in your browser: no accounts, no credits, no limits.
           </p>
           <div class="cta">
             <a class="btn btn-primary" href="app/">Launch the app <span aria-hidden="true">→</span></a>
-            <button class="btn btn-video" data-video="cinematic" type="button"><span class="btn-video-icon" aria-hidden="true"><span class="play"></span></span> Watch it in action</button>
+            <a class="btn btn-ghost" href="studio/">Open Ara 3D Studio</a>
           </div>
           <ul class="facts">
-            <li><b>30</b> presets</li>
-            <li><b>117</b> animations</li>
-            <li><b>219</b> detail sliders</li>
-            <li><b>GLB · FBX · OBJ</b></li>
+            <li><b>32</b> presets</li>
+            <li><b>212</b> animations</li>
+            <li><b>66</b> film locations</li>
+            <li><b>GLB · FBX · OBJ · MP4</b></li>
           </ul>
         </div>
+
+        <figure class="product reveal">
+          <div class="window">
+            <div class="window-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="window-title">Ara 3D Studio</span></div>
+            <video class="reel-video" muted loop playsinline preload="none" poster="/media/ara-studio-reel-poster.jpg" aria-label="Ara 3D Studio reel: a tank and a helicopter, a jet takeoff, a parachute jump, a shootout, a highway race, a street café, a rooftop chase and a beach party, ending in the Studio editor"></video>
+            <button class="reel-sound" type="button" data-video="studio"><span class="btn-video-icon" aria-hidden="true"><span class="play"></span></span> Watch with sound</button>
+          </div>
+          <figcaption>Every shot in this reel was made and exported in Ara 3D Studio.</figcaption>
+        </figure>
 
         <div class="gallery" aria-label="Presets: open any of them in the app">
           <a class="card" href="app/#preset=The%20Female%20Executive"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive preset" loading="eager" /><span>Executive</span></a>
@@ -103,13 +116,43 @@
         <p class="gallery-hint">Click any character to open it in the app.</p>
       </section>
 
+      <!-- Numbers -->
+      <section class="numbers reveal" aria-label="Ara 3D Gen in numbers">
+        <div><b data-count="212">212</b><span>animations</span></div>
+        <div><b data-count="66">66</b><span>film locations</span></div>
+        <div><b data-count="219">219</b><span>detail sliders</span></div>
+        <div><b data-count="32">32</b><span>ready-made characters</span></div>
+        <div><b>$0</b><span>free and open source</span></div>
+      </section>
+
+      <!-- Studio -->
+      <section id="studio" class="section">
+        <div class="reveal">
+          <p class="eyebrow">Ara 3D Studio</p>
+          <h2>Direct your characters in short films</h2>
+          <p class="section-lede">Take any character from the builder, cast up to five of them in each scene, and direct each one's performance on a timeline. Add dialogue, sound and music, then export an MP4. Free, in your browser.</p>
+          <p class="links"><a href="studio/">Open Studio →</a><a href="docs/studio/">Read the Studio guide →</a></p>
+        </div>
+        <div class="capabilities stagger">
+          <div><h3>66 locations</h3><p>Offices, homes, beaches, a neon alley, a highway, a harbour, a military base and a football stadium.</p></div>
+          <div><h3>Up to five characters per scene</h3><p>Your own characters or presets, each with its own timeline of actions, placement and equipment.</p></div>
+          <div><h3>212 animations</h3><p>Talk, dance, sit, fight, shoot from cover, vault, climb, swim and get up again.</p></div>
+          <div><h3>Vehicles</h3><p>Cars, motorbikes, boats, a horse, a tank, a helicopter and a jet, with boarding, driving and crashes.</p></div>
+          <div><h3>Action</h3><p>Fight scenes, sword combos, gunfights from cover and gunshot reactions with blood.</p></div>
+          <div><h3>Sound</h3><p>Typed or recorded dialogue, 20 sound effects and 9 music tracks, mixed into the film.</p></div>
+          <div><h3>Cameras and text</h3><p>Wide, medium and close shots with their own angles, plus subtitles and speech bubbles.</p></div>
+          <div><h3>LLM Assist</h3><p>Describe a film to any AI assistant and paste back a complete, editable project.</p></div>
+          <div><h3>MP4 export</h3><p>720p or 1080p at 30 fps with sound, landscape or portrait. Save and reopen projects.</p></div>
+        </div>
+      </section>
+
       <!-- Video -->
-      <section class="video-block">
+      <section class="video-block reveal">
         <button class="video-poster" data-video="cinematic" type="button" aria-label="Play the 30 second cinematic video">
           <img src="./docs/media/cinematic-poster.jpg" alt="" loading="lazy" />
           <span class="video-overlay" aria-hidden="true">
             <span class="video-play"><svg viewBox="0 0 24 24"><path d="m9 5 11 7-11 7z" /></svg></span>
-            <span class="video-caption">Watch it in action <span>30-second cinematic</span></span>
+            <span class="video-caption">Watch the builder in action <span>30-second cinematic</span></span>
           </span>
         </button>
       </section>
@@ -117,8 +160,8 @@
       <!-- Features -->
       <section id="features" class="section">
         <p class="eyebrow">What you get</p>
-        <h2>Everything between a blank scene and a playable character</h2>
-        <div class="features">
+        <h2 class="reveal">Everything between a blank scene and a playable character</h2>
+        <div class="features stagger">
           <article>
             <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7m0 0-3 6m3-6 3 6M7 11h10"/></svg></div>
             <h3>Realistic humans</h3>
@@ -171,7 +214,7 @@
       <section id="why" class="section">
         <p class="eyebrow">Why self-host</p>
         <h2>Online generators rent you characters. This one is yours.</h2>
-        <div class="compare" role="table" aria-label="Online platforms compared with Ara 3D Gen">
+        <div class="compare reveal" role="table" aria-label="Online platforms compared with Ara 3D Gen">
           <div class="row head" role="row"><span role="columnheader"></span><span role="columnheader">Online platforms</span><span role="columnheader">Ara 3D Gen</span></div>
           <div class="row" role="row"><span role="rowheader">Cost</span><span>Subscriptions, credits or per-export fees</span><span class="yes">Free and open source</span></div>
           <div class="row" role="row"><span role="rowheader">Limits</span><span>Monthly export or generation caps</span><span class="yes">Unlimited</span></div>
@@ -187,7 +230,7 @@
       <section class="section">
         <p class="eyebrow">Who it's for</p>
         <h2>From indie games to research labs</h2>
-        <div class="uses">
+        <div class="uses stagger">
           <div><h3>Game developers</h3><p>NPCs, crowds and prototype heroes, ready for Unity, Unreal, Godot or the web.</p></div>
           <div><h3>Animators and previs</h3><p>Rigged bodies to pose, animate and block out scenes.</p></div>
           <div><h3>XR and simulation</h3><p>Diverse avatars for training, digital twins and virtual worlds.</p></div>
@@ -197,7 +240,7 @@
       </section>
 
       <!-- Showcase -->
-      <section class="section showcase">
+      <section class="section showcase reveal">
         <div class="showcase-img"><img src="./docs/media/abija-wara.jpg" alt="Abija Wara gameplay: the player runs through the Ibadan market road" loading="lazy" /></div>
         <div class="showcase-copy">
           <p class="eyebrow">Built for real games</p>

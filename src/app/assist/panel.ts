@@ -27,7 +27,10 @@ export interface AssistConfig<T> {
   /** Optional machine-readable reference beside the guide (Studio location maps). */
   reference?:{label:string;choices:ReferenceChoice[];current():string;file(id:string):{name:string;text:string};all?:{name:string;text():string}};
   revisionContext?(value:T):string;
-  example(): unknown;
+  /** The example reply; with `examples`, the one chosen from that list (by id). */
+  example(id?: string): unknown;
+  /** Several examples to choose from: "Try an example" becomes a list. */
+  examples?: { id: string; label: string }[];
   /** Applies the result; throws a readable error if it can't. */
   build(value: T): Promise<void>;
   canOpen(): boolean | Promise<boolean>;
@@ -79,7 +82,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
       </section>
       <section class="ai-col ai-review" aria-labelledby="${id}-s3">
         <div class="ai-step"><span class="ai-num">3</span><h3 id="${id}-s3">Review and build</h3></div>
-        <div class="ai-row"><button class="ai-btn" id="${id}-paste" data-r="paste">Paste reply</button><button class="ai-btn" id="${id}-open" data-r="open">Open file</button><button class="ai-link" id="${id}-example" data-r="example">Try an example</button></div>
+        <div class="ai-row"><button class="ai-btn" id="${id}-paste" data-r="paste">Paste reply</button><button class="ai-btn" id="${id}-open" data-r="open">Open file</button>${cfg.examples?`<label class="sr-only" for="${id}-example">Try an example</label><select class="ai-example" id="${id}-example" data-r="example"><option value="">Try an example…</option>${cfg.examples.map(e=>`<option value="${html(e.id)}">${html(e.label)}</option>`).join('')}</select>`:`<button class="ai-link" id="${id}-example" data-r="example">Try an example</button>`}</div>
         ${cfg.prepare?`<p class="ai-note">${html(cfg.prepare.note)}</p>`:''}
         <label class="sr-only" for="${id}-json">${Noun} JSON</label>
         <textarea id="${id}-json" class="ai-json" data-r="json" rows="12" spellcheck="false" aria-describedby="${id}-status" placeholder="Paste the assistant's whole reply here. Ara finds the JSON in it."></textarea>
@@ -250,7 +253,10 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     if (chosen.size > 200_000) { stopPreparation();draft.value = ''; error = 'Use a file smaller than 200 KB.'; parsed = undefined; showResult(); return; }
     setReply(await chosen.text());
   });
-  $('example').addEventListener('click', () => setReply(JSON.stringify(cfg.example())));
+  if (cfg.examples) {
+    const choice = $('example') as HTMLSelectElement;
+    choice.addEventListener('change', () => { if (choice.value) setReply(JSON.stringify(cfg.example(choice.value))); choice.value = ''; });
+  } else $('example').addEventListener('click', () => setReply(JSON.stringify(cfg.example())));
   build.addEventListener('click', async () => {
     if(building||preparing)return;
     check();

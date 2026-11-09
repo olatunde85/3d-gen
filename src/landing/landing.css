@@ -42,6 +42,7 @@ p { margin: 0; }
 .nav nav { display: flex; gap: 22px; margin-left: auto; }
 .nav nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
 .nav nav a:hover { color: var(--text); }
+.nav-studio { margin-left: 4px; }
 
 /* --- Buttons --- */
 .btn {
@@ -105,8 +106,50 @@ p { margin: 0; }
 .card:hover span::after { opacity: 1; }
 .gallery-hint { text-align: center; color: var(--muted); font-size: 14px; margin-top: 6px; }
 
+/* --- Product window: the Studio reel, framed like the app --- */
+.product { max-width: 1120px; margin: 56px auto 0; padding: 0 clamp(16px, 4vw, 48px); }
+.window { position: relative; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #0b0d12; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); }
+.window-bar { display: flex; align-items: center; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.dots { display: flex; gap: 7px; }
+.dots i { width: 11px; height: 11px; border-radius: 50%; background: #3a4458; }
+.window-title { position: absolute; left: 0; right: 0; text-align: center; color: var(--muted); font-size: 13px; pointer-events: none; }
+.reel-video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #05070a; object-fit: cover; }
+.reel-sound {
+  position: absolute; right: 16px; bottom: 16px; display: inline-flex; align-items: center; gap: 10px;
+  padding: 9px 16px 9px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(10, 13, 20, 0.78); color: #fff; font: 600 14px/1 system-ui, sans-serif; cursor: pointer;
+}
+.reel-sound:hover { background: rgba(28, 34, 46, 0.9); }
+.reel-sound:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 3px; }
+.product figcaption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 14px; }
+.hero .gallery { margin-top: 48px; }
+
+/* --- Numbers --- */
+.numbers {
+  max-width: 1180px; margin: clamp(64px, 9vw, 110px) auto 0; padding: 0 clamp(16px, 4vw, 48px);
+  display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.numbers > div { padding: 30px 12px; text-align: center; }
+.numbers > div + div { border-left: 1px solid var(--line); }
+.numbers b { display: block; font-size: clamp(32px, 4vw, 48px); line-height: 1.1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.numbers span { display: block; color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+/* --- Studio --- */
+.section-lede { color: var(--muted); font-size: clamp(16px, 1.8vw, 19px); max-width: 760px; margin-top: 18px; }
+.links { display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 20px; font-weight: 600; }
+.links a { text-decoration: none; }
+.links a:hover { text-decoration: underline; }
+.capabilities { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 40px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.capabilities > div { padding: 24px; border-top: 1px solid var(--line); border-left: 1px solid var(--line); margin: -1px 0 0 -1px; }
+.capabilities p { color: var(--muted); font-size: 15px; margin-top: 8px; }
+
+/* --- Scroll reveals (only when the script runs, so nothing stays hidden without it) --- */
+.js .reveal, .js .stagger > * { opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.js .reveal.in, .js .stagger.in > * { opacity: 1; transform: none; }
+.js .stagger.in > * { transition-delay: calc(var(--i, 0) * 60ms); }
+
 /* --- Video --- */
-.video-block { max-width: 1060px; margin: 72px auto 0; padding: 0 clamp(16px, 4vw, 48px); }
+.video-block { max-width: 1060px; margin: clamp(72px, 10vw, 120px) auto 0; padding: 0 clamp(16px, 4vw, 48px); }
 .video-poster {
   position: relative; display: block; width: 100%; padding: 0; border: 1px solid var(--line); border-radius: 20px; overflow: hidden;
   background: none; cursor: pointer; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
@@ -144,7 +187,9 @@ p { margin: 0; }
 .features article {
   padding: 24px; border-radius: 16px; border: 1px solid var(--line);
   background: linear-gradient(180deg, var(--panel), var(--bg-2));
+  transition: border-color 0.2s ease;
 }
+.features article:hover, .uses > div:hover { border-color: #3a4458; }
 .features p { color: var(--muted); font-size: 15px; margin-top: 8px; }
 .icon {
   width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 16px;
@@ -191,7 +236,14 @@ p { margin: 0; }
 /* --- Small screens --- */
 @media (max-width: 860px) {
   .nav nav { display: none; }
-  .nav .btn { margin-left: auto; }
+  .nav .nav-studio { margin-left: auto; }
+  .numbers { grid-template-columns: repeat(2, 1fr); }
+  .numbers > div { border-left: 0 !important; border-top: 1px solid var(--line); }
+  .numbers > div:nth-child(-n + 2) { border-top: 0; }
+  .numbers > div:nth-child(even) { border-left: 1px solid var(--line) !important; }
+  .numbers > div:last-child { grid-column: 1 / -1; border-left: 0 !important; }
+  .capabilities { grid-template-columns: 1fr; }
+  .reel-sound { right: 10px; bottom: 10px; padding: 7px 12px 7px 8px; font-size: 13px; }
   .gallery { grid-auto-columns: 44vw; }
   .showcase, .start { grid-template-columns: 1fr; gap: 28px; }
   .compare .row { grid-template-columns: 1fr 1fr; }
@@ -200,7 +252,15 @@ p { margin: 0; }
   .compare .row.head > span:first-child { display: none; }
   .compare .row.head > span { border-top: 0; }
 }
+@media (min-width: 861px) and (max-width: 1100px) {
+  .capabilities { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
+  .nav-studio { display: none; }
+  .nav .btn-primary { margin-left: auto; }
+}
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .btn, .card, .video-poster { transition: none; }
+  .js .reveal, .js .stagger > * { opacity: 1; transform: none; transition: none; }
 }

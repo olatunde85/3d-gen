@@ -40,7 +40,7 @@ const STOMACH_R: HandTarget = { pos: v(-0.08, -0.36, 0.17), pole: v(-1, -0.5, 0)
 const ARM_L: HandTarget = { pos: v(-0.14, -0.19, 0.2), pole: v(0.4, -0.5, 1), dir: v(-1, -0.1, -0.25), palm: v(-0.25, 0, -1) };
 
 /** Shot in the head from the front: the head snaps back and the body drops straight away, falling backward. */
-const shotHead = shotDeath(deathBackward, 'shot_head', 'Shot in the head', 1.5, [{ t: 0.05, bone: 'Head', dir: v(0, 0.05, -1), pool: 1.2 }],
+const shotHead = shotDeath(deathBackward, 'shot_head', 'Shot in the head', 1.5, [{ t: 0.05, bone: 'Head', dir: v(0, 0.05, -1), pool: 0.8 }],
   (t) => track([0, 0.05, 1.5], [0, 0.02, 1.8])(t),
   (t, out) => {
     const snap = keys([0, 0.05, 0.12, 0.45, 0.9], t)([0, 0, 1, 0.3, 0]);
@@ -54,7 +54,7 @@ const shotHead = shotDeath(deathBackward, 'shot_head', 'Shot in the head', 1.5, 
  * Shot in the chest from the front: the chest is punched back, the right hand goes to the wound, a step back, then
  * the knees go and the body falls backward.
  */
-const shotChest = shotDeath(deathBackward, 'shot_chest', 'Shot in the chest', 2.6, [{ t: 0.06, bone: 'Spine2', dir: v(0, 0, -1), pool: 2.2 }],
+const shotChest = shotDeath(deathBackward, 'shot_chest', 'Shot in the chest', 2.6, [{ t: 0.06, bone: 'Spine2', dir: v(0, 0, -1), pool: 1.7 }],
   (t) => Math.max(0, Math.min(1.8, t - 0.8)),
   (t, out, root) => {
     const k = keys([0, 0.06, 0.16, 0.45, 0.8, 1.2, 1.6], t);
@@ -71,7 +71,7 @@ const shotChest = shotDeath(deathBackward, 'shot_chest', 'Shot in the chest', 2.
   });
 
 /** Shot in the back: the back arches, the arms fly back, a stumble forward and a fall face down. */
-const shotBack = shotDeath(deathForward, 'shot_back', 'Shot in the back', 1.9, [{ t: 0.05, bone: 'Spine2', dir: v(0, 0, 1), pool: 1.6 }],
+const shotBack = shotDeath(deathForward, 'shot_back', 'Shot in the back', 1.9, [{ t: 0.05, bone: 'Spine2', dir: v(0, 0, 1), pool: 1.1 }],
   (t) => track([0, 0.25, 1.9], [0, 0, 1.7])(t),
   (t, out) => {
     const arch = keys([0, 0.05, 0.14, 0.4, 0.8], t)([0, 0, 1, 0.5, 0]);
@@ -90,7 +90,7 @@ const shotBack = shotDeath(deathForward, 'shot_back', 'Shot in the back', 1.9, [
  * Shot in the stomach from the front: doubled over with both hands on the wound, sinking slowly to the knees, then
  * falling forward.
  */
-const shotStomach = shotDeath(deathForward, 'shot_stomach', 'Shot in the stomach', 2.8, [{ t: 0.06, bone: 'Spine', dir: v(0, 0, -1), pool: 2.4 }],
+const shotStomach = shotDeath(deathForward, 'shot_stomach', 'Shot in the stomach', 2.8, [{ t: 0.06, bone: 'Spine', dir: v(0, 0, -1), pool: 1.9 }],
   (t) => track([0, 0.3, 1.5, 2.8], [0, 0.08, 0.5, 1.7])(t),
   (t, out) => {
     const k = keys([0, 0.06, 0.18, 0.5, 1.4, 1.8, 2.2], t);

@@ -33,6 +33,7 @@ import {buildLocationThumbnails} from './studio-location-thumbnails';
 import {checkSpatialReview} from './studio-spatial-review';
 import {checkStoryScenes} from './studio-scenes-check';
 import { captureStudioExample } from './studio-example-capture';
+import { captureStudioReel } from './reel/capture';
 import { TOUR_STORAGE_KEY } from '../src/studio/tour-content';
 
 const winDirs = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter((d): d is string => !!d);
@@ -60,7 +61,7 @@ const boardingOnly=process.argv.includes('--boarding');
 const armedOnly=process.argv.includes('--armed');
 const animationReviewOnly=process.argv.includes('--animation-review');
 const newProjectOnly=process.argv.includes('--new-project');
-const audioOnly=process.argv.includes('--audio'),castOnly=process.argv.includes('--cast'),effectsOnly=process.argv.includes('--sfx'),tourOnly=process.argv.includes('--tour'),keysOnly=process.argv.includes('--keys'),exampleOnly=process.argv.includes('--example');
+const audioOnly=process.argv.includes('--audio'),castOnly=process.argv.includes('--cast'),effectsOnly=process.argv.includes('--sfx'),tourOnly=process.argv.includes('--tour'),keysOnly=process.argv.includes('--keys'),exampleOnly=process.argv.includes('--example'),reelOnly=process.argv.includes('--reel');
 if(castOnly||effectsOnly||editingOnly)process.env.STUDIO_AUDIO_CHECK='1';
 if(audioOnly&&!existsSync(join(process.env.STUDIO_TTS_FIXTURE??'out/studio-speech-model','onnx/vocoder.onnx')))throw Error('Run npm run setup:studio-speech first, or set STUDIO_TTS_FIXTURE to the pinned model directory.');
 if(audioOnly){process.env.STUDIO_AUDIO_CHECK='1';process.env.VITE_STUDIO_TTS_MODEL_URL='/__tts-model';}
@@ -144,7 +145,7 @@ const interactionsOnly=process.argv.includes('--interactions');
 const reloadsOnly=process.argv.includes('--reloads');
 const textOnly=process.argv.includes('--text');
 const assistOnly=process.argv.includes('--assist');
-async function step(name:string,fn:()=>Promise<void>){if(arrangementsOnly&&!/Studio loads|Two characters reuse|Cast arrangements/.test(name))return;if(aerialOnly&&!/^Aerial /.test(name))return;if(fleetOnly&&!/^Fleet /.test(name))return;if(thumbnailsOnly&&!/^Location thumbnails/.test(name))return;if(spatialOnly&&!/Studio loads|^Spatial /.test(name))return;if(helicopterOnly&&!/Studio loads|^Helicopter /.test(name))return;if(scenesOnly&&!/Studio loads|Every scene renders|^Story scenes /.test(name))return;if(editingOnly&&!/Studio loads|Two characters reuse|^Editing (camera|pointer|drags|text,|looped|new)/.test(name))return;if(outdoorOnly&&!name.startsWith('Outdoor'))return;if(stagingOnly&&!/^(Three occupants|Motorcycle to|Shared |Transfer exports|Outdoor)/.test(name))return;if(armedOnly&&!/^Armed riding /.test(name))return;if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
+async function step(name:string,fn:()=>Promise<void>){if(arrangementsOnly&&!/Studio loads|Two characters reuse|Cast arrangements/.test(name))return;if(aerialOnly&&!/^Aerial /.test(name))return;if(fleetOnly&&!/^Fleet /.test(name))return;if(thumbnailsOnly&&!/^Location thumbnails/.test(name))return;if(spatialOnly&&!/Studio loads|^Spatial /.test(name))return;if(helicopterOnly&&!/Studio loads|^Helicopter /.test(name))return;if(scenesOnly&&!/Studio loads|Every scene renders|^Story scenes /.test(name))return;if(editingOnly&&!/Studio loads|Two characters reuse|^Editing (camera|pointer|drags|text,|looped|new)/.test(name))return;if(outdoorOnly&&!name.startsWith('Outdoor'))return;if(stagingOnly&&!/^(Three occupants|Motorcycle to|Shared |Transfer exports|Outdoor)/.test(name))return;if(armedOnly&&!/^Armed riding /.test(name))return;if(boardingOnly&&!/^Boarding /.test(name))return;if(vehiclesOnly&&!/^Vehicles /.test(name))return;if(animationReviewOnly&&!/^Animation review /.test(name))return;if(newProjectOnly&&!/^New project /.test(name))return;if(exampleOnly&&!/^Example /.test(name))return;if(reelOnly&&!/^Reel /.test(name))return;if(keysOnly&&!/^Shortcuts /.test(name))return;if(tourOnly&&!/^Tour /.test(name))return;if(effectsOnly&&!/Studio loads|Two characters reuse|^Effects /.test(name))return;if(castOnly&&!/Studio loads|Two characters reuse|^Five /.test(name))return;if(audioOnly&&!/Studio loads|Two characters reuse|^Audio /.test(name))return;if(assistOnly&&!/Studio loads|Two characters reuse|^LLM Assist|^LLM-friendly|^Custom character/.test(name))return;if(textOnly&&!/Studio loads|Two characters reuse|^Text /.test(name))return;if(reloadsOnly&&!/Studio loads|Two characters reuse|Reload/.test(name))return;if(interactionsOnly&&/Every scene renders|Animation search exposes|Seated and cycling|MP4 exports|Full HD portrait|Export cancellation|Editing one character/.test(name))return;await fn();passed.push(name);console.log('OK',name)}
 const pause=(ms=200)=>new Promise(r=>setTimeout(r,ms));
 const shot=async(name:string)=>{const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});writeFileSync(`${folder}/${name}.png`,Buffer.from(data,'base64'))};
 const change=async(id:string,value:string)=>evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -407,7 +408,7 @@ try{
   await search('assist-json','{"kind":"ara-studio",broken}');
   if(!await evaluate("document.querySelector('#assist-create').disabled && document.querySelector('#assist-json').getAttribute('aria-invalid')==='true'"))throw Error('Invalid pasted JSON was accepted');
   if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Validation changed the film');
-  await evaluate("document.querySelector('#assist-example').click()");
+  await evaluate("(()=>{const e=document.querySelector('#assist-example');e.value='warehouse';e.dispatchEvent(new Event('change'));})()");
   await waitFor("!document.querySelector('#assist-create').disabled && document.querySelector('#assist-speech-status').textContent.includes('voices are ready')",'bundled example voices');
   if(!await evaluate("JSON.parse(document.querySelector('#assist-json').value).audio.speech.length===8 && document.querySelector('#assist-brief').placeholder.includes('Agents of Mild Competence') && performance.getEntriesByType('resource').some(r=>r.name.includes('warehouse.ara-studio.zip')) && !performance.getEntriesByType('resource').some(r=>r.name.includes('tts-worker')||r.name.includes('.onnx'))"))throw Error('Example lost dialogue, placeholder or downloaded the speech model');
   if(await evaluate<string>('JSON.stringify(window.studio.project)')!==original)throw Error('Trying an example replaced the film before Build');
@@ -424,7 +425,7 @@ try{
  });
  await step('LLM-friendly JSON files open both in Assist and in the ordinary project importer',async()=>{
   const original=await evaluate<string>('JSON.stringify(window.studio.project)');
-  await evaluate("document.querySelector('#open-assist').click();(()=>{document.querySelector('#assist-example').click();const e=document.querySelector('#assist-json'),p=JSON.parse(e.value);p.audio.speech=[];e.value=JSON.stringify(p);e.dispatchEvent(new Event('input',{bubbles:true}));})()");
+  await evaluate("document.querySelector('#open-assist').click();(()=>{(()=>{const e=document.querySelector('#assist-example');e.value='warehouse';e.dispatchEvent(new Event('change'));})();const e=document.querySelector('#assist-json'),p=JSON.parse(e.value);p.audio.speech=[];e.value=JSON.stringify(p);e.dispatchEvent(new Event('input',{bubbles:true}));})()");
   const fileJSON=await evaluate<string>("(()=>{const p=JSON.parse(document.querySelector('#assist-json').value);p.template='beach';p.title='An assisted beach film';return JSON.stringify(p)})()");
   await evaluate(`(()=>{const dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(fileJSON)}],'llm-film.json',{type:'application/json'}));const e=document.querySelector('#assist-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);
   await waitFor("document.querySelector('#assist-json').value.includes('An assisted beach film') && !document.querySelector('#assist-create').disabled",'assisted file validation');
@@ -544,6 +545,7 @@ try{
   if(b.actors[1].detail!=='high')throw Error('Character detail lost on return');await shot('mixed-rig-cast');
  });
  await captureStudioExample({enabled:exampleOnly,step,evaluate,ready,pause,folder});
+ await captureStudioReel({enabled:reelOnly,step,evaluate,ready,pause,folder,send});
  await reviewVehicles({enabled:vehiclesOnly,step,evaluate,ready,change,send});
  await reviewVehicleStage({enabled:stagingOnly,step,evaluate,ready,change,send});
  await reviewArmedRiding({enabled:armedOnly,step,evaluate,ready,change,send});
