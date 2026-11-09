@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {sharedBoatFilm} from './fixtures/studio-shared-vehicles';
 import {blankProject,beat,durationOf,newActor,parseProject} from '../src/studio/project';
-import {resizeTimelineClip,clipWindow,type TimelineClip} from '../src/studio/timeline-resize';
+import {resizeTimelineClip,clipWindow,moveTimelineClip,reorderTimelineClip,dropIndex,type TimelineClip} from '../src/studio/timeline-resize';
 const p=blankProject();p.actors[0].beats=[beat('idle',2),beat('wave',3),beat('idle',4)];p.shots=[{id:'one',shot:'wide',target:'all',duration:3},{id:'two',shot:'close',target:'all',duration:6}];
 p.texts=[{id:'text',text:'Hello',style:'subtitle',anchor:'screen',start:2,duration:3,x:.5,y:.9,size:28,color:'#ffffff',background:'#000000'}];
 p.audio.speech=[{source:'tts',id:'voice',name:'Speech',actor:'narrator',text:'Hello',voice:'F1',start:2,duration:3,offset:.2,speed:1,volume:1,pan:0,effect:'natural'}];
@@ -33,3 +33,22 @@ console.log('Timeline vehicle trims preserve shared boarding constraints.');
 const lateMusic=structuredClone(p);lateMusic.audio.music.start=10;assert.throws(()=>parseProject(JSON.stringify(lateMusic)));lateMusic.audio.music.duration=2;assert.equal(durationOf(parseProject(JSON.stringify(lateMusic))),12);
 
 const full=blankProject();full.actors[0].beats=[beat('idle',11/3),...Array.from({length:5},()=>beat('idle',10)),beat('idle',19/3)];assert.equal(durationOf(full),60);const roll=resizeTimelineClip(full,{kind:'action',actor:full.actors[0].id,index:1},'start',.1);assert.equal(durationOf(roll),60,'Fractional source timing must not overflow a full film when rolling a boundary');
+
+// Dragging a clip: actions and shots reorder within their track; cues move in time with their length kept.
+assert.deepEqual(reorderTimelineClip(p,action,0).actors[0].beats.map(b=>b.clip),['wave','idle','idle']);
+assert.deepEqual(reorderTimelineClip(p,action,2).actors[0].beats.map(b=>[b.clip,b.duration]),[['idle',2],['idle',4],['wave',3]]);
+assert.equal(durationOf(reorderTimelineClip(p,action,2)),durationOf(parseProject(before)));
+assert.deepEqual(reorderTimelineClip(p,{kind:'camera',index:1},0).shots.map(s=>s.shot),['close','wide']);
+assert.throws(()=>reorderTimelineClip(p,action,3));assert.throws(()=>reorderTimelineClip(p,{kind:'text',id:'text'},0));
+// Durations [2,3,4] dragging the middle clip: its centre before 1 s goes first, past 2 + 4/2 = 4 s goes last.
+assert.equal(dropIndex([2,3,4],1,.9),0);assert.equal(dropIndex([2,3,4],1,1.5),1);assert.equal(dropIndex([2,3,4],1,3.9),1);assert.equal(dropIndex([2,3,4],1,4.1),2);assert.equal(dropIndex([2,3,4],0,0),0);
+for(const ref of [{kind:'text',id:'text'},{kind:'speech',id:'voice'},{kind:'effect',id:'engine'}]as const){
+ assert.deepEqual(clipWindow(moveTimelineClip(p,ref,1.5),ref),{start:3.5,duration:3});
+ assert.deepEqual(clipWindow(moveTimelineClip(p,ref,-100),ref),{start:0,duration:3});
+ assert.deepEqual(clipWindow(moveTimelineClip(p,ref,100),ref),{start:57,duration:3});
+}
+const movedEffect=moveTimelineClip(p,{kind:'effect',id:'engine'},1);assert.equal(movedEffect.audio.effects[0].offset,1);assert.equal(movedEffect.audio.effects[0].loop,true);assert.equal(movedEffect.audio.effects[0].speed,1.5);
+assert.deepEqual(clipWindow(moveTimelineClip(p,{kind:'music'},2),{kind:'music'}),{start:2,duration:7});
+assert.ok(clipWindow(moveTimelineClip(p,{kind:'music'},100),{kind:'music'}).start<durationOf(p));
+assert.throws(()=>moveTimelineClip(p,action,1));assert.equal(JSON.stringify(p),before,'moves must not change the source snapshot');
+console.log('Timeline dragging: reorder within tracks, drop slots, cue moves keep length and source trims, film limits.');

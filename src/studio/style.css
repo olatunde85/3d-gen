@@ -1680,9 +1680,13 @@ textarea:disabled { opacity: .55; }
 .trim-handle:focus-visible { outline:2px solid #fff4dc; outline-offset:2px; }
 .trim-handle[data-pinned] { opacity:0!important; cursor:default; }
 .timeline-scroll.trimming { cursor:ew-resize; user-select:none; touch-action:none; }
+.timeline-clip > [data-move] { cursor:grab; }
+.timeline-scroll.moving,.timeline-scroll.moving [data-move] { cursor:grabbing; user-select:none; touch-action:none; }
+.timeline-scroll.moving button { opacity:1; }
+.timeline-scroll.moving .selected > [data-move] { box-shadow:0 0 0 2px var(--gold); }
 .timeline-scroll.trimming button { opacity:1; }
 .timeline-scroll.trimming .trim-handle { opacity:.3; }.timeline-scroll.trimming .selected > .trim-handle { opacity:1; }
-@media (pointer:coarse) { .trim-handle { width:11px; opacity:.55; }.trim-handle::after { left:5px; } }
+@media (pointer:coarse) { .trim-handle { width:11px; opacity:.55; }.trim-handle::after { left:5px; }.timeline-clip > [data-move] { touch-action:pan-y; } }
 
 .trim-hint { font-size:9px; font-weight:400; text-transform:none; letter-spacing:0; color:#98a3ae; }
 .studio-help { display:grid; gap:7px; }
