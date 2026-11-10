@@ -1,6 +1,6 @@
 import {AirView} from './air-view';
 import {AtmosphereView} from './atmosphere';
-import {pickupExtractionRadius} from './driving';
+import {carPoint,pickupExtractionRadius} from './driving';
 import * as T from 'three';
 import {RoomEnvironment} from 'three/examples/jsm/environments/RoomEnvironment.js';
 import {SetBuilder} from '../studio/sets/builder';
@@ -25,14 +25,14 @@ export class GameScene {
  readonly atmosphere=new AtmosphereView();readonly combat=new CombatView();readonly grenades=new GrenadeView();
  readonly supplies=new PickupView();air?:AirView;overwatch?:AirView;pickup?:DrivingView;pursuitView?:DrivingView;pursuitActor?:GameActor;
  private door=new T.Group();private key=new T.Group();private exit:T.Mesh;private marker:T.Mesh;private questMarker:T.Mesh;
- private companionRing:T.Mesh;private cargo=new T.Group();private roadMarker:T.Mesh;private sun:T.DirectionalLight;
+ private companionRing:T.Mesh;private cargo=new T.Group();private roadMarker:T.Mesh;private smoke=new T.Group();private sun:T.DirectionalLight;
  private worldGroup=new T.Group();private worldId='';private occluders:T.Group[]=[];private ray=new T.Raycaster();
  private size={w:0,h:0};
  constructor(readonly canvas:HTMLCanvasElement){
   this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.12;
   this.scene.background=new T.Color('#b6c2c6');this.scene.fog=new T.Fog('#b6c2c6',45,110);
   const pmrem=new T.PMREMGenerator(this.renderer),room=new RoomEnvironment(),environment=pmrem.fromScene(room,.04);this.scene.environment=environment.texture;this.scene.environmentIntensity=.5;room.dispose();pmrem.dispose();
-  this.scene.add(this.atmosphere.group);const sun=new T.DirectionalLight('#ffe2ad',3.1);sun.position.set(-12,22,10);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-26,right:26,top:26,bottom:-26,near:1,far:70});sun.shadow.normalBias=.025;this.sun=sun;this.scene.add(sun,sun.target);
+  this.scene.add(this.atmosphere.group,this.smoke);for(let i=0;i<4;i++)this.smoke.add(new T.Mesh(new T.SphereGeometry(.38,8,6),new T.MeshBasicMaterial({color:'#4e5555',transparent:true,opacity:.3,depthWrite:false})));const sun=new T.DirectionalLight('#ffe2ad',3.1);sun.position.set(-12,22,10);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-26,right:26,top:26,bottom:-26,near:1,far:70});sun.shadow.normalBias=.025;this.sun=sun;this.scene.add(sun,sun.target);
   this.scene.add(this.combat.group,this.grenades.group);
   this.scene.add(this.supplies.group);
   const gate=new SetBuilder();gate.box([2.9,2.3,.24],[1.45,1.15,0],'#aa7745',.5,.4);for(const x of [.2,2.7])gate.box([.08,2,.06],[x,1.15,.15],'#d4b787');gate.label('STAFF ONLY',[1.45,1.65,.135],1.4,'#eee4c9','#705035');this.door.add(gate.group);this.door.position.set(-1.45,0,DOOR.z);this.scene.add(this.door);
@@ -155,7 +155,7 @@ export class GameScene {
   this.key.rotation.y=game.time*1.1;this.key.position.y=1.2+Math.sin(game.time*2)*.09;
   this.exit.visible=game.mission.story==='clear'||(game.companion?game.companion.rescued:game.hasKey);(this.exit.material as T.MeshBasicMaterial).color.set(game.extractionReady?'#57d7b1':'#a5ac9b');(this.exit.material as T.MeshBasicMaterial).opacity=.45+Math.sin(game.time*2)*.2;
   this.companionRing.visible=game.car?!game.vehicleBusy:!!game.companion&&game.companion.combat.health>0;this.companionRing.scale.setScalar(game.car?3:1);if(game.car)this.companionRing.position.set(game.car.x,.022,game.car.z);if(game.companion&&!game.car)this.companionRing.position.set(game.companion.x,.022,game.companion.z);
-  if(game.car&&this.pickup)this.pickup.update(game.car,this.pickup.actor.vehicleFrame,game.companion);this.exit.scale.setScalar(game.car?pickupExtractionRadius(game.car.fit)/1.5:1);
+  if(game.car&&this.pickup)this.pickup.update(game.car,this.pickup.actor.vehicleFrame,game.companion);this.smoke.visible=!!game.car&&game.car.health!==undefined&&game.car.health<60;if(this.smoke.visible&&game.car){const hood=carPoint(game.car,{x:0,z:game.car.fit.box.maxZ*.5});this.smoke.position.set(hood.x,game.car.fit.height*.8,hood.z);for(let i=0;i<this.smoke.children.length;i++){const cloud=this.smoke.children[i]as T.Mesh,p=(game.time*.55+i/this.smoke.children.length)%1;cloud.position.set(Math.sin(game.time*1.2+i*2)*.26,p*1.8,Math.cos(game.time+i)*.2);cloud.scale.setScalar(.45+p*.9);(cloud.material as T.MeshBasicMaterial).opacity=(1-p)*(.16+(60-game.car.health!)/180);}}this.exit.scale.setScalar(game.car?pickupExtractionRadius(game.car.fit)/1.5:1);
   this.cargo.visible=!!game.world.cargo&&!game.hasCargo;this.roadMarker.visible=!!game.routeTarget;if(game.routeTarget)this.roadMarker.position.set(game.routeTarget.x,.065,game.routeTarget.z);const lightZ=game.world.getaway?.course?game.player.z:0,lightX=game.world.getaway?.course?game.player.x:0;this.sun.position.set(lightX-12,22,lightZ+10);this.sun.target.position.set(lightX,0,lightZ);this.sun.target.updateMatrixWorld(true);
   if(game.pursuit&&this.pursuitView)this.pursuitView.update(game.pursuit.car,this.pursuitActor?.vehicleFrame);this.air?.update(game);this.overwatch?.update(game);this.atmosphere.update(game,this.sun,this.scene);this.positionCamera(game,paused?0:dt);this.supplies.update(game,this.camera);this.combat.update(game,paused?0:dt);this.grenades.update(game,paused?0:dt);this.fadeObstructions(game,dt);this.renderer.render(this.scene,this.camera);
  }

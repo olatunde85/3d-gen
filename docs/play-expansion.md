@@ -55,5 +55,5 @@ The next release grows Play from staged chapters into a connected district. Keep
 - [x] Add optional timed delivery, street race and bounty contracts with measured starts/routes, clear failure and cash rewards. Both are toggled per chapter and included in portable JSON and the playable export.
 - [ ] Give desert compound, market street and urban block distinct footprints, authored interiors, opening doors, stairs and roof paths; verify indoor/outdoor combat and traversal on every map. Distinct measured perimeters and street solids are implemented; interiors, stairs and roof routes remain.
 - [ ] Add a free-roam city district between chapters, mission markers, civilians, parked cars and escalating one-to-three-star police heat.
-- [ ] Add player-drivable motorcycle, sports car and SUV; vehicle damage/smoke, armed/ramming pursuit, and chase/escort objectives.
+- [ ] Add player-drivable motorcycle, sports car and SUV; vehicle damage/smoke, armed/ramming pursuit, and chase/escort objectives. Pickup collision damage, smoke and checkpoint restoration are implemented; new vehicles and chase/escort gameplay remain.
 - [ ] Carry cash, purchases, branch choices and story flags across chapters and reloads. Cash, purchases and the safehouse shop are implemented; branch choices, flags and conditional briefings remain.

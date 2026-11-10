@@ -12,7 +12,7 @@ export interface PassengerFit {seat:Point;stand:Point}
 export interface CarFit {surfaces?:VehicleSurface[];passenger?:PassengerFit;box:Rect;height:number;stand:Point;scale:number}
 export const defaultCarFit=():CarFit=>({box:{minX:-1.75,maxX:.95,minZ:-2.8,maxZ:3.4},height:2.2,stand:{x:1.5,z:0},passenger:{seat:{x:-.72,z:0},stand:{x:-2.3,z:0}},scale:1});
 export interface CarPose extends Point {yaw:number}
-export interface CarState extends CarPose {speed:number;steer:number;distance:number;phase:'parked'|'boarding'|'driving'|'alighting';time:number;fit:CarFit;blocked:number}
+export interface CarState extends CarPose {speed:number;steer:number;distance:number;phase:'parked'|'boarding'|'driving'|'alighting';time:number;fit:CarFit;blocked:number;health?:number;damageCooldown?:number}
 export const DRIVE={boarding:1.05,alighting:1.05,reverse:3,acceleration:5,braking:11,wheelbase:3.47}as const;
 export const topSpeed=(settings:DrivingSettings)=>({relaxed:7,standard:10,fast:13}[settings.pace]);
 /** The visible pickup zone and success test use the same body-sized radius. */
@@ -41,10 +41,10 @@ export function entryClear(car:CarState,radius:number,rects:readonly Rect[],peop
 export function canReachDoor(from:Point,car:CarState,radius:number,rects:readonly Rect[],hull?:readonly Rect[]){const stand=driverStand(car);return Math.hypot(from.x-stand.x,from.z-stand.z)<1.6&&clearPath(from,stand,rects,radius)&&(hull?clearPath(from,stand,hull,radius):clearPath(carLocal(car,from),car.fit.stand,[car.fit.box],radius));}
 /** Substeps bound both translation and corner sweep, preventing thin-wall tunnelling at speed. */
 export function driveStep(car:CarState,dt:number,throttle:number,steer:number,brake:boolean,settings:DrivingSettings,rects:readonly Rect[],bounds:Rect,people:readonly (Point&{radius:number})[]=[]){
- car.blocked=Math.max(0,car.blocked-dt);const t=Number.isFinite(throttle)?Math.max(-1,Math.min(1,throttle)):0,r=Number.isFinite(steer)?Math.max(-1,Math.min(1,steer)):0;
+ car.blocked=Math.max(0,car.blocked-dt);car.damageCooldown=Math.max(0,(car.damageCooldown??0)-dt);if(car.health!==undefined&&car.health<=0){car.speed=0;return;}const t=Number.isFinite(throttle)?Math.max(-1,Math.min(1,throttle)):0,r=Number.isFinite(steer)?Math.max(-1,Math.min(1,steer)):0;
  car.steer+=(r*.5-car.steer)*(1-Math.exp(-dt*8));
  const desired=brake?0:t>0?topSpeed(settings)*t:t<0?DRIVE.reverse*t:0,rate=brake||car.speed*desired<0?DRIVE.braking:t?DRIVE.acceleration:2;
  car.speed+=Math.max(-rate*dt,Math.min(rate*dt,desired-car.speed));if(Math.abs(car.speed)<.01)car.speed=0;
  const turn=-car.speed/(DRIVE.wheelbase*car.fit.scale)*Math.tan(car.steer)*dt,travel=car.speed*dt,b=car.fit.box,radius=Math.hypot(Math.max(Math.abs(b.minX),Math.abs(b.maxX)),Math.max(Math.abs(b.minZ),Math.abs(b.maxZ))),steps=Math.max(1,Math.ceil((Math.abs(travel)+radius*Math.abs(turn))/.055));
- for(let i=0;i<steps;i++){const yaw=car.yaw+turn/steps,p={x:car.x+Math.sin(yaw)*travel/steps,z:car.z+Math.cos(yaw)*travel/steps,yaw};if(!carClear(p,car.fit,rects,bounds,people)){car.speed=0;car.blocked=.55;break;}Object.assign(car,p);car.distance+=travel/steps;}
+ for(let i=0;i<steps;i++){const yaw=car.yaw+turn/steps,p={x:car.x+Math.sin(yaw)*travel/steps,z:car.z+Math.cos(yaw)*travel/steps,yaw};if(!carClear(p,car.fit,rects,bounds,people)){if(car.health!==undefined&&Math.abs(car.speed)>2.5&&car.damageCooldown===0){car.health=Math.max(0,car.health-Math.min(35,Math.ceil(Math.abs(car.speed)*3)));car.damageCooldown=.7;}car.speed=0;car.blocked=.55;break;}Object.assign(car,p);car.distance+=travel/steps;}
 }
