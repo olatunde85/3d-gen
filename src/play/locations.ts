@@ -31,14 +31,26 @@ const military:Block[]=[
  {id:'training-step',x:-7,z:7,w:1.5,d:1.5,h:.3,kind:'crate',color:'#8a9286'},
  {id:'training-platform',x:-5,z:7,w:1.5,d:2,h:1.1,kind:'crate',color:'#657161'},
 ];
-/** Alternate layouts retain verified access lanes, while their footprints and cover differ. */
+/** Each district has its own perimeter and street-level solids; staging uses these same blocks. */
 function district(id:LocationId):Block[]{
  const palette=id==='desert-compound'?['#c9ad7b','#ad8158','#916b49']:id==='market-street'?['#b7a184','#a58065','#657d70']:['#9b9f9e','#6b797e','#555f65'];
- return military.map(b=>({...b,color:palette[b.kind==='wall'?0:b.kind==='building'?1:2],...(b.id==='hangar'?{w:id==='urban-block'?9:7,h:id==='urban-block'?7:3.8}:{}),...(b.id==='barracks'?{w:6,h:id==='urban-block'?8:3.4}:{}),...(b.id==='command'?{w:5,h:id==='urban-block'?6:3.2}:{}),...(b.id==='training-cover'?{w:id==='market-street'?4:2.8,h:id==='market-street'?1.4:.9}:{}),...(b.id==='patrol-cover'?{w:id==='desert-compound'?4:3,h:id==='urban-block'?1.4:1.1}:{})}));
+ const half=id==='desert-compound'?24:id==='market-street'?23:25,north=id==='market-street'?-30:-28,south=id==='urban-block'?25:24;
+ const walls:Block[]=[
+  {id:'west',x:-half,z:(north+south)/2,w:.4,d:south-north,h:2.6,kind:'wall',color:palette[0]},
+  {id:'east',x:half,z:(north+south)/2,w:.4,d:south-north,h:2.6,kind:'wall',color:palette[0]},
+  {id:'north',x:0,z:north,w:half*2,d:.4,h:2.6,kind:'wall',color:palette[0]},
+  {id:'south',x:0,z:south,w:half*2,d:.4,h:1.6,kind:'wall',color:palette[0]},
+  {id:'partition-west',x:-(half+1.45)/2,z:-5,w:half-1.45,d:.4,h:2.3,kind:'wall',color:palette[0]},
+  {id:'partition-east',x:(half+1.45)/2,z:-5,w:half-1.45,d:.4,h:2.3,kind:'wall',color:palette[0]},
+ ];
+ const militaryInterior=military.filter(b=>!['west','east','north','south','partition-west','partition-east'].includes(b.id));
+ const blocks=militaryInterior.map(b=>({...b,color:palette[b.kind==='building'?1:2],...(b.id==='hangar'?{w:id==='urban-block'?9:7,h:id==='urban-block'?7:3.8}:{}),...(b.id==='barracks'?{w:6,h:id==='urban-block'?8:3.4}:{}),...(b.id==='command'?{w:5,h:id==='urban-block'?6:3.2}:{}),...(b.id==='training-cover'?{w:id==='market-street'?4:2.8,h:id==='market-street'?1.4:.9}:{}),...(b.id==='patrol-cover'?{w:id==='desert-compound'?4:3,h:id==='urban-block'?1.4:1.1}:{})}));
+ const local:Block[]=id==='desert-compound'?[{id:'courtyard-arc-west',x:-9,z:-11,w:.55,d:5,h:2.2,kind:'wall',color:palette[0]},{id:'courtyard-arc-east',x:4,z:-18,w:.55,d:5,h:2.2,kind:'wall',color:palette[0]}]:id==='market-street'?[{id:'stall-lane-west',x:-8,z:12,w:1.6,d:2.2,h:1.8,kind:'crate',color:palette[2]},{id:'stall-lane-east',x:2,z:12,w:1.6,d:2.2,h:1.8,kind:'crate',color:palette[2]},{id:'stall-lane-north',x:-3,z:-14,w:2,d:1.4,h:1.8,kind:'crate',color:palette[2]}]:[{id:'apartment-annex',x:-2,z:12,w:4,d:3,h:5.6,kind:'building',color:palette[1]},{id:'shopfront',x:-1,z:-17,w:3,d:3,h:3.2,kind:'building',color:palette[1]}];
+ return [...walls,...blocks,...local];
 }
 export function locationDefinition(id:LocationId='depot'):LocationDefinition {
  if(!LOCATIONS.some(l=>l.id===id))throw Error('Unsupported game location.');
- if(id!=='depot')return {id,name:LOCATIONS.find(l=>l.id===id)!.name,bounds:{minX:-22,maxX:22,minZ:-26,maxZ:22},gate:{x:0,z:-5},blocks:id==='military-base'?military.map(b=>({...b})):district(id),starts:[{x:-18,z:17},{x:18,z:17},{x:-18,z:17}],keys:[{x:-17,z:-1.5},{x:17,z:-2},{x:-17,z:-3.3}],exits:[{x:18,z:-23},{x:18,z:-23},{x:-18,z:-23}],patrol:[{x:0,z:-11},{x:17,z:-12},{x:1,z:-23},{x:-15,z:-13}],guards:[{x:5,z:-12},{x:17,z:-22},{x:-14,z:-11}],enemySpawns:[{x:17,z:-22},{x:2,z:-24},{x:-17,z:-22},{x:-16,z:-8.5},{x:17,z:-8.5},{x:0,z:-11},{x:-12,z:-20}],captives:[{x:-17,z:-21.5},{x:-17,z:-21.5},{x:17,z:-21.5}],supplyRows:[12,-11,0,-23,18,-2,5],supplyLanes:[-18,18,-3,3,-20,20]};
+ if(id!=='depot')return {id,name:LOCATIONS.find(l=>l.id===id)!.name,bounds:id==='military-base'?{minX:-22,maxX:22,minZ:-26,maxZ:22}:id==='desert-compound'?{minX:-24,maxX:24,minZ:-28,maxZ:24}:id==='market-street'?{minX:-23,maxX:23,minZ:-30,maxZ:24}:{minX:-25,maxX:25,minZ:-28,maxZ:25},gate:{x:0,z:-5},blocks:id==='military-base'?military.map(b=>({...b})):district(id),starts:[{x:-18,z:17},{x:18,z:17},{x:-18,z:17}],keys:[{x:-17,z:-1.5},{x:17,z:-2},{x:-17,z:-3.3}],exits:[{x:18,z:-23},{x:18,z:-23},{x:-18,z:-23}],patrol:[{x:0,z:-11},{x:17,z:-12},{x:1,z:-23},{x:-15,z:-13}],guards:[{x:5,z:-12},{x:17,z:-22},{x:-14,z:-11}],enemySpawns:[{x:17,z:-22},{x:2,z:-24},{x:-17,z:-22},{x:-16,z:-8.5},{x:17,z:-8.5},{x:0,z:-11},{x:-12,z:-20}],captives:[{x:-17,z:-21.5},{x:-17,z:-21.5},{x:17,z:-21.5}],supplyRows:[12,-11,0,-23,18,-2,5],supplyLanes:[-18,18,-3,3,-20,20]};
  return {id:'depot',name:'Freight depot',bounds:{...WORLD},gate:{x:0,z:-6},blocks:[...BLOCKS,...traversal].map(b=>({...b})),starts:[{...START},{x:10,z:11},{...START}],keys:[{...KEY},{x:10,z:-2},{x:-10,z:-3.3}],exits:[{...EXIT},{...EXIT},{x:-10,z:-15}],patrol:PATROL.map(p=>({...p})),guards:[{x:8,z:-9},{x:10,z:-15},{x:-8,z:-9}],enemySpawns:[{x:11,z:-15},{x:2,z:-16},{x:-10,z:-15},{x:-10,z:-8.5},{x:11,z:-8.5},{x:0,z:-10}],captives:[{x:-11,z:-14.5},{x:-11,z:-14.5},{x:11,z:-14.5}],supplyRows:[6,-9,0,-15,12,-3,3],supplyLanes:[-10,10,-2,2,-12,12]};
 }
 

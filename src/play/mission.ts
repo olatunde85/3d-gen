@@ -1,4 +1,5 @@
 import {parseSteps,type MissionStep} from './objectives';
+import {parseSideQuests,type SideQuestId} from './side-quests';
 import {floodlightAnchors,parseEnvironment,type EnvironmentSettings} from './environment';
 /** Scenario rules resolve against independent, measured location contracts. */
 import {isGun} from './weapons';
@@ -10,7 +11,7 @@ import type {ProgressionSettings} from './progression';
 export type EscapePlan='breakout'|'timed'|'quiet';
 export type CoverLayout='balanced'|'open'|'dense';
 export type Lives=1|3|5|'unlimited';
-export interface MissionSettings {stealth?:boolean;steps?:MissionStep[];difficulty?:'easy'|'normal'|'hard';parTime?:number;environment?:EnvironmentSettings;location?:LocationId;story:'escape'|'rescue'|'clear'|'getaway';extraction?:'foot'|'pickup'|'helicopter';overwatch?:boolean;pursuit?:boolean;cargo?:'none'|'briefcase'|'package';driveDifficulty?:DriveDifficulty;plan:EscapePlan;layout:CoverLayout;variation:number;movement:'agile'|'grounded';lives:Lives;checkpoints:'off'|'auto'}
+export interface MissionSettings {stealth?:boolean;steps?:MissionStep[];sideQuests?:SideQuestId[];difficulty?:'easy'|'normal'|'hard';parTime?:number;environment?:EnvironmentSettings;location?:LocationId;story:'escape'|'rescue'|'clear'|'getaway';extraction?:'foot'|'pickup'|'helicopter';overwatch?:boolean;pursuit?:boolean;cargo?:'none'|'briefcase'|'package';driveDifficulty?:DriveDifficulty;plan:EscapePlan;layout:CoverLayout;variation:number;movement:'agile'|'grounded';lives:Lives;checkpoints:'off'|'auto'}
 export const defaultMission=():MissionSettings=>({story:'escape',plan:'breakout',layout:'balanced',variation:0,movement:'agile',lives:3,checkpoints:'auto'});
 export const missionGoal=(m:MissionSettings)=>m.story==='getaway'?'escape':m.story;
 export const extractionMode=(m:MissionSettings)=>m.extraction??(m.story==='getaway'?'pickup':'foot');
@@ -22,7 +23,7 @@ export type CheckpointStage='key'|'gate'|'rescue'|'clear'|'vehicle'|'cargo'|'rou
 export interface MissionWorld {id:string;location:LocationId;name:string;bounds:Rect;gate:Point;gateWidth:number;gateClearance:number;cargo?:{kind:'briefcase'|'package';position:Point};getaway?:{pickup:SpawnPoint;route:SpawnPoint[];reserve:Rect;course?:DrivingCourse};helipad?:SpawnPoint;sniperSpawns:(SpawnPoint&{y:number})[];enemySpawns:Point[];supplyRows:number[];supplyLanes:number[];story:MissionSettings['story'];blocks:Block[];start:Point;key:Point;exit:Point;patrol:Point[];guard:Point;rescue:{captive:SpawnPoint;approach:SpawnPoint};checkpoints:Record<CheckpointStage,SpawnPoint>}
 export function parseMission(raw:unknown):MissionSettings {
  if(raw===undefined)return defaultMission();if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Use a valid mission setup.');const m=raw as Record<string,unknown>;
- for(const key of Object.keys(m))if(!['stealth','overwatch','pursuit','steps','difficulty','parTime','environment','location','story','extraction','cargo','driveDifficulty','plan','layout','variation','movement','lives','checkpoints'].includes(key))throw Error(`Unsupported mission setting: ${key}.`);
+ for(const key of Object.keys(m))if(!['stealth','overwatch','pursuit','steps','sideQuests','difficulty','parTime','environment','location','story','extraction','cargo','driveDifficulty','plan','layout','variation','movement','lives','checkpoints'].includes(key))throw Error(`Unsupported mission setting: ${key}.`);
  if(m.location!==undefined&&!LOCATIONS.some(l=>l.id===m.location))throw Error(`Choose ${LOCATIONS.map(l=>l.name).join(' or ')}.`);
  if(m.story!==undefined&&!['escape','rescue','clear','getaway'].includes(m.story as string))throw Error('Choose Escape, Rescue and escape Clear and extract or Getaway.');
  if(m.extraction!==undefined&&!['foot','pickup','helicopter'].includes(m.extraction as string))throw Error('Choose On foot or Pickup extraction.');
@@ -33,7 +34,8 @@ export function parseMission(raw:unknown):MissionSettings {
  if(m.checkpoints!==undefined&&m.checkpoints!=='off'&&m.checkpoints!=='auto')throw Error('Choose automatic checkpoints or Off.');
  if(m.difficulty!==undefined&&!['easy','normal','hard'].includes(String(m.difficulty)))throw Error('Choose Easy, Normal or Hard difficulty.');if(m.parTime!==undefined&&(!Number.isFinite(m.parTime)||Number(m.parTime)<15||Number(m.parTime)>1800))throw Error('Par time must be 15–1800 seconds.');
  for(const key of ['stealth','overwatch','pursuit'])if(m[key]!==undefined&&typeof m[key]!=='boolean')throw Error('Support options must be true or false.');
- const result={...defaultMission(),...m,...(m.steps===undefined?{}:{steps:parseSteps(m.steps)}),...(m.environment===undefined?{}:{environment:parseEnvironment(m.environment)})};if(!Object.hasOwn(PLANS,String(result.plan)))throw Error('Choose a supported mission style.');if(!['balanced','open','dense'].includes(String(result.layout)))throw Error('Choose a supported cover layout.');if(!['agile','grounded'].includes(String(result.movement)))throw Error('Choose Agile or Grounded movement.');if(!Number.isInteger(result.variation)||Number(result.variation)<0||Number(result.variation)>11)throw Error('Choose a map variation from 0 to 11.');
+ const result={...defaultMission(),...m,...(m.steps===undefined?{}:{steps:parseSteps(m.steps)}),...(m.sideQuests===undefined?{}:{sideQuests:parseSideQuests(m.sideQuests)}),...(m.environment===undefined?{}:{environment:parseEnvironment(m.environment)})};if(!Object.hasOwn(PLANS,String(result.plan)))throw Error('Choose a supported mission style.');if(!['balanced','open','dense'].includes(String(result.layout)))throw Error('Choose a supported cover layout.');if(!['agile','grounded'].includes(String(result.movement)))throw Error('Choose Agile or Grounded movement.');if(!Number.isInteger(result.variation)||Number(result.variation)<0||Number(result.variation)>11)throw Error('Choose a map variation from 0 to 11.');
+ if((result.sideQuests as SideQuestId[]|undefined)?.includes('street-race')&&!usesPickup(result as MissionSettings))throw Error('sideQuests.street-race: choose pickup extraction.');
  if((result.story==='clear'||usesPickup(result as MissionSettings))&&result.plan==='quiet')throw Error('Combat and pickup extraction support Standard or Against the clock; Leave no trace requires silent on-foot extraction.');
  return result as MissionSettings;
 }

@@ -67,6 +67,7 @@ function showSetupPage(page:typeof setupPages[number]){$('editing-section').text
 for(const page of setupPages){button('setup-'+page).onclick=()=>showSetupPage(page);button('setup-'+page).addEventListener('keydown',e=>{const index=setupPages.indexOf(page);if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();const next=setupPages[e.key==='Home'?0:e.key==='End'?setupPages.length-1:(index+(['ArrowRight','ArrowDown'].includes(e.key)?1:setupPages.length-1))%setupPages.length];showSetupPage(next);button('setup-'+next).focus();});}
 select('mission-location').replaceChildren(...LOCATIONS.map(l=>new Option(l.name,l.id)));
 function paintMission(){$<HTMLInputElement>('stealth-senses').checked=!!draft.mission.stealth;for(const key of ['pursuit','overwatch']as const)$<HTMLInputElement>('support-'+key).checked=!!draft.mission[key];
+ $<HTMLInputElement>('side-delivery').checked=!!draft.mission.sideQuests?.includes('delivery');$<HTMLInputElement>('side-race').checked=!!draft.mission.sideQuests?.includes('street-race');$<HTMLInputElement>('side-bounty').checked=!!draft.mission.sideQuests?.includes('bounty');$<HTMLInputElement>('side-race').disabled=!usesPickup(draft.mission);
  select('game-difficulty').value=draft.mission.difficulty??'normal';$<HTMLInputElement>('game-par').value=String(draft.mission.parTime??180);
  $<HTMLInputElement>('game-title').value=draft.identity.title;$<HTMLTextAreaElement>('game-briefing').value=draft.identity.briefing;
  select('mission-cargo').value=draft.mission.cargo??'none';$('cargo-description').hidden=!draft.mission.cargo||draft.mission.cargo==='none';select('driving-difficulty').value=draft.mission.driveDifficulty??'easy';const getaway=usesPickup(draft.mission),clear=draft.mission.story==='clear';$('pickup-settings').hidden=!getaway;select('driving-pace').value=(draft.vehicle??defaultDriving()).pace;$<HTMLInputElement>('pickup-color').value=(draft.vehicle??defaultDriving()).color;select('mission-location').value=draft.mission.location??'depot';select('mission-story').value=missionGoal(draft.mission);select('mission-extraction').value=extractionMode(draft.mission);select('mission-plan').value=draft.mission.plan;select('mission-plan').options[0].text='Standard';select('mission-plan').querySelector<HTMLOptionElement>('[value="quiet"]')!.disabled=clear||getaway;
@@ -96,6 +97,7 @@ select('mission-extraction').onchange=()=>{
  if(draft.mission.story==='getaway')draft.mission.story='escape';
  draft.mission.extraction=select('mission-extraction').value as 'foot'|'pickup'|'helicopter';
  if(usesPickup(draft.mission)){draft.vehicle??=defaultDriving();if(draft.mission.plan==='quiet')draft.mission.plan='breakout';}
+ else draft.mission.sideQuests=draft.mission.sideQuests?.filter(id=>id!=='street-race');
  automaticTitle();paintMission();
 };
 select('mission-cargo').onchange=()=>{draft.mission.cargo=select('mission-cargo').value as 'none'|'briefcase'|'package';paintMission();};select('driving-difficulty').onchange=()=>{draft.mission.driveDifficulty=select('driving-difficulty').value as 'easy'|'standard'|'hard';paintMission();};
@@ -233,3 +235,4 @@ select('completion-reward').onchange=()=>{const v=select('completion-reward').va
 for(const key of ['pursuit','overwatch']as const)$<HTMLInputElement>('support-'+key).onchange=()=>{draft.mission[key]=$<HTMLInputElement>('support-'+key).checked;};
 
 $<HTMLInputElement>('stealth-senses').onchange=()=>draft.mission.stealth=$<HTMLInputElement>('stealth-senses').checked;
+for(const [id,quest]of [['side-delivery','delivery'],['side-race','street-race'],['side-bounty','bounty']]as const)$<HTMLInputElement>(id).onchange=()=>{const choices=new Set(draft.mission.sideQuests??[]);if($<HTMLInputElement>(id).checked)choices.add(quest);else choices.delete(quest);draft.mission.sideQuests=[...choices];};

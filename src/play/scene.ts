@@ -24,7 +24,7 @@ export class GameScene {
  get zoom(){return this.views.zoom;}set zoom(value:number){this.views.zoom=value;}
  readonly atmosphere=new AtmosphereView();readonly combat=new CombatView();readonly grenades=new GrenadeView();
  readonly supplies=new PickupView();air?:AirView;overwatch?:AirView;pickup?:DrivingView;pursuitView?:DrivingView;pursuitActor?:GameActor;
- private door=new T.Group();private key=new T.Group();private exit:T.Mesh;private marker:T.Mesh;
+ private door=new T.Group();private key=new T.Group();private exit:T.Mesh;private marker:T.Mesh;private questMarker:T.Mesh;
  private companionRing:T.Mesh;private cargo=new T.Group();private roadMarker:T.Mesh;private sun:T.DirectionalLight;
  private worldGroup=new T.Group();private worldId='';private occluders:T.Group[]=[];private ray=new T.Raycaster();
  private size={w:0,h:0};
@@ -38,6 +38,7 @@ export class GameScene {
   const gate=new SetBuilder();gate.box([2.9,2.3,.24],[1.45,1.15,0],'#aa7745',.5,.4);for(const x of [.2,2.7])gate.box([.08,2,.06],[x,1.15,.15],'#d4b787');gate.label('STAFF ONLY',[1.45,1.65,.135],1.4,'#eee4c9','#705035');this.door.add(gate.group);this.door.position.set(-1.45,0,DOOR.z);this.scene.add(this.door);
   const brass=new T.MeshStandardMaterial({color:'#e9bf62',metalness:.65,roughness:.28});const ring=new T.Mesh(new T.TorusGeometry(.14,.04,8,24),brass);this.key.add(ring);const shaft=new T.Mesh(new T.BoxGeometry(.09,.4,.07),brass);shaft.position.y=-.28;this.key.add(shaft);for(const y of [-.43,-.34]){const tooth=new T.Mesh(new T.BoxGeometry(.18,.055,.07),brass);tooth.position.set(.06,y,0);this.key.add(tooth);}this.key.position.set(KEY.x,1.2,KEY.z);this.scene.add(this.key);
   this.marker=new T.Mesh(new T.RingGeometry(.55,.62,48).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#e9bf62',transparent:true,opacity:.8,side:T.DoubleSide}));this.marker.position.set(KEY.x,.018,KEY.z);this.scene.add(this.marker);
+  this.questMarker=new T.Mesh(new T.RingGeometry(.7,.82,48).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#82e0dc',transparent:true,opacity:.9,side:T.DoubleSide}));this.scene.add(this.questMarker);
   this.exit=new T.Mesh(new T.RingGeometry(1.25,1.5,64).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#57d7b1',transparent:true,opacity:.6,side:T.DoubleSide}));this.exit.position.set(EXIT.x,.025,EXIT.z);this.scene.add(this.exit);
   this.companionRing=new T.Mesh(new T.RingGeometry(.52,.6,48).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#87d8ed',transparent:true,opacity:.8,side:T.DoubleSide}));this.companionRing.visible=false;this.scene.add(this.companionRing);
   this.roadMarker=new T.Mesh(new T.RingGeometry(2.2,2.5,64).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#e3c66e',side:T.DoubleSide,transparent:true,opacity:.8}));this.roadMarker.visible=false;this.scene.add(this.roadMarker);
@@ -150,6 +151,7 @@ export class GameScene {
  render(game:EscapeGame,dt:number,paused=false){
   this.setWorld(game.world);this.key.position.x=game.world.key.x;this.key.position.z=game.world.key.z;this.marker.position.set(game.world.key.x,.018,game.world.key.z);this.exit.position.set(game.world.helipad?.x??game.world.exit.x,.025,game.world.helipad?.z??game.world.exit.z);
   this.door.scale.x=game.world.gateWidth/2.9;this.door.position.set(game.world.gate.x-game.world.gateWidth/2,0,game.world.gate.z);this.door.rotation.y=game.door*Math.PI/2;this.key.visible=(game.mission.story==='escape'||game.mission.story==='getaway')&&!game.hasKey;this.marker.visible=this.key.visible||!!game.currentStep;if(game.currentStep)this.marker.position.set(game.currentStep.position.x,.025,game.currentStep.position.z);
+  const side=game.sideQuestMarker;this.questMarker.visible=!!side;if(side)this.questMarker.position.set(side.point.x,.03,side.point.z);
   this.key.rotation.y=game.time*1.1;this.key.position.y=1.2+Math.sin(game.time*2)*.09;
   this.exit.visible=game.mission.story==='clear'||(game.companion?game.companion.rescued:game.hasKey);(this.exit.material as T.MeshBasicMaterial).color.set(game.extractionReady?'#57d7b1':'#a5ac9b');(this.exit.material as T.MeshBasicMaterial).opacity=.45+Math.sin(game.time*2)*.2;
   this.companionRing.visible=game.car?!game.vehicleBusy:!!game.companion&&game.companion.combat.health>0;this.companionRing.scale.setScalar(game.car?3:1);if(game.car)this.companionRing.position.set(game.car.x,.022,game.car.z);if(game.companion&&!game.car)this.companionRing.position.set(game.companion.x,.022,game.companion.z);
@@ -168,6 +170,7 @@ export class GameScene {
   g.strokeStyle=game.opening?'#74dfba':'#e6b262';g.lineWidth=3;g.beginPath();const gate=game.world.gate;g.moveTo(x(gate.x-game.world.gateWidth/2),z(gate.z));g.lineTo(x(gate.x-game.world.gateWidth/2+game.world.gateWidth*Math.cos(game.door*Math.PI/2)),z(gate.z-game.world.gateWidth*Math.sin(game.door*Math.PI/2)));g.stroke();
   const dot=(p:{x:number;z:number},color:string,r:number)=>{g.fillStyle=color;g.beginPath();g.arc(x(p.x),z(p.z),r,0,Math.PI*2);g.fill();};
   if(game.currentStep)dot(game.currentStep.position,'#f0ca70',4);
+  for(const job of game.sideQuests){if(job.status==='available')dot(job.start,'#82e0dc',4);else if(job.status==='active')dot(job.id==='bounty'?game.bountyTarget:job.checkpoints[job.index],'#82e0dc',5);}
   if(game.world.cargo&&!game.hasCargo)dotCargo();
   function dotCargo(){g.fillStyle='#d3a8e2';g.fillRect(x(game.world.cargo!.position.x)-3,z(game.world.cargo!.position.z)-3,6,6);}
   if(game.routeTarget){g.strokeStyle='#e3c66e';g.lineWidth=2;g.beginPath();g.arc(x(game.routeTarget.x),Math.max(7,Math.min(h-7,z(game.routeTarget.z))),5,0,Math.PI*2);g.stroke();}

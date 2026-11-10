@@ -202,6 +202,11 @@ body{grid-template-rows:52px minmax(0,1fr) 32px}
 #lives-status.low{color:#a34228}
 .result-meta{font-size:12px;color:var(--green);font-weight:600;margin:0 0 16px}
 #result-restart{display:block;width:100%;margin-top:10px}
+#safehouse{margin:12px 0;padding:12px;border:1px solid #d0d5c8;border-radius:6px;background:#f5f4ec}
+#safehouse h2{font-size:14px;margin:0 0 4px}
+#safehouse p{font-size:12px;margin:0 0 8px}
+.safehouse-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.safehouse-items button{font-size:11px;padding:8px 5px}
 #result{max-height:calc(100% - 24px);overflow:auto}
 @media(max-width:760px){#guard-status{top:226px}.run-meta{font-size:9px;gap:3px 8px;margin-top:8px;padding-top:6px}}
 @media(max-height:500px) and (pointer:coarse){#guard-status{top:40px}.run-meta{margin-top:5px;padding-top:4px;font-size:9px}#result h1{font-size:27px}#result-restart{margin-top:0}.result-meta{margin-bottom:8px}}

@@ -52,8 +52,8 @@ The next release grows Play from staged chapters into a connected district. Keep
 - [x] Let opening and ending scenes start from Ara Studio JSON or a Studio project bundle. Render locally to portable film media. Add microphone recording and female/male generated voice choices per dialogue line.
 - [x] Keep equipped guns visible on defeated enemies. Spread chained objectives and check routes again after placing terminals.
 - [x] Name the chapter, objective, layout and variation in placement errors; provide a downloadable per-chapter **Check placements** JSON report.
-- [ ] Add optional timed delivery, street race and other side quests with measured starts/routes, clear failure and cash rewards.
-- [ ] Give desert compound, market street and urban block distinct footprints, authored interiors, opening doors, stairs and roof paths; verify indoor/outdoor combat and traversal on every map.
+- [x] Add optional timed delivery, street race and bounty contracts with measured starts/routes, clear failure and cash rewards. Both are toggled per chapter and included in portable JSON and the playable export.
+- [ ] Give desert compound, market street and urban block distinct footprints, authored interiors, opening doors, stairs and roof paths; verify indoor/outdoor combat and traversal on every map. Distinct measured perimeters and street solids are implemented; interiors, stairs and roof routes remain.
 - [ ] Add a free-roam city district between chapters, mission markers, civilians, parked cars and escalating one-to-three-star police heat.
 - [ ] Add player-drivable motorcycle, sports car and SUV; vehicle damage/smoke, armed/ramming pursuit, and chase/escort objectives.
-- [ ] Carry cash, purchases, branch choices and story flags across chapters and reloads. Add a safehouse shop and conditional briefings.
+- [ ] Carry cash, purchases, branch choices and story flags across chapters and reloads. Cash, purchases and the safehouse shop are implemented; branch choices, flags and conditional briefings remain.
