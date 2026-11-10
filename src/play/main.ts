@@ -9,7 +9,7 @@ import {ENEMY_ROLES,roleDefaults,type EnemyKind,type EnemyHealth} from './enemy-
 /** Creator shell. The shared player also runs independently in downloaded games. */
 import './setup.css';
 import {assistPanel} from '../app/assist/panel';
-import {generatePlayGuide,parsePlayInput,playExample,campaignExample,describeGame} from './assist';
+import {generatePlayGuide,parsePlayInput,checkPlayPlacements,playExample,campaignExample,describeGame} from './assist';
 import {installSetupChoices,paintSetupSummary} from './setup-ui';
 import {DrivingView} from './driving-view';
 import {AssetLibrary,fetchSource} from '../core/assets';
@@ -119,7 +119,7 @@ function paintEnemies(){
  $('enemy-response-label').textContent=individualEnemies?`Enemy ${enemyIndex+1} response`:'Squad response';$('enemy-health-label').textContent=individualEnemies?`Enemy ${enemyIndex+1} health`:'Squad health';select('enemy-kind').value=enemySettings().kind??'guard';$('enemy-kind-note').textContent=ENEMY_ROLES[enemySettings().kind??'guard'].description;select('enemy-response').value=enemySettings().response;select('enemy-health').value=String(enemySettings().health);
  $('enemy-aggression-label').textContent=individualEnemies?`Enemy ${enemyIndex+1} aggression`:'Squad aggression';$('enemy-appearance-label').textContent=individualEnemies?`Enemy ${enemyIndex+1} appearance`:'Squad appearance';paintPicker('enemy',enemySettings().character);select('enemy-aggression').value=enemySettings().aggression;$('cast-enemy-name').textContent=draft.enemies.length===1?enemySettings().character.name:`${draft.enemies.length} enemies`;
 }
-const storyUi=storyEditor($('story-editor'),()=>draft);
+const storyUi=storyEditor($('story-editor'),()=>draft,()=>engine,()=>lib);
 const chainEditor=objectiveEditor($('objective-editor'),()=>draft,()=>paintMission());
 function paintDraft(){storyUi.paint();chainEditor.paint();paintPicker('hero',draft.character);$('cast-player-name').textContent=draft.character.name||'Custom character';paintEnemies();paintMission();paintLoadout();paintPresentation();paintPicker('companion',draft.companion.character);select('companion-health-setting').value=String(draft.companion.health);$('cast-companion-name').textContent=draft.companion.character.name;$('setup-note').textContent='';showCast(castRole);}
 function paintProgression(){select('completion-reward').value=draft.progression.reward??'none';
@@ -166,6 +166,7 @@ const assist=assistPanel<PlayProject>({dialog:$<HTMLDialogElement>('play-assist-
  async build(nextProject,progress){stopMusicPreview();applying=true;$<HTMLFieldSetElement>('setup-fields').disabled=true;try{progress({stage:'Validating your mission and preparing the cast…'});const next=await prepareGame(nextProject,text=>progress({stage:text}));assistedPreview={project:nextProject,cast:next};progress({stage:'Your game is ready.',fraction:1});}finally{applying=false;$<HTMLFieldSetElement>('setup-fields').disabled=false;}}
 });
 const campaignTry=document.createElement('button');campaignTry.type='button';campaignTry.id='pa-campaign-example';campaignTry.className='ai-link';campaignTry.textContent='Try a campaign';assist.dialog.querySelector('.ai-review .ai-row')!.append(campaignTry);campaignTry.onclick=()=>{assist.restore({...assist.state(),json:JSON.stringify(campaignExample(),null,2)});$<HTMLTextAreaElement>('pa-json').dispatchEvent(new Event('input'));};
+const placementCheck=document.createElement('button');placementCheck.type='button';placementCheck.id='pa-check-placements';placementCheck.className='ai-link';placementCheck.textContent='Check placements';assist.dialog.querySelector('.ai-review .ai-row')!.append(placementCheck);placementCheck.onclick=()=>{try{const report=checkPlayPlacements($<HTMLTextAreaElement>('pa-json').value,lib.catalog),blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='ara-play-placements.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);placementCheck.textContent=report.chapters.every(c=>c.ok)?'Placements checked ✓':'Placement issues found · report saved';}catch(error){placementCheck.textContent=(error as Error).message;}};
 button('play-assist-open').onclick=()=>{stopMusicPreview();void assist.open();};
 assist.dialog.addEventListener('close',()=>{if(!assistedPreview)return;project=assistedPreview.project;resetDraft(project);pendingCast=assistedPreview.cast;assistedPreview=undefined;try{localStorage.setItem(storage,JSON.stringify(project));}catch{/* optional persistence */}restartAfterSetup=true;setup.close();});
 const applyLabel=button('apply').innerHTML;

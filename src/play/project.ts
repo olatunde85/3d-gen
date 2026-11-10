@@ -74,8 +74,8 @@ export function parseProject(text:string,catalog:Catalog):PlayProject {
    if(!c||typeof c!=='object'||Array.isArray(c))throw Error('Use a valid chapter.');const row=c as Record<string,unknown>;
    for(const field of Object.keys(row))if(!['id','story','identity','mission','enemies','companion','loadout','progression','vehicle','camera','music'].includes(field))throw Error(`Unsupported chapter setting: ${field}. The player is shared by all chapters.`);
    if(typeof row.id!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(row.id)||ids.has(row.id))throw Error('Use unique chapter IDs; chapter-1 is reserved for the first mission.');ids.add(row.id);
-   const suppliedLives=row.mission&&typeof row.mission==='object'?(row.mission as Record<string,unknown>).lives:undefined;if(suppliedLives!==undefined&&suppliedLives!==mission.lives)throw Error('Lives are shared across chapters. Set the life budget on the first mission.');
-   const {id,...patch}=row,chapter=parseProject(JSON.stringify({...result,chapters:undefined,...patch,character,mission:{...mission,...(row.mission as object??{})}}),catalog);chapter.mission.lives=mission.lives;return chapterSettings(chapter,id);
+   const suppliedLives=row.mission&&typeof row.mission==='object'?(row.mission as Record<string,unknown>).lives:undefined;if(suppliedLives!==undefined&&suppliedLives!==mission.lives)throw Error(`${row.id} › lives: shared across chapters. Set the life budget on the first mission.`);
+   const {id,...patch}=row;try{const chapter=parseProject(JSON.stringify({...result,chapters:undefined,...patch,character,mission:{...mission,...(row.mission as object??{})}}),catalog);chapter.mission.lives=mission.lives;return chapterSettings(chapter,id);}catch(error){throw Error(`${id} › ${(error as Error).message}`);}
   });
  }
  storyMedia(result);return result;

@@ -29,7 +29,7 @@ Choose On foot, Pickup or Helicopter extraction. Pickup challenges provide Easy 
 | Survive | Defeat successive squad waves | 1–3 waves |
 | Escort | Bring the companion to the marked point | Companion appearance and health |
 
-Steps are reorderable. Ara chooses reachable ground positions and checks routes, including added terminal geometry. Download and defence progress pause outside their zone. Ambush waves reuse the configured squad, with a two-second break and a clear entry bay; a player blocking that bay delays entry. Escort chains start with the companion following, rather than adding a separate rescue interaction. Extraction follows the completed chain. Cargo and ordered road checkpoints still apply.
+Steps are reorderable. Ara spreads their automatically chosen positions across the map and checks every route after adding terminal geometry. Download and defence progress pause outside their zone. Ambush waves reuse the configured squad, with a two-second break and a clear entry bay; a player blocking that bay delays entry. Escort chains start with the companion following, rather than adding a separate rescue interaction. Extraction follows the completed chain. Cargo and ordered road checkpoints still apply.
 
 ## Cast and combat
 
@@ -47,7 +47,7 @@ The hero, each of one to five enemies, and the companion can use presets, import
 
 Ammunition is finite or unlimited reserve; unlimited reserve still requires reloading. Optional weapon pickups and objective unlocks start the hero unarmed. Chapter completion can unlock a pistol or rifle; the strongest unlocked firearm carries to later chapters. Combat steps require a starting or findable firearm, avoiding circular objective unlocks.
 
-Shots use height-aware cover tests and stop at the first living actor. Allies block shots without friendly bullet damage. Grenades use swept flight, visible arcs, bounces and a 2.6-second fuse. Blast exposure checks solid cover; the hero and companion can be hurt by explosions. Defeated actors remain in the world. Bullet impacts produce directional reactions and blood; deaths use Ara’s fall animations. A seated driver slumps instead of falling through the vehicle. Shooting never shakes or redirects the camera.
+Shots use height-aware cover tests and stop at the first living actor. Allies block shots without friendly bullet damage. Grenades use swept flight, visible arcs, bounces and a 2.6-second fuse. Blast exposure checks solid cover; the hero and companion can be hurt by explosions. Defeated actors and their equipped guns remain visible in the world. Bullet impacts produce directional reactions and blood; deaths use Ara’s fall animations. A seated driver slumps instead of falling through the vehicle. Shooting never shakes or redirects the camera.
 
 **X / Melee** punches a nearby, visible target. Approach an unaware enemy from behind while crouched for a silent takedown. Range and line of sight are checked at contact, so attacks cannot pass through walls. Ordinary punches alert nearby guards. **Stealth senses** adds running-footstep investigations and body discovery; Night enables it in manual setup, and JSON uses `mission.stealth:true`. Leaving it off retains the original pursuit rules. Gunfire, explosions and engines also cause investigations. With stealth senses, patrols can discover bodies, including those left by quiet takedowns. A body is reported once per observer.
 
@@ -75,11 +75,11 @@ Choose allowed camera views and the starting view. Players switch among permitte
 
 ## Story, text and voice
 
-Atmosphere → **Story & dialogue** accepts an opening or ending MP4/WebM exported from Studio, up to 60 seconds and 24 MiB per film. Films play before/after that chapter and are skippable. A missing or unsupported clip cannot permanently block the mission.
+Atmosphere → **Story & dialogue** accepts a Studio JSON or project ZIP and renders it locally into a portable film, or accepts an MP4/WebM. Films are limited to 60 seconds and 24 MiB after rendering. Films play before/after that chapter and are skippable. A missing or unsupported clip cannot permanently block the mission.
 
 Add up to 24 cues triggered by mission start, a time, an objective number, detection, overwatch, reinforcement arrival, objective completion or extraction. Cues support subtitles, captions and comic speech/thought bubbles following the selected character. Text timers pause with the game. Each cue plays once per run; checkpoint retries can replay later cues. Cues can also use any recorded Studio sound effect.
 
-Enable **Voice this line** or **Read opening briefing aloud** for native device speech. Device voices vary. **Generate all speech** prepares selected lines with Studio’s on-device speech engine, or attach an audio recording. Prepared speech is stored locally and exported as audio; players do not download speech models. Native speech remains a fallback when a prepared line is unavailable. Generate or attach speech for consistent playback across devices.
+Enable **Voice this line** or **Read opening briefing aloud** for native device speech. Device voices vary. **Generate all speech** prepares selected lines with Studio’s on-device speech engine, record speech directly in Play, or attach an audio recording. Choose from two female and two male generated voices for each line. Prepared speech is stored locally and exported as audio; players do not download speech models. Native speech remains a fallback when a prepared line is unavailable. Generate or attach speech for consistent playback across devices.
 
 Story media is content-addressed and stored in browser-owned IndexedDB so reloading preserves it. It does not grant access to arbitrary files on a device. JSON contains references; attached files travel in an editable project ZIP and in the independent game ZIP. The importer rejects external media URLs, unsupported paths, oversized files and mismatched asset hashes.
 
@@ -120,7 +120,7 @@ Agile movement chooses vaults and climbs from measured heights and safe landings
 - Unzip and serve the folder with a static host or the local HTTP instructions in its README. Browser module/media rules require HTTP rather than opening `index.html` through `file://`.
 - Game preparation validates every chapter and its fitted vehicle/aircraft clearance before replacing the current preview. Failure preserves the working game.
 
-LLM Assist’s generated guide enumerates the live capabilities, exact library IDs, custom character schema, media rules and measured maps. Its parser uses the same project and staging rules as manual setup. No API key, arbitrary script execution or arbitrary coordinate editor is included.
+LLM Assist’s generated guide enumerates the live capabilities, exact library IDs, custom character schema, media rules and measured maps. Its parser uses the same project and staging rules as manual setup. **Check placements** downloads a per-chapter JSON report with objective coordinates, routes, and specific placement errors. No API key, arbitrary script execution or arbitrary coordinate editor is included.
 
 ## Verification and code
 

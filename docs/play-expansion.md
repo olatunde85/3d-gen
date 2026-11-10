@@ -44,3 +44,16 @@ A feature is complete only when it can be configured, validated, played and expo
 - Aircraft entry, flight and exit hide the firearm prop, while mixed-size guest cabin fitting preserves skeleton proportions and exact upright alighting anchors.
 - The mission sequence and Add mission action are outside the scrolling settings. Every section retains its current mission title, index and section label. Hero and life budget controls are labelled as shared. Chrome checks cover desktop, 320/390 px phones and landscape.
 - The production build passes. All 605 output files are below Cloudflare's 25 MiB per-file limit; the largest is 14.16 MiB. Desktop/touch combat, shared boarding, persistent mission context and independent media exports have passed browser checks.
+
+## Next gameplay expansion
+
+The next release grows Play from staged chapters into a connected district. Keep the same strict JSON, editable bundles, independent exports and browser checks for every addition.
+
+- [x] Let opening and ending scenes start from Ara Studio JSON or a Studio project bundle. Render locally to portable film media. Add microphone recording and female/male generated voice choices per dialogue line.
+- [x] Keep equipped guns visible on defeated enemies. Spread chained objectives and check routes again after placing terminals.
+- [x] Name the chapter, objective, layout and variation in placement errors; provide a downloadable per-chapter **Check placements** JSON report.
+- [ ] Add optional timed delivery, street race and other side quests with measured starts/routes, clear failure and cash rewards.
+- [ ] Give desert compound, market street and urban block distinct footprints, authored interiors, opening doors, stairs and roof paths; verify indoor/outdoor combat and traversal on every map.
+- [ ] Add a free-roam city district between chapters, mission markers, civilians, parked cars and escalating one-to-three-star police heat.
+- [ ] Add player-drivable motorcycle, sports car and SUV; vehicle damage/smoke, armed/ramming pursuit, and chase/escort objectives.
+- [ ] Carry cash, purchases, branch choices and story flags across chapters and reloads. Add a safehouse shop and conditional briefings.

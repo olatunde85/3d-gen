@@ -11,10 +11,19 @@ export function parseSteps(raw:unknown):MissionStep[]{
  if(!Array.isArray(raw)||raw.length<1||raw.length>8)throw Error('Choose one to eight objective steps.');return raw.map(s=>{if(!s||typeof s!=='object'||Array.isArray(s)||Object.keys(s).some(k=>!['type','label','duration','target','waves'].includes(k))||!STEP_TYPES.includes(s.type))throw Error('Use a supported objective step.');if(s.label!==undefined&&(typeof s.label!=='string'||!s.label.trim()||s.label.length>80))throw Error('Use an objective label up to 80 characters.');if(s.duration!==undefined&&(!['download','defend'].includes(s.type)||!Number.isFinite(s.duration)||s.duration<3||s.duration>180))throw Error('Download/defend durations must be 3–180 seconds.');if(s.target!==undefined&&(s.type!=='eliminate'||typeof s.target!=='string'||!/^[\w-]{1,50}$/.test(s.target)))throw Error('Eliminate target must be an enemy ID.');if(s.type==='eliminate'&&!s.target)throw Error('Choose a named enemy for elimination.');if(s.waves!==undefined&&(s.type!=='survive'||!Number.isInteger(s.waves)||s.waves<1||s.waves>3))throw Error('Choose one to three ambush waves.');return {...s};});
 }
 export function stageSteps(m:MissionSettings,w:MissionWorld):StagedStep[]{
- const rects=missionObstacles(w,1),lanes=w.supplyLanes,rows=w.supplyRows,points=rows.flatMap(z=>lanes.map(x=>({x,z}))).filter(p=>!blocked(p,1.5,rects)&&route(w.start,p,rects,.52,w.bounds).length),staged:StagedStep[]=[];let previous=w.start;
- for(const step of m.steps??[]){const candidates=points.filter(p=>Math.hypot(p.x-previous.x,p.z-previous.z)>6).sort((a,b)=>Math.hypot(a.x-previous.x,a.z-previous.z)-Math.hypot(b.x-previous.x,b.z-previous.z));const desired=step.type==='escort'?w.exit:candidates[(staged.length+Math.floor(m.variation/3))%Math.max(1,Math.min(5,candidates.length))];if(!desired||!route(previous,desired,rects,.52,w.bounds).length)throw Error('Objective chain needs a reachable staging area.');if(step.type==='download'){w.blocks.push({id:'objective-terminal-'+staged.length,x:desired.x,z:desired.z-.95,w:.65,d:.45,h:1,kind:'crate',color:'#4f7075'});}
- staged.push({step,position:{...desired},radius:step.type==='download'?1.5:step.type==='defend'?4:2.5});previous=desired;}
- for(const [i,s]of staged.entries())if(blocked(s.position,.52,missionObstacles(w,1))||!route(i?staged[i-1].position:w.start,s.position,missionObstacles(w,1),.52,w.bounds).length)throw Error('A terminal blocks this objective route.');
+ const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z),lanes=w.supplyLanes,rows=w.supplyRows;
+ const open=missionObstacles(w,1),points=rows.flatMap(z=>lanes.map(x=>({x,z}))).filter(p=>!blocked(p,1.5,open)&&route(w.start,p,open,.52,w.bounds).length),staged:StagedStep[]=[];
+ const routesClear=(next:Point)=>{const rects=missionObstacles(w,1),all=[...staged.map(s=>s.position),next];return all.every((p,i)=>!blocked(p,.52,rects)&&route(i?all[i-1]:w.start,p,rects,.52,w.bounds).length);};
+ for(const [index,step]of (m.steps??[]).entries()){
+  const previous=staged.at(-1)?.position??w.start,candidates=step.type==='escort'?[w.exit]:points.filter(p=>distance(p,previous)>6&&staged.every(s=>distance(p,s.position)>6));
+  candidates.sort((a,b)=>{const score=(p:Point)=>Math.min(distance(p,previous),...staged.map(s=>distance(p,s.position)));return score(b)-score(a)||a.z-b.z||a.x-b.x;});
+  if(candidates.length&&step.type!=='escort'){const offset=Math.floor(m.variation/3)%Math.min(3,candidates.length);candidates.push(...candidates.splice(0,offset));}
+  let desired:Point|undefined;
+  for(const candidate of candidates){if(step.type==='download')w.blocks.push({id:'objective-terminal-'+index,x:candidate.x,z:candidate.z-.95,w:.65,d:.45,h:1,kind:'crate',color:'#4f7075'});
+   if(routesClear(candidate)){desired=candidate;break;}if(step.type==='download')w.blocks.pop();}
+  if(!desired)throw Error(`objective ${index+1} (${step.type}): no reachable staging area in ${w.location}, layout "${m.layout}", variation ${m.variation}; a terminal or solid blocks the route.`);
+  staged.push({step,position:{...desired},radius:step.type==='download'?1.5:step.type==='defend'?4:2.5});
+ }
  return staged;
 }
 export const stepLabel=(s:MissionStep)=>s.label??({reach:'Reach the rally point',download:'Download the intel',defend:'Defend the area',eliminate:`Eliminate ${s.target}`,survive:'Survive the ambush',escort:'Escort your companion'}[s.type]);
