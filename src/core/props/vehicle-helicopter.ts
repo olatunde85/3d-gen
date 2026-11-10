@@ -9,9 +9,9 @@ function loft(k:VehicleKit,rings:{z:number;x:number;y:number;w:number;h:number}[
  for(let i=0;i<rings.length-1;i++)for(let j=0;j<N;j++){const a=i*(N+1)+j,b=a+N+1;if(rings.at(-1)!.z>rings[0].z)indices.push(a,a+1,b,a+1,b+1,b);else indices.push(a,b,a+1,a+1,b,b+1);}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setIndex(indices);g.computeVertexNormals();const m=k.mesh(g,material);return m;
 }
-export function buildHelicopter(k:VehicleKit){
+export function buildHelicopter(k:VehicleKit,minimumRoof=0){
  const s=k.fit.scale,hip=k.fit.average('hip'),cx=H.centerX*s,z=hip.z,deck=H.deck*s;
- const roof=Math.max(...k.fit.samples.map(c=>c.headTop.y))+.17*s,seatY=Math.min(...k.fit.samples.map(c=>c.hip.y))-.09*s;
+ const roof=Math.max(Math.max(...k.fit.samples.map(c=>c.headTop.y))+.17*s,minimumRoof),seatY=Math.min(...k.fit.samples.map(c=>c.hip.y))-.09*s;
  const sport=k.style.variant==='sport';
  // A belly below the floor and a separate roof leave actual apertures for all four doors.
  loft(k,[[-2,.03,.10],[-1.6,.68,.26],[-1.1,.98,.30],[.4,1.05,.32],[1.15,.82,.28],[1.65,.30,.10],[1.8,.01,.01]].map(([zz,w,h])=>({z:z+zz*s,x:cx,y:deck+.035*s,w:w*s,h:h*s})),k.paint,'lower');

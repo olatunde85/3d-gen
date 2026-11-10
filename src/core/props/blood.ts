@@ -166,6 +166,10 @@ export class Blood {
     return out;
   }
 
+  /** Release dynamic gameplay impacts when a slot is recycled or a run restarts. */
+  forget(clipId:string){for(const [key,shot]of this.shots)if(key.startsWith(clipId+':')){shot.mark.removeFromParent();shot.mark.geometry.dispose();this.shots.delete(key);}}
+  clear(){for(const shot of this.shots.values()){shot.mark.removeFromParent();shot.mark.geometry.dispose();}this.shots.clear();this.update([]);}
+
   dispose() {
     for (const shot of this.shots.values()) { shot.mark.removeFromParent(); shot.mark.geometry.dispose(); }
     this.group.removeFromParent();

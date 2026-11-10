@@ -1,6 +1,6 @@
 /**
  * Assist: describe something, get JSON from any AI chat, review it and build.
- * Shared by the character builder and Ara Studio.
+ * Shared by the character builder, Ara Studio and Ara Play.
  */
 import './panel.css';
 import { extractJson, fixRequest, hadSurroundingText } from './extract';
@@ -19,7 +19,10 @@ export interface AssistConfig<T> {
   /** The panel's name: "Assist" in Studio, "LLM Assist" in the builder. */
   name: string;
   app: string;
-  noun: 'film' | 'character';
+  noun: 'film' | 'character' | 'game';
+  buildLabel?:string;
+  recoveryNote?:string;
+  maxBytes?:number;
   title: string;
   intro: string;
   placeholder: string;
@@ -98,7 +101,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     </div>
     <div class="ai-actions">
       <div class="ai-actions-guide"><button class="ai-btn ai-primary" id="${id}-copy" data-r="copy">Copy guide</button><button class="ai-btn" id="${id}-download" data-r="save">Save as .txt</button><p class="ai-note" id="${id}-copy-status" data-r="copy-status" role="status"></p></div>
-      <button class="ai-btn ai-primary ai-wide ai-build" id="${id}-create" data-r="build" disabled>Build ${noun} <span aria-hidden="true">↗</span></button>
+      <button class="ai-btn ai-primary ai-wide ai-build" id="${id}-create" data-r="build" disabled>${html(cfg.buildLabel??`Build ${noun}`)} <span aria-hidden="true">↗</span></button>
     </div>
     <input type="file" id="${id}-file" data-r="file" accept=".json,.txt,application/json,text/plain" hidden />
     <div class="ai-building" data-r="building" hidden>
@@ -110,7 +113,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         <div class="ai-meter" data-r="building-meter" role="progressbar" aria-label="Build progress" aria-valuemin="0" aria-valuemax="100"><span data-r="building-bar"></span></div>
         <p class="ai-building-stage" data-r="building-stage"></p>
         <ol class="ai-building-items" data-r="building-items"></ol>
-        <p class="ai-note">Undo brings back what you had before.</p>
+        <p class="ai-note">${html(cfg.recoveryNote??'Undo brings back what you had before.')}</p>
       </div>
     </div>`;
 
@@ -270,7 +273,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   file.addEventListener('change', async () => {
     const chosen = file.files?.[0]; file.value = '';
     if (!chosen) return;
-    if (chosen.size > 200_000) { stopPreparation();draft.value = ''; error = 'Use a file smaller than 200 KB.'; parsed = undefined; showResult(); return; }
+    if (chosen.size > (cfg.maxBytes??200_000)) { stopPreparation();draft.value = ''; error = `Use a file smaller than ${Math.round((cfg.maxBytes??200_000)/1000)} KB.`; parsed = undefined; showResult(); return; }
     setReply(await chosen.text());
   });
   if (cfg.examples) {
@@ -306,7 +309,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
       dialog.close();
     }
     catch (e) { error = (e as Error).message; parsed = undefined; showResult(); }
-    finally { building = false; view.hidden = true; dialog.classList.remove('is-building'); check(); persist(); }
+    finally { building = false; view.hidden = true; dialog.classList.remove('is-building'); if(error)showResult();else check(); persist(); }
   });
 
   // ---- Describe ----
@@ -336,7 +339,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   }
   function restore(d: Partial<AssistDraft>) {
     brief.value = typeof d.brief === 'string' ? d.brief.slice(0, 6000) : '';
-    draft.value = typeof d.json === 'string' ? d.json.slice(0, 200_000) : '';
+    draft.value = typeof d.json === 'string' ? d.json.slice(0, cfg.maxBytes??200_000) : '';
     context.checked = d.context === true; details.open = d.guideOpen === true;
     if(reference&&cfg.reference!.choices.some(c=>c.id===d.reference)){reference.value=d.reference!;referenceChosen=true;}
     renderReference();guideStale = true; check();

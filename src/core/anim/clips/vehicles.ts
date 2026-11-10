@@ -27,7 +27,7 @@ function seatedLegs(out: Record<string, Ch>, thigh = 85, knee = -85, foot = 4, s
  * Hands on a steering wheel (car or boat) at 9 and 3 o'clock, turned by `steer` degrees.
  * The wheel faces the driver, its top tilted away by `tilt` degrees.
  */
-function wheelHands(centre: V3, radius: number, tilt: number, steer: number): { Left: HandTarget; Right: HandTarget } {
+export function wheelHands(centre: V3, radius: number, tilt: number, steer: number): { Left: HandTarget; Right: HandTarget } {
   const tr = (tilt * Math.PI) / 180;
   const n = v(0, Math.sin(tr), -Math.cos(tr)); // wheel normal, toward the driver
   const up = v(0, Math.cos(tr), Math.sin(tr)); // in the wheel plane, toward its top
