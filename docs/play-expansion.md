@@ -52,11 +52,13 @@ The next release grows Play from staged chapters into a connected district. Keep
 - [x] Let opening and ending scenes start from Ara Studio JSON or a Studio project bundle. Render locally to portable film media. Add microphone recording and female/male generated voice choices per dialogue line.
 - [x] Keep equipped guns visible on defeated enemies. Spread chained objectives and check routes again after placing terminals.
 - [x] Name the chapter, objective, layout and variation in placement errors; provide a downloadable per-chapter **Check placements** JSON report.
-- [x] Add optional timed delivery, street race and bounty contracts with measured starts/routes, clear failure and cash rewards. Both are toggled per chapter and included in portable JSON and the playable export.
+- [x] Add optional timed delivery, street race and bounty contracts with measured starts/routes, clear failure and cash rewards. All three are toggled per chapter and included in portable JSON and the playable export. Delivery now needs a parcel handoff; bounty needs a return to the contact for payment.
 - [ ] Give desert compound, market street and urban block distinct footprints, authored interiors, opening doors, stairs and roof paths; verify indoor/outdoor combat and traversal on every map. Distinct measured perimeters and street solids are implemented; interiors, stairs and roof routes remain.
 - [ ] Add a free-roam city district between chapters, mission markers, civilians, parked cars and escalating one-to-three-star police heat.
 - [ ] Add player-drivable motorcycle, sports car and SUV; vehicle damage/smoke, armed/ramming pursuit, and chase/escort objectives. Pickup collision damage, smoke and checkpoint restoration are implemented; new vehicles and chase/escort gameplay remain.
-- [ ] Carry cash, purchases, branch choices and story flags across chapters and reloads. Cash, purchases and the safehouse shop are implemented; branch choices, flags and conditional briefings remain.
+- [x] Carry cash, purchases, branch choices and story flags across chapters and reloads. Chapters can choose a later chapter, set a flag and change a later briefing; the safehouse shop remains between playable chapters.
+- [x] Cap download interactions at 15 seconds, widen defend areas to a visible 10-metre radius, and bring armed backup assaults into defend objectives. Defend time still follows the configured objective duration and can include one to three assaults.
+- [ ] Expand side jobs with separate characters, vehicles, routes and consequences so they feel like activities in the district instead of optional marker runs.
 
 ## Placement audit
 

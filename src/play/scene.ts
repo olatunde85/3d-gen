@@ -24,8 +24,8 @@ export class GameScene {
  get zoom(){return this.views.zoom;}set zoom(value:number){this.views.zoom=value;}
  readonly atmosphere=new AtmosphereView();readonly combat=new CombatView();readonly grenades=new GrenadeView();
  readonly supplies=new PickupView();air?:AirView;overwatch?:AirView;pickup?:DrivingView;pursuitView?:DrivingView;pursuitActor?:GameActor;
- private door=new T.Group();private key=new T.Group();private exit:T.Mesh;private marker:T.Mesh;private questMarker:T.Mesh;
- private companionRing:T.Mesh;private cargo=new T.Group();private roadMarker:T.Mesh;private smoke=new T.Group();private sun:T.DirectionalLight;
+ private door=new T.Group();private key=new T.Group();private exit:T.Mesh;private marker:T.Mesh;private defendZone:T.Mesh;private questMarker:T.Mesh;
+ private companionRing:T.Mesh;private cargo=new T.Group();private parcel=new T.Group();private roadMarker:T.Mesh;private smoke=new T.Group();private sun:T.DirectionalLight;
  private worldGroup=new T.Group();private worldId='';private occluders:T.Group[]=[];private ray=new T.Raycaster();
  private size={w:0,h:0};
  constructor(readonly canvas:HTMLCanvasElement){
@@ -33,11 +33,13 @@ export class GameScene {
   this.scene.background=new T.Color('#b6c2c6');this.scene.fog=new T.Fog('#b6c2c6',45,110);
   const pmrem=new T.PMREMGenerator(this.renderer),room=new RoomEnvironment(),environment=pmrem.fromScene(room,.04);this.scene.environment=environment.texture;this.scene.environmentIntensity=.5;room.dispose();pmrem.dispose();
   this.scene.add(this.atmosphere.group,this.smoke);for(let i=0;i<4;i++)this.smoke.add(new T.Mesh(new T.SphereGeometry(.38,8,6),new T.MeshBasicMaterial({color:'#4e5555',transparent:true,opacity:.3,depthWrite:false})));const sun=new T.DirectionalLight('#ffe2ad',3.1);sun.position.set(-12,22,10);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-26,right:26,top:26,bottom:-26,near:1,far:70});sun.shadow.normalBias=.025;this.sun=sun;this.scene.add(sun,sun.target);
+  this.parcel.add(new T.Mesh(new T.BoxGeometry(.42,.32,.36),new T.MeshStandardMaterial({color:'#bd9361',roughness:.9})));this.parcel.add(new T.Mesh(new T.BoxGeometry(.06,.34,.38),new T.MeshStandardMaterial({color:'#e2c8a0',roughness:.85})));this.scene.add(this.parcel);
   this.scene.add(this.combat.group,this.grenades.group);
   this.scene.add(this.supplies.group);
   const gate=new SetBuilder();gate.box([2.9,2.3,.24],[1.45,1.15,0],'#aa7745',.5,.4);for(const x of [.2,2.7])gate.box([.08,2,.06],[x,1.15,.15],'#d4b787');gate.label('STAFF ONLY',[1.45,1.65,.135],1.4,'#eee4c9','#705035');this.door.add(gate.group);this.door.position.set(-1.45,0,DOOR.z);this.scene.add(this.door);
   const brass=new T.MeshStandardMaterial({color:'#e9bf62',metalness:.65,roughness:.28});const ring=new T.Mesh(new T.TorusGeometry(.14,.04,8,24),brass);this.key.add(ring);const shaft=new T.Mesh(new T.BoxGeometry(.09,.4,.07),brass);shaft.position.y=-.28;this.key.add(shaft);for(const y of [-.43,-.34]){const tooth=new T.Mesh(new T.BoxGeometry(.18,.055,.07),brass);tooth.position.set(.06,y,0);this.key.add(tooth);}this.key.position.set(KEY.x,1.2,KEY.z);this.scene.add(this.key);
   this.marker=new T.Mesh(new T.RingGeometry(.55,.62,48).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#e9bf62',transparent:true,opacity:.8,side:T.DoubleSide}));this.marker.position.set(KEY.x,.018,KEY.z);this.scene.add(this.marker);
+  this.defendZone=new T.Mesh(new T.RingGeometry(9.85,10,96).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#e9bf62',transparent:true,opacity:.45,side:T.DoubleSide,depthWrite:false}));this.scene.add(this.defendZone);
   this.questMarker=new T.Mesh(new T.RingGeometry(.7,.82,48).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#82e0dc',transparent:true,opacity:.9,side:T.DoubleSide}));this.scene.add(this.questMarker);
   this.exit=new T.Mesh(new T.RingGeometry(1.25,1.5,64).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#57d7b1',transparent:true,opacity:.6,side:T.DoubleSide}));this.exit.position.set(EXIT.x,.025,EXIT.z);this.scene.add(this.exit);
   this.companionRing=new T.Mesh(new T.RingGeometry(.52,.6,48).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#87d8ed',transparent:true,opacity:.8,side:T.DoubleSide}));this.companionRing.visible=false;this.scene.add(this.companionRing);
@@ -114,13 +116,13 @@ export class GameScene {
   if(game.air){if(!this.air||this.air.hero!==actor||this.air.companion!==companion){this.air?.dispose();this.air=new AirView(actor,companion);this.scene.add(this.air.group);}game.configureAir(this.air.fit);}else{this.air?.dispose();this.air=undefined;}
   if(game.mission.overwatch){if(!this.overwatch||this.overwatch.hero!==actor){this.overwatch?.dispose();this.overwatch=new AirView(actor,undefined,true);this.scene.add(this.overwatch.group);}}else{this.overwatch?.dispose();this.overwatch=undefined;}
 
-  if(!game.mission.pursuit){this.pursuitView?.dispose();this.pursuitView=undefined;}
+  if(!game.assaultCarEnabled){this.pursuitView?.dispose();this.pursuitView=undefined;}
   if(!game.car){this.pickup?.dispose();this.pickup=undefined;return;}
   if(!this.pickup||this.pickup.actor!==actor||this.pickup.passengerActor!==companion||this.pickup.settings.color!==game.vehicleSettings.color||this.pickup.passengerRadius!==(game.companion?.radius??game.player.radius)){this.pickup?.dispose();this.pickup=new DrivingView(actor,game.vehicleSettings,game.player.radius,game.companion?.radius);this.scene.add(this.pickup.vehicle.group);}
   game.configureCar(this.pickup.fit);if(companion){this.pickup.configurePassenger(companion,game.car!);game.configureCar(this.pickup.fit);}
  }
  private resize(){const r=this.canvas.getBoundingClientRect();if(!r.width||!r.height||r.width===this.size.w&&r.height===this.size.h)return;this.size={w:r.width,h:r.height};this.renderer.setSize(r.width,r.height,false);}
- configurePursuit(actor:GameActor,game:EscapeGame){if(!game.mission.pursuit)return;if(!this.pursuitView||this.pursuitActor!==actor){this.pursuitView?.dispose();this.pursuitActor=actor;this.pursuitView=new DrivingView(actor,{color:'#6b5349',pace:'standard'},.38);this.scene.add(this.pursuitView.vehicle.group);}game.configurePursuit(this.pursuitView.fit);}
+ configurePursuit(actor:GameActor,game:EscapeGame){if(!game.assaultCarEnabled)return;if(!this.pursuitView||this.pursuitActor!==actor){this.pursuitView?.dispose();this.pursuitActor=actor;this.pursuitView=new DrivingView(actor,{color:'#6b5349',pace:'standard'},.38);this.scene.add(this.pursuitView.vehicle.group);}game.configurePursuit(this.pursuitView.fit);}
  configureCamera(settings:CameraSettings,game:EscapeGame){this.views.configure(settings,game.player);this.positionCamera(game,0);}
  setView(view:CameraView,game:EscapeGame){const changed=this.views.setView(view,game.player);this.positionCamera(game,0);return changed;}
  cycleView(game:EscapeGame,direction=1){const changed=this.views.cycle(game.player,direction);this.positionCamera(game,0);return changed;}
@@ -151,13 +153,15 @@ export class GameScene {
  render(game:EscapeGame,dt:number,paused=false){
   this.setWorld(game.world);this.key.position.x=game.world.key.x;this.key.position.z=game.world.key.z;this.marker.position.set(game.world.key.x,.018,game.world.key.z);this.exit.position.set(game.world.helipad?.x??game.world.exit.x,.025,game.world.helipad?.z??game.world.exit.z);
   this.door.scale.x=game.world.gateWidth/2.9;this.door.position.set(game.world.gate.x-game.world.gateWidth/2,0,game.world.gate.z);this.door.rotation.y=game.door*Math.PI/2;this.key.visible=(game.mission.story==='escape'||game.mission.story==='getaway')&&!game.hasKey;this.marker.visible=this.key.visible||!!game.currentStep;if(game.currentStep)this.marker.position.set(game.currentStep.position.x,.025,game.currentStep.position.z);
+  this.defendZone.visible=game.currentStep?.step.type==='defend';if(this.defendZone.visible)this.defendZone.position.set(game.currentStep!.position.x,.019,game.currentStep!.position.z);
   const side=game.sideQuestMarker;this.questMarker.visible=!!side;if(side)this.questMarker.position.set(side.point.x,.03,side.point.z);
   this.key.rotation.y=game.time*1.1;this.key.position.y=1.2+Math.sin(game.time*2)*.09;
+  const delivery=game.sideQuests.find(q=>q.id==='delivery');this.parcel.visible=!!delivery&&(delivery.status==='available'||delivery.status==='active');if(delivery?.status==='available'){this.parcel.position.set(delivery.start.x,.2,delivery.start.z);this.parcel.rotation.y=0;}else if(delivery?.status==='active'){const yaw=game.player.yaw;this.parcel.position.set(game.player.x-Math.sin(yaw)*.34,game.player.y+1.05,game.player.z-Math.cos(yaw)*.34);this.parcel.rotation.y=yaw;}
   this.exit.visible=game.mission.story==='clear'||(game.companion?game.companion.rescued:game.hasKey);(this.exit.material as T.MeshBasicMaterial).color.set(game.extractionReady?'#57d7b1':'#a5ac9b');(this.exit.material as T.MeshBasicMaterial).opacity=.45+Math.sin(game.time*2)*.2;
   this.companionRing.visible=game.car?!game.vehicleBusy:!!game.companion&&game.companion.combat.health>0;this.companionRing.scale.setScalar(game.car?3:1);if(game.car)this.companionRing.position.set(game.car.x,.022,game.car.z);if(game.companion&&!game.car)this.companionRing.position.set(game.companion.x,.022,game.companion.z);
   if(game.car&&this.pickup)this.pickup.update(game.car,this.pickup.actor.vehicleFrame,game.companion);this.smoke.visible=!!game.car&&game.car.health!==undefined&&game.car.health<60;if(this.smoke.visible&&game.car){const hood=carPoint(game.car,{x:0,z:game.car.fit.box.maxZ*.5});this.smoke.position.set(hood.x,game.car.fit.height*.8,hood.z);for(let i=0;i<this.smoke.children.length;i++){const cloud=this.smoke.children[i]as T.Mesh,p=(game.time*.55+i/this.smoke.children.length)%1;cloud.position.set(Math.sin(game.time*1.2+i*2)*.26,p*1.8,Math.cos(game.time+i)*.2);cloud.scale.setScalar(.45+p*.9);(cloud.material as T.MeshBasicMaterial).opacity=(1-p)*(.16+(60-game.car.health!)/180);}}this.exit.scale.setScalar(game.car?pickupExtractionRadius(game.car.fit)/1.5:1);
   this.cargo.visible=!!game.world.cargo&&!game.hasCargo;this.roadMarker.visible=!!game.routeTarget;if(game.routeTarget)this.roadMarker.position.set(game.routeTarget.x,.065,game.routeTarget.z);const lightZ=game.world.getaway?.course?game.player.z:0,lightX=game.world.getaway?.course?game.player.x:0;this.sun.position.set(lightX-12,22,lightZ+10);this.sun.target.position.set(lightX,0,lightZ);this.sun.target.updateMatrixWorld(true);
-  if(game.pursuit&&this.pursuitView)this.pursuitView.update(game.pursuit.car,this.pursuitActor?.vehicleFrame);this.air?.update(game);this.overwatch?.update(game);this.atmosphere.update(game,this.sun,this.scene);this.positionCamera(game,paused?0:dt);this.supplies.update(game,this.camera);this.combat.update(game,paused?0:dt);this.grenades.update(game,paused?0:dt);this.fadeObstructions(game,dt);this.renderer.render(this.scene,this.camera);
+  if(this.pursuitView){this.pursuitView.vehicle.group.visible=game.pursuitActive;if(game.pursuitActive)this.pursuitView.update(game.pursuit!.car,this.pursuitActor?.vehicleFrame);}this.air?.update(game);this.overwatch?.update(game);this.atmosphere.update(game,this.sun,this.scene);this.positionCamera(game,paused?0:dt);this.supplies.update(game,this.camera);this.combat.update(game,paused?0:dt);this.grenades.update(game,paused?0:dt);this.fadeObstructions(game,dt);this.renderer.render(this.scene,this.camera);
  }
  private fadeObstructions(game:EscapeGame,dt:number){
   this.worldGroup.updateMatrixWorld(true);const target=new T.Vector3(game.player.x,game.player.y+.25,game.player.z),direction=target.clone().sub(this.camera.position),distance=direction.length();this.ray.set(this.camera.position,direction.normalize());this.ray.far=distance-.15;const hit=new Set<T.Object3D>();
@@ -170,7 +174,7 @@ export class GameScene {
   g.strokeStyle=game.opening?'#74dfba':'#e6b262';g.lineWidth=3;g.beginPath();const gate=game.world.gate;g.moveTo(x(gate.x-game.world.gateWidth/2),z(gate.z));g.lineTo(x(gate.x-game.world.gateWidth/2+game.world.gateWidth*Math.cos(game.door*Math.PI/2)),z(gate.z-game.world.gateWidth*Math.sin(game.door*Math.PI/2)));g.stroke();
   const dot=(p:{x:number;z:number},color:string,r:number)=>{g.fillStyle=color;g.beginPath();g.arc(x(p.x),z(p.z),r,0,Math.PI*2);g.fill();};
   if(game.currentStep)dot(game.currentStep.position,'#f0ca70',4);
-  for(const job of game.sideQuests){if(job.status==='available')dot(job.start,'#82e0dc',4);else if(job.status==='active')dot(job.id==='bounty'?game.bountyTarget:job.checkpoints[job.index],'#82e0dc',5);}
+  for(const job of game.sideQuests){if(job.status==='available')dot(job.start,'#82e0dc',4);else if(job.status==='active')dot(job.id==='bounty'?(job.index?job.start:game.bountyTarget):job.checkpoints[job.index],'#82e0dc',5);}
   if(game.world.cargo&&!game.hasCargo)dotCargo();
   function dotCargo(){g.fillStyle='#d3a8e2';g.fillRect(x(game.world.cargo!.position.x)-3,z(game.world.cargo!.position.z)-3,6,6);}
   if(game.routeTarget){g.strokeStyle='#e3c66e';g.lineWidth=2;g.beginPath();g.arc(x(game.routeTarget.x),Math.max(7,Math.min(h-7,z(game.routeTarget.z))),5,0,Math.PI*2);g.stroke();}

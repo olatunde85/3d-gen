@@ -1,4 +1,4 @@
-import {parseSteps,type MissionStep} from './objectives';
+import {parseSteps,stepDuration,type MissionStep} from './objectives';
 import {parseSideQuests,type SideQuestId} from './side-quests';
 import {floodlightAnchors,parseEnvironment,type EnvironmentSettings} from './environment';
 /** Scenario rules resolve against independent, measured location contracts. */
@@ -16,7 +16,7 @@ export const defaultMission=():MissionSettings=>({story:'escape',plan:'breakout'
 export const missionGoal=(m:MissionSettings)=>m.story==='getaway'?'escape':m.story;
 export const extractionMode=(m:MissionSettings)=>m.extraction??(m.story==='getaway'?'pickup':'foot');
 export const usesPickup=(m:MissionSettings)=>extractionMode(m)==='pickup';
-export const missionTimeLimit=(m:MissionSettings)=>90+(m.steps?.reduce((n,s)=>n+(s.duration??(s.type==='defend'?60:s.type==='download'?8:25)),0)??0)+(m.cargo&&m.cargo!=='none'?30:0)+(usesPickup(m)?m.driveDifficulty==='hard'?90:m.driveDifficulty==='standard'?45:0:0);
+export const missionTimeLimit=(m:MissionSettings)=>90+(m.steps?.reduce((n,s)=>n+(['download','defend'].includes(s.type)?stepDuration(s):25),0)??0)+(m.cargo&&m.cargo!=='none'?30:0)+(usesPickup(m)?m.driveDifficulty==='hard'?90:m.driveDifficulty==='standard'?45:0:0);
 export const PLANS={breakout:{name:'Standard',description:'Find the key, open the gate and outwit the guard.'},timed:{name:'Against the clock',description:'Complete the mission within 90 seconds.'},quiet:{name:'Leave no trace',description:'Find a route out without raising the alarm.'}}as const;
 export interface SpawnPoint extends Point {yaw:number}
 export type CheckpointStage='key'|'gate'|'rescue'|'clear'|'vehicle'|'cargo'|'route';

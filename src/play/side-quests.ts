@@ -14,7 +14,7 @@ export function stageSideQuests(world:MissionWorld,ids:readonly SideQuestId[]):S
  const far=near?[...points].sort((a,c)=>distance(c,near)-distance(a,near)).find(p=>distance(p,near)>12&&route(near,p,rects,.52,b).length):undefined;
  return ids.map(id=>{
   if(id==='delivery'){if(!near||!far)throw Error(`sideQuests.delivery: ${world.location} needs two reachable, separated ground points.`);return {id,start:near,checkpoints:[far],limit:Math.max(45,Math.ceil(distance(near,far)/2.1)+20),cash:200,status:'available',index:0,elapsed:0};}
-  if(id==='bounty'){if(!near)throw Error(`sideQuests.bounty: ${world.location} needs a reachable contact point.`);return {id,start:near,checkpoints:[],limit:120,cash:250,status:'available',index:0,elapsed:0};}
+  if(id==='bounty'){if(!near)throw Error(`sideQuests.bounty: ${world.location} needs a reachable contact point.`);return {id,start:near,checkpoints:[near],limit:120,cash:250,status:'available',index:0,elapsed:0};}
   if(!world.getaway)throw Error('sideQuests.street-race requires pickup extraction.');
   const start=world.getaway.pickup,checkpoints=world.getaway.course?.checkpoints?.length?world.getaway.course.checkpoints:world.getaway.route.slice(1);
   if(!checkpoints.length)throw Error('sideQuests.street-race needs a road route.');
