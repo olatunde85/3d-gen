@@ -7,7 +7,7 @@ import {clipById} from '../src/core/anim/clips';
 import {Vehicle} from '../src/core/props/vehicle';
 import {VEHICLE_CLIP,DEFAULT_VEHICLE_STYLE} from '../src/core/props/vehicles';
 import {measureDriveVehicle,measurePickup} from '../src/play/driving-view';
-import {DRIVE,driveStep,parseDriving,topSpeed,driverStand,defaultCarFit,type CarFit,type DriveVehicle,type CarState} from '../src/play/driving';
+import {DRIVE,driveStep,parseDriving,topSpeed,driverStand,carPoint,defaultCarFit,type CarFit,type DriveVehicle,type CarState} from '../src/play/driving';
 import {EscapeGame} from '../src/play/runtime';
 import {defaultMission} from '../src/play/mission';
 
@@ -28,3 +28,4 @@ for(const model of ['sports_car','suv','motorcycle']as DriveVehicle[]){
 }
 const pickup=new Vehicle('pickup',human.rig!,anim,clipById.get(VEHICLE_CLIP.pickup)!,DEFAULT_VEHICLE_STYLE),hub=new EscapeGame({...defaultMission(),location:'urban-block',story:'getaway',extraction:'pickup'},undefined,undefined,100,undefined,undefined,true);
 hub.configureCar(measurePickup(pickup,human.rig!,.36));hub.configureHubFleet(fleet);assert.equal(hub.hubFleet.length,3);hub.start();for(const model of ['sports_car','suv','motorcycle']as const){const slot=hub.hubFleet.find(item=>item.model===model)!;Object.assign(hub.player,driverStand(slot.car));assert.equal(hub.canInteract,true,`${model} has a reachable driver door`);hub.update(1/60,{x:0,z:0,sprint:false,interact:true});assert.equal(hub.vehicleSettings.model,model);assert.equal(hub.car?.phase,'boarding');hub.configureCar(slot.car.fit);hub.car!.phase='parked';}pickup.dispose();console.log('OK city fleet cars are parked, reachable and switchable');
+const still={x:0,z:0,sprint:false,interact:false};Object.assign(hub.player,driverStand(hub.car!));assert.equal(hub.canInteract,true,'parked bike is boardable');hub.update(1/60,{...still,interact:true});for(let i=0;i<90;i++)hub.update(1/60,still);assert.equal(hub.car!.phase,'driving');Object.assign(hub.car!,{x:0,z:-70,yaw:Math.PI/3,speed:0});Object.assign(hub.player,{x:0,z:-70,yaw:Math.PI/3});hub.update(1/60,{...still,interact:true});for(let i=0;i<90;i++)hub.update(1/60,still);assert.equal(hub.car!.phase,'parked');const left=carPoint(hub.car!,{x:-hub.car!.fit.stand.x,z:hub.car!.fit.stand.z});Object.assign(hub.player,left);assert.equal(hub.canInteract,true,`parked bike can be boarded from the other side: ${hub.prompt}`);hub.update(1/60,{...still,interact:true});for(let i=0;i<90;i++)hub.update(1/60,still);assert.equal(hub.car!.phase,'driving','bike reboards from the opposite side');

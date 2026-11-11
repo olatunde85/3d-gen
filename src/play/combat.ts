@@ -41,7 +41,7 @@ export function spendRound(c:Combatant,interval:number=weaponProfile(c.weapon).i
 }
 export function damage(c:Combatant,amount:number,direction:HitDirection='front',kind:Combatant['damageKind']='bullet'){if(c.health<=0||amount<=0)return;c.damageKind=kind;c.health=Math.max(0,c.health-amount);c.hitAge=0;c.hitDirection=direction;if(c.health===0){c.reload=0;c.aiming=false;c.windup=0;}}
 /** Record the impact relative to the victim's facing at the instant the shot lands. */
-export function hitDirection(body:MotorBody,source:{x:number;z:number}):HitDirection {
+export function hitDirection(body:Pick<MotorBody,'x'|'z'|'yaw'>,source:{x:number;z:number}):HitDirection {
  const angle=Math.atan2(source.x-body.x,source.z-body.z)-body.yaw,forward=Math.cos(angle);
  return forward>Math.SQRT1_2?'front':forward<-Math.SQRT1_2?'back':Math.sin(angle)>0?'left':'right';
 }

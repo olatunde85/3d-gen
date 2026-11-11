@@ -1,6 +1,6 @@
 /** Deterministic pickup dynamics and oriented collision, shared by preview and exports. */
 import type {VehicleSurface} from './vehicle-surfaces';
-import {blocked,clearPath,type Point,type Rect} from './world';
+import {blocked,clearPath,distance,type Point,type Rect} from './world';
 export type DriveVehicle='pickup'|'sports_car'|'suv'|'motorcycle';
 export interface DrivingSettings {color:string;pace:'relaxed'|'standard'|'fast';model?:DriveVehicle}
 export const defaultDriving=():DrivingSettings=>({color:'#294c60',pace:'standard'});
@@ -39,6 +39,10 @@ export function carClear(car:CarPose,fit:CarFit,rects:readonly Rect[],bounds:Rec
  return carCorners(car,fit).every(p=>p.x>bounds.minX+.2&&p.x<bounds.maxX-.2&&p.z>bounds.minZ+.2&&p.z<bounds.maxZ-.2)&&!rects.some(r=>carTouches(car,fit,r))&&!people.some(p=>carTouchesPerson(car,fit,p));
 }
 export function entryClear(car:CarState,radius:number,rects:readonly Rect[],people:readonly (Point&{radius:number})[]=[]){const p=driverStand(car);return !blocked(p,radius,rects)&&!carTouchesPerson(car,car.fit,{...p,radius})&&people.every(q=>Math.hypot(p.x-q.x,p.z-q.z)>radius+q.radius+.08);}
+export function motorcycleEntry(car:CarState,from:Point,radius:number,rects:readonly Rect[],people:readonly (Point&{radius:number})[]=[],bounds?:Rect){
+ const candidates=[driverStand(car),{...carPoint(car,{x:-car.fit.stand.x,z:car.fit.stand.z}),yaw:car.yaw}].sort((a,b)=>distance(from,a)-distance(from,b));
+ return candidates.find(p=>distance(from,p)<2.7&&(!bounds||p.x>bounds.minX+radius&&p.x<bounds.maxX-radius&&p.z>bounds.minZ+radius&&p.z<bounds.maxZ-radius)&&!blocked(p,radius,rects)&&!carTouchesPerson(car,car.fit,{...p,radius})&&people.every(q=>distance(p,q)>radius+q.radius+.08)&&clearPath(from,p,rects,radius));
+}
 export function canReachDoor(from:Point,car:CarState,radius:number,rects:readonly Rect[],hull?:readonly Rect[]){const stand=driverStand(car);return Math.hypot(from.x-stand.x,from.z-stand.z)<1.6&&clearPath(from,stand,rects,radius)&&(hull?clearPath(from,stand,hull,radius):clearPath(carLocal(car,from),car.fit.stand,[car.fit.box],radius));}
 /** Substeps bound both translation and corner sweep, preventing thin-wall tunnelling at speed. */
 export function driveStep(car:CarState,dt:number,throttle:number,steer:number,brake:boolean,settings:DrivingSettings,rects:readonly Rect[],bounds:Rect,people:readonly (Point&{radius:number})[]=[]){

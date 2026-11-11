@@ -74,6 +74,14 @@ The next release grows Play from staged chapters into a connected district. Keep
 - The optional radio requests current country codes and top working stations from Radio Browser when enabled. It streams only while driving, has a Next station control, and stops on exit or pause. Internet and a playable station stream are required. Radio Browser's [API reference](https://docs.radio-browser.info/) defines the station search, country codes and station click endpoint.
 - Retry checks every parked vehicle hull and keeps the hub gate open. Landing clears capsule overlap at platform edges. The renderer caps pixel ratio and shadow resolution, city buildings use simpler meshes, and static collision and occlusion data are reused instead of rebuilt each frame.
 
+## Latest city controls
+
+- A parked motorcycle can be boarded again from either clear side. Its handlebar stays fixed to the bike when the rider aims. The marker names the motorcycle. Press **J** while driving to switch radio stations.
+- Repair and gun shops are labelled, walkable buildings with doors that open on approach and close after departure. Their purchase markers sit inside the shops.
+- Pedestrian hostility can be peaceful, retaliatory, mixed at random, or hostile. Street fights now take more than one hit; pedestrians can pursue and punch back. The fight-for-cash option still controls whether peaceful pedestrians can be attacked.
+- LLM Assist has a **Generate missing dialogue audio during preview** checkbox beside the pasted JSON controls. Turning it off keeps recorded audio and uses device speech for missing lines.
+- `npm run test:play` runs the focused gameplay checks; `npm run test:play:full` retains the exhaustive map and campaign matrix. The focused command uses `node --import tsx` so it runs without the `tsx` IPC server.
+
 ## Placement audit
 
 - A five-chapter campaign with an urban night vault and hard pickup route exposed buildings placed across the chapter 3 escape lane. The urban annex and shopfront now sit outside that lane. A market stall also blocked the parked pickup in all cover layouts; it has been moved.

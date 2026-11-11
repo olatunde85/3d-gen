@@ -84,7 +84,9 @@ export function buildMotorcycle(k:VehicleKit){
  const barHalf=k.fit.average('left').distanceTo(k.fit.average('right'))/2;
  k.tube(v(-barHalf,0,0),v(barHalf,0,0),.014*s,k.trim,bars);
  for(const side of [-1,1]){k.tube(v(side*(barHalf-.1*s),0,0),v(side*(barHalf+.04*s),0,0),.023*s,k.rubber,bars);k.tube(v(side*barHalf,.02*s,0),v(side*(barHalf-.08*s),.025*s,.07*s),.009*s,k.trim,bars);}
- bars.position.copy(barCentre);k.updates.push(c=>{bars.position.copy(c.left).add(c.right).multiplyScalar(.5);bars.quaternion.setFromUnitVectors(v(1,0,0),c.left.clone().sub(c.right).normalize());});
+ // The motorcycle's bar is rigid. Following the rider's live hand positions
+ // twisted it across the bike whenever one hand aimed a weapon.
+ bars.position.copy(barCentre);
  k.tube(head,barCentre,.023*s,k.trim);
  const headlight=k.mesh(new T.CylinderGeometry(.09*s,.09*s,.07*s,24),k.light);headlight.rotation.x=Math.PI/2;headlight.position.set(0,.84*s,H.z+.69*s);
  if(sport){const screen=k.box(v(0,1.00*s,H.z+.7*s),v(.31*s,.21*s,.02*s),k.glass);screen.rotation.x=-.35;k.ellipsoid(v(0,.79*s,H.z+.61*s),v(.22*s,.17*s,.11*s),k.paint);}
