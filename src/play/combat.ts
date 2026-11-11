@@ -57,7 +57,7 @@ export function boxHit(origin:Point3,dir:Point3,min:Point3,max:Point3,range:numb
 export function traceShot(body:MotorBody,target:Point3,volumes:readonly Volume[],targets:readonly ShotTarget[],range:number=PISTOL.range):Omit<Shot,'id'|'owner'> {
  const from=chest(body),yaw=Math.atan2(target.x-from.x,target.z-from.z),pitch=aimPitch(body,target),dir={x:Math.sin(yaw)*Math.cos(pitch),y:Math.sin(pitch),z:Math.cos(yaw)*Math.cos(pitch)};
  let length=range,hit:string|undefined,blocked=false;
- for(const v of volumes){const r=v.obb?.box??v,o=v.obb?{...rectLocal(from,v.obb),y:from.y}:from,c=Math.cos(v.obb?.yaw??0),s=Math.sin(v.obb?.yaw??0),direction=v.obb?{x:c*dir.x-s*dir.z,y:dir.y,z:s*dir.x+c*dir.z}:dir,d=boxHit(o,direction,{x:r.minX,y:0,z:r.minZ},{x:r.maxX,y:v.h,z:r.maxZ},length);if(d!==undefined&&d<=length){length=d;hit=undefined;blocked=true;}}
+ for(const v of volumes){const r=v.obb?.box??v,o=v.obb?{...rectLocal(from,v.obb),y:from.y}:from,c=Math.cos(v.obb?.yaw??0),s=Math.sin(v.obb?.yaw??0),direction=v.obb?{x:c*dir.x-s*dir.z,y:dir.y,z:s*dir.x+c*dir.z}:dir,d=boxHit(o,direction,{x:r.minX,y:v.baseY??0,z:r.minZ},{x:r.maxX,y:v.h,z:r.maxZ},length);if(d!==undefined&&d<=length){length=d;hit=undefined;blocked=true;}}
  if(dir.y<0){const floor=-from.y/dir.y;if(floor>=0&&floor<length){length=floor;blocked=true;}}
  for(const t of targets){if(!t.alive)continue;const b=t.body,d=boxHit(from,dir,{x:b.x-b.radius,y:b.y+.08,z:b.z-b.radius},{x:b.x+b.radius,y:b.y+stanceHeight(b)*.96,z:b.z+b.radius},length);if(d!==undefined&&d<length-1e-5){length=d;hit=t.id;blocked=false;}}
  return {from,to:{x:from.x+dir.x*length,y:from.y+dir.y*length,z:from.z+dir.z*length},hit,blocked};

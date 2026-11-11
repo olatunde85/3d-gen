@@ -58,7 +58,7 @@ export function blastDamage(origin:Point3,body:MotorBody,volumes:readonly Volume
  let exposed=0;
  for(const height of [.2,.55,.85]){
   const delta={x:body.x-origin.x,y:body.y+stanceHeight(body)*height-origin.y,z:body.z-origin.z};
-  if(!volumes.some(v=>{const t=boxHit(origin,delta,{x:v.minX,y:0,z:v.minZ},{x:v.maxX,y:v.h,z:v.maxZ},1);return t!==undefined&&t<1-1e-5;}))exposed++;
+  if(!volumes.some(v=>{const t=boxHit(origin,delta,{x:v.minX,y:v.baseY??0,z:v.minZ},{x:v.maxX,y:v.h,z:v.maxZ},1);return t!==undefined&&t<1-1e-5;}))exposed++;
  }
  return exposed?Math.max(1,Math.round(GRENADE.damage*Math.min(1,(GRENADE.blast-distance)/(GRENADE.blast-1.2))*exposed/3)):0;
 }

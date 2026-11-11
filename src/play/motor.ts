@@ -1,6 +1,6 @@
 /** Height-aware movement and safe contextual traversal; no character meshes are scaled. */
 import {blocked,move,clearPath,distance,rectLocal,type Rect,type Point,WORLD} from './world';
-export interface Volume extends Rect {h:number;id:string;climbable:boolean}
+export interface Volume extends Rect {h:number;baseY?:number;id:string;climbable:boolean}
 export interface MotorBody extends Point {grenadeRelease?:{x:number;y:number;z:number};y:number;vy:number;height:number;animationScale?:number;crouch?:number;radius:number;grounded:boolean;airTime:number;landing:number;yaw:number;speed:number}
 export interface Traversal {landingDrop?:number;kind:'vault'|'climb';block:string;from:{x:number;y:number;z:number};to:{x:number;y:number;z:number};normal:Point;near:number;depth:number;rise:number;scale:number;time:number;duration:number;approach:boolean}
 /** Standing height stays immutable; stance changes sight and hit geometry, never mesh scale. */
@@ -8,10 +8,10 @@ export const stanceHeight=(b:MotorBody)=>b.height*(1-.33*(b.crouch??0));
 export const bodyScale=(b:MotorBody)=>b.animationScale??b.height/1.8;
 const contains=(point:Point,v:Rect,margin=0)=>{const p=v.obb?rectLocal(point,v.obb):point,r=v.obb?.box??v;return p.x>=r.minX+margin&&p.x<=r.maxX-margin&&p.z>=r.minZ+margin&&p.z<=r.maxZ-margin;};
 export function supportAt(p:Point,maxY:number,volumes:readonly Volume[],radius=0):number {let y=0;for(const v of volumes)if(v.climbable&&v.h<=maxY+.001&&(radius?blocked(p,radius,[v]):contains(p,v,.06)))y=Math.max(y,v.h);return y;}
-export const atHeight=(volumes:readonly Volume[],y:number)=>volumes.filter(v=>v.h>y+.025);
+export const atHeight=(volumes:readonly Volume[],y:number,height=1.8)=>volumes.filter(v=>v.h>y+.025&&(v.baseY??0)<y+height-.025);
 export function sight(from:MotorBody,to:MotorBody,volumes:readonly Volume[]):boolean {
  const ay=from.y+stanceHeight(from)*.87,by=to.y+stanceHeight(to)*.82;
- return !volumes.some(v=>{const a=v.obb?rectLocal(from,v.obb):from,b=v.obb?rectLocal(to,v.obb):to,r=v.obb?.box??v;let lo=0,hi=1;for(const axis of ['x','z']as const){const min=axis==='x'?r.minX:r.minZ,max=axis==='x'?r.maxX:r.maxZ,d=b[axis]-a[axis];if(Math.abs(d)<1e-8){if(a[axis]<min||a[axis]>max)return false;}else{const x=(min-a[axis])/d,y=(max-a[axis])/d;lo=Math.max(lo,Math.min(x,y));hi=Math.min(hi,Math.max(x,y));if(lo>hi)return false;}}return Math.min(ay+(by-ay)*lo,ay+(by-ay)*hi)<v.h;});
+ return !volumes.some(v=>{const a=v.obb?rectLocal(from,v.obb):from,b=v.obb?rectLocal(to,v.obb):to,r=v.obb?.box??v;let lo=0,hi=1;for(const axis of ['x','z']as const){const min=axis==='x'?r.minX:r.minZ,max=axis==='x'?r.maxX:r.maxZ,d=b[axis]-a[axis];if(Math.abs(d)<1e-8){if(a[axis]<min||a[axis]>max)return false;}else{const x=(min-a[axis])/d,y=(max-a[axis])/d;lo=Math.max(lo,Math.min(x,y));hi=Math.min(hi,Math.max(x,y));if(lo>hi)return false;}}const y0=ay+(by-ay)*lo,y1=ay+(by-ay)*hi;return Math.min(y0,y1)<v.h&&Math.max(y0,y1)>(v.baseY??0);});
 }
 
 /** Gravity continues after walking off a roof. Landing only occurs on a swept, supporting top. */
@@ -19,12 +19,12 @@ export function motorStep(body:MotorBody,dx:number,dz:number,dt:number,volumes:r
  body.landing=Math.max(0,body.landing-dt);const wasGrounded=body.grounded;
  if(jump&&body.grounded){body.vy=5.5*Math.sqrt(bodyScale(body));body.grounded=false;body.airTime=0;body.landing=0;}
  const beforeY=body.y;
- if(!body.grounded){body.vy-=14*dt;body.y+=body.vy*dt;body.airTime+=dt;}
+ if(!body.grounded){body.vy-=14*dt;body.y+=body.vy*dt;body.airTime+=dt;if(body.vy>0){const head=stanceHeight(body),ceiling=volumes.filter(v=>(v.baseY??0)>beforeY+head-.001&&(v.baseY??0)<=body.y+head&&blocked(body,body.radius,[v])).sort((a,b)=>(a.baseY??0)-(b.baseY??0))[0];if(ceiling){body.y=ceiling.baseY!-head;body.vy=0;}}}
  const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.06));
  for(let i=0;i<steps;i++){
-  const tryAxis=(axis:'x'|'z',delta:number)=>{const p={x:body.x,z:body.z};p[axis]+=delta;p[axis]=Math.max((axis==='x'?bounds.minX:bounds.minZ)+.2+body.radius,Math.min((axis==='x'?bounds.maxX:bounds.maxZ)-.2-body.radius,p[axis]));let solids=atHeight(volumes,body.y);const hits=solids.filter(v=>blocked(p,body.radius,[v]));
+  const tryAxis=(axis:'x'|'z',delta:number)=>{const p={x:body.x,z:body.z};p[axis]+=delta;p[axis]=Math.max((axis==='x'?bounds.minX:bounds.minZ)+.2+body.radius,Math.min((axis==='x'?bounds.maxX:bounds.maxZ)-.2-body.radius,p[axis]));let solids=atHeight(volumes,body.y,stanceHeight(body));const hits=solids.filter(v=>blocked(p,body.radius,[v]));
    // A real step must be low, walkable and have clear standing space above it.
-   if(body.grounded&&hits.length&&hits.every(v=>v.climbable&&v.h-body.y<=.26*Math.max(.9,bodyScale(body)))){const top=Math.max(...hits.map(v=>v.h));solids=atHeight(volumes,top);if(!blocked(p,body.radius,solids)){body.y=top;body[axis]=p[axis];return;}}
+   if(body.grounded&&hits.length&&hits.every(v=>v.climbable&&v.h-body.y<=.26*Math.max(.9,bodyScale(body)))){const top=Math.max(...hits.map(v=>v.h));solids=atHeight(volumes,top,stanceHeight(body));if(!blocked(p,body.radius,solids)){body.y=top;body[axis]=p[axis];return;}}
    if(!blocked(p,body.radius,solids))body[axis]=p[axis];
   };
   tryAxis('x',dx/steps);tryAxis('z',dz/steps);

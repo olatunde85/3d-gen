@@ -202,10 +202,13 @@ body{grid-template-rows:52px minmax(0,1fr) 32px}
 #lives-status.low{color:#a34228}
 .result-meta{font-size:12px;color:var(--green);font-weight:600;margin:0 0 16px}
 #result-restart{display:block;width:100%;margin-top:10px}
-#branch-choices{margin:12px 0;padding:12px;border:1px solid #d0d5c8;border-radius:6px;background:#f5f4ec}
-#branch-choices p{font-size:13px;margin:0 0 8px}
-#branch-choices button{display:block;width:100%;margin:5px 0;padding:8px;text-align:left}
-#branch-choices button[aria-pressed=true]{border-color:#437b70;background:#dceee8}
+#branch-choices{margin:16px 0;padding:16px;border:1px solid #9ab7a9;border-radius:8px;background:#eef5ed}
+#branch-choices h2{font-size:17px;margin:0 0 6px}
+#branch-choices p{font-size:13px;margin:0 0 10px}
+#branch-choices .branch-choice{display:flex;flex-direction:column;gap:3px;width:100%;margin:7px 0;padding:10px 12px;text-align:left;border:1px solid #b9c8bb;border-radius:6px;background:#fff;color:var(--ink)}
+#branch-choices .branch-choice strong{font-size:13px}
+#branch-choices .branch-choice small{font-size:11px;color:var(--muted)}
+#branch-choices .branch-choice[aria-checked=true]{border:2px solid #437b70;background:#dceee8;padding:9px 11px}
 #safehouse{margin:12px 0;padding:12px;border:1px solid #d0d5c8;border-radius:6px;background:#f5f4ec}
 #safehouse h2{font-size:14px;margin:0 0 4px}
 #safehouse p{font-size:12px;margin:0 0 8px}

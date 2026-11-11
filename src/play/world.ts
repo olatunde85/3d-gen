@@ -1,6 +1,6 @@
 /** Escape depot geometry in metres. Rendering, movement and navigation share these bounds. */
 export interface Point {x:number;z:number}
-export interface Block {id:string;x:number;z:number;w:number;d:number;h:number;kind:'wall'|'container'|'crate'|'building';color:string}
+export interface Block {id:string;x:number;z:number;w:number;d:number;h:number;baseY?:number;kind:'wall'|'container'|'crate'|'building';color:string}
 export const WORLD={minX:-15,maxX:15,minZ:-18,maxZ:16};
 export const START:Point={x:-10,z:11},KEY:Point={x:-10,z:-1.5},DOOR:Point={x:0,z:-6},EXIT:Point={x:10,z:-14};
 export const PATROL:Point[]=[{x:2,z:-10},{x:11,z:-8.5},{x:2,z:-15}];
@@ -26,7 +26,7 @@ export function doorRect(progress:number,position:Point=DOOR,width=2.9):Rect {
  const a=progress*Math.PI/2,c=Math.cos(a),s=Math.sin(a),hinge=position.x-width/2;
  return {minX:hinge-.13*s,maxX:hinge+width*c+.13*s,minZ:position.z-width*s-.13*c,maxZ:position.z+.13*c};
 }
-export const obstacles=(progress=0,blocks:readonly Block[]=BLOCKS,gate:Point=DOOR,width=2.9):Rect[]=>[...blocks.map(rectOf),doorRect(progress,gate,width)];
+export const obstacles=(progress=0,blocks:readonly Block[]=BLOCKS,gate:Point=DOOR,width=2.9):Rect[]=>[...blocks.filter(b=>(b.baseY??0)<1.8).map(rectOf),doorRect(progress,gate,width)];
 export function blocked(p:Point,radius:number,rects:readonly Rect[]):boolean {
  return rects.some(r=>{const q=r.obb?rectLocal(p,r.obb):p,box=r.obb?.box??r;return Math.hypot(q.x-Math.max(box.minX,Math.min(box.maxX,q.x)),q.z-Math.max(box.minZ,Math.min(box.maxZ,q.z)))<radius-1e-7;});
 }

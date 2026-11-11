@@ -11,6 +11,7 @@ export class GameBlood {
  reset(health:number){this.restoreCorpse=health===0;this.health=health===0?Infinity:health;this.hits=[];this.effect?.clear();}
  update(c:Combatant|undefined,dt:number,clip:Clip,at:number){
   if(!c)return;this.actor.group.updateMatrixWorld(true);
+  if(c.health>this.health){this.hits=[];this.effect?.clear();}
   if(c.damageKind!=='melee'&&c.health<this.health&&(c.hitAge<.3||this.restoreCorpse)){
    const id='play-impact-'+this.sequence++,fatal=c.health<=0,dir:[number,number,number]=c.hitDirection==='back'?[0,0,1]:c.hitDirection==='left'?[-1,0,0]:c.hitDirection==='right'?[1,0,0]:[0,0,-1];
    const wound:Clip={...clip,id,wounds:[{t:0,bone:'Spine2',dir,...(fatal?{pool:clip.duration*.65}:{})}],sample:t=>clip.sample(fatal?t:at)};

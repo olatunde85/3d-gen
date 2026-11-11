@@ -4,15 +4,15 @@ import type {VehicleSurface} from './vehicle-surfaces';
 import {Vehicle} from '../core/props/vehicle';
 import {clipById} from '../core/anim/clips';
 import {wheelHands} from '../core/anim/clips/vehicles';
-import {boardingScale,boardProgress,doorOpenAt} from '../core/props/vehicle-actions';
-import {vehicleStyleForChoice,DEFAULT_VEHICLE_STYLE} from '../core/props/vehicles';
+import {boardingScale,boardingStand,boardProgress,doorOpenAt} from '../core/props/vehicle-actions';
+import {vehicleStyleForChoice,DEFAULT_VEHICLE_STYLE,VEHICLE_CLIP} from '../core/props/vehicles';
 import type {Rig} from '../core/rig/rig';
 import type {Frame} from '../core/anim/evaluate';
 import type {GameActor} from './actor';
 import type {CompanionState} from './companion';
 import {fitPassenger,fitPickupCabin} from './passenger-view';
-import {DRIVE,type CarState,type CarFit,type DrivingSettings} from './driving';
-export function drivingClip(steer:number){const clip=clipById.get('drive_pickup')!;return {...clip,sample:()=>({...clip.sample(0),ik:wheelHands([0,-.34,.42],.18,28,5*Math.sin(1)+steer*80)})};}
+import {DRIVE,type CarState,type CarFit,type DrivingSettings,type DriveVehicle} from './driving';
+export function drivingClip(steer:number,model:DriveVehicle='pickup'){const clip=clipById.get(VEHICLE_CLIP[model])!;return model==='pickup'?{...clip,sample:()=>({...clip.sample(0),ik:wheelHands([0,-.34,.42],.18,28,5*Math.sin(1)+steer*80)})}:clip;}
 /** Measure deck heights from the same rendered mesh, including a passenger-raised cabin. */
 export function measurePickupSurfaces(vehicle:Vehicle):VehicleSurface[]{
  const s=vehicle.fit.scale,H=vehicle.fit.average('hip'),cx=-.36*s,z=H.z,width=2.02*s,ray=new Raycaster();vehicle.group.updateMatrixWorld(true);
@@ -29,15 +29,19 @@ export function measurePickupSurfaces(vehicle:Vehicle):VehicleSurface[]{
 export function measurePickup(vehicle:Vehicle,rig:Rig,radius:number,passengerRadius=radius):CarFit {
  const b=vehicle.bounds,s=vehicle.fit.scale,stand=Math.max(1.13*boardingScale(rig),b.max.x+radius+.14);return {surfaces:measurePickupSurfaces(vehicle),box:{minX:b.min.x-.025,maxX:b.max.x+.025,minZ:b.min.z-.025,maxZ:b.max.z+.025},height:b.max.y,stand:{x:stand,z:0},passenger:{seat:{x:vehicle.fit.average('hip').x-.72*s,z:vehicle.fit.average('hip').z},stand:{x:b.min.x-passengerRadius-.14,z:0}},scale:s};
 }
+export function measureDriveVehicle(vehicle:Vehicle,rig:Rig,radius:number,model:DriveVehicle):CarFit{
+ if(model==='pickup')return measurePickup(vehicle,rig,radius);
+ const b=vehicle.bounds,stand=boardingStand(VEHICLE_CLIP[model]),scale=boardingScale(rig);return {model,box:{minX:b.min.x-.03,maxX:b.max.x+.03,minZ:b.min.z-.03,maxZ:b.max.z+.03},height:b.max.y,stand:{x:Math.max(stand[0]*scale,b.max.x+radius+.14),z:stand[1]*scale},scale:vehicle.fit.scale};
+}
 export class DrivingView {
  readonly vehicle:Vehicle;readonly fit:CarFit;passengerActor?:GameActor;
  constructor(readonly actor:GameActor,readonly settings:DrivingSettings,radius:number,readonly passengerRadius=radius){
-  this.vehicle=new Vehicle('pickup',actor.render.character.rig!,actor.render.animator,clipById.get('drive_pickup')!,{...vehicleStyleForChoice('pickup',DEFAULT_VEHICLE_STYLE),color:settings.color});this.vehicle.filmMotion=true;if(actor.render.character.params.weapon!=='none')this.vehicle.group.traverse(o=>{if(o.name.startsWith('Window_'))o.scale.y=.001;});
-  this.fit=measurePickup(this.vehicle,actor.render.character.rig!,radius,passengerRadius);
+  const model=settings.model??'pickup';this.vehicle=new Vehicle(model,actor.render.character.rig!,actor.render.animator,clipById.get(VEHICLE_CLIP[model])!,{...vehicleStyleForChoice(model,DEFAULT_VEHICLE_STYLE),color:settings.color});this.vehicle.filmMotion=true;if(actor.render.character.params.weapon!=='none')this.vehicle.group.traverse(o=>{if(o.name.startsWith('Window_'))o.scale.y=.001;});
+  this.fit=model==='pickup'?measurePickup(this.vehicle,actor.render.character.rig!,radius,passengerRadius):measureDriveVehicle(this.vehicle,actor.render.character.rig!,radius,model);
  }
- configurePassenger(actor:GameActor,car:CarState){if(this.passengerActor!==actor){fitPickupCabin(this.vehicle,actor.render.animator,car);this.fit.height=this.vehicle.bounds.max.y;this.fit.surfaces=measurePickupSurfaces(this.vehicle);this.passengerActor=actor;}actor.passengerFit=fitPassenger(this.vehicle,actor.render.animator,car);}
+ configurePassenger(actor:GameActor,car:CarState){if(this.settings.model&&this.settings.model!=='pickup')throw Error('Companion boarding currently needs the pickup vehicle.');if(this.passengerActor!==actor){fitPickupCabin(this.vehicle,actor.render.animator,car);this.fit.height=this.vehicle.bounds.max.y;this.fit.surfaces=measurePickupSurfaces(this.vehicle);this.passengerActor=actor;}actor.passengerFit=fitPassenger(this.vehicle,actor.render.animator,car);}
  update(car:CarState,frame?:Frame,passenger?:CompanionState){
-  const phase=car.phase,transition=phase==='boarding'||phase==='alighting',clip=clipById.get(phase==='boarding'?'board_pickup':phase==='alighting'?'alight_pickup':'drive_pickup')!,time=transition?car.time/(phase==='boarding'?DRIVE.boarding:DRIVE.alighting)*clip.duration:0;
+  const phase=car.phase,model=this.settings.model??'pickup',transition=phase==='boarding'||phase==='alighting',clip=clipById.get(phase==='boarding'?`board_${model}`:phase==='alighting'?`alight_${model}`:VEHICLE_CLIP[model])!,time=transition?car.time/(phase==='boarding'?DRIVE.boarding:DRIVE.alighting)*clip.duration:0;
   this.vehicle.group.position.set(car.x,0,car.z);this.vehicle.group.rotation.y=car.yaw;
   this.vehicle.update(time,frame,car.distance,clip,phase==='parked');
   const ride=passenger?.riding,passengerClip=clipById.get(ride?.phase==='alighting'?'alight_pickup_passenger':'board_pickup_passenger')!,opening=ride&&(ride.phase==='boarding'||ride.phase==='alighting')?doorOpenAt(boardProgress(passengerClip.vehicleTransition!,ride.time/(ride.phase==='boarding'?DRIVE.boarding:DRIVE.alighting)*passengerClip.duration,passengerClip.duration)):0;

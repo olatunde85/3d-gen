@@ -2,7 +2,7 @@
 import {blocked,route,type Point} from './world';
 import type {MissionSettings,MissionWorld} from './mission';
 import {missionObstacles} from './mission';
-export const STEP_TYPES=['reach','download','defend','eliminate','survive','escort']as const;
+export const STEP_TYPES=['reach','download','defend','eliminate','survive','escort','chase','convoy']as const;
 export type StepType=typeof STEP_TYPES[number];
 export interface MissionStep {type:StepType;label?:string;duration?:number;target?:string;waves?:number}
 export interface StagedStep {step:MissionStep;position:Point;radius:number}
@@ -16,7 +16,8 @@ export function stageSteps(m:MissionSettings,w:MissionWorld):StagedStep[]{
  const open=missionObstacles(w,1),points=rows.flatMap(z=>lanes.map(x=>({x,z}))).filter(p=>!blocked(p,1.5,open)&&route(w.start,p,open,.52,w.bounds).length),staged:StagedStep[]=[];
  const routesClear=(next:Point)=>{const rects=missionObstacles(w,1),all=[...staged.map(s=>s.position),next];return all.every((p,i)=>!blocked(p,.52,rects)&&route(i?all[i-1]:w.start,p,rects,.52,w.bounds).length);};
  for(const [index,step]of (m.steps??[]).entries()){
-  const previous=staged.at(-1)?.position??w.start,candidates=step.type==='escort'?[w.exit]:points.filter(p=>distance(p,previous)>6&&staged.every(s=>distance(p,s.position)>6));
+  if((step.type==='chase'||step.type==='convoy')&&!w.getaway)throw Error(`objective ${index+1} (${step.type}): choose pickup extraction in ${w.location}.`);
+  const previous=staged.at(-1)?.position??w.start,candidates=['escort','chase','convoy'].includes(step.type)?[w.exit]:points.filter(p=>distance(p,previous)>6&&staged.every(s=>distance(p,s.position)>6));
   candidates.sort((a,b)=>{const score=(p:Point)=>Math.min(distance(p,previous),...staged.map(s=>distance(p,s.position)));return score(b)-score(a)||a.z-b.z||a.x-b.x;});
   if(candidates.length&&step.type!=='escort'){const offset=Math.floor(m.variation/3)%Math.min(3,candidates.length);candidates.push(...candidates.splice(0,offset));}
   let desired:Point|undefined;
@@ -27,4 +28,4 @@ export function stageSteps(m:MissionSettings,w:MissionWorld):StagedStep[]{
  }
  return staged;
 }
-export const stepLabel=(s:MissionStep)=>s.label??({reach:'Reach the rally point',download:'Download the intel',defend:'Defend the area',eliminate:`Eliminate ${s.target}`,survive:'Survive the ambush',escort:'Escort your companion'}[s.type]);
+export const stepLabel=(s:MissionStep)=>s.label??({reach:'Reach the rally point',download:'Download the intel',defend:'Defend the area',eliminate:`Eliminate ${s.target}`,survive:'Survive the ambush',escort:'Escort your companion',chase:'Catch the courier vehicle',convoy:'Escort the convoy to extraction'}[s.type]);

@@ -53,12 +53,18 @@ The next release grows Play from staged chapters into a connected district. Keep
 - [x] Keep equipped guns visible on defeated enemies. Spread chained objectives and check routes again after placing terminals.
 - [x] Name the chapter, objective, layout and variation in placement errors; provide a downloadable per-chapter **Check placements** JSON report.
 - [x] Add optional timed delivery, street race and bounty contracts with measured starts/routes, clear failure and cash rewards. All three are toggled per chapter and included in portable JSON and the playable export. Delivery now needs a parcel handoff; bounty needs a return to the contact for payment.
-- [ ] Give desert compound, market street and urban block distinct footprints, authored interiors, opening doors, stairs and roof paths; verify indoor/outdoor combat and traversal on every map. Distinct measured perimeters and street solids are implemented; interiors, stairs and roof routes remain.
-- [ ] Add a free-roam city district between chapters, mission markers, civilians, parked cars and escalating one-to-three-star police heat.
-- [ ] Add player-drivable motorcycle, sports car and SUV; vehicle damage/smoke, armed/ramming pursuit, and chase/escort objectives. Pickup collision damage, smoke and checkpoint restoration are implemented; new vehicles and chase/escort gameplay remain.
+- [x] Give desert compound, market street and urban block distinct footprints, enterable rooms, automatic doors, stairs and roof paths. The urban block also has a suspended upper room with a walkable lower room and floor that blocks sight and shots between levels.
+- [x] Add a free-roam city district between chapters, mission markers, walking civilians, parked cars and escalating one-to-three-star police heat. The mission marker launches the next chapter when the player stops a car and loses police heat.
+- [x] Add player-drivable motorcycle, sports car and SUV; vehicle damage/smoke, armed pursuit, and chase/escort objectives. The moving chase target loops through a district vehicle lane; convoy driving pauses if the player falls behind. Pursuit driver ramming behaviour remains a further improvement.
 - [x] Carry cash, purchases, branch choices and story flags across chapters and reloads. Chapters can choose a later chapter, set a flag and change a later briefing; the safehouse shop remains between playable chapters.
 - [x] Cap download interactions at 15 seconds, widen defend areas to a visible 10-metre radius, and bring armed backup assaults into defend objectives. Defend time still follows the configured objective duration and can include one to three assaults.
-- [ ] Expand side jobs with separate characters, vehicles, routes and consequences so they feel like activities in the district instead of optional marker runs.
+- [ ] Expand side jobs with separate characters, vehicles, routes and consequences so they feel like activities in the district instead of optional marker runs. Delivery has a courier handoff and visible backpack; races now use a longer course, countdown and visible AI rival. Dedicated side job characters and lasting consequences remain.
+
+## Recent gameplay and presentation fixes
+
+- LLM Assist and imported Play JSON generate missing voiced dialogue using the selected male or female voice; existing recorded audio stays intact.
+- Branch selection shows destination chapters as selectable cards. Health pickups clear blood stains, purchased armour appears on the hero, and the pistol pickup uses a blended animation.
+- Vehicle checkpoints save a safe stand position and retries move the player out of any car hull. The pickup's base driving speeds are 20/29/40 m/s by pace, with 14 m/s reverse, quicker acceleration and stronger braking; other vehicle models retain their fitted speed multipliers.
 
 ## Placement audit
 

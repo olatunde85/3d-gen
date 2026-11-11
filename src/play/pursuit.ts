@@ -1,5 +1,5 @@
 /** Bounded hybrid A*: plan drivable arcs, then use the real swept-hull vehicle motor. */
-import {carClear,driveStep,type CarState,type DrivingSettings} from './driving';
+import {carClear,driveStep,topSpeed,type CarState,type DrivingSettings} from './driving';
 import {distance,type Point,type Rect} from './world';
 export interface PursuitState {car:CarState;driver:string;path:(Point&{gear?:number})[];replan:number;reported:boolean}
 interface Node {x:number;z:number;yaw:number;cost:number;score:number;parent?:Node;gear?:number}
@@ -10,4 +10,4 @@ export function pursuitRoute(car:CarState,goal:Point,rects:readonly Rect[],bound
  }
  const path:(Point&{gear?:number})[]=[];while(nearest.parent){path.unshift({x:nearest.x,z:nearest.z,gear:nearest.gear});nearest=nearest.parent;}return path;
 }
-export function pursuitStep(p:PursuitState,dt:number,goal:Point,settings:DrivingSettings,rects:readonly Rect[],bounds:Rect,people:readonly(Point&{radius:number})[]){p.replan-=dt;if(p.replan<=0){p.path=pursuitRoute(p.car,goal,rects,bounds);p.replan=p.path.length?1.4:2.5;}while(p.path.length&&distance(p.car,p.path[0])<1.4)p.path.shift();const next=p.path[0],gear=next?.gear??1,angle=next?Math.atan2(next.x-p.car.x,next.z-p.car.z)-p.car.yaw-(gear<0?Math.PI:0):0,error=Math.atan2(Math.sin(angle),Math.cos(angle)),stop=!next||distance(p.car,goal)<6;driveStep(p.car,dt,stop?0:gear*(Math.abs(error)>.7?.25:.8),Math.max(-1,Math.min(1,-error*2.5*gear)),stop,{...settings,pace:'standard'},rects,bounds,people);}
+export function pursuitStep(p:PursuitState,dt:number,goal:Point,settings:DrivingSettings,rects:readonly Rect[],bounds:Rect,people:readonly(Point&{radius:number})[],stopRadius=6,throttle=.8){p.replan-=dt;if(p.replan<=0){p.path=pursuitRoute(p.car,goal,rects,bounds);p.replan=p.path.length?1.4:2.5;}while(p.path.length&&distance(p.car,p.path[0])<1.4)p.path.shift();const next=p.path[0],gear=next?.gear??1,angle=next?Math.atan2(next.x-p.car.x,next.z-p.car.z)-p.car.yaw-(gear<0?Math.PI:0):0,error=Math.atan2(Math.sin(angle),Math.cos(angle)),stop=!next||distance(p.car,goal)<stopRadius,cruise=Math.min(throttle,11/topSpeed(settings));driveStep(p.car,dt,stop?0:gear*(Math.abs(error)>.7?Math.min(.25,cruise):cruise),Math.max(-1,Math.min(1,-error*2.5*gear)),stop,settings,rects,bounds,people);}

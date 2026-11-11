@@ -10,6 +10,7 @@ import {defaultMission,parseMission,validateMissionEquipment,type MissionSetting
 import {AGGRESSION,MAX_ENEMIES,type EnemyRole} from './enemies';
 import {defaultLoadout,parseLoadout,type Loadout,type EnemyResponse,type Health} from './combat';
 import {defaultProgression,parseProgression,type ProgressionSettings} from './progression';
+import {needsCompanion} from './objectives';
 import {defaultCamera,parseCamera,defaultMusic,parseMusic,type CameraSettings,type MusicSettings} from './presentation';
 export interface EnemySettings extends EnemyRole {character:HumanParams;response:EnemyResponse;health:EnemyHealth}
 export interface CompanionSettings {character:HumanParams;health:Health}
@@ -68,7 +69,7 @@ export function parseProject(text:string,catalog:Catalog,validateCampaignLinks=t
  });
  if(enemies.filter(e=>e.kind==='sniper').length>2)throw Error('Use at most two elevated snipers.');
  let companion=defaultCompanion();if(p.companion!==undefined){const c=p.companion;if(!c||typeof c!=='object'||Array.isArray(c))throw Error('Use valid companion settings.');for(const key of Object.keys(c))if(!['character','health'].includes(key))throw Error(`Unsupported companion setting: ${key}.`);const health=c.health===undefined?100:c.health;if(![50,100,150].includes(health))throw Error('Choose 50, 100 or 150 companion health.');companion={character:read(c.character),health};}
- const loadout=parseLoadout(p.loadout),progression=parseProgression(p.progression),mission=parseMission(p.mission);validateMissionEquipment(mission,loadout,progression);if(mission.pursuit&&!enemies.some(e=>e.kind!=='sniper'))throw Error('Pursuit needs at least one ground enemy to drive the pickup.');
+ const loadout=parseLoadout(p.loadout),progression=parseProgression(p.progression),mission=parseMission(p.mission);validateMissionEquipment(mission,loadout,progression);if(mission.pursuit&&!enemies.some(e=>e.kind!=='sniper'))throw Error('Pursuit needs at least one ground enemy to drive the pickup.');if(p.vehicle?.model&&p.vehicle.model!=='pickup'&&needsCompanion(mission))throw Error('Companion boarding currently needs the pickup vehicle.');
  if(progression.weapon!=='loadout'&&loadout.weapon!=='none')throw Error('Find / unlock pistol missions must start unarmed.');
  const result:PlayProject={kind:'ara-play',version:2,template:'escape-depot',...(p.story===undefined?{}:{story:parseStory(p.story,enemies.map(e=>e.id))}),...(p.branch===undefined?{}:{branch:parseBranch(p.branch)}),identity:parseIdentity(p.identity),character,loadout,enemies,companion,mission,...(p.vehicle===undefined?{}:{vehicle:parseDriving(p.vehicle)}),progression,camera:parseCamera(p.camera),music:parseMusic(p.music)};
  if(p.chapters!==undefined){

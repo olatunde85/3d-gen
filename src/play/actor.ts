@@ -2,7 +2,7 @@ import {isGun} from './weapons';
 import {crouchLocomotion,defeatClip,seatedDefeatFrame} from './stance-animation';
 import {GameBlood} from './blood-view';
 /** Existing Ara renderer and clips, fitted to gameplay movement and contact surfaces. */
-import {Sphere,Vector3} from 'three';
+import {Sphere,Vector3,Group,Mesh,BoxGeometry,MeshStandardMaterial} from 'three';
 import {StudioActor} from '../studio/actor';
 import {clipById} from '../core/anim/clips';
 import type {Character} from '../core/human';
@@ -17,26 +17,30 @@ import {grenadeProp,disposeGrenade} from './grenade-view';
 import {GRENADE,type GrenadeThrow} from './grenades';
 import {boardingFrame} from '../core/anim/boarding';
 import {boardingScale} from '../core/props/vehicle-actions';
-import {vehicleLift} from '../core/props/vehicles';
+import {vehicleLift,VEHICLE_CLIP} from '../core/props/vehicles';
 import {drivingClip} from './driving-view';
 import {carPoint,DRIVE,type CarState} from './driving';
 import {hitReactionFrame} from './hit-reaction';
 import {pickupPassengerFrame,type PassengerPose} from './passenger-view';
 import type {CompanionState} from './companion';
 export class GameActor {
- readonly render:StudioActor;private blood:GameBlood;private heldGrenade=grenadeProp();
+ readonly render:StudioActor;private blood:GameBlood;private heldGrenade=grenadeProp();private armor?:Group;
  passengerFit?:PassengerPose;vehicleFrame?:Frame;private wasDriving=false;
  readonly grenadeRelease:{x:number;y:number;z:number};
- private lastHealth=Infinity;private phase=0;private pose?:Frame;private traversal?:Traversal;private fitted?:ReturnType<typeof traversalClip>;
+ private lastHealth=Infinity;private phase=0;private pose?:Frame;private traversal?:Traversal;private fitted?:ReturnType<typeof traversalClip>;private equipTime=0;
  private previous?:{x:number;z:number};private movementYaw=0;private deathTime=0;private defeatDuration=2.6;
  constructor(ch:Character,private texture:(name:string)=>string){this.render=new StudioActor(ch,this.texture);this.blood=new GameBlood(this.render);this.render.mesh.boundingSphere=new Sphere(new Vector3(0,ch.height/2,0),ch.height);this.render.mesh.frustumCulled=true;const socket=this.render.mesh.skeleton.bones.find(b=>b.name==='WeaponR');if(socket){socket.parent?.add(this.heldGrenade);this.heldGrenade.position.copy(socket.position);this.heldGrenade.quaternion.copy(socket.quaternion);}this.heldGrenade.visible=false;this.heldGrenade.scale.setScalar(this.render.scale);const frame=this.render.animator.frame(clipById.get('throw_grenade')!,GRENADE.release,{rootMotion:false,weaponPose:'hidden'}),index=ch.rig!.bones.findIndex(b=>b.name==='WeaponR'),point=this.render.animator.positions(frame)[index];this.grenadeRelease={x:point[0],y:point[1],z:point[2]};}
  clone(){return new GameActor(this.render.character,this.texture);}
+ setArmor(on:boolean){
+  if(on&&!this.armor){const chest=this.render.mesh.skeleton.bones.find(b=>b.name==='Spine2')??this.render.mesh.skeleton.bones.find(b=>b.name==='Spine1');if(chest){const armor=new Group(),size=this.render.scale*(.88+this.render.character.params.weight*.2),fabric=new MeshStandardMaterial({color:'#334b43',roughness:.88}),plate=new MeshStandardMaterial({color:'#677a67',metalness:.12,roughness:.72});const part=(w:number,h:number,d:number,x:number,y:number,z:number,material:MeshStandardMaterial)=>{const mesh=new Mesh(new BoxGeometry(w*size,h*size,d*size),material);mesh.position.set(x*size,y*size,z*size);mesh.castShadow=true;armor.add(mesh);};part(.43,.43,.055,0,.02,.15,fabric);part(.34,.31,.065,0,.04,.188,plate);part(.43,.4,.05,0,.02,-.13,fabric);for(const x of [-.18,.18])part(.065,.34,.08,x,.19,.03,plate);chest.add(armor);this.armor=armor;}}
+  if(this.armor)this.armor.visible=on;
+ }
  applyFrame(f:Frame,p:{x:number;y:number;z:number},yaw:number){const mesh=this.render.mesh;mesh.frustumCulled=false;f.rot.forEach((q,i)=>{mesh.skeleton.bones[i].quaternion.set(...q);mesh.skeleton.bones[i].scale.set(...(f.scale?.get(i)??[1,1,1]));});for(const [i,v]of f.rootPos)mesh.skeleton.bones[i].position.set(...v);this.render.group.position.set(p.x,p.y,p.z);this.render.group.rotation.y=yaw;this.heldGrenade.visible=false;}
  /** A weapon variant shares the exact body recipe and can retain its locomotion phase. */
- adoptMotion(source:GameActor){this.phase=source.phase;this.pose=source.pose?structuredClone(source.pose):undefined;this.previous=source.previous?{...source.previous}:undefined;this.movementYaw=source.movementYaw;}
+ adoptMotion(source:GameActor,pickup=false){this.phase=source.phase;this.pose=source.pose?structuredClone(source.pose):undefined;this.previous=source.previous?{...source.previous}:undefined;this.movementYaw=source.movementYaw;this.equipTime=pickup?1.15:0;}
  get deathElapsed(){return this.deathTime;}
  get defeatFinished(){return this.deathTime>=this.defeatDuration;}
- reset(body:Body,time:number,combat?:Combatant){this.blood.reset(combat?.health??100);this.wasDriving=false;this.vehicleFrame=undefined;this.phase=0;this.pose=undefined;this.traversal=undefined;this.fitted=undefined;this.previous=undefined;this.movementYaw=body.yaw;this.deathTime=combat&&combat.health<=0?2:0;this.update(body,1,time,undefined,false,undefined,combat);}
+ reset(body:Body,time:number,combat?:Combatant){this.blood.reset(combat?.health??100);this.wasDriving=false;this.vehicleFrame=undefined;this.phase=0;this.pose=undefined;this.traversal=undefined;this.fitted=undefined;this.previous=undefined;this.equipTime=0;this.movementYaw=body.yaw;this.deathTime=combat&&combat.health<=0?2:0;this.update(body,1,time,undefined,false,undefined,combat);}
  update(body:Body,dt:number,time:number,action?:EscapeGame['action'],won=false,traversal?:Traversal,combat?:Combatant,throwing?:GrenadeThrow,car?:CarState,passenger?:CompanionState['riding']){
   if(combat&&this.lastHealth===0&&combat.health>0)this.blood.reset(combat.health);if(combat)this.lastHealth=combat.health;
   const dead=!!combat&&combat.health<=0;if(dead){this.deathTime+=dt;this.defeatDuration=car?.phase!==undefined&&car.phase!=='parked'?1.1:defeatClip(combat.hitDirection,(body.crouch??0)>.05).duration;}else this.deathTime=0;
@@ -57,6 +61,7 @@ export class GameActor {
   const sampleClip=!active&&(!body.grounded||body.landing>0)?{...clip,sample:(time:number)=>{const s=clip.sample(time);return {...s,root:{...s.root,lift:0}};}}:clip;
   const aimYaw=combat?.aim&&(combat.aiming||combat.fireAge<.5)?Math.atan2(combat.aim.x-body.x,combat.aim.z-body.z)-body.yaw:0;
   const target=this.render.animator.frame(sampleClip,t,{rootMotion:false,faceTime:time,...(armed?busy&&!dead?{weaponPose:'hidden' as const}:{weaponYaw:dead?0:Math.atan2(Math.sin(aimYaw),Math.cos(aimYaw))*180/Math.PI,weaponPitch:dead?0:combat.aiming?combat.pitch*180/Math.PI:0}:isGun(this.render.character.params.weapon)?{weaponPose:'hidden' as const}:{})}),weight=1-Math.exp(-dt*(action?16:12));
+  if(this.equipTime>0&&!dead&&!busy){const progress=1-this.equipTime/1.15,reach=this.render.animator.frame(clipById.get('pick_up')!,progress*3.4,{rootMotion:false,weaponPose:'hidden'}),blend=Math.sin(Math.PI*progress)*.72;this.render.character.rig!.bones.forEach((bone,i)=>{if(/^(Spine\d?|Right(Shoulder|Arm|ForeArm|Hand))$/.test(bone.name))target.rot[i]=qslerp(target.rot[i],reach.rot[i],blend);});if(progress<.56){const socket=this.render.character.rig!.bones.findIndex(b=>b.name==='WeaponR');if(socket>=0){target.scale??=new Map();target.scale.set(socket,[0,0,0]);}}this.equipTime=Math.max(0,this.equipTime-dt);}
   if(this.pose&&!active){const previous=this.pose;target.rot=target.rot.map((q,i)=>qslerp(previous.rot[i],q,weight));for(const [i,p]of target.rootPos){const from=previous.rootPos.get(i)??p;target.rootPos.set(i,p.map((v,d)=>from[d]+(v-from[d])*weight)as [number,number,number]);}}
   this.pose=target;const visible=combat?hitReactionFrame(this.render.animator,target,combat,!!active||!!action||!!throwing):target,mesh=this.render.mesh;mesh.frustumCulled=!active;
   visible.rot.forEach((q,i)=>{mesh.skeleton.bones[i].quaternion.set(...q);mesh.skeleton.bones[i].scale.set(...(visible.scale?.get(i)??[1,1,1]));});
@@ -66,12 +71,12 @@ export class GameActor {
   this.render.group.position.set(active?.from.x??body.x,dead?Math.max(combat.deathFloor??body.y,body.y-7*this.deathTime*this.deathTime):active?.from.y??body.y,active?.from.z??body.z);this.render.group.rotation.y=body.yaw;this.blood.update(combat,dt,clip,t);
  }
  private updateVehicle(car:CarState,time:number,combat?:Combatant){
-  this.wasDriving=true;this.heldGrenade.visible=false;const transition=car.phase==='boarding'||car.phase==='alighting',clip=clipById.get(car.phase==='boarding'?'board_pickup':car.phase==='alighting'?'alight_pickup':'drive_pickup')!,lift=vehicleLift('pickup',this.render.scale),scale=boardingScale(this.render.character.rig!);
-  const base=transition?boardingFrame(this.render.animator,clip,car.time/(car.phase==='boarding'?DRIVE.boarding:DRIVE.alighting)*clip.duration,clipById.get('idle')!,clipById.get('drive_pickup')!,lift,'drive_pickup',[car.fit.stand.x/scale,car.fit.stand.z/scale]):this.render.animator.frame(drivingClip(car.steer),0,{vehicleLift:lift,weaponPose:combat&&isGun(combat.weapon)?combat.fireAge<.22?'fire':combat.aiming?'aim':'hold':'hidden',weaponYaw:combat?.aim?Math.atan2(Math.sin(Math.atan2(combat.aim.x-car.x,combat.aim.z-car.z)-car.yaw),Math.cos(Math.atan2(combat.aim.x-car.x,combat.aim.z-car.z)-car.yaw))*180/Math.PI:80,weaponPitch:combat?.aiming?(combat.pitch??0)*180/Math.PI:0,rootMotion:false,vehicleMotion:false,faceTime:time});
+  this.wasDriving=true;this.heldGrenade.visible=false;const model=car.fit.model??'pickup',ride=VEHICLE_CLIP[model],transition=car.phase==='boarding'||car.phase==='alighting',clip=clipById.get(car.phase==='boarding'?`board_${model}`:car.phase==='alighting'?`alight_${model}`:ride)!,lift=vehicleLift(model,this.render.scale),scale=boardingScale(this.render.character.rig!);
+  const base=transition?boardingFrame(this.render.animator,clip,car.time/(car.phase==='boarding'?DRIVE.boarding:DRIVE.alighting)*clip.duration,clipById.get('idle')!,clipById.get(ride)!,lift,ride,[car.fit.stand.x/scale,car.fit.stand.z/scale]):this.render.animator.frame(drivingClip(car.steer,model),0,{vehicleLift:lift,weaponPose:combat&&isGun(combat.weapon)?combat.fireAge<.22?'fire':combat.aiming?'aim':'hold':'hidden',weaponYaw:combat?.aim?Math.atan2(Math.sin(Math.atan2(combat.aim.x-car.x,combat.aim.z-car.z)-car.yaw),Math.cos(Math.atan2(combat.aim.x-car.x,combat.aim.z-car.z)-car.yaw))*180/Math.PI:80,weaponPitch:combat?.aiming?(combat.pitch??0)*180/Math.PI:0,rootMotion:false,vehicleMotion:false,faceTime:time});
   const socket=this.render.character.rig!.bones.findIndex(b=>b.name==='WeaponR');base.scale??=new Map();if(socket>=0&&(transition||!combat||!isGun(combat.weapon)))base.scale.set(socket,[0,0,0]);this.vehicleFrame=base;
   const f=combat?.health===0?seatedDefeatFrame(this.render.animator,base,this.deathTime):combat?hitReactionFrame(this.render.animator,base,combat,true):base,mesh=this.render.mesh;mesh.frustumCulled=false;
   f.rot.forEach((q,i)=>{mesh.skeleton.bones[i].quaternion.set(...q);mesh.skeleton.bones[i].scale.set(...(f.scale?.get(i)??[1,1,1]));});for(const [i,p]of f.rootPos)mesh.skeleton.bones[i].position.set(...p);f.morph?.forEach((v,i)=>{if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[i]=v;});
   this.render.group.position.set(car.x,0,car.z);this.render.group.rotation.y=car.yaw;this.pose=undefined;
  }
- dispose(){this.blood.dispose();disposeGrenade(this.heldGrenade);this.render.dispose();}
+ dispose(){this.blood.dispose();disposeGrenade(this.heldGrenade);if(this.armor){const materials=new Set<MeshStandardMaterial>();this.armor.traverse(node=>{if(node instanceof Mesh){node.geometry.dispose();materials.add(node.material as MeshStandardMaterial);}});materials.forEach(m=>m.dispose());this.armor.removeFromParent();}this.render.dispose();}
 }

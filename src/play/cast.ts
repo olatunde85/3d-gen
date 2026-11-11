@@ -6,7 +6,7 @@ import type {HumanParams} from '../core/params';
 import type {Engine} from '../app/engine';
 import {GameActor} from './actor';
 import {heroWeapon,heroGuns,chapterProject,type PlayProject} from './project';
-export interface PlayCast {hero:GameActor;heroWeapons?:Map<Gun,GameActor>;guards:Map<string,GameActor>;companion?:GameActor;chapters?:PlayCast[]}
+export interface PlayCast {hero:GameActor;heroWeapons?:Map<Gun,GameActor>;heroDelivery?:Map<Equipment,GameActor>;guards:Map<string,GameActor>;companion?:GameActor;chapters?:PlayCast[]}
 export async function prepareCast(project:PlayProject,engine:Engine,texture:(file:string)=>string,progress:(text:string)=>void,previous?:PlayCast&{project:PlayProject},sharedHero?:GameActor):Promise<PlayCast>{
  const pool=new Map<string,Character>(),created:GameActor[]=[],recipe=(p:HumanParams)=>JSON.stringify(p);
  const equipped=(params:HumanParams,weapon:Equipment):HumanParams=>({...params,weapon});
@@ -25,12 +25,13 @@ export async function prepareCast(project:PlayProject,engine:Engine,texture:(fil
  }catch(error){created.forEach(actor=>actor.dispose());throw error;}
 }
 
-export const castActors=(cast:PlayCast):Set<GameActor>=>new Set([cast.hero,...(cast.heroWeapons?.values()??[]),...cast.guards.values(),...(cast.companion?[cast.companion]:[]),...(cast.chapters??[]).flatMap(c=>[...castActors(c)])]);
+export const castActors=(cast:PlayCast):Set<GameActor>=>new Set([cast.hero,...(cast.heroWeapons?.values()??[]),...(cast.heroDelivery?.values()??[]),...cast.guards.values(),...(cast.companion?[cast.companion]:[]),...(cast.chapters??[]).flatMap(c=>[...castActors(c)])]);
 export async function prepareGameCast(project:PlayProject,engine:Engine,texture:(file:string)=>string,progress:(text:string)=>void,previous?:PlayCast&{project:PlayProject}){
  const old=previous?castActors(previous):new Set<GameActor>();let root:PlayCast|undefined;const built:PlayCast[]=[];
  try{root=await prepareCast(project,engine,texture,progress,previous);built.push(root);const heroWeapons=new Map<Gun,GameActor>(),primary=heroWeapon(project);if(isGun(primary))heroWeapons.set(primary,root.hero);
   for(const gun of new Set<Gun>([...heroGuns(project),...(project.chapters?.length?['pistol','rifle']as const:[])]))if(!heroWeapons.has(gun)){const params={...project.character,weapon:gun},prior=previous?.heroWeapons?.get(gun);let actor=prior&&JSON.stringify(prior.render.character.params)===JSON.stringify(params)?prior:undefined;if(!actor){progress(`Preparing ${gun} equipment…`);actor=new GameActor(await engine.build(params),texture);built.push({hero:actor,guards:new Map()});await actor.render.ready();}heroWeapons.set(gun,actor);}root.heroWeapons=heroWeapons;const extra:PlayCast[]=[];
   for(let i=0;i<(project.chapters?.length??0);i++){progress(`Preparing chapter ${i+2} of ${project.chapters!.length+1}…`);const p=chapterProject(project,i+1),prior=previous?.chapters?.[i],oldProject=previous?.project.chapters?.[i]?chapterProject(previous.project,i+1):undefined,seed=prior&&oldProject?{...prior,project:oldProject}:{...root,project};const next=await prepareCast(p,engine,texture,progress,seed,root.hero);next.heroWeapons=heroWeapons;extra.push(next);built.push(next);}
+  if([project,...(project.chapters??[])].some(chapter=>chapter.mission.sideQuests?.includes('delivery'))){const delivery=new Map<Equipment,GameActor>();for(const equipment of ['none','pistol','rifle']as const){const params={...project.character,carry:'backpack' as const,weapon:equipment},existing=equipment==='none'?root.hero:heroWeapons.get(equipment),prior=previous?.heroDelivery?.get(equipment);let actor=existing&&JSON.stringify(existing.render.character.params)===JSON.stringify(params)?existing:prior&&JSON.stringify(prior.render.character.params)===JSON.stringify(params)?prior:undefined;if(!actor){progress(`Preparing delivery pack with ${equipment==='none'?'free hands':equipment}…`);actor=new GameActor(await engine.build(params),texture);built.push({hero:actor,guards:new Map()});await actor.render.ready();}delivery.set(equipment,actor);}root.heroDelivery=delivery;for(const chapter of extra)chapter.heroDelivery=delivery;}
   if(extra.length)root.chapters=extra;return root;
  }catch(error){for(const actor of new Set(built.flatMap(c=>[...castActors(c)])))if(!old.has(actor))actor.dispose();throw error;}
 }
