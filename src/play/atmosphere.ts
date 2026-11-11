@@ -13,7 +13,7 @@ export class AtmosphereView {
   }
   scene.background=new T.Color(sky);scene.fog=new T.Fog(sky,e.weather==='fog'?12:e.weather==='sandstorm'?10:night?26:45,e.weather==='fog'?48:e.weather==='sandstorm'?45:night?85:120);
   this.hemisphere.color.set(night?'#8094bd':warm?'#f7d3bb':'#dcecff');this.hemisphere.groundColor.set('#494e45');this.hemisphere.intensity=night?.38:warm?1.2:2;scene.environmentIntensity=night?.13:.5;sun.color.set(night?'#8ea9dc':warm?'#ffb57b':'#ffe2ad');sun.intensity=night?.4:warm?2.1:3.1;
-  const x=g.world.getaway?.course?g.player.x:0,z=g.world.getaway?.course?g.player.z:0;sun.position.set(x-12,night?18:warm?8:22,z+10);sun.target.position.set(x,0,z);sun.target.updateMatrixWorld(true);
+  const x=g.hub||g.world.getaway?.course?g.player.x:0,z=g.hub||g.world.getaway?.course?g.player.z:0;sun.position.set(x-12,night?18:warm?8:22,z+10);sun.target.position.set(x,0,z);sun.target.updateMatrixWorld(true);
   this.torch.intensity=e.flashlight&&g.flashlight?32:0;this.torch.position.set(g.player.x,g.player.y+g.player.height*.8,g.player.z);this.torch.target.position.set(g.player.x+Math.sin(g.player.yaw)*10,g.player.y+.8,g.player.z+Math.cos(g.player.yaw)*10);this.torch.target.updateMatrixWorld(true);
   if(this.weather){this.weather.position.set(g.player.x,e.weather==='rain'?-(g.time*9%16):0,g.player.z);const a=this.weather.geometry.getAttribute('position')as T.BufferAttribute;for(let i=0;i<a.count;i++){const y=(((i*13.173)%1)*16-g.time*(e.weather==='rain'?9:.5))%16;a.setY(i,(y+16)%16);}a.needsUpdate=true;this.weather.position.y=0;}
  }

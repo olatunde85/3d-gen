@@ -36,6 +36,7 @@ export function measureDriveVehicle(vehicle:Vehicle,rig:Rig,radius:number,model:
 export class DrivingView {
  readonly vehicle:Vehicle;readonly fit:CarFit;passengerActor?:GameActor;
  constructor(readonly actor:GameActor,readonly settings:DrivingSettings,radius:number,readonly passengerRadius=radius){
+  this.settings={...settings};
   const model=settings.model??'pickup';this.vehicle=new Vehicle(model,actor.render.character.rig!,actor.render.animator,clipById.get(VEHICLE_CLIP[model])!,{...vehicleStyleForChoice(model,DEFAULT_VEHICLE_STYLE),color:settings.color});this.vehicle.filmMotion=true;if(actor.render.character.params.weapon!=='none')this.vehicle.group.traverse(o=>{if(o.name.startsWith('Window_'))o.scale.y=.001;});
   this.fit=model==='pickup'?measurePickup(this.vehicle,actor.render.character.rig!,radius,passengerRadius):measureDriveVehicle(this.vehicle,actor.render.character.rig!,radius,model);
  }

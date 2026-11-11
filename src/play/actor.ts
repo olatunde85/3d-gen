@@ -2,7 +2,7 @@ import {isGun} from './weapons';
 import {crouchLocomotion,defeatClip,seatedDefeatFrame} from './stance-animation';
 import {GameBlood} from './blood-view';
 /** Existing Ara renderer and clips, fitted to gameplay movement and contact surfaces. */
-import {Sphere,Vector3,Group,Mesh,BoxGeometry,MeshStandardMaterial} from 'three';
+import {Sphere,Vector3} from 'three';
 import {StudioActor} from '../studio/actor';
 import {clipById} from '../core/anim/clips';
 import type {Character} from '../core/human';
@@ -24,17 +24,13 @@ import {hitReactionFrame} from './hit-reaction';
 import {pickupPassengerFrame,type PassengerPose} from './passenger-view';
 import type {CompanionState} from './companion';
 export class GameActor {
- readonly render:StudioActor;private blood:GameBlood;private heldGrenade=grenadeProp();private armor?:Group;
+ readonly render:StudioActor;private blood:GameBlood;private heldGrenade=grenadeProp();
  passengerFit?:PassengerPose;vehicleFrame?:Frame;private wasDriving=false;
  readonly grenadeRelease:{x:number;y:number;z:number};
  private lastHealth=Infinity;private phase=0;private pose?:Frame;private traversal?:Traversal;private fitted?:ReturnType<typeof traversalClip>;private equipTime=0;
  private previous?:{x:number;z:number};private movementYaw=0;private deathTime=0;private defeatDuration=2.6;
  constructor(ch:Character,private texture:(name:string)=>string){this.render=new StudioActor(ch,this.texture);this.blood=new GameBlood(this.render);this.render.mesh.boundingSphere=new Sphere(new Vector3(0,ch.height/2,0),ch.height);this.render.mesh.frustumCulled=true;const socket=this.render.mesh.skeleton.bones.find(b=>b.name==='WeaponR');if(socket){socket.parent?.add(this.heldGrenade);this.heldGrenade.position.copy(socket.position);this.heldGrenade.quaternion.copy(socket.quaternion);}this.heldGrenade.visible=false;this.heldGrenade.scale.setScalar(this.render.scale);const frame=this.render.animator.frame(clipById.get('throw_grenade')!,GRENADE.release,{rootMotion:false,weaponPose:'hidden'}),index=ch.rig!.bones.findIndex(b=>b.name==='WeaponR'),point=this.render.animator.positions(frame)[index];this.grenadeRelease={x:point[0],y:point[1],z:point[2]};}
  clone(){return new GameActor(this.render.character,this.texture);}
- setArmor(on:boolean){
-  if(on&&!this.armor){const chest=this.render.mesh.skeleton.bones.find(b=>b.name==='Spine2')??this.render.mesh.skeleton.bones.find(b=>b.name==='Spine1');if(chest){const armor=new Group(),size=this.render.scale*(.88+this.render.character.params.weight*.2),fabric=new MeshStandardMaterial({color:'#334b43',roughness:.88}),plate=new MeshStandardMaterial({color:'#677a67',metalness:.12,roughness:.72});const part=(w:number,h:number,d:number,x:number,y:number,z:number,material:MeshStandardMaterial)=>{const mesh=new Mesh(new BoxGeometry(w*size,h*size,d*size),material);mesh.position.set(x*size,y*size,z*size);mesh.castShadow=true;armor.add(mesh);};part(.43,.43,.055,0,.02,.15,fabric);part(.34,.31,.065,0,.04,.188,plate);part(.43,.4,.05,0,.02,-.13,fabric);for(const x of [-.18,.18])part(.065,.34,.08,x,.19,.03,plate);chest.add(armor);this.armor=armor;}}
-  if(this.armor)this.armor.visible=on;
- }
  applyFrame(f:Frame,p:{x:number;y:number;z:number},yaw:number){const mesh=this.render.mesh;mesh.frustumCulled=false;f.rot.forEach((q,i)=>{mesh.skeleton.bones[i].quaternion.set(...q);mesh.skeleton.bones[i].scale.set(...(f.scale?.get(i)??[1,1,1]));});for(const [i,v]of f.rootPos)mesh.skeleton.bones[i].position.set(...v);this.render.group.position.set(p.x,p.y,p.z);this.render.group.rotation.y=yaw;this.heldGrenade.visible=false;}
  /** A weapon variant shares the exact body recipe and can retain its locomotion phase. */
  adoptMotion(source:GameActor,pickup=false){this.phase=source.phase;this.pose=source.pose?structuredClone(source.pose):undefined;this.previous=source.previous?{...source.previous}:undefined;this.movementYaw=source.movementYaw;this.equipTime=pickup?1.15:0;}
@@ -78,5 +74,5 @@ export class GameActor {
   f.rot.forEach((q,i)=>{mesh.skeleton.bones[i].quaternion.set(...q);mesh.skeleton.bones[i].scale.set(...(f.scale?.get(i)??[1,1,1]));});for(const [i,p]of f.rootPos)mesh.skeleton.bones[i].position.set(...p);f.morph?.forEach((v,i)=>{if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[i]=v;});
   this.render.group.position.set(car.x,0,car.z);this.render.group.rotation.y=car.yaw;this.pose=undefined;
  }
- dispose(){this.blood.dispose();disposeGrenade(this.heldGrenade);if(this.armor){const materials=new Set<MeshStandardMaterial>();this.armor.traverse(node=>{if(node instanceof Mesh){node.geometry.dispose();materials.add(node.material as MeshStandardMaterial);}});materials.forEach(m=>m.dispose());this.armor.removeFromParent();}this.render.dispose();}
+ dispose(){this.blood.dispose();disposeGrenade(this.heldGrenade);this.render.dispose();}
 }

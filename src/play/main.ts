@@ -5,6 +5,8 @@ import {generateImportedVoices} from './voice-import';
 import {objectiveEditor} from './objective-editor';
 import {needsCompanion} from './objectives';
 import {defaultEnvironment,type EnvironmentSettings} from './environment';
+import {defaultCity,type CitySettings} from './city';
+import {availableRadioCountries} from './radio';
 import {isGun,weaponProfile} from './weapons';
 import {ENEMY_ROLES,roleDefaults,type EnemyKind,type EnemyHealth} from './enemy-roles';
 /** Creator shell. The shared player also runs independently in downloaded games. */
@@ -48,7 +50,7 @@ function paintChapters(){
 }
 
 function editChapter(index:number){wholeDraft();editingChapter=index;draft=chapterProject(draftRoot,index);enemyIndex=0;individualEnemies=false;paintDraft();cardsIntoView();}
-function replaceSequence(games:PlayProject[],selected:number){const hero=draftRoot.character;draftRoot={...games[0],character:hero,...(games.length>1?{chapters:games.slice(1).map((p,i)=>chapterSettings(p,`chapter-${i+2}`))}:{})};editingChapter=selected;draft=chapterProject(draftRoot,selected);paintDraft();cardsIntoView();}
+function replaceSequence(games:PlayProject[],selected:number){const hero=draftRoot.character,city=draftRoot.city;draftRoot={...games[0],character:hero,city,...(games.length>1?{chapters:games.slice(1).map((p,i)=>chapterSettings(p,`chapter-${i+2}`))}:{})};editingChapter=selected;draft=chapterProject(draftRoot,selected);paintDraft();cardsIntoView();}
 function cardsIntoView(){const cards=$('chapter-cards'),active=cards.querySelector<HTMLElement>('[aria-pressed=true]');if(active){const left=active.getBoundingClientRect().left-cards.getBoundingClientRect().left+cards.scrollLeft;if(left<cards.scrollLeft)cards.scrollLeft=left;else if(left+active.offsetWidth>cards.scrollLeft+cards.clientWidth)cards.scrollLeft=left+active.offsetWidth-cards.clientWidth;}}
 $('chapter-cards').onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const index=Number((e.target as HTMLElement).closest<HTMLButtonElement>('[data-chapter]')?.dataset.chapter);if(!Number.isInteger(index))return;e.preventDefault();const count=$('chapter-cards').children.length,next=e.key==='Home'?0:e.key==='End'?count-1:Math.max(0,Math.min(count-1,index+(e.key==='ArrowRight'?1:-1)));editChapter(next);($('chapter-cards').children[next]as HTMLButtonElement).focus({preventScroll:true});};
 $('chapter-cards').onclick=e=>{const b=(e.target as HTMLElement).closest<HTMLButtonElement>('[data-chapter]');if(b)editChapter(Number(b.dataset.chapter));};
@@ -57,7 +59,9 @@ for(const [id,offset]of [['chapter-earlier',-1],['chapter-later',1]]as const)but
 button('chapter-remove').onclick=()=>{const games=gameProjects(wholeDraft());if(games.length<2)return;games.splice(editingChapter,1);replaceSequence(games,Math.min(editingChapter,games.length-1));};
 installSetupChoices(setup);
 setup.addEventListener('input',()=>{wholeDraft();paintSetupSummary(setup,draft);paintChapters();});setup.addEventListener('change',()=>{wholeDraft();paintSetupSummary(setup,draft);paintChapters();});
-function showSetup(){resetDraft(project);castRole='player';enemyIndex=0;individualEnemies=false;showSetupPage('mission');paintDraft();player.openSettings();}
+let radioCountriesLoaded=false;
+async function loadRadioCountries(){if(radioCountriesLoaded)return;radioCountriesLoaded=true;const countries=await availableRadioCountries(),field=select('city-radio-country'),selected=(draftRoot.city??defaultCity()).radioCountry;field.replaceChildren(...countries.map(country=>new Option(country.name,country.code)));if(!countries.some(country=>country.code===selected))field.add(new Option(selected,selected));field.value=selected;}
+function showSetup(){resetDraft(project);castRole='player';enemyIndex=0;individualEnemies=false;showSetupPage('mission');paintDraft();player.openSettings();void loadRadioCountries();}
 button('settings').onclick=showSetup;setup.addEventListener('close',()=>{stopMusicPreview();
  // Start after the native dialog finishes closing, so its cleanup cannot clear
  // the first movement/interaction input or reclaim focus from the canvas.
@@ -68,6 +72,7 @@ function showSetupPage(page:typeof setupPages[number]){$('editing-section').text
 for(const page of setupPages){button('setup-'+page).onclick=()=>showSetupPage(page);button('setup-'+page).addEventListener('keydown',e=>{const index=setupPages.indexOf(page);if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();const next=setupPages[e.key==='Home'?0:e.key==='End'?setupPages.length-1:(index+(['ArrowRight','ArrowDown'].includes(e.key)?1:setupPages.length-1))%setupPages.length];showSetupPage(next);button('setup-'+next).focus();});}
 select('mission-location').replaceChildren(...LOCATIONS.map(l=>new Option(l.name,l.id)));
 function paintMission(){$<HTMLInputElement>('stealth-senses').checked=!!draft.mission.stealth;for(const key of ['pursuit','overwatch']as const)$<HTMLInputElement>('support-'+key).checked=!!draft.mission[key];
+ const city={...defaultCity(),...draftRoot.city};select('city-size').value=city.size;select('city-pedestrians').value=String(city.pedestrians);select('city-traffic').value=String(city.traffic);for(const [id,key]of [['city-police','police'],['city-repair','repairShop'],['city-gun-shop','gunShop'],['city-fights','pedestrianFights'],['city-weapon-switch','weaponSwitch'],['city-radio','radio']]as const)$<HTMLInputElement>(id).checked=city[key];select('city-radio-country').value=city.radioCountry;
  $<HTMLInputElement>('side-delivery').checked=!!draft.mission.sideQuests?.includes('delivery');$<HTMLInputElement>('side-race').checked=!!draft.mission.sideQuests?.includes('street-race');$<HTMLInputElement>('side-bounty').checked=!!draft.mission.sideQuests?.includes('bounty');$<HTMLInputElement>('side-race').disabled=!usesPickup(draft.mission);
  select('game-difficulty').value=draft.mission.difficulty??'normal';$<HTMLInputElement>('game-par').value=String(draft.mission.parTime??180);
  $<HTMLInputElement>('game-title').value=draft.identity.title;$<HTMLTextAreaElement>('game-briefing').value=draft.identity.briefing;
@@ -80,6 +85,7 @@ function paintMission(){$<HTMLInputElement>('stealth-senses').checked=!!draft.mi
 }
 function automaticTitle(){if(['The Depot','Military base','Base assault','Getaway','Rescue getaway','Clear and drive'].includes(draft.identity.title))draft.identity.title=usesPickup(draft.mission)?needsCompanion(draft.mission)?'Rescue getaway':draft.mission.story==='clear'?'Clear and drive':'Getaway':draft.mission.location==='military-base'?(draft.mission.story==='clear'?'Base assault':'Military base'):'The Depot';}
 select('mission-location').onchange=()=>{draft.mission.location=select('mission-location').value as LocationId;automaticTitle();paintMission();};
+for(const id of ['city-size','city-pedestrians','city-traffic','city-police','city-repair','city-gun-shop','city-fights','city-weapon-switch','city-radio','city-radio-country']as const)$(id).addEventListener('change',()=>{const city:CitySettings={size:select('city-size').value as CitySettings['size'],pedestrians:Number(select('city-pedestrians').value) as CitySettings['pedestrians'],traffic:Number(select('city-traffic').value) as CitySettings['traffic'],police:$<HTMLInputElement>('city-police').checked,repairShop:$<HTMLInputElement>('city-repair').checked,gunShop:$<HTMLInputElement>('city-gun-shop').checked,pedestrianFights:$<HTMLInputElement>('city-fights').checked,weaponSwitch:$<HTMLInputElement>('city-weapon-switch').checked,radio:$<HTMLInputElement>('city-radio').checked,radioCountry:select('city-radio-country').value};draftRoot.city=city;draft.city=city;});
 $<HTMLInputElement>('game-title').oninput=()=>draft.identity.title=$<HTMLInputElement>('game-title').value;
 $<HTMLTextAreaElement>('game-briefing').oninput=()=>draft.identity.briefing=$<HTMLTextAreaElement>('game-briefing').value;
 select('mission-story').onchange=()=>{

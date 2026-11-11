@@ -46,7 +46,7 @@ const legacy={...checkpoint.checkpoint!,spawn:{x:checkpoint.car!.x,z:checkpoint.
 const hub=new EscapeGame({...defaultMission(),location:'urban-block',story:'getaway',extraction:'pickup',sideQuests:['delivery','street-race']},actors,{...defaultLoadout(),weapon:'pistol',ammunition:'unlimited'},100,undefined,undefined,true);
 hub.configureCar(defaultCarFit());hub.configurePursuit(defaultCarFit());hub.start();hub.protection=Infinity;assert.equal(hub.hubHeat,0);assert.equal(hub.enemies[0].combat.health,0);hub.update(1/60,idle);assert.equal(hub.events.some(e=>e.type==='checkpoint'),false,'the hub does not announce a mission key checkpoint');
 for(let i=0;i<16*60;i++)hub.update(1/60,{...idle,fire:true,aim:{x:10,y:1,z:10}});
-assert.equal(hub.hubHeat,3);assert.equal(hub.pursuitActive,true);assert.ok(hub.enemies[0].combat.health>0);for(let i=0;i<85*60;i++)hub.update(1/60,idle);assert.equal(hub.hubHeat,0);
+assert.equal(hub.hubHeat,3);assert.equal(hub.pursuitActive,true);assert.ok(hub.enemies[0].combat.health>0);hub.protection=Infinity;for(let i=0;i<85*60;i++)hub.update(1/60,idle);assert.equal(hub.hubHeat,0);
 hub.car!.phase='driving';Object.assign(hub.car!,hub.world.exit,{speed:0});hub.update(1/60,{...idle,brake:true});assert.equal(hub.hubMissionReady,true);hub.update(1/60,{...idle,interact:true,brake:true});assert.equal(hub.hubLaunch,true);assert.equal(hub.status,'playing');console.log('OK hub police escalates through three stars, cools down and unlocks the mission marker');
 
 const bounds={minX:-100,maxX:100,minZ:-100,maxZ:100},fit=defaultCarFit(),car:CarState={x:0,z:0,yaw:0,speed:0,steer:0,distance:0,phase:'driving',time:0,blocked:0,fit};

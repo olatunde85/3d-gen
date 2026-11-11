@@ -9,6 +9,13 @@ export const bodyScale=(b:MotorBody)=>b.animationScale??b.height/1.8;
 const contains=(point:Point,v:Rect,margin=0)=>{const p=v.obb?rectLocal(point,v.obb):point,r=v.obb?.box??v;return p.x>=r.minX+margin&&p.x<=r.maxX-margin&&p.z>=r.minZ+margin&&p.z<=r.maxZ-margin;};
 export function supportAt(p:Point,maxY:number,volumes:readonly Volume[],radius=0):number {let y=0;for(const v of volumes)if(v.climbable&&v.h<=maxY+.001&&(radius?blocked(p,radius,[v]):contains(p,v,.06)))y=Math.max(y,v.h);return y;}
 export const atHeight=(volumes:readonly Volume[],y:number,height=1.8)=>volumes.filter(v=>v.h>y+.025&&(v.baseY??0)<y+height-.025);
+/** A falling body can cross a wall's top while its feet are still above it. Clear
+ * the small horizontal overlap on landing so later input cannot be trapped. */
+export function clearMotorOverlap(body:MotorBody,volumes:readonly Volume[],bounds:Rect=WORLD){
+ const solids=atHeight(volumes,body.y,stanceHeight(body));if(!blocked(body,body.radius,solids))return false;
+ for(let ring=1;ring<=24;ring++){const radius=ring*.1;for(let i=0;i<24;i++){const angle=i*Math.PI/12,p={x:body.x+Math.cos(angle)*radius,z:body.z+Math.sin(angle)*radius};if(p.x<bounds.minX+body.radius+.2||p.x>bounds.maxX-body.radius-.2||p.z<bounds.minZ+body.radius+.2||p.z>bounds.maxZ-body.radius-.2||blocked(p,body.radius,solids))continue;body.x=p.x;body.z=p.z;return true;}}
+ return false;
+}
 export function sight(from:MotorBody,to:MotorBody,volumes:readonly Volume[]):boolean {
  const ay=from.y+stanceHeight(from)*.87,by=to.y+stanceHeight(to)*.82;
  return !volumes.some(v=>{const a=v.obb?rectLocal(from,v.obb):from,b=v.obb?rectLocal(to,v.obb):to,r=v.obb?.box??v;let lo=0,hi=1;for(const axis of ['x','z']as const){const min=axis==='x'?r.minX:r.minZ,max=axis==='x'?r.maxX:r.maxZ,d=b[axis]-a[axis];if(Math.abs(d)<1e-8){if(a[axis]<min||a[axis]>max)return false;}else{const x=(min-a[axis])/d,y=(max-a[axis])/d;lo=Math.max(lo,Math.min(x,y));hi=Math.min(hi,Math.max(x,y));if(lo>hi)return false;}}const y0=ay+(by-ay)*lo,y1=ay+(by-ay)*hi;return Math.min(y0,y1)<v.h&&Math.max(y0,y1)>(v.baseY??0);});
@@ -32,6 +39,7 @@ export function motorStep(body:MotorBody,dx:number,dz:number,dt:number,volumes:r
  const floor=supportAt(body,Math.max(beforeY,body.y),volumes,body.radius);
  if(body.vy<=0&&body.y<=floor+.001){body.y=floor;body.vy=0;body.grounded=true;if(!wasGrounded&&body.airTime>.12)body.landing=.5;body.airTime=0;}
  else if(body.y>floor+.025&&body.grounded){body.grounded=false;body.vy=0;body.airTime=0;}
+ clearMotorOverlap(body,volumes,bounds);
 }
 function rayEntry(p:Point,dir:Point,v:Rect):{distance:number;normal:Point}|undefined {
  if(v.obb){const o=v.obb,c=Math.cos(o.yaw),s=Math.sin(o.yaw),hit=rayEntry(rectLocal(p,o),{x:c*dir.x-s*dir.z,z:s*dir.x+c*dir.z},o.box);return hit?{...hit,normal:{x:c*hit.normal.x+s*hit.normal.z,z:-s*hit.normal.x+c*hit.normal.z}}:undefined;}

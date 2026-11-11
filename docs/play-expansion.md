@@ -63,8 +63,16 @@ The next release grows Play from staged chapters into a connected district. Keep
 ## Recent gameplay and presentation fixes
 
 - LLM Assist and imported Play JSON generate missing voiced dialogue using the selected male or female voice; existing recorded audio stays intact.
-- Branch selection shows destination chapters as selectable cards. Health pickups clear blood stains, purchased armour appears on the hero, and the pistol pickup uses a blended animation.
+- Branch selection shows destination chapters as selectable cards. Health pickups clear blood stains, and the pistol pickup uses a blended animation. The safehouse now sells a health upgrade without a vest visual.
 - Vehicle checkpoints save a safe stand position and retries move the player out of any car hull. The pickup's base driving speeds are 20/29/40 m/s by pace, with 14 m/s reverse, quicker acceleration and stronger braking; other vehicle models retain their fitted speed multipliers.
+
+## City configuration and repair pass
+
+- Game setup and portable JSON now configure city length, pedestrian count, parked vehicle count, police heat, repair and gun shops, pedestrian fights, weapon switching, and driving radio with a country code. The default vast district is 300 m wide by 600 m long. The two smaller choices use the same 1:2 width-to-length ratio.
+- Two low-detail Ara characters in distinct T-shirts populate clear, fixed sidewalks by default. Officers use the Ara Nigeria Police uniform. A repair marker charges $100 for a damaged vehicle; a pawn marker sells the next unlocked firearm or ammunition. Optional street fights pay $25 once per pedestrian and raise police heat. Number keys 1–3 holster, equip a pistol or equip a rifle when available.
+- The vehicle view now captures its model at construction, so taking a parked motorcycle keeps the motorcycle when boarding and driving. A stopped motorcycle can enter a street race at its start marker. Races show a prominent win or loss result.
+- The optional radio requests current country codes and top working stations from Radio Browser when enabled. It streams only while driving, has a Next station control, and stops on exit or pause. Internet and a playable station stream are required. Radio Browser's [API reference](https://docs.radio-browser.info/) defines the station search, country codes and station click endpoint.
+- Retry checks every parked vehicle hull and keeps the hub gate open. Landing clears capsule overlap at platform edges. The renderer caps pixel ratio and shadow resolution, city buildings use simpler meshes, and static collision and occlusion data are reused instead of rebuilt each frame.
 
 ## Placement audit
 
