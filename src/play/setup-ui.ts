@@ -1,0 +1,17 @@
+/** Small visual controls sit over the canonical inputs; every path edits the same draft. */
+import {locationDefinition,type LocationId} from './locations';
+import {missionGoal,extractionMode} from './mission';
+import {describeGame} from './assist';
+import type {PlayProject} from './project';
+const paths:Record<string,string>={escape:'M14 5h9v22h-9M4 16h14m-5-5 5 5-5 5',rescue:'M11 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm10 1a3 3 0 1 0 0-6m-18 19v-7a6 6 0 0 1 12 0v7m4-10a5 5 0 0 1 6 5v5',clear:'M16 3 27 8v9c0 6-6 10-11 13C11 27 5 23 5 17V8L16 3Zm-5 13 4 4 7-8',foot:'M19 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM9 15l5-5 6 3 5 1M16 11l-3 9-7 8m7-8 6 2 2 7',pickup:'M3 21V10h13l4 6h8v8h-3m-6 0h-8m-6 0H3v-3Zm13-11v7H3m3 7a3 3 0 1 0 6 0 3 3 0 0 0-6 0Zm13 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z'};
+export function installSetupChoices(root:HTMLElement){
+ const narrow=matchMedia('(max-width:700px)'),orient=()=>root.querySelector('[role=tablist]')!.setAttribute('aria-orientation',narrow.matches?'horizontal':'vertical');orient();narrow.addEventListener('change',orient);
+ for(const el of root.querySelectorAll<HTMLElement>('[data-icon]'))el.innerHTML=`<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[el.dataset.icon!]}"></path></svg>`;
+ for(const el of root.querySelectorAll<HTMLElement>('[data-map]')){const w=locationDefinition(el.dataset.map as LocationId),b=w.bounds,ground=w.id==='desert-compound'?'#e6d6b6':w.id==='market-street'?'#e2d6c4':w.id==='urban-block'?'#d6dfe3':'#dfe5d6';el.innerHTML=`<svg viewBox="${b.minX-2} ${b.minZ-2} ${b.maxX-b.minX+4} ${b.maxZ-b.minZ+4}" aria-hidden="true"><rect x="${b.minX}" y="${b.minZ}" width="${b.maxX-b.minX}" height="${b.maxZ-b.minZ}" rx="1" fill="${ground}"/>${w.blocks.map(r=>`<rect x="${r.x-r.w/2}" y="${r.z-r.d/2}" width="${r.w}" height="${r.d}" rx=".3" fill="${w.id==='depot'||w.id==='military-base'?r.kind==='wall'?'#879985':r.kind==='building'?'#748e83':'#a7b6a0':r.color}"/>`).join('')}<path d="M${w.starts[0].x},${w.starts[0].z} L0,${w.gate.z+3} L0,${w.gate.z-3} L${w.exits[0].x},${w.exits[0].z}" fill="none" stroke="#b59054" stroke-width=".6" stroke-dasharray="1.3 1"/><circle cx="${w.starts[0].x}" cy="${w.starts[0].z}" r="1.3" fill="#294f45"/></svg>`;}
+ root.addEventListener('click',e=>{const button=(e.target as HTMLElement).closest<HTMLButtonElement>('button[data-choice]');if(!button||button.disabled)return;const select=document.getElementById(button.dataset.choice!)as HTMLSelectElement;select.value=button.dataset.value!;select.dispatchEvent(new Event('change',{bubbles:true}));});
+}
+export function paintSetupSummary(root:HTMLElement,p:PlayProject){
+ const values:Record<string,string>={'mission-story':missionGoal(p.mission),'mission-extraction':extractionMode(p.mission),'mission-location':p.mission.location??'depot'};
+ for(const b of root.querySelectorAll<HTMLButtonElement>('button[data-choice]'))b.setAttribute('aria-pressed',String(values[b.dataset.choice!]===b.dataset.value));
+ const d=describeGame(p),set=(id:string,s:string)=>{document.getElementById(id)!.textContent=s;};set('setup-summary-title',p.identity.title||'Your game');set('setup-summary-goal',d.facts[0]);set('setup-summary-location',d.facts[1]);set('setup-summary-cast',`You + ${p.enemies.length} ${p.enemies.length===1?'enemy':'enemies'}${p.mission.story==='rescue'?' + companion':''}`);set('setup-summary-equipment',d.facts[3].split(' · ').slice(0,2).join(' · '));
+}

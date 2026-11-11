@@ -10,7 +10,7 @@ export async function supportsMp4(width = 1920, height = 1080) {
   try { return await canEncodeVideo('avc', { width, height, bitrate: bitrateFor(width, height) }); } catch { return false; }
 }
 export async function audioCodec(){for(const codec of ['aac','opus']as const)if(new Mp4OutputFormat().getSupportedAudioCodecs().includes(codec)&&await canEncodeAudio(codec,{sampleRate:48000,numberOfChannels:2,bitrate:128000}))return codec;return undefined;}
-export interface ExportOptions { width: number; height: number; signal: AbortSignal; progress: (done: number, total: number) => void }
+export interface ExportOptions { width: number; height: number; signal: AbortSignal; progress: (done: number, total: number) => void; bitrate?:number }
 export async function exportMovie(scene: StudioScene, project: StudioProject, options: ExportOptions): Promise<Blob> {
   const { width, height, signal, progress } = options;
   if (!await supportsMp4(width, height)) throw new Error('MP4 encoding is unavailable at this resolution. Try 720p in a current Chrome, Edge or Safari browser.');
@@ -19,7 +19,7 @@ export async function exportMovie(scene: StudioScene, project: StudioProject, op
   const mix=hasAudio(project.audio)?await renderSoundtrack(project,signal):undefined;
   const target = new BufferTarget();
   const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target });
-  const source = new CanvasSource(scene.output, { codec: 'avc', bitrate: bitrateFor(width, height), keyFrameInterval: 2 });
+  const source = new CanvasSource(scene.output, { codec: 'avc', bitrate: options.bitrate??bitrateFor(width, height), keyFrameInterval: 2 });
   output.addVideoTrack(source, { frameRate: 30 });
   const sound=codec?new AudioBufferSource({codec,bitrate:128000}):undefined;if(sound)output.addAudioTrack(sound);
   const old = { width: scene.output.width, height: scene.output.height };

@@ -19,6 +19,10 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 
 - [Ara Studio](studio.md): direct up to five characters in 66 sets, with dialogue, sound effects, music and Assist, and export an MP4
 
+**Playing games**
+
+- [Ara Play prototype](play.md): depot escape and rescue/escort stories with character selection, collision, guard pursuit, optional pistol combat, lives/checkpoints, keyboard/touch controls and portable setup JSON
+
 **Under the hood**
 
 - [Architecture](architecture.md): how the code is organised and how a character is built
