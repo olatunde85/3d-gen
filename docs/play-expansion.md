@@ -57,3 +57,9 @@ The next release grows Play from staged chapters into a connected district. Keep
 - [ ] Add a free-roam city district between chapters, mission markers, civilians, parked cars and escalating one-to-three-star police heat.
 - [ ] Add player-drivable motorcycle, sports car and SUV; vehicle damage/smoke, armed/ramming pursuit, and chase/escort objectives. Pickup collision damage, smoke and checkpoint restoration are implemented; new vehicles and chase/escort gameplay remain.
 - [ ] Carry cash, purchases, branch choices and story flags across chapters and reloads. Cash, purchases and the safehouse shop are implemented; branch choices, flags and conditional briefings remain.
+
+## Placement audit
+
+- A five-chapter campaign with an urban night vault and hard pickup route exposed buildings placed across the chapter 3 escape lane. The urban annex and shopfront now sit outside that lane. A market stall also blocked the parked pickup in all cover layouts; it has been moved.
+- Placement and fitted vehicle errors now identify the failed route or objective, map, layout, variation and obstruction. Check placements includes a whole-campaign validity result, so shared chapter errors cannot appear as a clean report.
+- Regression checks cover the urban chapter, all 108 district pickup lanes, fitted hard courses, pursuit bays, side jobs, objective chains, exports and LLM Assist.

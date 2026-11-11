@@ -11,6 +11,7 @@ import {LOCATIONS,locationMap} from './locations';
 import {CAMERA_VIEWS,MUSIC_TRACKS} from './presentation';
 import {missionGoal,extractionMode} from './mission';
 import {EscapeGame} from './runtime';
+import {defaultCarFit} from './driving';
 const object=(p:unknown):p is Record<string,unknown>=>!!p&&typeof p==='object'&&!Array.isArray(p);
 export function parsePlayInput(source:string,catalog:Catalog):PlayProject{
  if(source.length>512_000)throw Error('Use game JSON smaller than 512 KB.');let raw:unknown;
@@ -22,19 +23,20 @@ export function parsePlayInput(source:string,catalog:Catalog):PlayProject{
  if(Array.isArray(game.enemies))game.enemies=game.enemies.map(e=>object(e)?{...e,character:character(e.character)}:e);
  if(object(game.companion))game.companion={...game.companion,character:character(game.companion.character)};
  if(Array.isArray(game.chapters))game.chapters=game.chapters.map(c=>{if(!object(c))return c;const copy={...c};if(Array.isArray(copy.enemies))copy.enemies=copy.enemies.map(e=>object(e)?{...e,character:character(e.character)}:e);if(object(copy.companion))copy.companion={...copy.companion,character:character(copy.companion.character)};return copy;});
- const result=parseProject(JSON.stringify(game),catalog);for(const [index,p]of gameProjects(result).entries())try{new EscapeGame(p.mission,p.enemies,p.loadout,p.companion.health,p.progression,p.vehicle);}catch(error){throw Error(`${index?result.chapters?.[index-1]?.id??`chapter-${index+1}`:'chapter-1'} › ${(error as Error).message}`);}return result;
+ const result=parseProject(JSON.stringify(game),catalog);for(const [index,p]of gameProjects(result).entries())try{const staged=new EscapeGame(p.mission,p.enemies,p.loadout,p.companion.health,p.progression,p.vehicle);if(staged.car)staged.configureCar(defaultCarFit());if(p.mission.pursuit)staged.configurePursuit(defaultCarFit());}catch(error){throw Error(`${index?result.chapters?.[index-1]?.id??`chapter-${index+1}`:'chapter-1'} › ${(error as Error).message}`);}return result;
 }
 export function checkPlayPlacements(source:string,catalog:Catalog){
  const raw=JSON.parse(extractJson(source)) as Record<string,unknown>;
  if(!object(raw))throw Error('Paste a complete Ara Play game JSON object.');
  const chapters=Array.isArray(raw.chapters)?raw.chapters:[];
- return {kind:'ara-play-placements',version:1,chapters:[raw,...chapters].map((chapter,index)=>{
-  const row=index?chapter as Record<string,unknown>:raw,id=index?String(row.id??`chapter-${index+1}`):'chapter-1';
-  try{const {chapters:ignored,...base}=raw;const {id:ignoredId,...settings}=index?row:{};const merged=index?{...base,...settings,character:base.character,mission:{...(base.mission as object??{}),...(settings.mission as object??{})}}:base;
+ const result={kind:'ara-play-placements',version:1,chapters:[raw,...chapters].map((chapter,index)=>{
+  const row=object(chapter)?chapter:{},id=index?String(row.id??`chapter-${index+1}`):'chapter-1';
+  try{if(index&&!object(chapter))throw Error('Use a valid chapter object.');const {chapters:ignored,...base}=raw;const {id:ignoredId,...settings}=index?row:{};const merged=index?{...base,...settings,character:base.character,mission:{...(base.mission as object??{}),...(settings.mission as object??{})}}:base;
    const project=parsePlayInput(JSON.stringify(merged),catalog),contract=missionContract(project);
    return {id,ok:true,location:contract.location,layout:project.mission.layout,variation:project.mission.variation,cargo:contract.cargo??project.mission.cargo??'none',hero:contract.hero,exit:contract.exit,steps:contract.steps.map((s,i)=>({number:i+1,type:s.step.type,label:s.step.label??s.step.type,position:s.position,groundPath:s.groundPath}))};
-  }catch(error){return {id,ok:false,error:(error as Error).message};}
+  }catch(error){const mission={...(object(raw.mission)?raw.mission:{}),...(object(row.mission)?row.mission:{})};return {id,ok:false,location:mission.location??'depot',layout:mission.layout??'balanced',variation:mission.variation??0,error:(error as Error).message.replace(/^chapter-1 › /,'')};}
  })};
+ try{parsePlayInput(source,catalog);return {...result,valid:result.chapters.every(c=>c.ok),error:undefined as string|undefined};}catch(error){return {...result,valid:false,error:(error as Error).message};}
 }
 export const goalLabel=(p:PlayProject)=>({escape:'Escape',rescue:'Rescue someone',clear:'Clear enemies'}[missionGoal(p.mission)]);
 export function describeGame(p:PlayProject){

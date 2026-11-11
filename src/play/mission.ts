@@ -77,10 +77,32 @@ export function createMission(settings:MissionSettings=defaultMission(),suggestF
  if(cargoKind)blocks.push({id:'mission-cargo-stand',x:cargoPosition!.x,z:cargoPosition!.z-.4,w:1.1,d:.7,h:.8,kind:'crate',color:'#879078'});
  const world:MissionWorld={id:`${location.id}-${settings.story}-${extractionMode(settings)}-${settings.layout}-${settings.variation}-${settings.cargo??'none'}-${settings.driveDifficulty??'easy'}`,location:location.id,name:location.name,bounds:course?.bounds??location.bounds,gate,...(helipad?{helipad}:{}),gateWidth:getaway?6:2.9,gateClearance:getaway?3.65:2.55,...(getaway?{getaway:{pickup,...(course?{course:course.course}:{}),route:course?.route??[pickup,{x:0,z:gate.z-3,yaw:Math.PI},{...exit,yaw:Math.PI}],reserve:{minX:-2,maxX:3,minZ:pickup.z-5,maxZ:pickup.z+5}}}:{}),...(cargoKind?{cargo:{kind:cargoKind,position:{x:cargoPosition!.x,z:cargoPosition!.z-.4}}}:{}),sniperSpawns:blocks.filter(b=>(b.kind==='building'||b.kind==='container')&&b.h>=2&&Math.hypot(b.x-start.x,b.z-start.z)>7).sort((a,b)=>Math.hypot(b.x-start.x,b.z-start.z)-Math.hypot(a.x-start.x,a.z-start.z)).slice(0,2).map(b=>({x:b.x,z:b.z,y:b.h,yaw:Math.atan2(gate.x-b.x,gate.z-b.z)})),enemySpawns:location.enemySpawns,supplyRows:location.supplyRows,supplyLanes:location.supplyLanes,story:settings.story,blocks,start,key,exit:course?.exit??exit,guard:{...location.guards[variant]},patrol,rescue:{captive,approach},checkpoints:{cargo:cargoSpawn,route:{...pickup},key:keySpawn,gate:gateSpawn,rescue:approach,vehicle:getaway?{x:-1.5,z:pickup.z,yaw:Math.PI}:{...gateSpawn},clear:{...patrol[0],yaw:Math.atan2(exit.x-patrol[0].x,exit.z-patrol[0].z)}}};
  const shut=missionObstacles(world,0),open=missionObstacles(world,1),r=.52;
- for(const p of [world.start,world.key,world.exit,world.guard,...world.patrol])if(blocked(p,r,open))throw Error('This mission arrangement has an obstructed starting point.');
- if(!route(world.start,keySpawn,shut,r,location.bounds).length||!route(keySpawn,gateSpawn,shut,r,location.bounds).length||!route(gateSpawn,course?pickup:world.exit,open,r,location.bounds).length||!route(world.checkpoints.clear,course?pickup:world.exit,open,r,location.bounds).length)throw Error('The mission needs a clear route between its objectives.');
- if(settings.story==='rescue'&&(blocked(captive,r,open)||blocked(approach,r,open)||!route(start,approach,open,r,location.bounds).length||!route(captive,course?pickup:world.exit,open,r,location.bounds).length))throw Error('The rescue needs clear space and a ground route to extraction.');
- if(course&&!course.route.every((p,i)=>!i||clearPath(course.route[i-1],p,open,r)))throw Error('The driving course needs a clear ground route.');
+ const placementError=(goal:string,detail:string):never=>{
+  const fixes:string[]=[];
+  if(suggestFixes)for(const layout of [settings.layout,'open','balanced','dense']as CoverLayout[])for(let variation=0;variation<12&&fixes.length<3;variation++){
+   const fix=`layout "${layout}", variation ${variation}`;
+   if(layout===settings.layout&&variation===settings.variation||fixes.includes(fix))continue;
+   try{createMission({...settings,layout,variation},false);fixes.push(fix);}catch{/* An alternative must pass the complete mission contract. */}
+  }
+  throw Error(`${goal}: ${detail} in ${location.id}, layout "${settings.layout}", variation ${settings.variation}.${fixes.length?` Try ${fixes.join(' or ')}.`:''}`);
+ };
+ const obstruction=(p:Point,rects:Rect[])=>{
+  const solid=blocks.find(b=>blocked(p,r,[rectOf(b)]));
+  return solid?`blocked by ${solid.id}`:blocked(p,r,rects)?'blocked by the gate':'clear';
+ };
+ for(const [name,p]of [['hero start',world.start],['key',world.key],['exit',world.exit],['guard',world.guard],...world.patrol.map((point,i)=>[`patrol point ${i+1}`,point]as const)]as const)if(blocked(p,r,open))placementError(name,obstruction(p,open));
+ for(const [name,from,to,rects]of [['hero start → key',world.start,keySpawn,shut],['key → gate',keySpawn,gateSpawn,shut],['gate → extraction',gateSpawn,course?pickup:world.exit,open],['clear checkpoint → extraction',world.checkpoints.clear,course?pickup:world.exit,open]]as const){
+  if(!route(from,to,rects,r,location.bounds).length){const target=obstruction(to,rects),source=obstruction(from,rects),crossed=blocks.filter(b=>!clearPath(from,to,[rectOf(b)],r)).slice(0,3).map(b=>b.id);
+   placementError(name,`no reachable route from (${from.x.toFixed(1)}, ${from.z.toFixed(1)}) to (${to.x.toFixed(1)}, ${to.z.toFixed(1)}); ${target!=='clear'?`destination ${target}`:source!=='clear'?`start ${source}`:crossed.length?`direct path crosses ${crossed.join(', ')} and no detour is reachable`:'no ground path fits between the solids'}`);
+  }
+ }
+ if(settings.story==='rescue'){
+  if(blocked(captive,r,open))placementError('rescue captive',obstruction(captive,open));
+  if(blocked(approach,r,open))placementError('rescue approach',obstruction(approach,open));
+  if(!route(start,approach,open,r,location.bounds).length)placementError('hero start → rescue approach','no reachable ground route');
+  if(!route(captive,course?pickup:world.exit,open,r,location.bounds).length)placementError('rescue captive → extraction','no reachable ground route');
+ }
+ if(course)for(let i=1;i<course.route.length;i++)if(!clearPath(course.route[i-1],course.route[i],open,r))placementError(`road checkpoint ${i}`,`segment from (${course.route[i-1].x.toFixed(1)}, ${course.route[i-1].z.toFixed(1)}) to (${course.route[i].x.toFixed(1)}, ${course.route[i].z.toFixed(1)}) crosses a solid`);
  return world;
 }
 export const solidVolumes=(world:MissionWorld,door:number)=>[...world.blocks.map(b=>({...rectOf(b),h:b.h,id:b.id,climbable:b.kind!=='wall'})),{...obstacles(door,[],world.gate,world.gateWidth)[0],h:2.3,id:'gate',climbable:false}];
