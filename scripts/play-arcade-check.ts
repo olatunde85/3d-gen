@@ -4,7 +4,7 @@ import { nodeLibrary } from './node-assets';
 import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject } from '../src/play/project';
 import { skyLook } from '../src/play/arcade/weather';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
-import { defaultRace, defaultRunner, parseRace, parseRunner } from '../src/play/arcade/modes';
+import { defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle } from '../src/play/arcade/modes';
 import { TRACK_IDS, TRACK_TEMPLATES, buildTrack, locate, parseTrack, trackPoint } from '../src/play/arcade/track';
 import { CAR_STATS, RaceGame, idleInput } from '../src/play/arcade/race';
 import { LANE, RunnerGame, missionSet } from '../src/play/arcade/runner';
@@ -126,5 +126,15 @@ check('race and runner games ignore companion boarding and read the chapter atmo
   assert.equal(day.lamps, 0);assert.equal(day.wet, false);assert.deepEqual(day.fog, [90, 420]);
   assert.equal(night.lamps, 1);assert.ok(night.sun < 0.5 && night.sky.getHSL({ h: 0, s: 0, l: 0 }).l < 0.15);
   assert.ok(rain.wet && rain.fog[1] < 300);assert.ok(fog.fog[1] < 200 && fog.lamps >= 0.5);
+});
+check('arcade games take circuit and course names instead of mission titles', () => {
+  const race = { mode: 'race' as const, race: { ...defaultRace(), track: 'desert-run' }, identity: { title: 'Rescue getaway' } };
+  assert.equal(gameTitle(race), 'Desert Run');retitle(race);assert.equal(race.identity.title, 'Desert Run');
+  race.race.track = 'forest-ring';retitle(race);assert.equal(race.identity.title, 'Forest Ring');
+  const runner = { mode: 'runner' as const, runner: { ...defaultRunner(), theme: 'city-rooftops' as const }, identity: { title: 'Next mission 3' } };
+  retitle(runner);assert.equal(runner.identity.title, 'City rooftops');
+  const own = { mode: 'race' as const, race: defaultRace(), identity: { title: 'Lagos Cup' } };retitle(own);assert.equal(own.identity.title, 'Lagos Cup');assert.equal(gameTitle(own), 'Lagos Cup');
+  const back = { identity: { title: 'Forest Ring' } };retitle(back);assert.equal(back.identity.title, 'The Depot');
+  assert.ok(isAutomaticTitle('The Depot') && isAutomaticTitle('') && !isAutomaticTitle('Ara Grand Prix'));
 });
 console.log(`${checks} arcade race and runner contracts passed.`);

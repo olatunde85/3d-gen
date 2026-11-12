@@ -34,20 +34,31 @@ import type {Health,Ammunition} from './combat';
 import {mountPlayer,actorRadius,type Player} from './player';
 import {setupGameDownload} from './download-ui';
 import {modeEditor} from './arcade/editor';
+import {retitle,arcadeTitle,RUNNER_THEMES} from './arcade/modes';
+import {TRACK_IDS} from './arcade/track';
 const $=<T extends HTMLElement>(id:string)=>document.getElementById(id)as T;
 const button=(id:string)=>$<HTMLButtonElement>(id),select=(id:string)=>$<HTMLSelectElement>(id);
 const canvas=$<HTMLCanvasElement>('game'),setup=$<HTMLDialogElement>('setup');
 const storage='ara.play.escape.v1';let project=defaultProject(),draft=structuredClone(project),draftRoot=structuredClone(project),editingChapter=0,loading=true,engine:Engine,lib:AssetLibrary,scene:GameScene,player:Player,pendingCast:PlayCast|undefined,gameCast:PlayCast;
 const musicPreview=new GameMusic(new URL(import.meta.env.BASE_URL,location.href).href);let previewingMusic=false;
 let restartAfterSetup=false,fileMode:'character'|'enemy'|'companion'|'project'='character',castRole:'player'|'enemy'|'companion'='player',applying=false,individualEnemies=false,enemyIndex=0;
-function resetDraft(p:PlayProject){draftRoot=structuredClone(p);editingChapter=0;draft=chapterProject(draftRoot,0);}
+/** Automatic titles follow the mode: circuits and courses name arcade games, missions keep mission names. */
+function retitleAll(root:PlayProject){retitle(root);for(const c of root.chapters??[])if(c.identity)retitle({mode:root.mode,race:c.race??root.race,runner:c.runner??root.runner,identity:c.identity});}
+/** Chapters that become races or runs without their own circuit or course take the next unused one. */
+function spreadArcadeChapters(root:PlayProject){
+ if(root.mode==='race'&&root.race){const used=[root.race.track,...(root.chapters??[]).map(c=>c.race?.track)];for(const c of root.chapters??[])if(!c.race){const track=TRACK_IDS.find(t=>!used.includes(t))??root.race.track;used.push(track);c.race={...root.race,track};}}
+ if(root.mode==='runner'&&root.runner){const used=[root.runner.theme,...(root.chapters??[]).map(c=>c.runner?.theme)];for(const c of root.chapters??[])if(!c.runner){const theme=RUNNER_THEMES.find(t=>!used.includes(t))??root.runner.theme;used.push(theme);c.runner={...root.runner,theme};}}
+}
+const sequenceNoun=()=>draftRoot.mode==='race'?'race':draftRoot.mode==='runner'?'stage':'mission';
+function resetDraft(p:PlayProject){draftRoot=structuredClone(p);retitleAll(draftRoot);editingChapter=0;draft=chapterProject(draftRoot,0);}
 function wholeDraft(){const extra=draftRoot.chapters,lives=draft.mission.lives;if(editingChapter===0)draftRoot={...draft,...(extra?.length?{chapters:extra}:{})};else draftRoot.chapters![editingChapter-1]=chapterSettings(draft,draftRoot.chapters![editingChapter-1].id);draftRoot.character=structuredClone(draft.character);draftRoot.mission.lives=lives;for(const c of draftRoot.chapters??[])c.mission.lives=lives;return draftRoot;}
 function paintChapters(){
- const root=wholeDraft(),games=gameProjects(root),cards=$('chapter-cards');
+ const root=wholeDraft(),games=gameProjects(root),cards=$('chapter-cards'),noun=sequenceNoun(),Noun=noun[0].toUpperCase()+noun.slice(1);
+ $('mission-sequence-title').textContent=noun==='race'?'Cup races':noun==='stage'?'Run stages':'Mission sequence';$('add-chapter').textContent=`+ Add ${noun}`;$('chapter-cards').setAttribute('aria-label',`Choose a ${noun} to edit`);
  while(cards.children.length>games.length)cards.lastElementChild!.remove();
- games.forEach((p,i)=>{let b=cards.children[i]as HTMLButtonElement|undefined;if(!b){b=document.createElement('button');b.type='button';b.append(document.createElement('span'),document.createElement('strong'));cards.append(b);}b.dataset.chapter=String(i);b.setAttribute('aria-pressed',String(i===editingChapter));b.setAttribute('aria-label',`Edit mission ${i+1}: ${p.identity.title}`);b.title=p.identity.title;b.children[0].textContent=String(i+1).padStart(2,'0');b.children[1].textContent=p.identity.title;});
- button('add-chapter').disabled=games.length>=MAX_CHAPTERS;button('add-chapter').title=games.length>=MAX_CHAPTERS?'Five missions are already in this game':'Add a connected mission';$('chapter-count').textContent=`${games.length} / ${MAX_CHAPTERS}`;$('chapter-tools').hidden=games.length===1;
- $('editing-chapter').textContent=`Mission ${editingChapter+1} of ${games.length} · ${draft.identity.title||'Untitled mission'}`;$('editing-chapter').title=draft.identity.title||'Untitled mission';button('chapter-earlier').disabled=editingChapter===0;button('chapter-later').disabled=editingChapter===games.length-1;
+ games.forEach((p,i)=>{let b=cards.children[i]as HTMLButtonElement|undefined;if(!b){b=document.createElement('button');b.type='button';b.append(document.createElement('span'),document.createElement('strong'));cards.append(b);}b.dataset.chapter=String(i);b.setAttribute('aria-pressed',String(i===editingChapter));b.setAttribute('aria-label',`Edit ${noun} ${i+1}: ${p.identity.title}`);b.title=p.identity.title;b.children[0].textContent=String(i+1).padStart(2,'0');b.children[1].textContent=p.identity.title;});
+ button('add-chapter').disabled=games.length>=MAX_CHAPTERS;button('add-chapter').title=games.length>=MAX_CHAPTERS?`Five ${noun}s are already in this game`:`Add a connected ${noun}`;$('chapter-count').textContent=`${games.length} / ${MAX_CHAPTERS}`;$('chapter-tools').hidden=games.length===1;
+ $('editing-chapter').textContent=`${Noun} ${editingChapter+1} of ${games.length} · ${draft.identity.title||`Untitled ${noun}`}`;$('editing-chapter').title=draft.identity.title||`Untitled ${noun}`;button('chapter-earlier').disabled=editingChapter===0;button('chapter-later').disabled=editingChapter===games.length-1;
 }
 
 function editChapter(index:number){wholeDraft();editingChapter=index;draft=chapterProject(draftRoot,index);enemyIndex=0;individualEnemies=false;paintDraft();cardsIntoView();}
@@ -55,7 +66,11 @@ function replaceSequence(games:PlayProject[],selected:number){const hero=draftRo
 function cardsIntoView(){const cards=$('chapter-cards'),active=cards.querySelector<HTMLElement>('[aria-pressed=true]');if(active){const left=active.getBoundingClientRect().left-cards.getBoundingClientRect().left+cards.scrollLeft;if(left<cards.scrollLeft)cards.scrollLeft=left;else if(left+active.offsetWidth>cards.scrollLeft+cards.clientWidth)cards.scrollLeft=left+active.offsetWidth-cards.clientWidth;}}
 $('chapter-cards').onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const index=Number((e.target as HTMLElement).closest<HTMLButtonElement>('[data-chapter]')?.dataset.chapter);if(!Number.isInteger(index))return;e.preventDefault();const count=$('chapter-cards').children.length,next=e.key==='Home'?0:e.key==='End'?count-1:Math.max(0,Math.min(count-1,index+(e.key==='ArrowRight'?1:-1)));editChapter(next);($('chapter-cards').children[next]as HTMLButtonElement).focus({preventScroll:true});};
 $('chapter-cards').onclick=e=>{const b=(e.target as HTMLElement).closest<HTMLButtonElement>('[data-chapter]');if(b)editChapter(Number(b.dataset.chapter));};
-button('add-chapter').onclick=()=>{const root=wholeDraft(),games=gameProjects(root);if(games.length>=MAX_CHAPTERS)return;const next=structuredClone(chapterProject(root,0));next.identity={title:`${games.length===1?'Rescue and getaway':'Next mission '+(games.length+1)}`,briefing:''};next.mission={...defaultMission(),cargo:'none',story:'rescue',location:'military-base',extraction:'pickup',driveDifficulty:'standard',lives:root.mission.lives};games.push(next);replaceSequence(games,games.length-1);showSetupPage('mission');($('chapter-cards').children[editingChapter]as HTMLButtonElement).focus({preventScroll:true});};
+button('add-chapter').onclick=()=>{const root=wholeDraft(),games=gameProjects(root);if(games.length>=MAX_CHAPTERS)return;const next=structuredClone(chapterProject(root,0));
+ // Arcade games add the next circuit or course, named after it; missions add a rescue getaway.
+ if(root.mode==='race'&&next.race){const used=games.map(g=>g.race?.track),track=TRACK_IDS.find(t=>!used.includes(t))??TRACK_IDS[games.length%TRACK_IDS.length];next.race={...next.race,track};next.identity={title:arcadeTitle(next),briefing:''};}
+ else if(root.mode==='runner'&&next.runner){const used=games.map(g=>g.runner?.theme),theme=RUNNER_THEMES.find(t=>!used.includes(t))??RUNNER_THEMES[games.length%RUNNER_THEMES.length];next.runner={...next.runner,theme};next.identity={title:arcadeTitle(next),briefing:''};}
+ else{next.identity={title:`${games.length===1?'Rescue and getaway':'Next mission '+(games.length+1)}`,briefing:''};next.mission={...defaultMission(),cargo:'none',story:'rescue',location:'military-base',extraction:'pickup',driveDifficulty:'standard',lives:root.mission.lives};}games.push(next);replaceSequence(games,games.length-1);showSetupPage('mission');($('chapter-cards').children[editingChapter]as HTMLButtonElement).focus({preventScroll:true});};
 for(const [id,offset]of [['chapter-earlier',-1],['chapter-later',1]]as const)button(id).onclick=()=>{const games=gameProjects(wholeDraft()),to=editingChapter+offset;if(to<0||to>=games.length)return;[games[editingChapter],games[to]]=[games[to],games[editingChapter]];replaceSequence(games,to);};
 button('chapter-remove').onclick=()=>{const games=gameProjects(wholeDraft());if(games.length<2)return;games.splice(editingChapter,1);replaceSequence(games,Math.min(editingChapter,games.length-1));};
 installSetupChoices(setup);
@@ -131,7 +146,7 @@ function paintEnemies(){
 }
 const storyUi=storyEditor($('story-editor'),()=>draft,()=>engine,()=>lib);
 const chainEditor=objectiveEditor($('objective-editor'),()=>draft,()=>paintMission());
-const modeUi=modeEditor({mission:$('arcade-mission'),cast:$('arcade-cast'),challenge:$('arcade-challenge')},()=>draft,()=>editingChapter,()=>{if(castRole==='companion'&&!castsCompanion(draft))showCast('player');paintSetupSummary(setup,draft);});
+const modeUi=modeEditor({mission:$('arcade-mission'),cast:$('arcade-cast'),challenge:$('arcade-challenge')},()=>draft,()=>editingChapter,()=>{if(castRole==='companion'&&!castsCompanion(draft))showCast('player');wholeDraft();spreadArcadeChapters(draftRoot);retitleAll(draftRoot);if(!draftRoot.mode)automaticTitle();$<HTMLInputElement>('game-title').value=draft.identity.title;paintChapters();paintSetupSummary(setup,draft);});
 function paintDraft(){storyUi.paint();chainEditor.paint();modeUi.paint();paintPicker('hero',draft.character);$('cast-player-name').textContent=draft.character.name||'Custom character';paintEnemies();paintMission();paintLoadout();paintPresentation();paintPicker('companion',draft.companion.character);select('companion-health-setting').value=String(draft.companion.health);$('cast-companion-name').textContent=draft.companion.character.name;$('setup-note').textContent='';showCast(castRole);}
 function paintProgression(){select('completion-reward').value=draft.progression.reward??'none';
  select('supplies').value=draft.progression.supplies;select('scoring').value=draft.progression.scoring;
