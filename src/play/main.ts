@@ -44,21 +44,21 @@ const storage='ara.play.escape.v1';let project=defaultProject(),draft=structured
 const musicPreview=new GameMusic(new URL(import.meta.env.BASE_URL,location.href).href);let previewingMusic=false;
 let restartAfterSetup=false,fileMode:'character'|'enemy'|'companion'|'project'='character',castRole:'player'|'enemy'|'companion'='player',applying=false,individualEnemies=false,enemyIndex=0;
 /** Automatic titles follow the mode: circuits and courses name arcade games, missions keep mission names. */
-function retitleAll(root:PlayProject){retitle(root);for(const c of root.chapters??[])if(c.identity)retitle({mode:root.mode,race:c.race??root.race,runner:c.runner??root.runner,identity:c.identity});}
+function retitleAll(root:PlayProject){retitle(root);for(const [i,c] of (root.chapters??[]).entries())if(c.identity){const p=chapterProject(root,i+1);retitle({mode:p.mode,race:p.race,runner:p.runner,identity:c.identity});}}
 /** Chapters that become races or runs without their own circuit or course take the next unused one. */
 function spreadArcadeChapters(root:PlayProject){
- if(root.mode==='race'&&root.race){const used=[root.race.track,...(root.chapters??[]).map(c=>c.race?.track)];for(const c of root.chapters??[])if(!c.race){const track=TRACK_IDS.find(t=>!used.includes(t))??root.race.track;used.push(track);c.race={...root.race,track};}}
- if(root.mode==='runner'&&root.runner){const used=[root.runner.theme,...(root.chapters??[]).map(c=>c.runner?.theme)];for(const c of root.chapters??[])if(!c.runner){const theme=RUNNER_THEMES.find(t=>!used.includes(t))??root.runner.theme;used.push(theme);c.runner={...root.runner,theme};}}
+ if(root.mode==='race'&&root.race){const used=[root.race.track,...(root.chapters??[]).map(c=>c.race?.track)];for(const c of root.chapters??[])if(!c.race&&(c.mode??root.mode)==='race'){const track=TRACK_IDS.find(t=>!used.includes(t))??root.race.track;used.push(track);c.race={...root.race,track};}}
+ if(root.mode==='runner'&&root.runner){const used=[root.runner.theme,...(root.chapters??[]).map(c=>c.runner?.theme)];for(const c of root.chapters??[])if(!c.runner&&(c.mode??root.mode)==='runner'){const theme=RUNNER_THEMES.find(t=>!used.includes(t))??root.runner.theme;used.push(theme);c.runner={...root.runner,theme};}}
 }
-const sequenceNoun=()=>draftRoot.mode==='race'?'race':draftRoot.mode==='runner'?'stage':'mission';
+const sequenceNoun=()=>{const modes=new Set(gameProjects(draftRoot).map(p=>p.mode??'mission'));return modes.size>1?'chapter':draftRoot.mode==='race'?'race':draftRoot.mode==='runner'?'stage':'mission';};
 function resetDraft(p:PlayProject){draftRoot=structuredClone(p);retitleAll(draftRoot);editingChapter=0;draft=chapterProject(draftRoot,0);}
 function wholeDraft(){const extra=draftRoot.chapters,lives=draft.mission.lives;if(editingChapter===0)draftRoot={...draft,...(extra?.length?{chapters:extra}:{})};else draftRoot.chapters![editingChapter-1]=chapterSettings(draft,draftRoot.chapters![editingChapter-1].id);draftRoot.character=structuredClone(draft.character);draftRoot.mission.lives=lives;for(const c of draftRoot.chapters??[])c.mission.lives=lives;return draftRoot;}
 function paintChapters(){
  const root=wholeDraft(),games=gameProjects(root),cards=$('chapter-cards'),noun=sequenceNoun(),Noun=noun[0].toUpperCase()+noun.slice(1);
- $('mission-sequence-title').textContent=noun==='race'?'Cup races':noun==='stage'?'Run stages':'Mission sequence';$('add-chapter').textContent=`+ Add ${noun}`;$('chapter-cards').setAttribute('aria-label',`Choose a ${noun} to edit`);
+ $('mission-sequence-title').textContent=noun==='race'?'Cup races':noun==='stage'?'Run stages':noun==='chapter'?'Campaign chapters':'Mission sequence';$('add-chapter').textContent=`+ Add ${noun}`;$('chapter-cards').setAttribute('aria-label',`Choose a ${noun} to edit`);
  while(cards.children.length>games.length)cards.lastElementChild!.remove();
  games.forEach((p,i)=>{let b=cards.children[i]as HTMLButtonElement|undefined;if(!b){b=document.createElement('button');b.type='button';b.append(document.createElement('span'),document.createElement('strong'));cards.append(b);}b.dataset.chapter=String(i);b.setAttribute('aria-pressed',String(i===editingChapter));b.setAttribute('aria-label',`Edit ${noun} ${i+1}: ${p.identity.title}`);b.title=p.identity.title;b.children[0].textContent=String(i+1).padStart(2,'0');b.children[1].textContent=p.identity.title;});
- button('add-chapter').disabled=games.length>=MAX_CHAPTERS;button('add-chapter').title=games.length>=MAX_CHAPTERS?`Five ${noun}s are already in this game`:`Add a connected ${noun}`;$('chapter-count').textContent=`${games.length} / ${MAX_CHAPTERS}`;$('chapter-tools').hidden=games.length===1;
+ button('add-chapter').disabled=games.length>=MAX_CHAPTERS;button('add-chapter').title=games.length>=MAX_CHAPTERS?`${MAX_CHAPTERS} ${noun}s are already in this game`:`Add a connected ${noun}`;$('chapter-count').textContent=`${games.length} / ${MAX_CHAPTERS}`;$('chapter-tools').hidden=games.length===1;
  $('editing-chapter').textContent=`${Noun} ${editingChapter+1} of ${games.length} · ${draft.identity.title||`Untitled ${noun}`}`;$('editing-chapter').title=draft.identity.title||`Untitled ${noun}`;button('chapter-earlier').disabled=editingChapter===0;button('chapter-later').disabled=editingChapter===games.length-1;
 }
 

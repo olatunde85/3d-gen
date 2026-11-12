@@ -52,12 +52,16 @@ check('modes default to missions and arcade settings are strict', () => {
 });
 check('race and runner games round-trip through portable JSON, chapters and LLM Assist', () => {
   const race = parsePlayInput(JSON.stringify(raceExample()), cat);assert.equal(race.mode, 'race');assert.equal(race.chapters!.length, 2);
-  assert.equal(chapterProject(race, 2).race!.track, 'harbour-sprint');assert.equal(chapterProject(race, 1).mode, 'race');assert.equal(Object.hasOwn(chapterSettings(race, 'x'), 'mode'), false);
+  assert.equal(chapterProject(race, 2).race!.track, 'harbour-sprint');assert.equal(chapterProject(race, 1).mode, 'race');assert.equal(chapterSettings(race, 'x').mode, 'race');
   assert.deepEqual(parseProject(JSON.stringify(race), cat), race);
   const runner = parsePlayInput(JSON.stringify(runnerExample()), cat);assert.equal(runner.mode, 'runner');assert.equal(runner.runner!.chaser, runner.enemies[0].id);
   assert.match(describeGame(race).facts[0], /Arcade race/);assert.match(describeGame(runner).facts[0], /Endless runner/);
   const guide = generatePlayGuide(cat, 'A street racing cup');for (const term of ['GAME MODES', ...TRACK_IDS, 'temple-ruins', 'bar-high', 'rubberBand', 'RACE CUP EXAMPLE']) assert.ok(guide.includes(term), term);
-  const chapter = raceExample() as unknown as { chapters: Record<string, unknown>[] };chapter.chapters[0].mode = 'runner';assert.throws(() => parsePlayInput(JSON.stringify(chapter), cat), /mode/);
+  const chapter = raceExample() as unknown as { chapters: Record<string, unknown>[] };chapter.chapters[0].mode = 'runner';delete chapter.chapters[0].race;
+  // Campaigns mix modes: a runner stage and a mission between races, each keeping only its own mode's settings.
+  const mixed = parsePlayInput(JSON.stringify(chapter), cat);assert.equal(chapterProject(mixed, 1).mode, 'runner');assert.ok(chapterProject(mixed, 1).runner);assert.equal(chapterProject(mixed, 1).race, undefined);assert.equal(chapterProject(mixed, 2).mode, 'race');
+  chapter.chapters[0].mode = 'mission';const withMission = parsePlayInput(JSON.stringify(chapter), cat);assert.equal(chapterProject(withMission, 1).mode, undefined);assert.equal(chapterProject(withMission, 1).race, undefined);assert.deepEqual(parseProject(JSON.stringify(withMission), cat), withMission);
+  chapter.chapters[0].race = {};assert.throws(() => parsePlayInput(JSON.stringify(chapter), cat), /need mode/);
 });
 check('built-in circuits satisfy the custom circuit rules and custom loops are validated', () => {
   for (const t of TRACK_TEMPLATES) { parseTrack({ points: t.points, width: t.width });const track = buildTrack(t);assert.ok(track.length > 900 && track.length < 1500, t.id);const p = trackPoint(track, 200, 2.5), at = locate(track, p.x, p.z);assert.ok(Math.abs(at.s - 200) < 2.5 && Math.abs(at.lateral - 2.5) < 0.2, t.id); }

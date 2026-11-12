@@ -37,12 +37,19 @@ export interface PlayPoses {lookAround:boolean;dance:boolean}
 export const posesOf=(p:{poses?:Partial<PlayPoses>}):PlayPoses=>({lookAround:p.poses?.lookAround!==false,dance:p.poses?.dance!==false});
 function parsePoses(raw:unknown):PlayPoses{if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('poses must be an object with lookAround and dance.');const r=raw as Record<string,unknown>;for(const key of Object.keys(r))if(key!=='lookAround'&&key!=='dance')throw Error(`Unsupported poses setting: ${key}.`);for(const key of ['lookAround','dance'])if(r[key]!==undefined&&typeof r[key]!=='boolean')throw Error(`poses.${key} must be true or false.`);return posesOf({poses:r as Partial<PlayPoses>});}
 export interface PlayProject {poses?:PlayPoses;story?:StorySettings;branch?:PlayBranch;kind:'ara-play';version:2;template:'escape-depot';mode?:PlayMode;race?:RaceSettings;runner?:RunnerSettings;identity:GameIdentity;character:HumanParams;loadout:Loadout;enemies:EnemySettings[];companion:CompanionSettings;mission:MissionSettings;vehicle?:DrivingSettings;city?:CitySettings;progression:ProgressionSettings;camera:CameraSettings;music:MusicSettings;chapters?:PlayChapter[]}
-export type PlayChapter=Omit<PlayProject,'kind'|'version'|'template'|'mode'|'character'|'chapters'|'city'>&{id:string};
-export const MAX_CHAPTERS=5;
+export type PlayChapter=Omit<PlayProject,'kind'|'version'|'template'|'character'|'chapters'|'city'>&{id:string};
+export const MAX_CHAPTERS=10;
+/** A chapter plays its own mode, or the first chapter's mode when it names none. */
+export const chapterMode=(root:{mode?:unknown},row:{mode?:unknown}):PlayMode=>parseMode(row.mode===undefined?root.mode:row.mode);
+/** The settings a chapter inherits from the first chapter: race or runner settings carry over only within the same mode. */
+export function chapterBase<T extends {mode?:unknown;race?:unknown;runner?:unknown;chapters?:unknown}>(root:T,row:{mode?:unknown}):T{const mode=chapterMode(root,row),{chapters,race,runner,...rest}=root;return {...rest,mode:mode==='mission'?undefined:mode,...(mode==='race'&&parseMode(root.mode)==='race'?{race}:{}),...(mode==='runner'&&parseMode(root.mode)==='runner'?{runner}:{})} as unknown as T;}
+/** Only the settings that belong to a project's own mode. */
+function modeOnly(p:PlayProject):PlayProject{const mode=p.mode??'mission';if(mode!=='race')delete p.race;if(mode!=='runner')delete p.runner;if(mode==='mission')delete p.mode;return p;}
 export function heroGuns(p:PlayProject):Gun[]{const result=new Set<Gun>();for(const g of gameProjects(p)){if(isGun(g.loadout.weapon))result.add(g.loadout.weapon);if(g.progression.reward)result.add(g.progression.reward);if(g.progression.weapon!=='loadout')result.add(g.progression.unlock??'pistol');}return [...result];}
 export const heroWeapon=(p:PlayProject):Equipment=>heroGuns(p).reduce<Equipment>((a,b)=>strongerWeapon(a,b),'none');
-export function chapterProject(p:PlayProject,index:number):PlayProject{const {chapters,...base}=p;if(index===0)return base;const c=chapters?.[index-1];if(!c)throw Error('Choose an available chapter.');const {id,...settings}=c;return {...base,...settings,branch:c.branch,character:p.character};}
-export function chapterSettings(p:PlayProject,id:string):PlayChapter{const {kind,version,template,mode,character,chapters,city,...settings}=p;return {id,...settings};}
+export function chapterProject(p:PlayProject,index:number):PlayProject{const {chapters,...base}=p;if(index===0)return base;const c=chapters?.[index-1];if(!c)throw Error('Choose an available chapter.');const {id,...settings}=c;return modeOnly({...chapterBase(base,c),...settings,mode:chapterMode(base,c)==='mission'?undefined:chapterMode(base,c),branch:c.branch,character:p.character});}
+/** Chapters always record their mode, so a mission chapter stays a mission inside a race or runner game. */
+export function chapterSettings(p:PlayProject,id:string):PlayChapter{const {kind,version,template,mode,character,chapters,city,...settings}=p;return {id,mode:mode??'mission',...settings};}
 /** Race and runner games have no companion, whatever the stored mission settings say. */
 export const castsCompanion=(p:PlayProject)=>(p.mode??'mission')==='mission'&&needsCompanion(p.mission);
 export const gameProjects=(p:PlayProject)=>Array.from({length:1+(p.chapters?.length??0)},(_,i)=>chapterProject(p,i));
@@ -90,10 +97,10 @@ export function parseProject(text:string,catalog:Catalog,validateCampaignLinks=t
   if(!Array.isArray(p.chapters)||p.chapters.length<1||p.chapters.length>=MAX_CHAPTERS)throw Error(`A game supports one to ${MAX_CHAPTERS} chapters, including the first mission.`);
   const ids=new Set(['chapter-1']);result.chapters=p.chapters.map((c:unknown)=>{
    if(!c||typeof c!=='object'||Array.isArray(c))throw Error('Use a valid chapter.');const row=c as Record<string,unknown>;
-   for(const field of Object.keys(row))if(!['id','story','identity','mission','enemies','companion','loadout','progression','vehicle','camera','music','branch','race','runner'].includes(field))throw Error(`Unsupported chapter setting: ${field}. The player is shared by all chapters.`);
+   for(const field of Object.keys(row))if(!['id','story','identity','mission','enemies','companion','loadout','progression','vehicle','camera','music','branch','race','runner','mode'].includes(field))throw Error(`Unsupported chapter setting: ${field}. The player is shared by all chapters.`);
    if(typeof row.id!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(row.id)||ids.has(row.id))throw Error('Use unique chapter IDs; chapter-1 is reserved for the first mission.');ids.add(row.id);
    const suppliedLives=row.mission&&typeof row.mission==='object'?(row.mission as Record<string,unknown>).lives:undefined;if(suppliedLives!==undefined&&suppliedLives!==mission.lives)throw Error(`${row.id} › lives: shared across chapters. Set the life budget on the first mission.`);
-   const {id,...patch}=row;try{const chapter=parseProject(JSON.stringify({...result,chapters:undefined,...patch,branch:undefined,character,mission:{...mission,...(row.mission as object??{})}}),catalog,false);if(result.mode==='mission'||result.mode===undefined){delete chapter.race;delete chapter.runner;}if(row.branch!==undefined)chapter.branch=parseBranch(row.branch);chapter.mission.lives=mission.lives;return chapterSettings(chapter,id);}catch(error){throw Error(`${id} › ${(error as Error).message}`);}
+   const {id,...patch}=row;try{const own=chapterMode(result,row),chapter=parseProject(JSON.stringify({...chapterBase(result,row),...patch,mode:own==='mission'?undefined:own,branch:undefined,character,mission:{...mission,...(row.mission as object??{})}}),catalog,false);modeOnly(chapter);if(row.branch!==undefined)chapter.branch=parseBranch(row.branch);chapter.mission.lives=mission.lives;return chapterSettings(chapter,id);}catch(error){throw Error(`${id} › ${(error as Error).message}`);}
   });
  }
  if(!validateCampaignLinks){storyMedia(result);return result;}

@@ -153,7 +153,7 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
     heading('challenge-settings', mode, ['A little pressure.', 'Set the handling, boosts and pickups.'], ['A little pressure.', 'Set the pace, the obstacles and the power-ups.']);
     const enemyTab = document.querySelector('#cast-enemy span');if (enemyTab) enemyTab.textContent = mode === 'race' ? 'RIVALS' : mode === 'runner' ? 'CHASER' : 'ENEMY';
     // Mission
-    const m = roots.mission;m.replaceChildren(group('What kind of game?', grid('goal-choices', 'Game mode', MODES.map((x) => card({ pressed: mode === x.id, title: x.title, note: `${x.lines[0]}<br>${x.lines[1]}`, art: svg(`<path d="${ICONS[x.id]}"/>`), disabled: shared, data: x.id, on: () => setMode(x.id) }))), ...(shared ? ['Every chapter shares the first mission’s game mode; each chapter can choose its own circuit or course.'] : [])));
+    const m = roots.mission;m.replaceChildren(group('What kind of game?', grid('goal-choices', 'Game mode', MODES.map((x) => card({ pressed: mode === x.id, title: x.title, note: `${x.lines[0]}<br>${x.lines[1]}`, art: svg(`<path d="${ICONS[x.id]}"/>`), data: x.id, on: () => setMode(x.id) }))), ...(shared ? ['Each chapter plays its own mode, so a campaign can mix missions, races and runs.'] : [])));
     roots.cast.replaceChildren();roots.challenge.replaceChildren();
     if (mode === 'race' && p.race) {
       const r = p.race, custom = typeof r.track === 'string' ? undefined : r.track;
