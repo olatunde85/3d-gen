@@ -12,7 +12,7 @@ import {EscapeGame} from './runtime';
 import {defaultDriving} from './driving';
 import {defaultCity} from './city';
 import {CarRadio} from './radio';
-import {heroWeapon,chapterProject,type PlayProject} from './project';
+import {heroWeapon,chapterProject,posesOf,type PlayProject} from './project';
 import {planTraversal} from './motor';
 import {traceShot,type Point3} from './combat';
 import {mountArcade,type ArcadePlayer} from './arcade/player';
@@ -177,7 +177,7 @@ let nextHudFrame=0,nextMapFrame=0;function frame(now:number){if(suspended){last=
   }
   syncMusic();hooks.renderMusicStatus?.();if(music.error&&music.error!==reportedMusicError&&game.status==='playing'&&!paused){announce(music.error);reportedMusicError=music.error;}
   storyView.update(game,project.story,paused,scene.combat.enabled,project.identity.briefing||game.defaultBriefing,dt);if(game.status==='won'&&!endingPlayed){endingPlayed=true;void storyView.playFilm(project.story?.ending,scene.combat.enabled);}
-  equipHero();const poseDt=paused?0:dt;hero.update(game.player,poseDt,game.time,game.action??(game.downloading?{kind:'key',time:game.stepProgress%1.65,done:false,approach:false}:undefined),game.status==='won',game.traversal,game.playerCombat,game.throwing,game.car);for(const enemy of game.enemies){const actor=guards.get(enemy.id);if(actor){actor.render.group.visible=!inHub||enemy.combat.health>0;actor.update(enemy,poseDt,game.time,undefined,false,undefined,enemy.combat,undefined,game.pursuitActive&&game.pursuit?.driver===enemy.id?game.pursuit.car:undefined);}}if(game.companion)companionActor?.update(game.companion,poseDt,game.time,undefined,game.status==='won',undefined,game.companion.combat,undefined,game.companion.riding?game.car:undefined,game.companion.riding);if(now>=nextHudFrame||inHub&&game.cash>hubCashCredited||game.status!==lastState){renderHud();nextHudFrame=now+90;}renderCompanionMarker();renderCombatHud();if(now>=nextMapFrame){scene.map($<HTMLCanvasElement>('map'),game);nextMapFrame=now+90;}
+  equipHero();const poseDt=paused?0:dt,moments=posesOf(rootProject);hero.waiting=moments.lookAround&&game.status==='ready';hero.dance=moments.dance;hero.update(game.player,poseDt,game.time,game.action??(game.downloading?{kind:'key',time:game.stepProgress%1.65,done:false,approach:false}:undefined),game.status==='won',game.traversal,game.playerCombat,game.throwing,game.car);for(const enemy of game.enemies){const actor=guards.get(enemy.id);if(actor){actor.render.group.visible=!inHub||enemy.combat.health>0;actor.update(enemy,poseDt,game.time,undefined,false,undefined,enemy.combat,undefined,game.pursuitActive&&game.pursuit?.driver===enemy.id?game.pursuit.car:undefined);}}if(game.companion)companionActor?.update(game.companion,poseDt,game.time,undefined,game.status==='won',undefined,game.companion.combat,undefined,game.companion.riding?game.car:undefined,game.companion.riding);if(now>=nextHudFrame||inHub&&game.cash>hubCashCredited||game.status!==lastState){renderHud();nextHudFrame=now+90;}renderCompanionMarker();renderCombatHud();if(now>=nextMapFrame){scene.map($<HTMLCanvasElement>('map'),game);nextMapFrame=now+90;}
  }
  scene?.render(game,dt,paused);requestAnimationFrame(frame);
 }

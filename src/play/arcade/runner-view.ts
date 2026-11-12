@@ -10,6 +10,7 @@ import type { GameActor } from '../actor';
 import { forwardOf, leftOf, LANE, RUN, type RunnerEvent, type RunnerGame, type RunnerSegment } from './runner';
 import type { RunnerTheme } from './modes';
 import type { SpeedFeel } from './feel';
+import { minibusGeometry, tricycleGeometry, umbrellaGeometry, UMBRELLA_COLORS } from './market';
 import { objectMarker, objectMaterials, objectModel } from './runner-objects';
 import type { RunnerObjectType } from './objects';
 import { applyLook, glowMaterial, poolTexture, Precipitation, skyLook, type ArcadeAtmosphere, type SkyLook } from './weather';
@@ -18,6 +19,7 @@ const PATH = LANE * 3 + 1.2;
 const THEME: Record<RunnerTheme, { sky: string; fog: [number, number]; floor: [string, string]; edge: string; decor: string; below: string; low: string; block: string }> = {
   'temple-ruins': { sky: '#a7bea6', fog: [35, 160], floor: ['#aaa189', '#988f78'], edge: '#6f6a58', decor: '#a0977f', below: '#3d5a37', low: '#6f5034', block: '#8a8370' },
   'city-rooftops': { sky: '#bccad6', fog: [40, 190], floor: ['#80848b', '#72767d'], edge: '#d3cfc5', decor: '#b5b7b3', below: '#4a5562', low: '#c0632d', block: '#5d6670' },
+  'market-street': { sky: '#cfd6d6', fog: [40, 170], floor: ['#7b766f', '#716c66'], edge: '#ddd5c4', decor: '#a8835a', below: '#9a8e7c', low: '#c9822f', block: '#7d6a55' },
   'desert-canyon': { sky: '#e6cda3', fog: [40, 170], floor: ['#cfa36b', '#c0945e'], edge: '#9b6a42', decor: '#a8683f', below: '#8a5a37', low: '#7b5532', block: '#9a6b47' },
 };
 const POWER_COLORS = { magnet: '#d8473d', shield: '#3d8ad8', boost: '#f0a02d', multiplier: '#3fae63' } as const;
@@ -26,11 +28,14 @@ export class RunnerView {
   readonly scene = new T.Scene(); readonly camera = new T.PerspectiveCamera(64, 1, 0.1, 400);
   private floor: T.InstancedMesh; private edges: T.InstancedMesh; private decor: T.InstancedMesh; private walls: T.InstancedMesh;
   private low: T.InstancedMesh; private beams: T.InstancedMesh; private blocks: T.InstancedMesh; private carts: T.InstancedMesh; private wheels: T.InstancedMesh;
+  private umbrellas?: T.InstancedMesh; private pavement?: T.InstancedMesh; private umbrellaColors = UMBRELLA_COLORS.map((c) => new T.Color(c));
   private coins: T.InstancedMesh; private powers: T.InstancedMesh; private shadow: T.Mesh; private shield: T.Mesh; private below: T.Mesh;
   private hero = new T.Group(); private chaserGroup = new T.Group(); private sun: T.DirectionalLight;
   private sky: SkyLook; private weather?: Precipitation; private lantern?: T.Mesh; private glows?: T.InstancedMesh;
   private o = new T.Object3D(); private color = new T.Color(); private time = 0; private phase = 0; private chasePhase = 0;
   private yaw = 0; private turn = { age: 9, span: 0.4, dir: 0, from: 0, x: 0, z: 0, run: 0 }; private cameraPos = new T.Vector3(); private look = new T.Vector3(); private disposables: { dispose(): void }[] = [];
+  /** Character moments: look around on the start card, dance after reaching the goal. */
+  moments = { lookAround: true, dance: true }; private wonAge = 0;
   private finds = new Map<RunnerObjectType, T.Object3D>(); private findMarker?: ReturnType<typeof objectMarker>; private findGroup = new T.Group();
   constructor(readonly game: RunnerGame, readonly runner: GameActor, readonly chaser?: GameActor, atmosphere?: ArcadeAtmosphere) {
     const theme = THEME[game.settings.theme], mat = (color: string, rough = 0.9, extra: T.MeshStandardMaterialParameters = {}) => { const m = new T.MeshStandardMaterial({ color, roughness: rough, ...extra });this.disposables.push(m);return m; };
@@ -53,8 +58,13 @@ export class RunnerView {
     this.decor = batch(decorGeometry, mat(theme.decor, 0.95), 320);this.walls = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(theme.edge, 0.9), 24);
     this.low = batch(new T.BoxGeometry(LANE * 0.92, 0.7, 0.5).translate(0, 0.35, 0), mat(theme.low, 0.85, glowAtNight(theme.low, 0.35)), 60);
     this.beams = batch(new T.BoxGeometry(1, 1, 1), mat('#5b4a3a', 0.8, glowAtNight('#c79a6a', 0.3)), 120);
-    this.blocks = batch(new T.BoxGeometry(LANE * 0.9, 2.6, 1.4).translate(0, 1.3, 0), mat(theme.block, 0.95, glowAtNight(theme.block, 0.3)), 60);
-    this.carts = batch(new T.BoxGeometry(1.4, 1.15, 2.2).translate(0, 0.85, 0), mat('#6b4a2c', 0.7, { metalness: 0.2, ...glowAtNight('#b07a48', 0.3) }), 20);
+    // The market street parks tricycles as lane blockers and rolls minibuses down the lanes in place of carts.
+    const market = game.settings.theme === 'market-street', painted = (k: number) => mat('#ffffff', 0.6, { vertexColors: true, ...glowAtNight('#ffffff', k) });
+    this.blocks = batch(market ? tricycleGeometry() : new T.BoxGeometry(LANE * 0.9, 2.6, 1.4).translate(0, 1.3, 0), market ? painted(0.12) : mat(theme.block, 0.95, glowAtNight(theme.block, 0.3)), 60);
+    this.carts = batch(market ? minibusGeometry() : new T.BoxGeometry(1.4, 1.15, 2.2).translate(0, 0.85, 0), market ? painted(0.12) : mat('#6b4a2c', 0.7, { metalness: 0.2, ...glowAtNight('#b07a48', 0.3) }), 20);
+    // Pavements line the street so the stalls stand on ground and gaps read as trenches cut into the road.
+    if (market) this.pavement = batch(new T.BoxGeometry(1, 1, 1).translate(0, -0.5, 0), mat('#b5a891', 0.95), 520, false);
+    if (market) this.umbrellas = batch(umbrellaGeometry(), mat('#ffffff', 0.8, glowAtNight('#ffffff', 0.15)), 320);
     this.wheels = batch(new T.CylinderGeometry(0.3, 0.3, 0.16, 12).rotateZ(Math.PI / 2), mat('#2c2c2e', 0.5, { metalness: 0.6 }), 80);
     this.coins = batch(new T.CylinderGeometry(0.3, 0.3, 0.07, 18).rotateX(Math.PI / 2), mat('#f2c23c', 0.25, { metalness: 0.85, emissive: '#6b4c08', emissiveIntensity: 0.4 + this.sky.lamps * 1.4 }), 420, false);
     if (this.sky.lamps >= 0.5) {
@@ -64,7 +74,7 @@ export class RunnerView {
     }
     if (atmosphere?.weather === 'rain' || atmosphere?.weather === 'sandstorm') { this.weather = new Precipitation(atmosphere.weather);this.scene.add(this.weather.object); }
     this.powers = batch(new T.IcosahedronGeometry(0.42, 0), mat('#ffffff', 0.3, { emissive: '#222222' }), 24, false);
-    this.below = new T.Mesh(new T.PlaneGeometry(1600, 1600).rotateX(-Math.PI / 2), mat(theme.below, 1));this.below.position.y = game.settings.theme === 'city-rooftops' ? -40 : -18;this.scene.add(this.below);this.disposables.push(this.below.geometry);
+    this.below = new T.Mesh(new T.PlaneGeometry(1600, 1600).rotateX(-Math.PI / 2), mat(theme.below, 1));this.below.position.y = game.settings.theme === 'city-rooftops' ? -40 : game.settings.theme === 'market-street' ? -1.2 : -18;this.scene.add(this.below);this.disposables.push(this.below.geometry);
     this.shadow = new T.Mesh(new T.CircleGeometry(0.45, 20).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#000000', transparent: true, opacity: 0.3, depthWrite: false }));this.scene.add(this.shadow);this.disposables.push(this.shadow.geometry, this.shadow.material as T.Material);
     this.shield = new T.Mesh(new T.SphereGeometry(1.15, 24, 16), new T.MeshBasicMaterial({ color: '#7fc4ff', transparent: true, opacity: 0.18, depthWrite: false }));this.disposables.push(this.shield.geometry, this.shield.material as T.Material);
     const types = [...new Set((game.settings.objects ?? []).map((o) => o.type))];
@@ -103,7 +113,8 @@ export class RunnerView {
   /** Refill every batch from the visible course. */
   private course() {
     const g = this.game, theme = THEME[g.settings.theme], shades = theme.floor.map((c) => new T.Color(c));
-    for (const m of [this.floor, this.edges, this.decor, this.walls, this.low, this.beams, this.blocks, this.carts, this.wheels, this.coins, this.powers, ...(this.glows ? [this.glows] : [])]) m.count = 0;
+    const batches = [this.floor, this.edges, this.decor, this.walls, this.low, this.beams, this.blocks, this.carts, this.wheels, this.coins, this.powers, ...(this.glows ? [this.glows] : []), ...(this.umbrellas ? [this.umbrellas] : []), ...(this.pavement ? [this.pavement] : [])], market = g.settings.theme === 'market-street';
+    for (const m of batches) m.count = 0;
     this.findGroup.visible = false;
     const visible = [...g.behind, ...g.segments, ...g.branches];
     visible.forEach((s) => {
@@ -117,12 +128,14 @@ export class RunnerView {
       const openLeft = s.end === 'left' || s.end === 'junction', openRight = s.end === 'right' || s.end === 'junction';
       for (const side of [1, -1]) {
         const end = (side > 0 ? openLeft : openRight) ? s.length - PATH / 2 : to;
-        for (let e = from; e < end - 0.01; e += 4) { const len = Math.min(4, end - e);if (cuts.some(([a, b]) => e + len > a && e < b)) continue;this.put(this.edges, s, e + len / 2, side * (PATH / 2 + 0.15), 0, 0.3, 0.45, len); }
+        for (let e = from; e < end - 0.01; e += 4) { const len = Math.min(4, end - e);if (cuts.some(([a, b]) => e + len > a && e < b)) continue;this.put(this.edges, s, e + len / 2, side * (PATH / 2 + 0.15), 0, 0.3, 0.45, len);if (this.pavement) this.put(this.pavement, s, e + len / 2, side * (PATH / 2 + 2.9), -0.01, 5.2, 1.2, len); }
         for (let e = Math.ceil(from / 7) * 7; e < end - 1; e += 7) {
-          if (cuts.some(([a, b]) => e > a - 1 && e < b + 1)) continue;const h = g.settings.theme === 'desert-canyon' ? 7 + ((s.decor >> (e % 13)) % 6) : g.settings.theme === 'temple-ruins' ? 3.2 + ((s.decor >> (e % 11)) % 3) * 0.6 : 0.9 + ((s.decor >> (e % 7)) % 3) * 0.5;
-          const off = g.settings.theme === 'desert-canyon' ? PATH / 2 + 2.2 : PATH / 2 + 1, size = g.settings.theme === 'desert-canyon' ? 3.5 : g.settings.theme === 'temple-ruins' ? 1 : 1.6;
+          if (cuts.some(([a, b]) => e > a - 1 && e < b + 1)) continue;const h = market ? 0.9 : g.settings.theme === 'desert-canyon' ? 7 + ((s.decor >> (e % 13)) % 6) : g.settings.theme === 'temple-ruins' ? 3.2 + ((s.decor >> (e % 11)) % 3) * 0.6 : 0.9 + ((s.decor >> (e % 7)) % 3) * 0.5;
+          const off = market ? PATH / 2 + 1.6 : g.settings.theme === 'desert-canyon' ? PATH / 2 + 2.2 : PATH / 2 + 1, size = market ? 1.5 : g.settings.theme === 'desert-canyon' ? 3.5 : g.settings.theme === 'temple-ruins' ? 1 : 1.6;
           this.put(this.decor, s, e, side * off, 0, size, h, size);
-          if (this.glows && (e / 7) % 2 === 0) this.put(this.glows, s, e, side * off, h + 0.2, 1, 1, 1);
+          // A stall: a table of goods under an umbrella in one of the market colours.
+          if (this.umbrellas) this.put(this.umbrellas, s, e, side * off, 0, 1, 1, 1, this.umbrellaColors[((s.decor >> ((e + (side > 0 ? 3 : 0)) % 17)) % this.umbrellaColors.length + this.umbrellaColors.length) % this.umbrellaColors.length], e * 0.7);
+          if (this.glows && (e / 7) % 2 === 0) this.put(this.glows, s, e, side * off, market ? 2.15 : h + 0.2, 1, 1, 1);
         }
       }
       this.put(this.walls, s, s.length + PATH / 2 + 0.3, 0, -0.3, PATH + 0.6, s.end === 'junction' ? 3.4 : 2.6, 0.6);
@@ -131,8 +144,9 @@ export class RunnerView {
         const lanes = [-1, 0, 1].filter((_, i) => t.lanes & (1 << i));
         if (t.kind === 'barrier-low') for (const l of lanes) this.put(this.low, s, t.d + 0.25, l * LANE, 0, 1, 1, 1);
         if (t.kind === 'bar-high') { this.put(this.beams, s, t.d + 0.25, 0, 1.38, PATH, 0.32, 0.32);for (const side of [-1, 1]) this.put(this.beams, s, t.d + 0.25, side * (PATH / 2 - 0.1), 0.75, 0.22, 1.5, 0.22); }
-        if (t.kind === 'blocker') for (const l of lanes) this.put(this.blocks, s, t.d + t.length / 2, l * LANE, 0, 1, 1, 1);
-        if (t.kind === 'cart') for (const l of lanes) { this.put(this.carts, s, t.d + 1.1, l * LANE, 0, 1, 1, 1);for (const [x, z] of [[-0.75, 0.6], [0.75, 0.6], [-0.75, 1.6], [0.75, 1.6]]) this.put(this.wheels, s, t.d + z, l * LANE + x, 0.3, 1, 1, 1); }
+        if (t.kind === 'blocker') for (const l of lanes) this.put(this.blocks, s, t.d + t.length / 2, l * LANE, 0, 1, 1, 1, undefined, market ? Math.PI : 0);
+        // Minibuses face the runner, since they drive toward them.
+        if (t.kind === 'cart') for (const l of lanes) { this.put(this.carts, s, t.d + 1.1, l * LANE, 0, 1, 1, 1, undefined, market ? Math.PI : 0);for (const [x, z] of market ? [[-0.8, 0.25], [0.8, 0.25], [-0.8, 2.0], [0.8, 2.0]] : [[-0.75, 0.6], [0.75, 0.6], [-0.75, 1.6], [0.75, 1.6]]) this.put(this.wheels, s, t.d + z, l * LANE + x, 0.3, 1, 1, 1); }
       }
       for (const c of s.coins) if (!c.taken) this.put(this.coins, s, c.d, c.lane * LANE, c.y, 1, 1, 1, undefined, this.time * 4);
       for (const f of s.finds) if (!f.taken) {
@@ -143,7 +157,7 @@ export class RunnerView {
       }
       for (const p of s.pickups) if (!p.taken) this.put(this.powers, s, p.d, p.lane * LANE, 1 + Math.sin(this.time * 3 + p.id) * 0.15, 1, 1, 1, this.color.set(POWER_COLORS[p.kind]), this.time * 1.5);
     });
-    for (const m of [this.floor, this.edges, this.decor, this.walls, this.low, this.beams, this.blocks, this.carts, this.wheels, this.coins, this.powers, ...(this.glows ? [this.glows] : [])]) { m.instanceMatrix.needsUpdate = true;if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+    for (const m of batches) { m.instanceMatrix.needsUpdate = true;if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
   /** Choose the clip and its time for the runner's state. */
   private animate(actor: GameActor, dt: number, speed: number, chaser = false) {
@@ -152,7 +166,8 @@ export class RunnerView {
     if (chaser) { this.chasePhase += dt * rate;t = this.chasePhase % run.duration; }
     else {
       this.phase += dt * rate;t = this.phase % run.duration;
-      if (g.status === 'ready') { clip = clipById.get('idle')!;t = this.time % clip.duration; }
+      if (g.status === 'ready') { clip = clipById.get(this.moments.lookAround ? 'look_around' : 'idle')!;t = this.time % clip.duration; }
+      else if (g.status === 'won') { clip = clipById.get(this.moments.dance ? 'dance_groove' : 'idle')!;t = this.wonAge % clip.duration; }
       else if (g.status === 'down' || g.status === 'over') { clip = clipById.get('fall')!;t = Math.min(clip.duration - 0.01, g.downTime ?? 0); }
       else if (!g.grounded) { clip = clipById.get('jump_air')!;t = (this.phase * 0.6) % clip.duration; }
       else if (g.sliding > 0) { clip = clipById.get('run_slide')!;t = ((RUN.slide - g.sliding) / RUN.slide) * clip.duration * 0.85; }
@@ -165,6 +180,7 @@ export class RunnerView {
     this.time += dt;const g = this.game, sim = g.position, f = forwardOf(g.heading), target = g.heading * Math.PI / 2, turn = this.turn;
     // Turns ease the heading, position and bank together; the simulation has already turned.
     if (g.status === 'running') { turn.age += dt;turn.run += g.speed * dt; }
+    this.wonAge = g.status === 'won' ? this.wonAge + dt : 0;
     // Blend from carrying on along the old heading to the simulated path: the drawn path is a curve that leaves the
     // old straight and joins the new one at running speed.
     const k = Math.min(1, turn.age / turn.span), ease = k * k * (3 - 2 * k), ahead = { x: turn.x + Math.sin(turn.from) * turn.run, z: turn.z + Math.cos(turn.from) * turn.run };
@@ -179,13 +195,19 @@ export class RunnerView {
     this.shield.visible = g.power.shield > 0;this.shield.position.y = 0.95;
     this.shadow.position.set(p.x, 0.02, p.z);this.shadow.scale.setScalar(Math.max(0.4, 1 - g.y * 0.25));this.shadow.visible = g.grounded || g.y > -0.2;
     if (this.chaser) {
-      const c = Math.max(0.6, g.chaser), show = g.settings.chaser !== 'none' && c < 13;this.chaserGroup.visible = show;
+      const c = Math.max(0.6, g.chaser), show = g.settings.chaser !== 'none' && c < 13 && g.status !== 'won';this.chaserGroup.visible = show;
       if (show) { this.animate(this.chaser, g.status === 'running' ? dt : 0, g.speed, true);this.chaserGroup.position.set(p.x - f[0] * c, 0, p.z - f[1] * c);this.chaserGroup.rotation.set(0, this.yaw, 0); }
     }
     feel.ratio = Math.min(1.2, g.speed / Math.max(1, g.settings.maxSpeed));feel.boosting = g.power.boost > 0;
     const cf = [Math.sin(this.yaw), Math.cos(this.yaw)], lateralFollow = g.x * 0.45, l = leftOf(g.heading);
-    const desired = new T.Vector3(p.x - cf[0] * (4.6 + feel.ratio * 0.6) - l[0] * (g.x - lateralFollow), 2.5 + g.y * 0.35, p.z - cf[1] * (4.6 + feel.ratio * 0.6) - l[1] * (g.x - lateralFollow));
-    this.cameraPos.lerp(desired, 1 - Math.exp(-dt * 10));this.look.lerp(new T.Vector3(p.x + cf[0] * 7, 1.1 + g.y * 0.4, p.z + cf[1] * 7), 1 - Math.exp(-dt * 12));
+    if (g.status === 'won') {
+      // The camera swings round to face the runner as they celebrate.
+      const k = Math.min(1, this.wonAge / 1.4), a = this.yaw + Math.PI * (k * k * (3 - 2 * k)), r = 4.2 - k * 0.8;
+      this.cameraPos.set(p.x - Math.sin(a) * r, 2.2 - k * 0.6, p.z - Math.cos(a) * r);this.look.set(p.x, 1.05, p.z);
+    } else {
+      const desired = new T.Vector3(p.x - cf[0] * (4.6 + feel.ratio * 0.6) - l[0] * (g.x - lateralFollow), 2.5 + g.y * 0.35, p.z - cf[1] * (4.6 + feel.ratio * 0.6) - l[1] * (g.x - lateralFollow));
+      this.cameraPos.lerp(desired, 1 - Math.exp(-dt * 10));this.look.lerp(new T.Vector3(p.x + cf[0] * 7, 1.1 + g.y * 0.4, p.z + cf[1] * 7), 1 - Math.exp(-dt * 12));
+    }
     const shake = feel.offset(this.time);this.camera.position.set(this.cameraPos.x + shake.x, this.cameraPos.y + shake.y, this.cameraPos.z + shake.z);this.camera.lookAt(this.look);
     this.camera.fov = feel.fov(62);this.camera.aspect = aspect;this.camera.updateProjectionMatrix();
     this.sun.position.set(p.x - 15, 40, p.z + 10);this.sun.target.position.set(p.x, 0, p.z);this.below.position.x = p.x;this.below.position.z = p.z;
@@ -193,7 +215,7 @@ export class RunnerView {
     if (this.lantern) { this.lantern.position.set(p.x + cf[0] * 2.5, 0.03, p.z + cf[1] * 2.5);this.lantern.rotation.y = this.yaw;this.lantern.visible = g.y > -0.5; }
     this.weather?.update(this.time, this.camera.position);
   }
-  reset() { this.phase = 0;this.turn.age = 9;this.snapCamera(); }
+  reset() { this.phase = 0;this.wonAge = 0;this.turn.age = 9;this.snapCamera(); }
   dispose() {
     for (const actor of [this.runner, this.chaser]) if (actor) { actor.render.group.removeFromParent();actor.dispose(); }
     for (const d of this.disposables) d.dispose();this.weather?.dispose();this.scene.clear();

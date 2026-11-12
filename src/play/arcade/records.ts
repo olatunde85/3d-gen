@@ -5,8 +5,9 @@
 import type { GhostFrame } from './race';
 import type { CustomTrack } from './track';
 
-export interface RaceRecord { bestLap?: number; bestRace?: number; ghost?: string; top: { time: number; position: number; date: string }[] }
-export interface RunnerRecord { stage?: number; best: number; bestDistance: number; top: { score: number; distance: number; coins: number; date: string }[]; bank: number; upgrades: Record<string, number>; missions: number[]; missionLevel: number; runners: string[]; runner?: string; daily: Record<string, number> }
+export interface RaceRecord { medal?: number; bestLap?: number; bestRace?: number; ghost?: string; top: { time: number; position: number; date: string }[] }
+/** Runner medals are kept per stage, keyed by the chapter index. */
+export interface RunnerRecord { medals?: Record<string, number>; stage?: number; best: number; bestDistance: number; top: { score: number; distance: number; coins: number; date: string }[]; bank: number; upgrades: Record<string, number>; missions: number[]; missionLevel: number; runners: string[]; runner?: string; daily: Record<string, number> }
 export interface CupRecord { round: number; points: Record<string, number>; cash: number; garage: string[]; car?: string; paint?: string; complete: boolean }
 
 const read = <T>(key: string, fallback: T): T => { try { const raw = localStorage.getItem(key);return raw ? { ...fallback, ...JSON.parse(raw) } : fallback; } catch { return fallback; } };

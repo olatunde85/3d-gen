@@ -194,6 +194,15 @@ export class ArcadeHud {
     for (const r of rows) { const li = el('li');li.dataset.done = String(r.done);const bar = el('i');bar.style.setProperty('--fill', `${Math.round(Math.max(0, Math.min(1, r.progress)) * 100)}%`);li.append(el('b', '', r.done ? '✓' : ''), el('span', '', r.label), bar);list.append(li); }
     return list;
   }
+  /** Bronze, silver and gold with what each needs; medals up to the best one won are lit, and a new one is marked. */
+  medals(targets: [string, string, string], best: number, fresh = 0) {
+    const d = el('div', 'arcade-medals');
+    (['Bronze', 'Silver', 'Gold'] as const).forEach((name, i) => {
+      const m = el('div', 'arcade-medal');m.dataset.medal = name.toLowerCase();m.dataset.on = String(best > i);if (fresh === i + 1) m.dataset.new = 'true';
+      m.append(el('i'), el('strong', '', name), el('span', '', targets[i]));d.append(m);
+    });
+    return d;
+  }
   /** Objects to find with their icons; with counts found, each found object shows its clue. */
   objectList(list: readonly RunnerObject[], found?: readonly number[]) {
     const ul = el('ul', 'arcade-objects');

@@ -58,7 +58,7 @@ body.arcade-active footer .desktop-help{font-size:0}body.arcade-active footer .d
 #setup.arcade-mode #challenge-settings>:not(.config-page-heading):not(#arcade-challenge),
 #setup.arcade-mode #presentation-settings label[for=environment-ambient],#setup.arcade-mode #environment-ambient,#setup.arcade-mode #presentation-settings label[for=environment-volume],#setup.arcade-mode #environment-volume,#setup.arcade-mode #presentation-settings .config-group:has(#environment-time) .camera-permissions,#setup.arcade-mode #environment-mission-note,
 #setup.arcade-mode #presentation-settings>.config-group:has(#camera-default),
-#setup.arcade-mode #hero-panel>:not(label[for=hero]):not(#hero):not(.file-row),
+#setup.arcade-mode #hero-panel>:not(label[for=hero]):not(#hero):not(.file-row):not(#hero-moments),
 #setup.arcade-mode #enemy-panel>.enemy-basics,#setup.arcade-mode #enemy-panel>.challenge-basics,#setup.arcade-mode #enemy-panel>.challenge-basics+.micro,
 #setup:not(.arcade-mode) #arcade-cast,#setup:not(.arcade-mode) #arcade-challenge{display:none}
 #arcade-mission .location-art svg{filter:none}
@@ -202,3 +202,15 @@ body.arcade-active footer .desktop-help{font-size:0}body.arcade-active footer .d
 .runner-object-icon svg{width:20px;height:20px}
 .runner-object-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 .runner-object input,.runner-object select{min-width:0}
+/* Stage medals on the briefing and result cards. */
+.arcade-medals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.arcade-medal{display:grid;justify-items:center;gap:3px;padding:10px 6px;border-radius:12px;background:#ffffff0a;text-align:center;opacity:.55}
+.arcade-medal[data-on=true]{opacity:1;background:#ffffff14}
+.arcade-medal i{width:30px;height:30px;border-radius:50%;background:var(--medal);box-shadow:inset 0 -3px 0 #0003,inset 0 2px 0 #fff6}
+.arcade-medal[data-on=false] i{background:transparent;border:2px dashed var(--medal)}
+.arcade-medal[data-medal=bronze]{--medal:#c27c46}.arcade-medal[data-medal=silver]{--medal:#c9d0d6}.arcade-medal[data-medal=gold]{--medal:#f2c23c}
+.arcade-medal strong{font-size:13px}.arcade-medal span{font:600 11px ui-monospace,monospace;opacity:.8}
+.arcade-medal[data-new=true]{outline:2px solid var(--medal);animation:arcade-pop .35s ease-out}
+@media (prefers-reduced-motion:reduce){.arcade-medal[data-new=true]{animation:none}}
+.runner-medal-targets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.runner-medal-targets input{min-width:0;width:100%}
