@@ -43,8 +43,12 @@ export class ArcadeInput {
   tap(...codes: string[]) { let hit = false;for (const c of codes) if (this.pressed.delete(c)) hit = true;return hit; }
   held(...codes: string[]) { return codes.some((c) => this.keys.has(c)); }
   takeSwipes() { const out = this.swipes;this.swipes = [];return out; }
+  private snapshot?: ReturnType<ArcadeInput['read']>;
+  /** Read the gamepad once per frame, so every reader sees the same button presses. */
+  poll() { this.snapshot = this.read(); }
   /** Standard-mapping gamepad: buttons as pressed edges and held states, plus the left stick and triggers. */
-  gamepad() {
+  gamepad() { return this.snapshot; }
+  private read() {
     const pad = [...(navigator.getGamepads?.() ?? [])].find((p) => p?.connected && p.mapping === 'standard');
     if (!pad) return;
     const now = pad.buttons.map((b) => b.pressed), edge = now.map((b, i) => b && !this.pad.buttons[i]);this.pad.buttons = now;

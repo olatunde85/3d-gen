@@ -60,6 +60,20 @@ The next release grows Play from staged chapters into a connected district. Keep
 - [x] Cap download interactions at 15 seconds, widen defend areas to a visible 10-metre radius, and bring armed backup assaults into defend objectives. Defend time still follows the configured objective duration and can include one to three assaults.
 - [ ] Expand side jobs with separate characters, vehicles, routes and consequences so they feel like activities in the district instead of optional marker runs. Delivery has a courier handoff and visible backpack; races now use a longer course, countdown and visible AI rival. Dedicated side job characters and lasting consequences remain.
 
+## Arcade modes
+
+Race and runner games reuse the cast, vehicles, audio, music, chapters, cash and exports, with their own rules, cameras, HUDs and level generation.
+
+- [x] A top-level `mode` of `mission`, `race` or `runner`, with strict `race` and `runner` JSON, chapter overrides, editor controls, LLM Assist guidance and examples, saved setups and independent exports.
+- [x] The feel of speed: a lens that widens with speed, impact shake, speed lines and a soft edge blur, boost flashes, dust, sparks and drift smoke, slow motion on near misses, engine pitch across each car's speed range, synthesised coin, boost, crash, whoosh and countdown sounds, and music that builds with pace.
+- [x] Arcade input: swipes, one-thumb steering with automatic throttle, optional tilt steering, touch buttons, and the existing keyboard and gamepad.
+- [x] A one-tap retry that resets the rules in place, local best times and scores, and daily challenges for both modes.
+- [x] Fixed-step rules, batched drawing of repeated objects, reusable course pieces, coins and obstacles, runner pieces generated ahead and dropped behind, a world origin that follows long runs, and hidden distant drivers.
+- [x] Arcade racing: four built-in circuits and custom JSON circuits with walls, ramps, a shortcut and themed scenery; countdown, laps, sector splits and wrong-way detection; three to seven AI racers on a racing line with rubber-banding and skill levels; drift boosts, nitro, wall bounces and respawn; position, speedometer, minimap and podium; boost pads, item boxes and hazards; best-lap ghosts shared as links; cups with points, cash, a garage of four cars and paint.
+- [x] Endless runner: themed courses of straights, corners, junctions and gaps with rising difficulty; three lanes with lane changes, jumps, slides and turns; new slide, turning lean and stumble-recovery clips; low barriers, overhead bars, gaps, blockers and moving carts; coins, magnet, shield, boost and multiplier; a chaser after stumbles; scoring with multipliers, coin revives, missions, upgrades and unlockable runners.
+- [ ] Online leaderboards need a hosted service; records and daily challenges are kept in each browser.
+- [ ] Compressed textures and distance detail levels for scenery meshes.
+
 ## Recent gameplay and presentation fixes
 
 - LLM Assist and imported Play JSON generate missing voiced dialogue using the selected male or female voice; existing recorded audio stays intact.

@@ -58,6 +58,8 @@ export class ArcadeHud {
     for (const car of [...cars].sort((a) => (a.player ? 1 : -1))) { c.fillStyle = car.player ? '#ffd23f' : car.color;c.strokeStyle = '#111';c.lineWidth = 1.5;c.beginPath();c.arc(size / 2 - (car.x - b.cx) * b.scale, size / 2 - (car.z - b.cz) * b.scale, car.player ? 5 : 3.5, 0, Math.PI * 2);c.fill();c.stroke(); }
   }
   resetMap() { this.mapBase = undefined;this.missionKey = '';this.side.replaceChildren(this.map);this.lines.replaceChildren(); }
+  /** Fresh HUD for a new race or run. */
+  reset(_place: string) { this.resetMap();this.clearMeters();this.warning.textContent = ''; }
   race(g: RaceGame, ghostDelta?: number) {
     const p = g.player, position = g.position(p), laps = g.settings.laps;
     this.big.textContent = `${position}/${g.cars.length}`;this.big.dataset.label = 'POS';
@@ -86,16 +88,26 @@ export class ArcadeHud {
     missions.forEach((_, i) => { const row = this.side.children[i] as HTMLElement;row.dataset.done = String(g.missionsDone[i]);(row.lastElementChild as HTMLElement).style.setProperty('--fill', `${Math.round(g.missionProgress(i) * 100)}%`); });
   }
   /** A card with a heading, body lines and buttons; buttons return focusable elements for keyboard use. */
-  show(kicker: string, title: string, body: (string | HTMLElement)[], actions: { label: string; primary?: boolean; run: () => void; disabled?: boolean }[]) {
-    this.card.replaceChildren(el('span', 'eyebrow', kicker), el('h1', '', title));
+  /** A card with a heading, body lines and buttons. The briefing card sits where the mission briefing sits; results and pause are centred. */
+  show(kicker: string, title: string, body: (string | HTMLElement)[], actions: { label: string; primary?: boolean; run: () => void; disabled?: boolean }[], place: 'brief' | 'center' = 'center') {
+    this.card.replaceChildren(el('span', 'eyebrow', kicker), el('h1', '', title));this.card.dataset.place = place;
     for (const line of body) this.card.append(typeof line === 'string' ? el('p', '', line) : line);
     const row = el('div', 'arcade-actions');
-    for (const a of actions) { const b = el('button', a.primary ? 'primary' : 'quiet', a.label);b.type = 'button';b.disabled = !!a.disabled;b.onclick = a.run;row.append(b); }
+    for (const a of actions) { const b = el('button', a.primary ? 'primary' : 'quiet');b.type = 'button';b.disabled = !!a.disabled;b.onclick = a.run;b.append(el('span', '', a.label));if (a.primary) b.append(Object.assign(el('span', '', '→'), { ariaHidden: 'true' }));row.append(b); }
     this.card.append(row);this.card.hidden = false;
     (row.querySelector('button.primary:not(:disabled)') as HTMLButtonElement | null)?.focus({ preventScroll: true });
   }
   hideCard() { this.card.hidden = true; }
-  table(rows: string[][], header?: string[]) {
+  /** Two-column rows like the mission result's score breakdown. */
+  breakdown(rows: [string, string][]) { const d = el('div', 'score-breakdown');for (const [k, v] of rows) d.append(el('span', '', k), el('strong', '', v));return d; }
+  private help = { desktop: el('span', 'arcade-help'), touch: el('span', 'arcade-help') };
+  /** Footer help in the mission style: keys as <kbd> pairs on desktop, one line on touch screens. */
+  setHelp(keys: [string, string][], touch: string) {
+    const footer = document.querySelector('footer'), desktop = footer?.querySelector('.desktop-help'), touchHelp = footer?.querySelector('.touch-help');
+    this.help.desktop.replaceChildren(...keys.flatMap(([k, t]) => [el('kbd', '', k), document.createTextNode(` ${t} `)]));this.help.touch.textContent = touch;
+    if (desktop && !this.help.desktop.parentElement) desktop.append(this.help.desktop);
+    if (touchHelp && !this.help.touch.parentElement) touchHelp.after(this.help.touch);
+  }  table(rows: string[][], header?: string[]) {
     const t = el('table', 'arcade-table');
     if (header) { const h = el('tr');for (const c of header) h.append(el('th', '', c));t.append(h); }
     for (const r of rows) { const tr = el('tr');for (const c of r) tr.append(el('td', '', c));t.append(tr); }
