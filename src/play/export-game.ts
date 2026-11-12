@@ -1,14 +1,13 @@
 import {missionContract} from './staging';
 import {storyMedia,mediaPath} from './story';
 import {getMedia} from './media';
-import {needsCompanion} from './objectives';
 import {locationMap} from './locations';
 import {gameEffects} from './audio';
 import {soundEffectById} from '../studio/audio/effects-catalog';
 import {zip,strToU8,type Zippable} from 'fflate';
 import type {AssetLibrary} from '../core/assets';
 import type {Character} from '../core/human';
-import {heroGuns,gameStem,gameProjects,type PlayProject} from './project';
+import {castsCompanion,heroGuns,gameStem,gameProjects,type PlayProject} from './project';
 import type {PlayCast} from './cast';
 import {usesPickup} from './mission';
 import {MUSIC_TRACKS} from './presentation';
@@ -44,7 +43,7 @@ export async function exportGame(project:PlayProject,cast:PlayCast,lib:AssetLibr
  files['index.html']=strToU8(runtime.html);files['LICENSES.txt']=strToU8(runtime.notices);files['project.json']=strToU8(JSON.stringify(project,null,2));
  let mediaBytes=0;for(const ref of storyMedia(project)){signal.throwIfAborted();const blob=await getMedia(ref.id);if(!blob)throw Error(`Reattach “${ref.name}” before downloading the game.`);mediaBytes+=blob.size;if(mediaBytes>127*1024*1024)throw Error('Keep attached story media below 127 MiB per game.');files[mediaPath(ref)]=[new Uint8Array(await blob.arrayBuffer()),{level:0}];}
  const chapterGames=gameProjects(project),castList=[cast,...(cast.chapters??[])];if(chapterGames.length!==castList.length)throw Error('Prepare every chapter before downloading.');
- const castRoles=chapterGames.map((p,i)=>{const c=castList[i];return [{role:'player' as const,id:'player',actor:c.hero},...(heroGuns(project).length>1?heroGuns(project).map(gun=>({role:'player-weapon' as const,id:gun,actor:c.heroWeapons!.get(gun)!})):[]),...p.enemies.map(e=>({role:'enemy' as const,id:e.id,actor:c.guards.get(e.id)!})),...(needsCompanion(p.mission)?[{role:'companion' as const,id:'companion',actor:c.companion!}]:[])];});
+ const castRoles=chapterGames.map((p,i)=>{const c=castList[i];return [{role:'player' as const,id:'player',actor:c.hero},...(heroGuns(project).length>1?heroGuns(project).map(gun=>({role:'player-weapon' as const,id:gun,actor:c.heroWeapons!.get(gun)!})):[]),...p.enemies.map(e=>({role:'enemy' as const,id:e.id,actor:c.guards.get(e.id)!})),...(castsCompanion(p)?[{role:'companion' as const,id:'companion',actor:c.companion!}]:[])];});
  const roles=castRoles.flat();
  if(roles.some(r=>!r.actor))throw Error('Prepare every character before downloading the game.');
  const unique=new Map<string,Character>();for(const r of roles)unique.set(JSON.stringify(r.actor.render.character.params),r.actor.render.character);

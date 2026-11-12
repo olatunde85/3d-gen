@@ -11,6 +11,9 @@ import type { Body } from '../runtime';
 import { trackPoint, type Track } from './track';
 import type { RaceCarState, RaceEvent, RaceGame } from './race';
 import type { SpeedFeel } from './feel';
+import { VehicleFeel } from '../vehicle-feel';
+import { reflections } from './lighting';
+import { applyLook, glowMaterial, poolTexture, Precipitation, skyLook, type ArcadeAtmosphere, type SkyLook } from './weather';
 
 const THEME = {
   city: { sky: '#aebfca', ground: '#6f7b6c', wall: '#d9d6cc', accent: '#c4413a', fog: [90, 420] },
@@ -47,18 +50,23 @@ function wall(track: Track, lateral: number, height: number) {
   return g;
 }
 
-interface CarView { state: RaceCarState; actor: GameActor; view: DrivingView; car: CarState; flame: T.Mesh; body: Body }
+interface CarView { state: RaceCarState; actor: GameActor; view: DrivingView; car: CarState; flame: T.Mesh; body: Body; feel: VehicleFeel }
 export class RaceView {
   readonly scene = new T.Scene(); readonly camera = new T.PerspectiveCamera(62, 1, 0.1, 1200);
   private cars: CarView[] = []; private ghost?: { actor: GameActor; view: DrivingView; car: CarState; body: Body };
   private items: T.InstancedMesh; private slicks: T.InstancedMesh; private sparks: T.Points; private sparkData: { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number }[] = [];
   private smoke: T.InstancedMesh; private smokeData: { x: number; z: number; age: number; size: number }[] = []; private sun: T.DirectionalLight;
+  private sky: SkyLook; private weather?: Precipitation; private beams?: T.InstancedMesh;
   private cameraPos = new T.Vector3(); private look = new T.Vector3(); private time = 0; private matrix = new T.Matrix4(); private disposables: { dispose(): void }[] = [];
-  constructor(readonly game: RaceGame, player: GameActor, drivers: GameActor[], ghostDriver?: GameActor) {
+  constructor(readonly game: RaceGame, player: GameActor, drivers: GameActor[], ghostDriver?: GameActor, renderer?: T.WebGLRenderer, atmosphere?: ArcadeAtmosphere) {
     const track = game.track, theme = THEME[track.theme];
-    this.scene.background = new T.Color(theme.sky);this.scene.fog = new T.Fog(theme.sky, theme.fog[0], theme.fog[1]);
-    this.scene.add(new T.HemisphereLight('#fff6e8', '#4b4a44', 1.05));
-    this.sun = new T.DirectionalLight('#fff0d6', 2.3);this.sun.castShadow = true;this.sun.shadow.mapSize.set(1024, 1024);Object.assign(this.sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 200 });this.sun.shadow.normalBias = 0.03;
+    if (renderer) this.scene.environment = reflections(renderer);
+    const hemi = new T.HemisphereLight('#fff6e8', '#4b4a44', 1.05);this.scene.add(hemi);
+    this.sun = new T.DirectionalLight('#fff0d6', 2.3);
+    // Time and weather tint the theme; fog that closes in also shortens the draw distance.
+    this.sky = skyLook({ sky: theme.sky, fog: theme.fog as unknown as [number, number] }, atmosphere);applyLook(this.sky, this.scene, hemi, this.sun, { hemi: 1.05, sun: 2.3, env: 0.85 });
+    this.camera.far = Math.min(1200, this.sky.fog[1] * 1.15 + 40);
+    if (atmosphere?.weather === 'rain' || atmosphere?.weather === 'sandstorm') { this.weather = new Precipitation(atmosphere.weather);this.scene.add(this.weather.object); }this.sun.castShadow = true;this.sun.shadow.mapSize.set(1024, 1024);Object.assign(this.sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 200 });this.sun.shadow.normalBias = 0.03;
     this.scene.add(this.sun, this.sun.target);
     this.buildCircuit(track);
     // Item boxes and oil slicks are single batched meshes.
@@ -70,12 +78,13 @@ export class RaceView {
     this.smoke = new T.InstancedMesh(new T.SphereGeometry(0.5, 8, 6), new T.MeshBasicMaterial({ color: '#d9d6cf', transparent: true, opacity: 0.35, depthWrite: false }), 120);this.smoke.frustumCulled = false;this.scene.add(this.smoke);
     for (let i = 0; i < 120; i++) this.smokeData.push({ x: 0, z: 0, age: 9, size: 1 });
     game.cars.forEach((state, i) => {
-      const actor = i === 0 ? player : drivers[(i - 1) % drivers.length].clone(), view = new DrivingView(actor, { color: state.color, pace: 'standard', model: state.model }, 0.38);
+      const actor = i === 0 ? player : drivers[(i - 1) % drivers.length].clone(), view = new DrivingView(actor, { color: state.color, pace: 'standard', model: state.model }, 0.38, 0.38, { livery: 'racing', number: [7, 3, 11, 22, 5, 44, 9, 18][i % 8], accentColor: ['#ececec', '#16181b', '#e2b23a'][i % 3] === state.color ? '#16181b' : ['#ececec', '#16181b', '#e2b23a'][i % 3] });view.autoFeel = false;
       const flame = new T.Mesh(new T.ConeGeometry(0.28, 1.4, 10, 1, true).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.8, depthWrite: false, blending: T.AdditiveBlending }));
       flame.visible = false;view.vehicle.group.add(flame);
       this.scene.add(view.vehicle.group, actor.render.group);
       actor.render.mesh.castShadow = true;view.vehicle.group.traverse((o) => { if ((o as T.Mesh).isMesh) o.castShadow = true; });
-      this.cars.push({ state, actor, view, flame, car: this.carState(view, state), body: { x: state.x, z: state.z, yaw: state.yaw } as Body });
+      const feel = new VehicleFeel();feel.headlights = this.sky.lamps;
+      this.cars.push({ state, actor, view, flame, car: this.carState(view, state), body: { x: state.x, z: state.z, yaw: state.yaw } as Body, feel });
     });
     if (ghostDriver) {
       const view = new DrivingView(ghostDriver, { color: '#bfe3ff', pace: 'standard', model: game.settings.car.model }, 0.38);
@@ -88,7 +97,18 @@ export class RaceView {
       this.scene.add(view.vehicle.group, ghostDriver.render.group);
       this.ghost = { actor: ghostDriver, view, car: this.carState(view, game.player), body: { x: 0, z: 0, yaw: 0 } as Body };
     }
+    if (this.sky.lamps >= 0.4) this.headlightBeams();
     this.snapCamera();
+  }
+  /** Headlight pools on the road ahead of every car: one batched additive decal. */
+  private headlightBeams() {
+    const canvas = document.createElement('canvas');canvas.width = 32;canvas.height = 64;const c = canvas.getContext('2d')!, image = c.createImageData(32, 64);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 32; x++) { const v = y / 63, u = Math.abs(x / 31 - 0.5) * 2, a = Math.pow(1 - v, 1.4) * Math.max(0, 1 - u * u) * Math.min(1, v * 8);image.data.set([255, 255, 255, Math.round(a * 255)], (y * 32 + x) * 4); }
+    c.putImageData(image, 0, 0);const map = new T.CanvasTexture(canvas);map.colorSpace = T.SRGBColorSpace;map.flipY = false;
+    // A trapezoid from the bumper (1.6 m wide) to 20 m ahead (8 m wide), lying on the road.
+    const g = new T.BufferGeometry();g.setAttribute('position', new T.BufferAttribute(new Float32Array([-0.8, 0, 0, 0.8, 0, 0, -4, 0, 20, 4, 0, 20]), 3));g.setAttribute('uv', new T.BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), 2));g.setIndex([0, 2, 1, 1, 2, 3]);
+    const material = glowMaterial(map, '#fff0c8', 0.42 * this.sky.lamps);material.side = T.DoubleSide;
+    this.beams = new T.InstancedMesh(g, material, this.cars.length);this.beams.frustumCulled = false;this.beams.renderOrder = 1;this.scene.add(this.beams);this.disposables.push(g, material, map);
   }
   private carState(view: DrivingView, s: RaceCarState): CarState {
     return { x: s.x, z: s.z, yaw: s.yaw, speed: 0, steer: 0, distance: 0, phase: 'driving', time: 0, fit: view.fit, blocked: 0 };
@@ -99,7 +119,7 @@ export class RaceView {
     // The ground sits well below the road: one huge quad loses depth precision, and 2 cm would let it show through.
     const ground = new T.MeshStandardMaterial({ color: theme.ground, roughness: 1 });add(new T.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), ground).position.y = -0.12;
     const asphalt = canvasTexture(256, 256, (c) => { c.fillStyle = '#2d3034';c.fillRect(0, 0, 256, 256);for (let i = 0; i < 2600; i++) { const g = 38 + Math.random() * 34;c.fillStyle = `rgb(${g},${g},${g + 4})`;c.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); } });
-    add(ribbon(track, -w, w, 0.02, 12), new T.MeshStandardMaterial({ map: asphalt, roughness: 0.92 }));
+    add(ribbon(track, -w, w, 0.02, 12), new T.MeshStandardMaterial({ map: asphalt, roughness: this.sky.wet ? 0.42 : 0.92, color: this.sky.wet ? '#7d838b' : '#ffffff', envMapIntensity: this.sky.wet ? 0.3 : 1 }));
     const dash = canvasTexture(16, 64, (c) => { c.clearRect(0, 0, 16, 64);c.fillStyle = '#f2efe4';c.fillRect(0, 0, 16, 34); });
     add(ribbon(track, -0.14, 0.14, 0.03, 6), new T.MeshStandardMaterial({ map: dash, transparent: true, roughness: 0.6 }), false);
     const kerb = canvasTexture(16, 64, (c) => { c.fillStyle = theme.accent;c.fillRect(0, 0, 16, 32);c.fillStyle = '#f4f1e8';c.fillRect(0, 32, 16, 32); });
@@ -126,6 +146,27 @@ export class RaceView {
     const chevron = canvasTexture(64, 128, (c) => { c.fillStyle = '#1d1f22';c.fillRect(0, 0, 64, 128);c.strokeStyle = '#ff9e2c';c.lineWidth = 10;for (const y of [24, 64, 104]) { c.beginPath();c.moveTo(8, y + 18);c.lineTo(32, y - 6);c.lineTo(56, y + 18);c.stroke(); } }, false);
     for (const pad of this.game.pads) { const p = trackPoint(track, pad.s, pad.lateral), mesh = add(new T.PlaneGeometry(3, 5).rotateX(-Math.PI / 2), new T.MeshStandardMaterial({ map: chevron, emissive: '#ff8a1c', emissiveIntensity: 0.25, emissiveMap: chevron }), false);mesh.position.set(p.x, 0.045, p.z);mesh.rotation.y = p.yaw; }
     this.scenery(track);
+    if (this.sky.lamps >= 0.5) this.lampPosts(track);
+  }
+  /** Lamp posts along alternate sides with glowing heads and light pools on the road: three batched meshes. */
+  private lampPosts(track: Track) {
+    const w = track.width / 2, every = Math.max(1, Math.round(38 / track.spacing)), spots: { x: number; z: number; yaw: number; side: number; s: (typeof track.samples)[number] }[] = [];
+    for (let k = 0, n = 0; k < track.samples.length; k += every, n++) {
+      const s = track.samples[k], side = n % 2 ? 1 : -1, x = s.x + s.tz * side * (w + 2.4), z = s.z - s.tx * side * (w + 2.4);
+      if (track.shortcuts.some((c) => c.samples.some((p) => Math.hypot(p.x - x, p.z - z) < c.width / 2 + 2))) continue;
+      spots.push({ x, z, yaw: Math.atan2(s.tx, s.tz), side, s });
+    }
+    if (!spots.length) return;
+    const pole = new T.CylinderGeometry(0.09, 0.13, 7.2, 6).translate(0, 3.6, 0), head = new T.BoxGeometry(1.5, 0.16, 0.4), pool = new T.PlaneGeometry(13, 13).rotateX(-Math.PI / 2), map = poolTexture();
+    const metal = new T.MeshStandardMaterial({ color: '#30363b', roughness: 0.6, metalness: 0.4 }), glow = new T.MeshBasicMaterial({ color: '#ffe3ad' }), light = glowMaterial(map, '#ffcf8a', 0.5 * this.sky.lamps);
+    const poles = new T.InstancedMesh(pole, metal, spots.length), heads = new T.InstancedMesh(head, glow, spots.length), pools = new T.InstancedMesh(pool, light, spots.length), o = new T.Object3D();
+    spots.forEach((p, i) => {
+      const lx = p.s.tz * -p.side, lz = -p.s.tx * -p.side;
+      o.position.set(p.x, 0, p.z);o.rotation.set(0, p.yaw, 0);o.updateMatrix();poles.setMatrixAt(i, o.matrix);
+      o.position.set(p.x + lx * 0.9, 7.1, p.z + lz * 0.9);o.updateMatrix();heads.setMatrixAt(i, o.matrix);
+      o.position.set(p.x + lx * 4.2, 0.06, p.z + lz * 4.2);o.updateMatrix();pools.setMatrixAt(i, o.matrix);
+    });
+    poles.castShadow = true;pools.renderOrder = 1;this.scene.add(poles, heads, pools);this.disposables.push(pole, head, pool, map, metal, glow, light);
   }
   /** Themed scenery in batches, kept clear of the road. */
   private scenery(track: Track) {
@@ -174,12 +215,22 @@ export class RaceView {
       c.actor.render.group.visible = !far && (s.respawning <= 0 || Math.floor(this.time * 10) % 2 === 0);c.view.vehicle.group.visible = true;
       if (!far) c.actor.update(c.body, dt, g.time, undefined, false, undefined, undefined, undefined, c.car);
       c.view.update(c.car, c.actor.vehicleFrame);
+      // Body lean, pitch and brake lamps follow the handling; jumps add their own pitch.
       const lift = s.y, pitch = s.airborne ? -Math.max(-0.25, Math.min(0.25, s.vy * 0.03)) : 0;
-      c.view.vehicle.group.position.y = lift;c.view.vehicle.group.rotation.x = pitch;c.actor.render.group.position.y = lift;c.actor.render.group.rotation.x = pitch;
+      c.view.vehicle.group.position.y = lift;c.actor.render.group.position.y = lift;
+      c.feel.update(c.view.vehicle, s, dt, [c.view.vehicle.group, c.actor.render.group], pitch);
       if (s.respawning > 0) c.view.vehicle.group.visible = Math.floor(this.time * 10) % 2 === 0;
       const burning = s.boost > 0 || s.nitroOn;c.flame.visible = burning;
       if (burning) { const box = c.view.fit.box;c.flame.position.set((box.minX + box.maxX) / 2, 0.55, box.minZ - 0.5);c.flame.scale.set(1, 1, 0.8 + Math.random() * 0.6);(c.flame.material as T.MeshBasicMaterial).color.set(s.nitroOn ? '#7fd1ff' : '#ffb347'); }
       if ((s.drift || s.spin > 0) && Math.random() < 0.7) { const p = this.smokeData.find((q) => q.age >= 1.1);if (p) Object.assign(p, { x: s.x - Math.sin(s.yaw) * 1.8 + (Math.random() - 0.5), z: s.z - Math.cos(s.yaw) * 1.8 + (Math.random() - 0.5), age: 0, size: 0.6 + Math.random() * 0.5 }); }
+    }
+    if (this.beams) {
+      const o = new T.Object3D();
+      this.cars.forEach((c, i) => {
+        const s = c.state, front = c.view.fit.box.maxZ, hidden = !c.view.vehicle.group.visible || s.airborne;
+        o.position.set(s.x + Math.sin(s.yaw) * front, 0.07, s.z + Math.cos(s.yaw) * front);o.rotation.set(0, s.yaw, 0);o.scale.setScalar(hidden ? 0.0001 : 1);o.updateMatrix();this.beams!.setMatrixAt(i, o.matrix);
+      });
+      this.beams.instanceMatrix.needsUpdate = true;
     }
     const pose = g.ghostPose();
     if (this.ghost) {
@@ -206,11 +257,12 @@ export class RaceView {
     const shake = feel.offset(this.time);this.camera.position.set(this.cameraPos.x + shake.x, this.cameraPos.y + shake.y, this.cameraPos.z + shake.z);this.camera.lookAt(this.look);
     this.camera.fov = feel.fov(60);this.camera.aspect = aspect;this.camera.updateProjectionMatrix();
     this.sun.position.set(player.x - 30, 60, player.z + 25);this.sun.target.position.set(player.x, 0, player.z);
+    this.weather?.update(this.time, this.camera.position);
   }
   dispose() {
     // The view owns every driver it shows: the player and ghost arrive as clones, opponents are cloned here.
     for (const c of [...this.cars, ...(this.ghost ? [this.ghost] : [])]) { c.view.dispose();c.actor.render.group.removeFromParent();c.actor.dispose(); }
-    for (const d of this.disposables) d.dispose();
+    for (const d of this.disposables) d.dispose();this.weather?.dispose();
     this.scene.clear();
   }
 }

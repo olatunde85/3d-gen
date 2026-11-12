@@ -7,26 +7,18 @@
 import type { PlayProject } from '../project';
 import { TRACK_TEMPLATES, buildTrack, type CustomTrack, type TrackTemplate } from './track';
 import { CAR_STATS } from './race';
-import { defaultRace, defaultRunner, parseRace, parseRunner, RACE_CARS, RUNNER_THEMES, type PlayMode, type RaceSettings, type RunnerSettings } from './modes';
+import { ICONS } from './icons';
+import { defaultRace, defaultRunner, parseRace, parseRunner, RACE_CARS, RUNNER_THEMES, RUNNER_THEME_NAMES, retitle, type PlayMode, type RaceSettings, type RunnerSettings } from './modes';
 
-const ICONS: Record<string, string> = {
-  mission: 'M16 29s-9-8.5-9-15a9 9 0 0 1 18 0c0 6.5-9 15-9 15Zm0-11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
-  race: 'M7 29V4m0 1h17l-3 6 3 6H7m5-12v12m6-12v12M7 11h16',
-  runner: 'M19 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM9 15l5-5 6 3 5 1M16 11l-3 9-7 8m7-8 6 2 2 7',
-  sports_car: 'M3 22v-4l6-5h10l6 5h4v4h-3m-6 0h-8m-6 0H3Zm6 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0Zm11 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z',
-  suv: 'M3 22V12l4-4h14l4 6h4v8h-3m-6 0h-8m-6 0H3Zm5 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0Zm12 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0ZM8 8v6h17',
-  pickup: 'M3 21V10h13l4 6h8v8h-3m-6 0h-8m-6 0H3v-3Zm13-11v7H3m3 7a3 3 0 1 0 6 0 3 3 0 0 0-6 0Zm13 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z',
-  motorcycle: 'M7 25a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm18 0a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM7 21l6-8h6l6 8M13 13l-2-4h5m3 4 2-5h3',
-};
 const MODES: { id: PlayMode; title: string; lines: [string, string] }[] = [
   { id: 'mission', title: 'Mission', lines: ['Staged goals.', 'Sneak, fight, escape.'] },
   { id: 'race', title: 'Arcade race', lines: ['Laps against rivals.', 'Drift, boost, win.'] },
   { id: 'runner', title: 'Endless runner', lines: ['Three lanes.', 'Jump, slide, turn.'] },
 ];
 const THEMES: Record<string, { name: string; note: string; ground: string; path: string; side: string }> = {
-  'temple-ruins': { name: 'Temple ruins', note: 'Stone paths & jungle pillars', ground: '#cfdcc0', path: '#b3a98e', side: '#8f876f' },
-  'city-rooftops': { name: 'City rooftops', note: 'Concrete roofs above the streets', ground: '#cfd8de', path: '#8c9096', side: '#b9b6ad' },
-  'desert-canyon': { name: 'Desert canyon', note: 'Sand trails between rock walls', ground: '#ead8b8', path: '#cfa36b', side: '#a8683f' },
+  'temple-ruins': { name: RUNNER_THEME_NAMES['temple-ruins'], note: 'Stone paths & jungle pillars', ground: '#cfdcc0', path: '#b3a98e', side: '#8f876f' },
+  'city-rooftops': { name: RUNNER_THEME_NAMES['city-rooftops'], note: 'Concrete roofs above the streets', ground: '#cfd8de', path: '#8c9096', side: '#b9b6ad' },
+  'desert-canyon': { name: RUNNER_THEME_NAMES['desert-canyon'], note: 'Sand trails between rock walls', ground: '#ead8b8', path: '#cfa36b', side: '#a8683f' },
 };
 const TRACK_GROUND: Record<string, string> = { city: '#dfe5d6', desert: '#ead8b8', harbour: '#d6dfe3', forest: '#cfdcc0' };
 const PICKUP_NOTES: Record<string, [string, string]> = {
@@ -87,12 +79,12 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
   const toggle = (id: string, title: string, value: boolean, note: string, on: (v: boolean) => void) => { const l = el('label'), i = el('input');i.type = 'checkbox';i.id = id;i.checked = value;i.onchange = () => on(i.checked);l.append(i, ` ${title}`);return [l, Object.assign(el('p', 'micro'), { textContent: note })]; };
   const note = el('p', 'micro');note.setAttribute('role', 'status');
   function apply(edit: (p: PlayProject) => void) {
-    const p = draft(), before = { race: structuredClone(p.race), runner: structuredClone(p.runner), mode: p.mode };
+    const p = draft(), before = { race: structuredClone(p.race), runner: structuredClone(p.runner), mode: p.mode, identity: { ...p.identity } };
     try {
       edit(p);
       if (p.mode === 'race') p.race = parseRace(p.race);
       if (p.mode === 'runner') p.runner = parseRunner(p.runner, p.enemies.map((e) => e.id));
-      note.textContent = '';
+      retitle(p);note.textContent = '';
     } catch (error) { Object.assign(p, before);note.textContent = (error as Error).message; }
     paint();changed();
   }

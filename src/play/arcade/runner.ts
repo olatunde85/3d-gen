@@ -49,6 +49,8 @@ class Pool<T> {
 export class RunnerGame {
   status: 'ready' | 'running' | 'down' | 'over' | 'won' = 'ready';
   segments: RunnerSegment[] = []; branches: RunnerSegment[] = [];
+  /** The straight just left and any branch not taken: drawn until the next corner so the floor never vanishes underfoot. */
+  behind: RunnerSegment[] = [];
   /** Distance into the current segment, lateral lane position and height. */
   d = 0; lane = 0; x = 0; y = 0; vy = 0; sliding = 0; grounded = true; heading = 0; speed = 0; distance = 0; time = 0;
   coins = 0; score = 0; multiplier = 1; chaser = 14; stumbles = 0; lastStumble = -100; revives = 0; queuedTurn?: 'left' | 'right'; airborne = 0;
@@ -66,8 +68,8 @@ export class RunnerGame {
   worldAt(s: RunnerSegment, d: number, lateral: number) { const f = forwardOf(s.heading), l = leftOf(s.heading);return { x: s.x + f[0] * d + l[0] * lateral, z: s.z + f[1] * d + l[1] * lateral }; }
   reset(seed = this.seed) {
     this.random = seeded(seed);this.nextId = 1;
-    for (const s of [...this.segments, ...this.branches]) this.releaseSegment(s);
-    this.segments = [];this.branches = [];
+    for (const s of [...this.segments, ...this.branches, ...this.behind]) this.releaseSegment(s);
+    this.segments = [];this.branches = [];this.behind = [];
     Object.assign(this, { status: 'ready', d: 4, lane: 0, x: 0, y: 0, vy: 0, sliding: 0, grounded: true, heading: 0, speed: this.settings.startSpeed, distance: 0, time: 0, coins: 0, score: 0, chaser: 6, stumbles: 0, lastStumble: -100, revives: 0, queuedTurn: undefined, airborne: 0, downReason: undefined, goalReached: false, recover: 0, turnLean: 0, accumulator: 0, events: [], lastNearMiss: -10 });
     this.power = { magnet: 0, shield: 0, boost: 0, multiplier: 0 };this.stats = { jumps: 0, slides: 0, powers: 0 };this.missionsDone = this.profile.missions.map(Boolean);this.multiplier = 1 + this.profile.missionLevel;
     this.segments.push(this.makeSegment(0, 0, 0, 0, true));this.fill();
@@ -132,9 +134,10 @@ export class RunnerGame {
     if (!turn) return;
     const next = s.end === 'junction' ? this.branches.find((b) => b.branch === turn) : this.segments[1];
     if (!next) return;
-    if (s.end === 'junction') { for (const b of this.branches) if (b !== next) this.releaseSegment(b);this.branches = [];this.segments.splice(1, this.segments.length - 1, next);next.branch = undefined; }
+    for (const b of this.behind) this.releaseSegment(b);this.behind = [];
+    if (s.end === 'junction') { for (const b of this.branches) if (b !== next) this.behind.push(b);this.branches = [];this.segments.splice(1, this.segments.length - 1, next);next.branch = undefined; }
     this.d -= s.length;this.heading = next.heading;this.queuedTurn = undefined;this.turnLean = turn === 'left' ? 1 : -1;
-    this.releaseSegment(this.segments.shift()!);
+    this.behind.push(this.segments.shift()!);
     this.events.push({ type: 'turn' });this.fill();
   }
   private hitBox(t: RunnerThing) {
@@ -234,7 +237,7 @@ export class RunnerGame {
   private rebase() {
     const p = this.position;if (Math.abs(p.x) < 600 && Math.abs(p.z) < 600) return;
     const dx = -Math.round(p.x), dz = -Math.round(p.z);
-    for (const s of [...this.segments, ...this.branches]) { s.x += dx;s.z += dz; }
+    for (const s of [...this.segments, ...this.branches, ...this.behind]) { s.x += dx;s.z += dz; }
     this.events.push({ type: 'rebase', dx, dz });
   }
   /** Difficulty rises with distance: shorter straights, tighter spacing and more combined obstacles. */

@@ -1,9 +1,10 @@
 /** Arcade race and endless runner contracts: settings, rules, generation, records and portable JSON. */
 import assert from 'node:assert/strict';
 import { nodeLibrary } from './node-assets';
-import { chapterProject, chapterSettings, defaultProject, parseProject } from '../src/play/project';
+import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject } from '../src/play/project';
+import { skyLook } from '../src/play/arcade/weather';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
-import { defaultRace, defaultRunner, parseRace, parseRunner } from '../src/play/arcade/modes';
+import { defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle } from '../src/play/arcade/modes';
 import { TRACK_IDS, TRACK_TEMPLATES, buildTrack, locate, parseTrack, trackPoint } from '../src/play/arcade/track';
 import { CAR_STATS, RaceGame, idleInput } from '../src/play/arcade/race';
 import { LANE, RunnerGame, missionSet } from '../src/play/arcade/runner';
@@ -86,7 +87,7 @@ check('cars bounce off walls instead of wrecking, respawn when stuck and warn wh
   assert.ok(walls > 0 && Math.abs(locate(g.track, p.x, p.z).lateral) < g.track.width / 2 + 0.5 && p.speed >= 0);
   p.yaw += Math.PI;p.vx = p.vz = 0;for (let i = 0; i < 180; i++) g.update(1 / 60, { ...idleInput(), throttle: 1 });assert.ok(p.wrongWay > 0.8 || g.drain().some((e) => e.type === 'respawn'));
   g.update(1 / 60, { ...idleInput(), respawn: true });assert.ok(g.drain().some((e) => e.type === 'respawn') && p.respawning > 0);
-  assert.ok(Object.values(CAR_STATS).every((s) => s.top > 45 && s.grip > 6));
+  assert.ok(Object.values(CAR_STATS).every((s) => s.top >= 40 && s.grip > 6));
 });
 check('runner courses always leave a way through, recycle pieces and move the world back to the origin', () => {
   for (let seed = 1; seed <= 8; seed++) {
@@ -112,5 +113,28 @@ check('runner obstacles demand the right move: jump low barriers, slide under ba
   const g = new RunnerGame({ ...defaultRunner(), chaser: 'none', obstacles: ['bar-high'] }, profile(), 11);g.start();
   for (let i = 0; i < 120 * 30 && g.status === 'running'; i++) g.update(1 / 120, { ...botInput(g), slide: false });assert.ok(g.stumbles > 0, 'running into a bar trips the runner');
   assert.equal(LANE, 1.8);for (const id of ['run_slide', 'run_lean_left', 'run_lean_right', 'stumble_recover']) assert.ok(clipById.get(id), id);
+});
+check('race and runner games ignore companion boarding and read the chapter atmosphere', () => {
+  const base = { ...defaultProject(), mission: { ...defaultProject().mission, story: 'rescue' as const, extraction: 'pickup' as const }, vehicle: { color: '#aa3322', pace: 'standard' as const, model: 'danfo' as const } };
+  assert.throws(() => parseProject(JSON.stringify(base), cat), /Companion boarding/);
+  for (const mode of ['race', 'runner'] as const) {
+    const p = parseProject(JSON.stringify({ ...base, mode, ...(mode === 'race' ? { race: defaultRace() } : { runner: defaultRunner() }) }), cat);
+    assert.equal(castsCompanion(p), false, mode);
+  }
+  assert.equal(castsCompanion(parseProject(JSON.stringify({ ...base, vehicle: { color: '#aa3322', pace: 'standard' } }), cat)), true);
+  const theme = { sky: '#aebfca', fog: [90, 420] as [number, number] }, day = skyLook(theme), night = skyLook(theme, { time: 'night', weather: 'clear' }), rain = skyLook(theme, { time: 'day', weather: 'rain' }), fog = skyLook(theme, { time: 'dusk', weather: 'fog' });
+  assert.equal(day.lamps, 0);assert.equal(day.wet, false);assert.deepEqual(day.fog, [90, 420]);
+  assert.equal(night.lamps, 1);assert.ok(night.sun < 0.5 && night.sky.getHSL({ h: 0, s: 0, l: 0 }).l < 0.15);
+  assert.ok(rain.wet && rain.fog[1] < 300);assert.ok(fog.fog[1] < 200 && fog.lamps >= 0.5);
+});
+check('arcade games take circuit and course names instead of mission titles', () => {
+  const race = { mode: 'race' as const, race: { ...defaultRace(), track: 'desert-run' }, identity: { title: 'Rescue getaway' } };
+  assert.equal(gameTitle(race), 'Desert Run');retitle(race);assert.equal(race.identity.title, 'Desert Run');
+  race.race.track = 'forest-ring';retitle(race);assert.equal(race.identity.title, 'Forest Ring');
+  const runner = { mode: 'runner' as const, runner: { ...defaultRunner(), theme: 'city-rooftops' as const }, identity: { title: 'Next mission 3' } };
+  retitle(runner);assert.equal(runner.identity.title, 'City rooftops');
+  const own = { mode: 'race' as const, race: defaultRace(), identity: { title: 'Lagos Cup' } };retitle(own);assert.equal(own.identity.title, 'Lagos Cup');assert.equal(gameTitle(own), 'Lagos Cup');
+  const back = { identity: { title: 'Forest Ring' } };retitle(back);assert.equal(back.identity.title, 'The Depot');
+  assert.ok(isAutomaticTitle('The Depot') && isAutomaticTitle('') && !isAutomaticTitle('Ara Grand Prix'));
 });
 console.log(`${checks} arcade race and runner contracts passed.`);

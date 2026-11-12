@@ -14,6 +14,15 @@ export const CAR_STATS: Record<RaceCar, CarStats> = {
   suv: { name: 'SUV', top: 52, accel: 14, grip: 8, turn: 1.1, mass: 1.5, radius: 1.35 },
   pickup: { name: 'Pickup', top: 54, accel: 15, grip: 7.5, turn: 1.08, mass: 1.4, radius: 1.35 },
   motorcycle: { name: 'Motorcycle', top: 58, accel: 19, grip: 10, turn: 1.4, mass: 0.6, radius: 0.85 },
+  muscle: { name: 'Muscle car', top: 63, accel: 18, grip: 7.5, turn: 1.12, mass: 1.2, radius: 1.3 },
+  saloon: { name: 'Saloon', top: 55, accel: 15, grip: 8.5, turn: 1.18, mass: 1.1, radius: 1.3 },
+  kart: { name: 'Go-kart', top: 50, accel: 20, grip: 11, turn: 1.55, mass: 0.5, radius: 0.85 },
+  danfo: { name: 'Danfo', top: 47, accel: 12, grip: 7, turn: 1.0, mass: 1.7, radius: 1.45 },
+  van: { name: 'Van', top: 48, accel: 12.5, grip: 7.5, turn: 1.0, mass: 1.7, radius: 1.45 },
+  truck: { name: 'Box truck', top: 44, accel: 11, grip: 7, turn: 0.92, mass: 2.3, radius: 1.6 },
+  scooter: { name: 'Scooter', top: 46, accel: 18, grip: 10, turn: 1.5, mass: 0.45, radius: 0.8 },
+  quad: { name: 'Quad bike', top: 52, accel: 18, grip: 9.5, turn: 1.35, mass: 0.7, radius: 1.0 },
+  keke: { name: 'Keke', top: 40, accel: 13, grip: 7.5, turn: 1.2, mass: 0.8, radius: 1.05 },
 };
 const SKILL: Record<AiSkill, { pace: number; lateral: number; wobble: number }> = {
   easy: { pace: 0.84, lateral: 15, wobble: 0.6 }, medium: { pace: 0.93, lateral: 18, wobble: 0.25 }, hard: { pace: 1, lateral: 21, wobble: 0 },
@@ -66,7 +75,7 @@ export class RaceGame {
   /** Grid of two columns behind the start line; the player starts mid-pack. */
   reset() {
     const s = this.settings, total = s.opponents + 1, gridSlot = Math.min(total - 1, Math.floor(total / 2));
-    const models: RaceCar[] = ['sports_car', 'suv', 'pickup', 'motorcycle'], colors = ['#2d6fc8', '#e2b23a', '#3c9a5f', '#8a4fc0', '#e47b2d', '#ececec', '#2b2b30'];
+    const models: RaceCar[] = ['sports_car', 'muscle', 'suv', 'motorcycle', 'saloon', 'pickup', 'danfo', 'quad'], colors = ['#2d6fc8', '#e2b23a', '#3c9a5f', '#8a4fc0', '#e47b2d', '#ececec', '#2b2b30'];
     this.cars = [];this.status = 'countdown';this.countdown = 3.6;this.time = 0;this.events = [];this.accumulator = 0;this.result = undefined;this.recording = [];this.lastRecord = -1;this.ghost = this.bestGhost;
     this.slicks = this.slicks.filter((o) => o.age === -Infinity);for (const item of this.items) item.respawn = 0;
     const order = Array.from({ length: total }, (_, i) => i);

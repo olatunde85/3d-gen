@@ -11,6 +11,9 @@ import type { Track } from './track';
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => { const e = document.createElement(tag);if (className) e.className = className;if (text) e.textContent = text;return e; };
 export const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 export const clock = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')}`;
+export type Tone = 'good' | 'bad' | 'hot' | '';
+export interface Standing { place: number; name: string; color: string; time: string; gap: string; you: boolean }
+export interface CardAction { label: string; primary?: boolean; run: () => void; disabled?: boolean }
 const POWER_LABELS = { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score' } as const;
 
 export class ArcadeHud {
@@ -20,7 +23,7 @@ export class ArcadeHud {
   readonly gauge = el('div', 'arcade-gauge'); readonly speed = el('div', 'arcade-speedo'); readonly meters = el('div', 'arcade-meters');
   readonly side = el('div', 'arcade-side'); readonly map = el('canvas', 'arcade-map');
   readonly card = el('section', 'card arcade-card'); readonly touch = el('div', 'arcade-touch');
-  private mapBase?: { canvas: HTMLCanvasElement; scale: number; cx: number; cz: number }; private messageTimer = 0; private bars = new Map<string, HTMLElement>();
+  private mapBase?: { canvas: HTMLCanvasElement; scale: number; cx: number; cz: number }; private messageTimer = 0; private meterBars = new Map<string, HTMLElement>();
   constructor(stage: HTMLElement) {
     this.card.setAttribute('role', 'region');this.card.setAttribute('aria-live', 'polite');
     this.top.append(this.big, this.lines);this.center.append(this.message, this.warning);this.gauge.append(this.speed, this.meters);this.side.append(this.map);
@@ -31,11 +34,11 @@ export class ArcadeHud {
   say(text: string, seconds = 1.2, tone: 'normal' | 'good' | 'bad' = 'normal') { this.message.textContent = text;this.message.dataset.tone = tone;this.message.classList.remove('pop');void this.message.offsetWidth;this.message.classList.add('pop');this.messageTimer = seconds; }
   tick(dt: number) { this.messageTimer -= dt;if (this.messageTimer <= 0 && this.message.textContent) this.message.textContent = ''; }
   meter(id: string, label: string, value: number, tone = '') {
-    let bar = this.bars.get(id);
-    if (!bar) { bar = el('div', 'arcade-meter');bar.append(el('span', '', label), el('i'));this.meters.append(bar);this.bars.set(id, bar); }
+    let bar = this.meterBars.get(id);
+    if (!bar) { bar = el('div', 'arcade-meter');bar.append(el('span', '', label), el('i'));this.meters.append(bar);this.meterBars.set(id, bar); }
     bar.hidden = value < 0;bar.dataset.tone = tone;(bar.lastElementChild as HTMLElement).style.setProperty('--fill', `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`);(bar.firstElementChild as HTMLElement).textContent = label;
   }
-  clearMeters() { this.meters.replaceChildren();this.bars.clear(); }
+  clearMeters() { this.meters.replaceChildren();this.meterBars.clear(); }
   /** Text rows reuse their elements, so the HUD creates nothing per frame. */
   private setLines(rows: [string, string][]) {
     while (this.lines.children.length > rows.length) this.lines.lastElementChild!.remove();
@@ -87,19 +90,19 @@ export class ArcadeHud {
     if (key !== this.missionKey) { this.missionKey = key;this.side.replaceChildren(...missions.map((m) => { const row = el('div', 'arcade-mission');row.append(el('span', '', m.label), el('i'));return row; })); }
     missions.forEach((_, i) => { const row = this.side.children[i] as HTMLElement;row.dataset.done = String(g.missionsDone[i]);(row.lastElementChild as HTMLElement).style.setProperty('--fill', `${Math.round(g.missionProgress(i) * 100)}%`); });
   }
-  /** A card with a heading, body lines and buttons; buttons return focusable elements for keyboard use. */
-  /** A card with a heading, body lines and buttons. The briefing card sits where the mission briefing sits; results and pause are centred. */
-  show(kicker: string, title: string, body: (string | HTMLElement)[], actions: { label: string; primary?: boolean; run: () => void; disabled?: boolean }[], place: 'brief' | 'center' = 'center') {
-    this.card.replaceChildren(el('span', 'eyebrow', kicker), el('h1', '', title));this.card.dataset.place = place;
-    for (const line of body) this.card.append(typeof line === 'string' ? el('p', '', line) : line);
+  /**
+   * A card with a heading, body and buttons. The briefing card sits where the mission briefing sits; results, garage
+   * and shop cards are centred and wide, with a scrolling body and the buttons pinned underneath.
+   */
+  show(kicker: string, title: string, body: (string | HTMLElement)[], actions: CardAction[], place: 'brief' | 'center' | 'wide' = 'center', aside?: HTMLElement) {
+    const head = el('header', 'arcade-card-head'), titles = el('div');titles.append(el('span', 'eyebrow', kicker), el('h1', '', title));head.append(titles);if (aside) head.append(aside);
+    const content = el('div', 'arcade-card-body');for (const line of body) content.append(typeof line === 'string' ? el('p', '', line) : line);
     const row = el('div', 'arcade-actions');
     for (const a of actions) { const b = el('button', a.primary ? 'primary' : 'quiet');b.type = 'button';b.disabled = !!a.disabled;b.onclick = a.run;b.append(el('span', '', a.label));if (a.primary) b.append(Object.assign(el('span', '', '→'), { ariaHidden: 'true' }));row.append(b); }
-    this.card.append(row);this.card.hidden = false;
+    this.card.replaceChildren(head, content, row);this.card.dataset.place = place;this.card.hidden = false;
     (row.querySelector('button.primary:not(:disabled)') as HTMLButtonElement | null)?.focus({ preventScroll: true });
   }
   hideCard() { this.card.hidden = true; }
-  /** Two-column rows like the mission result's score breakdown. */
-  breakdown(rows: [string, string][]) { const d = el('div', 'score-breakdown');for (const [k, v] of rows) d.append(el('span', '', k), el('strong', '', v));return d; }
   private help = { desktop: el('span', 'arcade-help'), touch: el('span', 'arcade-help') };
   /** Footer help in the mission style: keys as <kbd> pairs on desktop, one line on touch screens. */
   setHelp(keys: [string, string][], touch: string) {
@@ -107,11 +110,68 @@ export class ArcadeHud {
     this.help.desktop.replaceChildren(...keys.flatMap(([k, t]) => [el('kbd', '', k), document.createTextNode(` ${t} `)]));this.help.touch.textContent = touch;
     if (desktop && !this.help.desktop.parentElement) desktop.append(this.help.desktop);
     if (touchHelp && !this.help.touch.parentElement) touchHelp.after(this.help.touch);
-  }  table(rows: string[][], header?: string[]) {
-    const t = el('table', 'arcade-table');
-    if (header) { const h = el('tr');for (const c of header) h.append(el('th', '', c));t.append(h); }
-    for (const r of rows) { const tr = el('tr');for (const c of r) tr.append(el('td', '', c));t.append(tr); }
-    return t;
+  }
+  // ---- Card pieces: built once when a card opens, never per frame ----
+  /** A titled block inside a card. */
+  section(title: string, ...children: (string | HTMLElement)[]) { const s = el('section', 'arcade-section');s.append(el('h2', '', title));for (const c of children) s.append(typeof c === 'string' ? el('p', '', c) : c);return s; }
+  /** Two columns on wide screens; on phones they stack, leading with the chosen column. */
+  columns(left: HTMLElement[], right: HTMLElement[], lead: 'left' | 'right' = 'left') { const d = el('div', 'arcade-columns'), l = el('div'), r = el('div');d.dataset.lead = lead;l.append(...left);r.append(...right);d.append(l, r);return d; }
+  /** Big number tiles, e.g. time, best lap and cash. */
+  stats(rows: [string, string, Tone?][]) { const d = el('div', 'arcade-stats');for (const [k, v, tone] of rows) { const s = el('div');if (tone) s.dataset.tone = tone;s.append(el('span', '', k), el('strong', '', v));d.append(s); } return d; }
+  /** The chapter briefing as a quoted panel. */
+  briefing(text: string, label = 'BRIEFING') { const d = el('div', 'arcade-briefing');d.append(el('span', '', label), el('p', '', text));return d; }
+  /** Every chapter in order: finished ones ticked, the current one highlighted. */
+  progress(items: { label: string; state: 'done' | 'current' | 'next' }[]) {
+    const list = el('ol', 'arcade-progress');
+    items.forEach((item, i) => { const li = el('li');li.dataset.state = item.state;li.append(el('b', '', item.state === 'done' ? '✓' : String(i + 1)), el('span', '', item.label));list.append(li); });
+    return list;
+  }
+  /** Highlights such as a new best lap. */
+  badges(texts: string[]) { const d = el('div', 'arcade-badges');for (const t of texts) d.append(el('span', '', t));return d; }
+  /** A large figure beside the card title, e.g. cash in the garage. */
+  aside(label: string, value: string) { const d = el('div', 'arcade-card-aside');d.append(el('span', '', label), el('strong', '', value));return d; }
+  /** The top three on steps, second–first–third. */
+  podium(top: Standing[]) {
+    const d = el('div', 'arcade-podium');
+    for (const place of [2, 1, 3]) {
+      const s = top[place - 1];if (!s) continue;const step = el('div');step.dataset.place = String(place);if (s.you) step.dataset.you = 'true';
+      const swatch = el('i');swatch.style.background = s.color;step.append(el('b', '', String(place)), swatch, el('strong', '', s.you ? 'You' : s.name), el('small', '', s.time));d.append(step);
+    }
+    return d;
+  }
+  /** The finishing order with car colours, times and gaps to the winner. */
+  standings(rows: Standing[]) {
+    const list = el('ol', 'arcade-standings');
+    for (const r of rows) {
+      const li = el('li');if (r.you) li.dataset.you = 'true';const swatch = el('i');swatch.style.background = r.color;
+      const who = el('span', '', r.name);if (r.you) who.append(el('em', '', 'YOU'));
+      li.append(el('b', '', String(r.place)), swatch, who, el('strong', '', r.time), el('small', '', r.gap));list.append(li);
+    }
+    return list;
+  }
+  /** Horizontal bars, e.g. cup points. */
+  bars(rows: { name: string; value: number; you?: boolean }[]) {
+    const list = el('ol', 'arcade-bars'), max = Math.max(1, ...rows.map((r) => r.value));
+    for (const r of rows) { const li = el('li');if (r.you) li.dataset.you = 'true';const bar = el('i');bar.style.setProperty('--fill', `${Math.round((r.value / max) * 100)}%`);li.append(el('span', '', r.name), bar, el('strong', '', String(r.value)));list.append(li); }
+    return list;
+  }
+  /** A selectable tile: icon, name, a status tag and optional stat meters. */
+  tile(o: { icon: string; title: string; tag: string; pressed?: boolean; disabled?: boolean; color?: string; meters?: [string, number][]; note?: string; run: () => void }) {
+    const b = el('button', 'arcade-tile');b.type = 'button';b.setAttribute('aria-pressed', String(!!o.pressed));b.disabled = !!o.disabled;b.onclick = o.run;
+    const art = el('span', 'arcade-tile-art');art.innerHTML = o.icon;if (o.color) art.style.color = o.color;
+    const text = el('span', 'arcade-tile-text');text.append(el('strong', '', o.title));if (o.note) text.append(el('small', '', o.note));
+    b.append(art, text, el('span', 'arcade-tag', o.tag));if (o.meters) b.append(this.statBars(o.meters));
+    return b;
+  }
+  /** Labelled 0..1 stat bars. */
+  statBars(rows: [string, number][]) { const d = el('span', 'arcade-statbars');for (const [k, v] of rows) { const bar = el('i');bar.style.setProperty('--fill', `${Math.round(Math.max(0, Math.min(1, v)) * 100)}%`);d.append(el('span', '', k), bar); } return d; }
+  /** Level pips, e.g. 3 of 5 upgrades. */
+  pips(level: number, max: number) { const d = el('span', 'arcade-pips');d.setAttribute('aria-label', `Level ${level} of ${max}`);for (let i = 0; i < max; i++) d.append(Object.assign(el('i'), { className: i < level ? 'on' : '' }));return d; }
+  /** A checklist with progress bars, like the runner missions in the HUD. */
+  checklist(rows: { label: string; done: boolean; progress: number }[]) {
+    const list = el('ul', 'arcade-checklist');
+    for (const r of rows) { const li = el('li');li.dataset.done = String(r.done);const bar = el('i');bar.style.setProperty('--fill', `${Math.round(Math.max(0, Math.min(1, r.progress)) * 100)}%`);li.append(el('b', '', r.done ? '✓' : ''), el('span', '', r.label), bar);list.append(li); }
+    return list;
   }
   touchButtons(buttons: { id: string; label: string; hold?: boolean }[], press: (id: string, down: boolean) => void) {
     this.touch.replaceChildren();

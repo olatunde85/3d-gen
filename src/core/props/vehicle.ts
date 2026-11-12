@@ -17,6 +17,7 @@ import type {Animator,Frame,BakedClip} from '../anim/evaluate';
 import {clipById,type Clip} from '../anim/clips';
 import {ridingClip,boardProgress,doorOpenAt,hatchOpenAt} from './vehicle-actions';
 import {articulateDoors} from './vehicle-doors';
+import {buildBody,type VehicleBody} from './vehicle-bodies';
 import type {MeshData,Material} from '../mesh';
 import type {Q} from '../anim/quat';
 import type {Vec3} from '../math';
@@ -26,12 +27,13 @@ export class Vehicle{
  /** Set by Studio, which flies and moves vehicles along the film itself instead of the clip-authored motion. */
  filmMotion=false;
  private kit?:VehicleKit;private bicycle?:Bicycle;
- constructor(readonly id:VehicleId,rig:Rig,animator:Animator,readonly clip:Clip,style:VehicleStyle,readonly fitOptions?:{cabinRoof?:number}){
+ constructor(readonly id:VehicleId,rig:Rig,animator:Animator,readonly clip:Clip,style:VehicleStyle,readonly fitOptions?:{cabinRoof?:number;body?:VehicleBody}){
   const reference=clipById.get(ridingClip(clip.id))!;
   this.fit=new RiderFit(rig,animator,reference,id);this.lift=this.fit.lift;
   if(id==='bicycle'){this.bicycle=new Bicycle(rig,animator,reference,sanitizeVehicleStyle(style));this.group=this.bicycle.group;this.group.userData.component=true;}
   else{const k=this.kit=new VehicleKit(sanitizeVehicleStyle(style),this.fit);this.group=k.group;
-   if(isCar(id)){buildCar(k);articulateDoors(k);}else if(id==='jet')buildJet(k);else if(id==='tank')buildTank(k);else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else if(id==='helicopter')buildHelicopter(k,fitOptions?.cabinRoof);else buildWatercraft(k);
+   if(fitOptions?.body){buildBody(k,fitOptions.body);if(fitOptions.body==='saloon'||fitOptions.body==='muscle')articulateDoors(k);}
+   else if(isCar(id)){buildCar(k);articulateDoors(k);}else if(id==='jet')buildJet(k);else if(id==='tank')buildTank(k);else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else if(id==='helicopter')buildHelicopter(k,fitOptions?.cabinRoof);else buildWatercraft(k);
   }
   mergeVehicleParts(this.group);this.stuntRoot.name='Vehicle_motion';this.stuntRoot.userData.component=true;this.stuntRoot.add(...[...this.group.children]);this.group.add(this.stuntRoot);this.update(0);
  }
@@ -63,6 +65,13 @@ export class Vehicle{
   else{this.stuntRoot.quaternion.identity();this.stuntRoot.position.set(0,0,0);}
   if(this.id==='jet')this.setFlight(motion?.retract??0,motion?motion.throttle:transition||parked?0:.15);
   this.group.updateMatrixWorld(true);
+ }
+ private lamps?:{head:T.MeshStandardMaterial[];tail:T.MeshStandardMaterial[]};
+ /** Lamps for driving: 0..1 brake (tail lamps brighten) and 0..1 headlights (night and dusk). */
+ setLights(brake:number,headlights=0){
+  if(!this.lamps){const head=new Set<T.MeshStandardMaterial>(),tail=new Set<T.MeshStandardMaterial>();this.group.traverse(o=>{const m=(o as T.Mesh).material;for(const mat of Array.isArray(m)?m:m?[m]:[])if(mat instanceof T.MeshStandardMaterial){if(mat.name==='Vehicle headlight')head.add(mat);if(mat.name==='Vehicle tail lamps')tail.add(mat);}});this.lamps={head:[...head],tail:[...tail]};}
+  for(const m of this.lamps.head)m.emissiveIntensity=.9+2.6*headlights;
+  for(const m of this.lamps.tail)m.emissiveIntensity=.55+2.4*Math.max(brake,headlights*.4);
  }
  /** Aircraft state from a film: 0..1 gear retraction and engine throttle (0 idle, 1 take-off power). */
  setFlight(retract:number,throttle:number){

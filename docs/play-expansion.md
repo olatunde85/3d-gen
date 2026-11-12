@@ -74,6 +74,18 @@ Race and runner games reuse the cast, vehicles, audio, music, chapters, cash and
 - [ ] Online leaderboards need a hosted service; records and daily challenges are kept in each browser.
 - [ ] Compressed textures and distance detail levels for scenery meshes.
 
+## Vehicles and city life
+
+Vehicle bodies, traffic and the district's look grow together; every addition keeps phone frame cost in check.
+
+- [x] Lacquered paint, reflective glass, lamps that brighten under braking and at night, detailed wheels, body lean and pitch, and stripe, race number, police and taxi designs.
+- [x] Saloon, muscle car, danfo minibus, van, box truck, city bus, keke tricycle, scooter, quad bike and go-kart, built around the rider fit of an existing vehicle. Each is drivable in missions (the bus in the city only), raceable in arcade mode and parked in the city.
+- [x] Moving city traffic on right-turn loops around the blocks, with paved lanes, queuing, waiting for people, horns and passing stopped vehicles. Copies share each vehicle's geometry, merge into one mesh per material, switch to a box version beyond 55 m and are hidden in the fog.
+- [x] Police chase in a marked saloon with flashing beacons.
+- [x] Arcade time of day and weather: dawn, day, dusk and night with headlamps, lamp posts and a runner lantern drawn as batched light decals; rain with a wet road, streaks and sound; fog and sandstorms that shorten the view.
+- [ ] A track builder in Game setup.
+- [ ] A phone performance pass with compressed textures and distance detail for parked cars and scenery.
+
 ## Recent gameplay and presentation fixes
 
 - LLM Assist and imported Play JSON generate missing voiced dialogue using the selected male or female voice; existing recorded audio stays intact.

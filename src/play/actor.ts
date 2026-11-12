@@ -19,7 +19,7 @@ import {boardingFrame} from '../core/anim/boarding';
 import {boardingScale} from '../core/props/vehicle-actions';
 import {vehicleLift,VEHICLE_CLIP} from '../core/props/vehicles';
 import {drivingClip} from './driving-view';
-import {carPoint,DRIVE,type CarState} from './driving';
+import {carPoint,DRIVE,type CarState,driveBase} from './driving';
 import {hitReactionFrame} from './hit-reaction';
 import {pickupPassengerFrame,type PassengerPose} from './passenger-view';
 import type {CompanionState} from './companion';
@@ -67,8 +67,9 @@ export class GameActor {
   this.render.group.position.set(active?.from.x??body.x,dead?Math.max(combat.deathFloor??body.y,body.y-7*this.deathTime*this.deathTime):active?.from.y??body.y,active?.from.z??body.z);this.render.group.rotation.y=body.yaw;this.blood.update(combat,dt,clip,t);
  }
  private updateVehicle(car:CarState,time:number,combat?:Combatant){
-  this.wasDriving=true;this.heldGrenade.visible=false;const model=car.fit.model??'pickup',ride=VEHICLE_CLIP[model],transition=car.phase==='boarding'||car.phase==='alighting',clip=clipById.get(car.phase==='boarding'?`board_${model}`:car.phase==='alighting'?`alight_${model}`:ride)!,lift=vehicleLift(model,this.render.scale),scale=boardingScale(this.render.character.rig!);
-  const base=transition?boardingFrame(this.render.animator,clip,car.time/(car.phase==='boarding'?DRIVE.boarding:DRIVE.alighting)*clip.duration,clipById.get('idle')!,clipById.get(ride)!,lift,ride,[car.fit.stand.x/scale,car.fit.stand.z/scale]):this.render.animator.frame(drivingClip(car.steer,model),0,{vehicleLift:lift,weaponPose:combat&&isGun(combat.weapon)?combat.fireAge<.22?'fire':combat.aiming?'aim':'hold':'hidden',weaponYaw:combat?.aim?Math.atan2(Math.sin(Math.atan2(combat.aim.x-car.x,combat.aim.z-car.z)-car.yaw),Math.cos(Math.atan2(combat.aim.x-car.x,combat.aim.z-car.z)-car.yaw))*180/Math.PI:80,weaponPitch:combat?.aiming?(combat.pitch??0)*180/Math.PI:0,rootMotion:false,vehicleMotion:false,faceTime:time});
+  this.wasDriving=true;this.heldGrenade.visible=false;const model=driveBase(car.fit.model),ride=VEHICLE_CLIP[model],transition=car.phase==='boarding'||car.phase==='alighting',clip=clipById.get(car.phase==='boarding'?`board_${model}`:car.phase==='alighting'?`alight_${model}`:ride)!,lift=vehicleLift(model,this.render.scale),scale=boardingScale(this.render.character.rig!);
+  const base=transition?boardingFrame(this.render.animator,clip,car.time/(car.phase==='boarding'?DRIVE.boarding:DRIVE.alighting)*clip.duration,clipById.get('idle')!,clipById.get(ride)!,lift,ride,[car.fit.stand.x/scale,car.fit.stand.z/scale]):this.render.animator.frame(drivingClip(car.steer,model),0,{vehicleLift:lift,weaponPose:combat&&isGun(combat.weapon)?combat.fireAge<.22?'fire':combat.aiming?'aim':'hold':'hidden',// A rider without a drawn gun keeps both hands on the controls, so no aim direction is passed.
+...(combat&&isGun(combat.weapon)?{weaponYaw:combat.aim?Math.atan2(Math.sin(Math.atan2(combat.aim.x-car.x,combat.aim.z-car.z)-car.yaw),Math.cos(Math.atan2(combat.aim.x-car.x,combat.aim.z-car.z)-car.yaw))*180/Math.PI:80,weaponPitch:combat.aiming?(combat.pitch??0)*180/Math.PI:0}:{}),rootMotion:false,vehicleMotion:false,faceTime:time});
   const socket=this.render.character.rig!.bones.findIndex(b=>b.name==='WeaponR');base.scale??=new Map();if(socket>=0&&(transition||!combat||!isGun(combat.weapon)))base.scale.set(socket,[0,0,0]);this.vehicleFrame=base;
   const f=combat?.health===0?seatedDefeatFrame(this.render.animator,base,this.deathTime):combat?hitReactionFrame(this.render.animator,base,combat,true):base,mesh=this.render.mesh;mesh.frustumCulled=false;
   f.rot.forEach((q,i)=>{mesh.skeleton.bones[i].quaternion.set(...q);mesh.skeleton.bones[i].scale.set(...(f.scale?.get(i)??[1,1,1]));});for(const [i,p]of f.rootPos)mesh.skeleton.bones[i].position.set(...p);f.morph?.forEach((v,i)=>{if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[i]=v;});

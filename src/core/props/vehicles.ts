@@ -11,7 +11,9 @@ export const VEHICLE_FOR_CLIP:Readonly<Record<string,VehicleId>>={...RIDING_VEHI
 export const VEHICLE_CLIP:Record<VehicleId,string>={bicycle:'ride_bicycle',car:'drive_car',sports_car:'drive_sports_car',suv:'drive_suv',motorcycle:'ride_motorcycle',horse:'ride_horse',canoe:'paddle_canoe',kayak:'paddle_kayak',rowboat:'row_boat',motorboat:'drive_boat',helicopter:'fly_helicopter',pickup:'drive_pickup',tank:'drive_tank',jet:'fly_jet'};
 export const VEHICLE_FINISHES=['matte','satin','gloss']as const;
 export const VEHICLE_VARIANTS=['classic','sport']as const;
-export interface VehicleStyle{color:string;accentColor:string;seatColor:string;finish:typeof VEHICLE_FINISHES[number];variant:typeof VEHICLE_VARIANTS[number]}
+export const VEHICLE_LIVERIES=['none','stripes','racing','police','taxi']as const;
+/** `livery` adds painted designs (racing stripes, a race number, police or taxi colours); `number` is the race number. */
+export interface VehicleStyle{color:string;accentColor:string;seatColor:string;finish:typeof VEHICLE_FINISHES[number];variant:typeof VEHICLE_VARIANTS[number];livery?:typeof VEHICLE_LIVERIES[number];number?:number}
 export const DEFAULT_VEHICLE_STYLE:VehicleStyle={color:'#8a5535',accentColor:'#c7b293',seatColor:'#292827',finish:'satin',variant:'classic'};
 /** Factory paint for a newly chosen modern model; preserve colours the user has edited. */
 export function vehicleStyleForChoice(choice:VehicleChoice,style:VehicleStyle):VehicleStyle{
@@ -28,7 +30,7 @@ export function vehicleStyleForChoice(choice:VehicleChoice,style:VehicleStyle):V
 export function sanitizeVehicleStyle(value:unknown):VehicleStyle{
  const s=value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
  const color=(key:'color'|'accentColor'|'seatColor')=>typeof s[key]==='string'&&/^#[a-f0-9]{6}$/i.test(s[key])?s[key] as string:DEFAULT_VEHICLE_STYLE[key];
- return {color:color('color'),accentColor:color('accentColor'),seatColor:color('seatColor'),finish:VEHICLE_FINISHES.includes(s.finish as VehicleStyle['finish'])?s.finish as VehicleStyle['finish']:'satin',variant:VEHICLE_VARIANTS.includes(s.variant as VehicleStyle['variant'])?s.variant as VehicleStyle['variant']:'classic'};
+ return {color:color('color'),accentColor:color('accentColor'),seatColor:color('seatColor'),finish:VEHICLE_FINISHES.includes(s.finish as VehicleStyle['finish'])?s.finish as VehicleStyle['finish']:'satin',variant:VEHICLE_VARIANTS.includes(s.variant as VehicleStyle['variant'])?s.variant as VehicleStyle['variant']:'classic',...(VEHICLE_LIVERIES.includes(s.livery as never)&&s.livery!=='none'?{livery:s.livery as VehicleStyle['livery']}:{}),...(Number.isInteger(s.number)&&(s.number as number)>=0&&(s.number as number)<100?{number:s.number as number}:{})};
 }
 export function isPassengerClip(id:string){return ridingClip(id).includes('passenger');}
 export function isCar(id:VehicleChoice):id is 'car'|'sports_car'|'suv'|'pickup'{return id==='car'||id==='sports_car'||id==='suv'||id==='pickup';}

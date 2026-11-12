@@ -2,7 +2,7 @@
  * Game modes beside the staged mission: an arcade race and an endless runner. Each mode keeps the shared cast,
  * music and campaign chapters, and brings its own rules, camera, HUD and level generation.
  */
-import { parseTrack, type CustomTrack } from './track';
+import { parseTrack, trackTemplate, TRACK_TEMPLATES, type CustomTrack } from './track';
 
 export type PlayMode = 'mission' | 'race' | 'runner';
 export const PLAY_MODES: readonly PlayMode[] = ['mission', 'race', 'runner'];
@@ -12,8 +12,8 @@ export const parseMode = (raw: unknown): PlayMode => {
   return raw as PlayMode;
 };
 
-export type RaceCar = 'sports_car' | 'suv' | 'pickup' | 'motorcycle';
-export const RACE_CARS: readonly RaceCar[] = ['sports_car', 'suv', 'pickup', 'motorcycle'];
+export type RaceCar = 'sports_car' | 'muscle' | 'saloon' | 'kart' | 'suv' | 'pickup' | 'danfo' | 'van' | 'truck' | 'motorcycle' | 'scooter' | 'quad' | 'keke';
+export const RACE_CARS: readonly RaceCar[] = ['sports_car', 'muscle', 'saloon', 'kart', 'suv', 'pickup', 'danfo', 'van', 'truck', 'motorcycle', 'scooter', 'quad', 'keke'];
 export type RacePickup = 'boost-pad' | 'item-box' | 'hazard';
 export const RACE_PICKUPS: readonly RacePickup[] = ['boost-pad', 'item-box', 'hazard'];
 export type AiSkill = 'easy' | 'medium' | 'hard';
@@ -25,6 +25,7 @@ export const defaultRace = (): RaceSettings => ({ track: 'city-loop', laps: 3, o
 
 export type RunnerTheme = 'temple-ruins' | 'city-rooftops' | 'desert-canyon';
 export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-rooftops', 'desert-canyon'];
+export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon' };
 export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart';
 export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'];
 export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier';
@@ -97,4 +98,27 @@ export function parseRunner(raw: unknown, enemyIds: readonly string[]): RunnerSe
     obstacles, powerUps: p.powerUps === undefined ? d.powerUps : subset(p.powerUps, RUNNER_POWER_UPS, 'runner.powerUps'), chaser, goal,
     revive: p.revive === undefined ? d.revive : flag(p.revive, 'runner.revive'), ...(seed === undefined ? {} : { seed }),
   };
+}
+
+/** Titles Ara writes by itself: mission names from the mission editor, circuit names and runner course names. */
+const MISSION_TITLES = ['The Depot', 'Military base', 'Base assault', 'Getaway', 'Rescue getaway', 'Clear and drive', 'Rescue and getaway'];
+export function isAutomaticTitle(title: string) {
+  const t = title.trim();
+  return !t || MISSION_TITLES.includes(t) || /^Next mission \d+$/.test(t) || t === 'Custom circuit' || TRACK_TEMPLATES.some((x) => x.name === t) || Object.values(RUNNER_THEME_NAMES).includes(t);
+}
+/** The circuit or course name used as an arcade game's title until the creator names it. */
+export function arcadeTitle(p: { mode?: PlayMode; race?: RaceSettings; runner?: RunnerSettings }) {
+  if (p.mode === 'runner' && p.runner) return RUNNER_THEME_NAMES[p.runner.theme];
+  const track = p.race?.track;
+  return typeof track === 'string' ? trackTemplate(track)?.name ?? 'Custom circuit' : track?.name ?? 'Custom circuit';
+}
+/** The title shown to players: arcade games never show a mission's automatic name. */
+export function gameTitle(p: { mode?: PlayMode; race?: RaceSettings; runner?: RunnerSettings; identity: { title: string } }) {
+  return (p.mode === 'race' || p.mode === 'runner') && isAutomaticTitle(p.identity.title) ? arcadeTitle(p) : p.identity.title;
+}
+/** Keep an automatic title in step with the mode and the chosen circuit or course; a creator's own title stays. */
+export function retitle(p: { mode?: PlayMode; race?: RaceSettings; runner?: RunnerSettings; identity: { title: string } }) {
+  if (!isAutomaticTitle(p.identity.title)) return;
+  if (p.mode === 'race' || p.mode === 'runner') p.identity.title = arcadeTitle(p);
+  else if (!MISSION_TITLES.includes(p.identity.title.trim()) && !/^Next mission \d+$/.test(p.identity.title.trim())) p.identity.title = 'The Depot';
 }

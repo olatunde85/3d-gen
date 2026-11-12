@@ -21,7 +21,7 @@ export function buildCar(k:VehicleKit){
  k.box(v(cx,.79*s,z-1.05*s),v(width*.48,.08*s,.7*s),k.paint);
  for(const sign of [-1,1]){
   k.box(v(cx+sign*.48*s,.62*s,z+1.67*s),v(.32*s,.1*s,.035*s),k.light);
-  const red=new T.MeshStandardMaterial({name:'Vehicle tail lamps',color:'#9e1518',emissive:'#6d0708',emissiveIntensity:.18,roughness:.2});
+  const red=k.tail;
   k.box(v(cx+sign*.5*s,.64*s,z-1.53*s),v(.30*s,.09*s,.035*s),red);
  }
  k.box(v(cx,.43*s,z+1.69*s),v(width*.7,.12*s,.04*s),k.dark);

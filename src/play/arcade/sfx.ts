@@ -30,6 +30,19 @@ export class ArcadeSfx {
     g.gain.setValueAtTime(volume, t);g.gain.exponentialRampToValueAtTime(0.0001, t + length);
     s.connect(f).connect(g).connect(this.master!);s.start(t, Math.random() * 0.5);s.stop(t + length + 0.02);
   }
+  private bed?: { source: AudioBufferSourceNode; gain: GainNode; kind: string; level: number };
+  /** A looping filtered-noise bed for rain or a sandstorm; it follows the play state and the game's mute. */
+  weather(kind: 'rain' | 'sandstorm' | 'none', on: boolean) {
+    const c = this.context;if (!c || !this.noise || !this.master) return;
+    if (this.bed && this.bed.kind !== kind) { this.bed.source.stop();this.bed = undefined; }
+    if (!this.bed && kind !== 'none') {
+      const source = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();source.buffer = this.noise;source.loop = true;
+      filter.type = kind === 'rain' ? 'highpass' : 'lowpass';filter.frequency.value = kind === 'rain' ? 1400 : 650;gain.gain.value = 0;
+      source.connect(filter).connect(gain).connect(this.master);source.start();this.bed = { source, gain, kind, level: 0 };
+    }
+    const level = on && this.enabled ? (kind === 'rain' ? 0.16 : 0.22) : 0;
+    if (this.bed && this.bed.level !== level) { this.bed.level = level;this.bed.gain.gain.setTargetAtTime(level, c.currentTime, 0.4); }
+  }
   /** `strength` 0..1 scales impacts; repeated sounds are rate-limited so a long scrape cannot stack. */
   play(sound: ArcadeSound, strength = 1) {
     if (!this.enabled || !this.context || this.context.state !== 'running') return;

@@ -14,16 +14,17 @@ import { RaceGame, CAR_STATS, POINTS, type RaceInput } from './race';
 import { RunnerGame, type RunnerInput } from './runner';
 import { RaceView } from './race-view';
 import { RunnerView } from './runner-view';
-import { ArcadeHud, clock, ordinal } from './hud';
+import { ArcadeHud, clock, ordinal, type CardAction, type Standing } from './hud';
+import { iconSvg } from './icons';
 import { ArcadeInput } from './input';
 import { SpeedFeel } from './feel';
 import { ArcadeSfx } from './sfx';
 import { TRACK_IDS } from './track';
-import { RACE_CARS, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
+import { RACE_CARS, RUNNER_THEME_NAMES, gameTitle, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
 import { cupRecord, dailySeed, decodeGhost, encodeGhost, ghostLink, linkedGhost, raceRecord, runnerRecord, saveCup, saveRace, saveRunner, today, trackKey, type RunnerRecord } from './records';
 
-const CAR_PRICES: Record<RaceCar, number> = { suv: 400, pickup: 400, motorcycle: 600, sports_car: 800 };
-const PAINTS = ['#c8372d', '#2d6fc8', '#e2b23a', '#3c9a5f', '#8a4fc0', '#ececec', '#2b2b30'];
+const CAR_PRICES: Record<RaceCar, number> = { keke: 200, scooter: 250, danfo: 300, van: 300, truck: 300, saloon: 400, suv: 400, pickup: 400, quad: 500, kart: 500, motorcycle: 600, muscle: 700, sports_car: 800 };
+const PAINTS: string[] = ['#c8372d', '#2d6fc8', '#e2b23a', '#3c9a5f', '#8a4fc0', '#ececec', '#2b2b30'];
 const CASH = [600, 400, 250, 150, 100, 80, 60, 40];
 const UPGRADES = ['magnet', 'shield', 'boost', 'multiplier'] as const;
 const RUNNER_PRICE = 1000;
@@ -75,13 +76,13 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       const others = drivers(chapter), base = others.map((a) => a.render.character.params.name || 'Rival'), count = settingsCount(base, settings.opponents);
       const names = { player: project.character.name || 'You', drivers: count };
       race = new RaceGame(settings, names, daily ? dailySeed(gameKey()) : 1 + chapter, ghost);
-      raceView = new RaceView(race, castFor(chapter).hero.clone(), others.length ? others : [castFor(chapter).hero], settings.ghost ? castFor(chapter).hero.clone() : undefined);
+      raceView = new RaceView(race, castFor(chapter).hero.clone(), others.length ? others : [castFor(chapter).hero], settings.ghost ? castFor(chapter).hero.clone() : undefined, renderer, project.mission.environment);
       ghostIndex = 0;hud.reset(`${race.track.name.toUpperCase()} / ARCADE RACE`);
     } else {
       const settings: RunnerSettings = project.runner!, record = runnerRecord(gameKey());
       runner = new RunnerGame(settings, { upgrades: record.upgrades, missionLevel: record.missionLevel, missions: record.missions, bank: record.bank }, daily ? dailySeed(gameKey()) : settings.seed ?? Date.now() % 100000);
       const chaser = settings.chaser !== 'none' ? castFor(chapter).guards.get(settings.chaser)?.clone() : undefined;
-      runnerView = new RunnerView(runner, runnerActor(record), chaser);hud.reset(`${settings.theme.replace('-', ' ').toUpperCase()} / ENDLESS RUN`);
+      runnerView = new RunnerView(runner, runnerActor(record), chaser, project.mission.environment);hud.reset(`${settings.theme.replace('-', ' ').toUpperCase()} / ENDLESS RUN`);
     }
     music.configure(project.music, true);music.setPlaying(false);
     phase = 'intro';intro();
@@ -93,25 +94,32 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     if (mode() === 'race') hud.setHelp([['W / S', 'accelerate / brake'], ['A / D', 'steer'], ['Space', 'drift'], ['Shift', 'nitro'], ['E', 'item'], ['F', 'back to track'], ['R', 'restart']], 'Drag to steer · buttons to brake, drift and boost');
     else hud.setHelp([['A / D', 'lane and turn'], ['W / Space', 'jump'], ['S', 'slide'], ['R', 'restart']], 'Swipe to change lane, turn, jump and slide');
   }
+  /** The race result or run being shown; each start makes a new run token so records settle once per game. */
+  let settled_: object | undefined, runRef: object = {}, settledNotes = { newLap: false, newRace: false, earned: 0 };
+  /** Short fact chips under the briefing title. */
+  function facts(items: string[]) { const d = document.createElement('div');d.className = 'arcade-facts';for (const t of items) { const s = document.createElement('span');s.textContent = t;d.append(s); } return d; }
+  const micro = (text: string) => Object.assign(document.createElement('p'), { className: 'micro', textContent: text });
+  const title = () => gameTitle(project);
   function intro() {
     help();
-    const records: string[] = [];
+    const briefing = project.identity.briefing.trim();
+    /** Cup races or run stages with their names, ticking those already won or cleared. */
+    const steps = (done: number) => rounds() > 1 && !daily ? [hud.progress(Array.from({ length: rounds() }, (_, i) => ({ label: gameTitle(chapterProject(root, i)), state: i === chapter ? 'current' as const : i < done ? 'done' as const : 'next' as const })))] : [];
     if (race) {
       const settings = race.settings, record = raceRecord(gameKey(), trackKey(settings.track)), cup = cupRecord(gameKey());
-      if (record.bestLap) records.push(`Best lap ${clock(record.bestLap)}${record.bestRace ? ` · best race ${clock(record.bestRace)}` : ''}`);
-      if (linkedGhost(trackKey(settings.track))) records.push('Racing a shared ghost from a link.');
       const kicker = daily ? `DAILY CHALLENGE · ${today()}` : rounds() > 1 ? `CUP · RACE ${chapter + 1} OF ${rounds()}` : 'ARCADE RACE';
-      hud.show(kicker, project.identity.title, [`${race.track.name} · ${settings.laps} laps · ${settings.opponents + 1} cars · ${CAR_STATS[settings.car.model].name}`, ...records, controls(), ...(rounds() > 1 ? [`Cup points: ${cup.points[project.character.name || 'You'] ?? 0} · cash $${cup.cash}`] : [])], [
+      const stats = hud.stats([['BEST LAP', record.bestLap ? clock(record.bestLap) : '—'], ['BEST RACE', record.bestRace ? clock(record.bestRace) : '—'], ...(rounds() > 1 && !daily ? [['CUP POINTS', String(cup.points[project.character.name || 'You'] ?? 0), 'hot'] as [string, string, 'hot'], ['CASH', `$${cup.cash}`] as [string, string]] : [])]);
+      hud.show(kicker, title(), [...steps(cup.complete ? rounds() : cup.round), ...(briefing ? [hud.briefing(briefing)] : []), facts([race.track.name, `${settings.laps} ${settings.laps === 1 ? 'lap' : 'laps'}`, `${settings.opponents + 1} cars`, CAR_STATS[settings.car.model].name]), stats, ...(linkedGhost(trackKey(settings.track)) ? [hud.badges(['RACING A SHARED GHOST'])] : []), micro(controls())], [
         { label: 'Start race', primary: true, run: start },
         ...(daily ? [{ label: 'Back to the main race', run: () => { daily = false;setup(); } }] : [{ label: 'Daily challenge', run: () => { daily = true;setup(); } }]),
         ...(rounds() > 1 && !daily ? [{ label: 'Garage', run: garage }] : []),
       ], 'brief');
     } else if (runner) {
       const record = runnerRecord(gameKey()), settings = runner.settings, goal = settings.goal;
-      if (record.best) records.push(`Best ${Math.floor(record.best).toLocaleString()} · ${Math.floor(record.bestDistance).toLocaleString()} m · bank ● ${record.bank}`);
-      if (daily && record.daily[today()]) records.push(`Today's best ${Math.floor(record.daily[today()]).toLocaleString()}`);
       const kicker = daily ? `DAILY RUN · ${today()}` : rounds() > 1 ? `STAGE ${chapter + 1} OF ${rounds()}` : 'ENDLESS RUNNER';
-      hud.show(kicker, project.identity.title, [goal.type === 'endless' ? 'Run as far as you can.' : `Goal: ${goal.type === 'distance' ? `${goal.target} m` : goal.type === 'coins' ? `${goal.target} coins` : `${goal.target.toLocaleString()} points`}.`, ...records, controls()], [
+      const target = goal.type === 'endless' ? 'Endless' : goal.type === 'distance' ? `Run ${goal.target} m` : goal.type === 'coins' ? `Collect ${goal.target} coins` : `Score ${goal.target.toLocaleString()}`;
+      const stats = hud.stats([['BEST', record.best ? Math.floor(record.best).toLocaleString() : '—'], ['FURTHEST', record.bestDistance ? `${Math.floor(record.bestDistance).toLocaleString()} m` : '—'], ['BANK', `● ${record.bank}`, 'hot'], ...(daily && record.daily[today()] ? [['TODAY', Math.floor(record.daily[today()]).toLocaleString()] as [string, string]] : [])]);
+      hud.show(kicker, title(), [...steps(record.stage ?? 0), ...(briefing ? [hud.briefing(briefing)] : []), facts([RUNNER_THEME_NAMES[settings.theme], target, settings.chaser !== 'none' ? 'Chaser' : 'No chaser']), stats, micro(controls())], [
         { label: 'Run', primary: true, run: start },
         ...(daily ? [{ label: 'Back to the main run', run: () => { daily = false;setup(); } }] : [{ label: 'Daily run', run: () => { daily = true;setup(); } }]),
         { label: 'Shop', run: shop },
@@ -123,6 +131,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   function start() {
     sfx.unlock();engine.unlock();music.unlock();hooks.stopPreview?.();hud.hideCard();input.clear();feel.reset();
     if (race) { race.reset();raceView!.events([], feel);ghostIndex = 0; }
+    runRef = {};
     if (runner) { runner.reset(daily ? dailySeed(gameKey()) : runner.settings.seed ?? Date.now() % 100000);runnerView!.reset();runner.start(); }
     phase = 'playing';paused = false;settled = 0;music.setPlaying(true);canvas.focus({ preventScroll: true });
     touchButtons();
@@ -133,7 +142,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   }
   function setPause(next: boolean) {
     if (phase !== 'playing' || paused === next) return;paused = next;music.setPlaying(!next);
-    if (next) hud.show('PAUSED', 'On pause.', [controls()], [
+    if (next) hud.show('PAUSED', title(), [hud.section('Controls', controls())], [
       { label: 'Keep playing', primary: true, run: () => setPause(false) },
       { label: 'Restart', run: start },
       ...('DeviceOrientationEvent' in window && matchMedia('(pointer:coarse)').matches ? [{ label: input.tilt ? 'Tilt steering: on' : 'Tilt steering: off', run: async () => { if (input.tilt) input.tilt = false;else await input.enableTilt();setPause(false);setPause(true); } }] : []),
@@ -213,86 +222,104 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     if (race) raceResults();else runnerResults();
   }
   function raceResults() {
-    const g = race!, key = trackKey(g.settings.track), record = raceRecord(gameKey(), key), r = g.result!, notes: string[] = [];
-    const newLap = r.bestLap < (record.bestLap ?? Infinity), newRace = r.time < (record.bestRace ?? Infinity);
-    if (newLap) { record.bestLap = r.bestLap;if (g.bestGhost?.length && g.bestLap !== undefined) record.ghost = encodeGhost(g.bestLap, g.bestGhost);notes.push(`New best lap: ${clock(r.bestLap)}.`); }
-    if (newRace) { record.bestRace = r.time;notes.push(`New best race: ${clock(r.time)}.`); }
-    record.top.push({ time: r.time, position: r.position, date: today() });saveRace(gameKey(), key, record);
-    const standings = g.standings(), times = g.projectedTimes();
-    const podium = document.createElement('div');podium.className = 'arcade-podium';
-    for (const place of [2, 1, 3]) { const car = standings[place - 1];if (!car) continue;const d = document.createElement('div');d.dataset.place = String(place);d.textContent = `${ordinal(place)} ${car.ai ? car.driver : 'You'}`;const t = document.createElement('small');t.textContent = clock(times.get(car.id)!);d.append(t);podium.append(d); }
-    const table = hud.table(standings.map((c, i) => [ordinal(i + 1), c.ai ? c.driver : `${c.driver} (you)`, `${clock(times.get(c.id)!)}${c.finished === undefined ? '*' : ''}`, c.lapTimes.length ? clock(Math.min(...c.lapTimes)) : '—']), ['POS', 'DRIVER', 'TIME', 'BEST LAP']);
-    const body: (string | HTMLElement)[] = [podium, table, ...notes];
-    const actions: { label: string; primary?: boolean; run: () => void }[] = [{ label: 'Race again', primary: true, run: start }];
+    const g = race!, key = trackKey(g.settings.track), record = raceRecord(gameKey(), key), r = g.result!;
+    // Records and cup points are settled once per race; reopening the card from the garage only shows them again.
+    const fresh = settled_ !== r;
+    if (fresh) {
+      settled_ = r;const newLap = r.bestLap < (record.bestLap ?? Infinity), newRace = r.time < (record.bestRace ?? Infinity);settledNotes = { newLap, newRace, earned: 0 };
+      if (newLap) { record.bestLap = r.bestLap;if (g.bestGhost?.length && g.bestLap !== undefined) record.ghost = encodeGhost(g.bestLap, g.bestGhost); }
+      if (newRace) record.bestRace = r.time;
+      record.top.push({ time: r.time, position: r.position, date: today() });saveRace(gameKey(), key, record);
+    }
+    const { newLap, newRace } = settledNotes, notes = [...(newLap ? ['NEW BEST LAP'] : []), ...(newRace ? ['NEW BEST RACE'] : [])];
+    const standings = g.standings(), times = g.projectedTimes(), lead = times.get(standings[0].id)!;
+    const rows: Standing[] = standings.map((c, i) => { const t = times.get(c.id)!;return { place: i + 1, name: c.driver, color: c.color, time: `${clock(t)}${c.finished === undefined ? '*' : ''}`, gap: i ? `+${(t - lead).toFixed(2)}` : 'WIN', you: !c.ai }; });
+    const stats: [string, string, ('good' | 'hot' | '')?][] = [['TIME', clock(r.time), newRace ? 'good' : ''], ['BEST LAP', clock(r.bestLap), newLap ? 'good' : '']];
+    const right: HTMLElement[] = [], actions: CardAction[] = [{ label: 'Race again', primary: true, run: start }];
+    let cupWin = '';
     if (rounds() > 1 && !daily) {
       const cup = cupRecord(gameKey()), you = project.character.name || 'You';
-      if (cup.round === chapter && !cup.complete) {
+      if (fresh && cup.round === chapter && !cup.complete) {
         standings.forEach((c, i) => { const name = c.ai ? c.driver : you;cup.points[name] = (cup.points[name] ?? 0) + (POINTS[i] ?? 0); });
-        cup.cash += CASH[r.position - 1] ?? 0;cup.round = chapter + 1;cup.complete = cup.round >= rounds();saveCup(gameKey(), cup);
+        settledNotes.earned = CASH[r.position - 1] ?? 0;cup.cash += settledNotes.earned;cup.round = chapter + 1;cup.complete = cup.round >= rounds();saveCup(gameKey(), cup);
       }
       const order = Object.entries(cup.points).sort((a, b) => b[1] - a[1]);
-      body.push(hud.table(order.map(([name, pts], i) => [ordinal(i + 1), name, String(pts)]), ['CUP', 'DRIVER', 'POINTS']), `Cash $${cup.cash}.`);
-      if (cup.complete) body.unshift(order[0]?.[0] === you ? 'You win the cup!' : `${order[0]?.[0]} wins the cup.`);
-      if (!cup.complete && chapter + 1 < rounds()) actions.unshift({ label: `Next race: ${chapterProject(root, chapter + 1).identity.title}`, primary: true, run: () => { chapter++;setup();start(); } });
+      stats.push(['CASH', `$${cup.cash}`, 'hot'], ...(settledNotes.earned ? [['EARNED', `+$${settledNotes.earned}`, 'good'] as [string, string, 'good']] : []));
+      right.push(hud.section(cup.complete ? 'Final cup standings' : `Cup after race ${chapter + 1} of ${rounds()}`, hud.bars(order.map(([name, value]) => ({ name, value, you: name === you })))));
+      if (cup.complete) cupWin = order[0]?.[0] === you ? 'YOU WIN THE CUP' : `${order[0]?.[0].toUpperCase()} WINS THE CUP`;
+      if (!cup.complete && chapter + 1 < rounds()) actions.unshift({ label: `Next race: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup(); } });
       actions.push({ label: 'Garage', run: garage });
       if (cup.complete) actions.push({ label: 'Restart the cup', run: () => { saveCup(gameKey(), { round: 0, points: {}, cash: 0, garage: cup.garage, car: cup.car, paint: cup.paint, complete: false });chapter = 0;setup(); } });
     }
+    if (actions.filter((a) => a.primary).length > 1) actions[1] = { ...actions[1], primary: false };
     if (record.ghost && navigator.clipboard) actions.push({ label: 'Copy ghost link', run: () => { void navigator.clipboard.writeText(ghostLink(key, record.ghost!)).then(() => hud.say('LINK COPIED', 1, 'good')); } });
     if (!daily) actions.push({ label: 'Daily challenge', run: () => { daily = true;setup(); } });
-    hud.show(daily ? `DAILY CHALLENGE · ${today()}` : 'RACE COMPLETE', `${ordinal(r.position)} place`, body, actions);
+    const highlights = [...(cupWin ? [cupWin] : []), ...notes];
+    const left = [hud.podium(rows.slice(0, 3)), hud.section('Results', hud.standings(rows), ...(rows.some((x) => x.time.endsWith('*')) ? [micro('* Still racing: estimated from their pace.')] : []))];
+    right.unshift(hud.stats(stats), ...(highlights.length ? [hud.badges(highlights)] : []));
+    hud.show(daily ? `DAILY CHALLENGE · ${today()}` : `RACE COMPLETE · ${g.track.name.toUpperCase()}`, `${ordinal(r.position)} place`, [hud.columns(left, right)], actions, 'wide', hud.aside('OF', `${g.cars.length} cars`));
   }
   function runnerResults() {
-    const g = runner!, record = runnerRecord(gameKey()), score = Math.floor(g.score), notes: string[] = [];
-    record.bank += g.coins;record.missions = g.missionsDone.map(Number);record.missionLevel = g.profile.missionLevel;
-    if (score > record.best) { record.best = score;notes.push('New high score!'); }
-    record.bestDistance = Math.max(record.bestDistance, g.distance);record.top.push({ score, distance: Math.floor(g.distance), coins: g.coins, date: today() });
-    if (daily) record.daily[today()] = Math.max(record.daily[today()] ?? 0, score);
-    const won = g.status === 'won' || g.goalReached;
-    if (won && rounds() > 1) record.stage = Math.max(record.stage ?? 0, chapter + 1);
-    saveRunner(gameKey(), record);
-    const table = hud.breakdown([['Distance', `${Math.floor(g.distance).toLocaleString()} m`], ['Coins', `● ${g.coins}`], ['Multiplier', `×${g.multiplier}`], ['Best', record.best.toLocaleString()], ['Bank', `● ${record.bank}`]]);
-    const missions = hud.table(g.missions.map((m, i) => [g.missionsDone[i] ? '✓' : '·', m.label]), ['', `MISSIONS · ×${1 + record.missionLevel} MULTIPLIER`]);
-    const actions: { label: string; primary?: boolean; run: () => void }[] = [{ label: 'Run again', primary: true, run: start }, { label: 'Shop', run: shop }];
-    if (rounds() > 1 && (won || g.settings.goal.type === 'endless') && chapter + 1 < rounds()) actions.unshift({ label: `Next stage: ${chapterProject(root, chapter + 1).identity.title}`, primary: true, run: () => { chapter++;setup();start(); } });
+    const g = runner!, record = runnerRecord(gameKey()), score = Math.floor(g.score), won = g.status === 'won' || g.goalReached;
+    // Coins are banked once per run; reopening the card from the shop only shows the result again.
+    if (settled_ !== runRef) {
+      settled_ = runRef;settledNotes = { newLap: score > record.best, newRace: g.distance > record.bestDistance, earned: g.coins };
+      record.bank += g.coins;record.missions = g.missionsDone.map(Number);record.missionLevel = g.profile.missionLevel;
+      if (score > record.best) record.best = score;
+      record.bestDistance = Math.max(record.bestDistance, g.distance);record.top.push({ score, distance: Math.floor(g.distance), coins: g.coins, date: today() });
+      if (daily) record.daily[today()] = Math.max(record.daily[today()] ?? 0, score);
+      if (won && rounds() > 1) record.stage = Math.max(record.stage ?? 0, chapter + 1);
+      saveRunner(gameKey(), record);
+    }
+    const best = settledNotes.newLap, notes = [...(best ? ['NEW HIGH SCORE'] : []), ...(settledNotes.newRace ? ['FURTHEST RUN'] : [])];
+    const stats = hud.stats([['DISTANCE', `${Math.floor(g.distance).toLocaleString()} m`], ['COINS', `● ${g.coins}`, 'hot'], ['MULTIPLIER', `×${g.multiplier}`], ['BEST', record.best.toLocaleString(), best ? 'good' : '']]);
+    const missions = hud.section(`Missions · ×${1 + record.missionLevel} multiplier`, hud.checklist(g.missions.map((m, i) => ({ label: m.label, done: !!g.missionsDone[i], progress: g.missionProgress(i) }))), micro('Finish all three to raise your score multiplier.'));
+    const actions: CardAction[] = [{ label: 'Run again', primary: true, run: start }, { label: 'Shop', run: shop }];
+    if (rounds() > 1 && (won || g.settings.goal.type === 'endless') && chapter + 1 < rounds()) { actions[0] = { ...actions[0], primary: false };actions.unshift({ label: `Next stage: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup(); } }); }
     if (!daily) actions.push({ label: 'Daily run', run: () => { daily = true;setup(); } });
-    hud.show(daily ? `DAILY RUN · ${today()}` : won ? 'GOAL REACHED' : { crash: 'CRASHED', fall: 'FELL', caught: 'CAUGHT' }[g.downReason ?? 'crash'] ?? 'RUN OVER', `${score.toLocaleString()} points`, [table, missions, ...notes], actions);
+    const kicker = daily ? `DAILY RUN · ${today()}` : won ? 'GOAL REACHED' : { crash: 'CRASHED', fall: 'FELL', caught: 'CAUGHT' }[g.downReason ?? 'crash'] ?? 'RUN OVER';
+    hud.show(`${kicker} · ${RUNNER_THEME_NAMES[g.settings.theme].toUpperCase()}`, `${score.toLocaleString()} points`, [hud.columns([stats, ...(notes.length ? [hud.badges(notes)] : [])], [missions])], actions, 'wide', hud.aside('BANK', `● ${record.bank.toLocaleString()}`));
   }
   function revivePrompt() {
     const g = runner!, record = runnerRecord(gameKey()), cost = g.reviveCost();
     if (!g.canRevive(record.bank)) { g.end();results();return; }
-    hud.show('ONE MORE GO?', 'Keep running', [`Spend ● ${cost} to continue from here with a shield. You have ● ${g.coins} from this run and ● ${record.bank} banked.`], [
+    hud.show('ONE MORE GO?', 'Keep running', [hud.stats([['COST', `● ${cost}`, 'hot'], ['THIS RUN', `● ${g.coins}`], ['BANKED', `● ${record.bank}`]]), 'Carry on from here with a shield.'], [
       { label: `Continue · ● ${cost}`, primary: true, run: () => { const fromRun = Math.min(g.coins, cost);g.coins -= fromRun;record.bank -= cost - fromRun;saveRunner(gameKey(), record);g.revive();hud.hideCard();phase = 'playing';music.setPlaying(true);canvas.focus({ preventScroll: true }); } },
       { label: 'End run', run: () => { g.end();results(); } },
     ]);
   }
   // ---- Shop and garage ----
+  const grid = (...items: HTMLElement[]) => { const d = document.createElement('div');d.className = 'arcade-shop arcade-grid';d.append(...items);return d; };
   function shop() {
-    const record = runnerRecord(gameKey()), list = document.createElement('div');list.className = 'arcade-shop';
-    for (const kind of UPGRADES) {
-      const level = record.upgrades[kind] ?? 0, price = (level + 1) * 250, b = document.createElement('button');b.type = 'button';
-      b.textContent = `${{ magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score' }[kind]} · level ${level}/5`;const tag = document.createElement('span');tag.textContent = level >= 5 ? 'MAX' : `● ${price}`;b.append(tag);
-      b.disabled = level >= 5 || record.bank < price;b.onclick = () => { record.bank -= price;record.upgrades[kind] = level + 1;saveRunner(gameKey(), record);shop(); };list.append(b);
-    }
+    const record = runnerRecord(gameKey());
+    const upgrades = UPGRADES.map((kind) => {
+      const level = record.upgrades[kind] ?? 0, price = (level + 1) * 250;
+      const tile = hud.tile({ icon: iconSvg(kind), title: { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score' }[kind], tag: level >= 5 ? 'MAX' : `● ${price}`, note: 'Lasts longer each level', disabled: level >= 5 || record.bank < price, run: () => { record.bank -= price;record.upgrades[kind] = level + 1;saveRunner(gameKey(), record);shop(); } });
+      tile.append(hud.pips(level, 5));return tile;
+    });
     const c = castFor(chapter), people: [string, string][] = [['hero', c.hero.render.character.params.name || 'Hero'], ...(c.companion ? [['companion', c.companion.render.character.params.name || 'Companion'] as [string, string]] : []), ...[...c.guards.entries()].map(([id, a]) => [id, a.render.character.params.name || id] as [string, string])];
-    const runners = document.createElement('div');runners.className = 'arcade-shop';
-    for (const [id, name] of people) {
-      const owned = id === 'hero' || record.runners.includes(id), chosen = (record.runner ?? 'hero') === id, b = document.createElement('button');b.type = 'button';b.setAttribute('aria-pressed', String(chosen));
-      b.textContent = name;const tag = document.createElement('span');tag.textContent = chosen ? 'RUNNING' : owned ? 'CHOOSE' : `● ${RUNNER_PRICE}`;b.append(tag);b.disabled = !owned && record.bank < RUNNER_PRICE;
-      b.onclick = () => { if (!owned) { record.bank -= RUNNER_PRICE;record.runners.push(id); } record.runner = id;saveRunner(gameKey(), record);setup();shop(); };runners.append(b);
-    }
-    const heading = (text: string) => { const h = document.createElement('h2');h.textContent = text;return h; };
-    hud.show('SHOP', `● ${record.bank}`, ['Upgrades make power-ups last longer. Coins carry over between runs.', heading('Upgrades'), list, heading('Runners'), runners], [{ label: 'Done', primary: true, run: () => (phase === 'results' ? runnerResults() : intro()) }]);
+    const named = people.map(([, name], i) => (people.filter(([, n]) => n === name).length > 1 ? `${name} #${people.slice(0, i + 1).filter(([, n]) => n === name).length}` : name));
+    const runners = people.map(([id], i) => { const name = named[i];
+      const owned = id === 'hero' || record.runners.includes(id), chosen = (record.runner ?? 'hero') === id;
+      return hud.tile({ icon: iconSvg('runner'), title: name, tag: chosen ? 'RUNNING' : owned ? 'OWNED' : `● ${RUNNER_PRICE}`, pressed: chosen, disabled: !owned && record.bank < RUNNER_PRICE, run: () => { if (!owned) { record.bank -= RUNNER_PRICE;record.runners.push(id); } record.runner = id;saveRunner(gameKey(), record);setup();shop(); } });
+    });
+    hud.show('SHOP', 'Power-ups & runners', [hud.columns([hud.section('Upgrades', 'Each level makes the power-up last longer.', grid(...upgrades))], [hud.section('Runners', 'Coins carry over between runs.', grid(...runners))])], [{ label: 'Done', primary: true, run: () => (phase === 'results' ? runnerResults() : intro()) }], 'wide', hud.aside('BANK', `● ${record.bank.toLocaleString()}`));
   }
+  /** Stats on a 0..1 scale against the whole garage, so the bars compare cars. */
+  const statScale = (key: 'top' | 'accel' | 'grip' | 'turn', v: number) => { const all = RACE_CARS.map((m) => CAR_STATS[m][key]), lo = Math.min(...all), hi = Math.max(...all);return 0.18 + (0.82 * (v - lo)) / Math.max(1e-6, hi - lo); };
   function garage() {
-    const cup = cupRecord(gameKey()), base = project.race!.car, owned = new Set([base.model, ...cup.garage]), list = document.createElement('div'), paints = document.createElement('div');list.className = paints.className = 'arcade-shop';
-    for (const model of RACE_CARS) {
-      const has = owned.has(model), chosen = (cup.car ?? base.model) === model, b = document.createElement('button'), s = CAR_STATS[model];b.type = 'button';b.setAttribute('aria-pressed', String(chosen));
-      b.textContent = `${s.name} · top ${Math.round(s.top * 3.6)} km/h · grip ${s.grip}`;const tag = document.createElement('span');tag.textContent = chosen ? 'DRIVING' : has ? 'CHOOSE' : `$${CAR_PRICES[model]}`;b.append(tag);b.disabled = !has && cup.cash < CAR_PRICES[model];
-      b.onclick = () => { if (!has) { cup.cash -= CAR_PRICES[model];cup.garage.push(model); } cup.car = model;saveCup(gameKey(), cup);setup();garage(); };list.append(b);
-    }
-    for (const paint of PAINTS) { const b = document.createElement('button');b.type = 'button';b.style.background = paint;b.style.color = paint === '#ececec' ? '#222' : '#fff';b.textContent = paint === (cup.paint ?? base.color) ? 'Current paint' : 'Paint';b.onclick = () => { cup.paint = paint;cup.car ??= base.model;saveCup(gameKey(), cup);setup();garage(); };paints.append(b); }
-    const heading = (text: string) => { const h = document.createElement('h2');h.textContent = text;return h; };
-    hud.show('GARAGE', `$${cup.cash}`, ['Win cash in cup races to unlock cars.', heading('Cars'), list, heading('Paint'), paints], [{ label: 'Done', primary: true, run: () => (phase === 'results' ? raceResults() : intro()) }]);
+    const cup = cupRecord(gameKey()), base = project.race!.car, owned = new Set([base.model, ...cup.garage]), current = (cup.car ?? base.model) as RaceCar, paint = cup.paint ?? base.color;
+    const cars = RACE_CARS.map((model) => {
+      const has = owned.has(model), chosen = current === model, s = CAR_STATS[model];
+      return hud.tile({ icon: iconSvg(model), title: s.name, tag: chosen ? 'DRIVING' : has ? 'OWNED' : `$${CAR_PRICES[model]}`, pressed: chosen, color: chosen ? paint : undefined, disabled: !has && cup.cash < CAR_PRICES[model], meters: [['SPD', statScale('top', s.top)], ['GRIP', statScale('grip', s.grip)]], run: () => { if (!has) { cup.cash -= CAR_PRICES[model];cup.garage.push(model); } cup.car = model;saveCup(gameKey(), cup);setup();garage(); } });
+    });
+    const s = CAR_STATS[current], room = document.createElement('div');room.className = 'arcade-showroom';
+    const art = document.createElement('div');art.className = 'arcade-showroom-art';art.innerHTML = iconSvg(current, 1.2);art.style.color = paint;
+    const name = document.createElement('strong');name.textContent = s.name;
+    const swatches = document.createElement('div');swatches.className = 'arcade-swatches';
+    for (const colour of PAINTS) { const b = document.createElement('button');b.type = 'button';b.style.background = colour;b.setAttribute('aria-label', `Paint ${colour}`);b.setAttribute('aria-pressed', String(colour === paint));b.onclick = () => { cup.paint = colour;cup.car ??= base.model;saveCup(gameKey(), cup);setup();garage(); };swatches.append(b); }
+    room.append(art, name, micro(`Top ${Math.round(s.top * 3.6)} km/h · grip ${s.grip}`), hud.statBars([['TOP SPEED', statScale('top', s.top)], ['ACCELERATION', statScale('accel', s.accel)], ['GRIP', statScale('grip', s.grip)], ['TURNING', statScale('turn', s.turn)]]), hud.section('Paint', swatches));
+    hud.show('GARAGE', 'Choose your ride', [hud.columns([hud.section('Cars', 'Win cash in cup races to unlock more.', grid(...cars))], [room], 'right')], [{ label: 'Done', primary: true, run: () => (phase === 'results' ? raceResults() : intro()) }], 'wide', hud.aside('CASH', `$${cup.cash}`));
   }
   // ---- Loop ----
   /** Ghost delta: how far ahead (negative) or behind the best lap the player is at this point of the lap. */
@@ -312,7 +339,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     if (setupOpen() && phase === 'playing' && !paused) setPause(true);
     if (input.tap('Escape', 'KeyP') || input.gamepad()?.edge[9]) { if (phase === 'playing') setPause(!paused); }
     if ((input.tap('KeyR') || input.gamepad()?.edge[8]) && (phase === 'playing' || phase === 'results')) start();
-    sfx.enabled = audioOn();music.setMuted(!audioOn());
+    sfx.enabled = audioOn();music.setMuted(!audioOn());{ const w = project.mission.environment?.weather;sfx.weather(w === 'rain' || w === 'sandstorm' ? w : 'none', active && !paused && phase !== 'intro'); }
     const dt = real * feel.timeScale, running = phase === 'playing' && !paused;
     if (race && raceView) {
       if (running) { race.update(real, raceInput(), feel.timeScale);raceEvents(); }
@@ -332,7 +359,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   }
   function activate(on: boolean) {
     active = on;input.active = on;hud.root.hidden = !on;document.body.classList.toggle('arcade-active', on);
-    if (!on) { music.setPlaying(false);engine.update(false, 0, false);paused = false; }
+    if (!on) { music.setPlaying(false);engine.update(false, 0, false);sfx.weather('none', false);paused = false; }
   }
   function replace(nextProject: PlayProject, nextCast: PlayCast, playNow = true) {
     root = nextProject;cast = nextCast;daily = false;
