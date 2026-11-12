@@ -32,7 +32,7 @@ import { MUSIC_TRACKS } from './audio/tracks';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { reconcileWeaponActions,equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 
-import {VEHICLE_FOR_CLIP,RIDING_VEHICLES,VEHICLE_LABELS,type VehicleStyle} from '../core/props/vehicles';
+import {VEHICLE_FOR_CLIP,RIDING_VEHICLES,VEHICLE_LABELS,VEHICLE_BODY_LABELS,VEHICLE_LIVERY_LABELS,bodiesFor,liveriesFor,vehicleName,vehicleStyleForBody,type VehicleBody,type VehicleStyle} from '../core/props/vehicles';
 import {defaultWeaponYaw,type WeaponPose} from '../core/anim/riding-weapons';
 import {isFirearm} from '../core/props/weapons';
 import {STAGE_PROP_LABELS,stagePropFor} from '../core/anim/stage';
@@ -274,7 +274,12 @@ function renderUI() {
   $('vehicle-appearance').hidden=!vehicle||(!shared&&!(currentBeat.showVehicle??a.vehicle!=='none'));
   for(const key of ['color','accentColor','seatColor']as const)input(`vehicle-${key}`).value=vehicleStyle[key];
   for(const key of ['finish','variant']as const)select(`vehicle-${key}`).value=vehicleStyle[key];
-  $('vehicle-note').textContent=vehicle?(shared?`${VEHICLE_LABELS[vehicle]} shared with ${actorName(source.actor)}. Appearance edits apply to the shared vehicle.`:`${VEHICLE_LABELS[vehicle]} follows this action. Visibility and travel are on the right.`):'Choose a riding or driving action to add its vehicle.';
+  {const bodies=vehicle?bodiesFor(vehicle):[],designs=vehicle?liveriesFor(vehicle,vehicleStyle):[];
+   select('vehicle-body').replaceChildren(...(vehicle?[new Option(VEHICLE_LABELS[vehicle],''),...bodies.map(b=>new Option(VEHICLE_BODY_LABELS[b],b))]:[]));select('vehicle-body').value=vehicleStyle.body&&bodies.includes(vehicleStyle.body)?vehicleStyle.body:'';$('vehicle-body-field').hidden=!bodies.length;
+   select('vehicle-livery').replaceChildren(...designs.map(d=>new Option(VEHICLE_LIVERY_LABELS[d],d)));select('vehicle-livery').value=vehicleStyle.livery??'none';$('vehicle-livery-field').hidden=!designs.length;
+   input('vehicle-number').value=String(vehicleStyle.number??(vehicleStyle.body==='kart'?8:7));$('vehicle-number-field').hidden=!designs.length||vehicleStyle.livery!=='racing';}
+  const vehicleLabel=vehicle?vehicleName(vehicle,vehicleStyle):'';
+  $('vehicle-note').textContent=vehicle?(shared?`${vehicleLabel} shared with ${actorName(source.actor)}. Appearance edits apply to the shared vehicle.`:`${vehicleLabel} follows this action. Visibility and travel are on the right.`):'Choose a riding or driving action to add its vehicle.';
   select('camera').value=project.camera;input('title').value=project.title;input('caption').checked=project.caption;$('stage').dataset.aspect=project.aspect;
   renderCameraControls();
   for(const aspect of ['landscape','portrait'])button(aspect).setAttribute('aria-pressed',String(project.aspect===aspect));
@@ -458,6 +463,11 @@ for(const key of ['color','accentColor','seatColor','finish','variant']as const)
   const control=$<HTMLInputElement|HTMLSelectElement>(`vehicle-${key}`);
   control.addEventListener('change',()=>void edit(p=>{const selectedTrack=p.actors.find(a=>a.id===selectedActor)!,b=selectedTrack.beats[Math.min(selected,selectedTrack.beats.length-1)],a=vehicleCatalog(p).get(vehicleKey(selectedTrack,b))?.actor??selectedTrack,params=decodeCharacter(a.character,a.detail)!;params.vehicleStyle={...params.vehicleStyle,[key]:control.value}as VehicleStyle;a.character=encodeCharacter(params);}));
 }
+/** Model, design and race number edit the vehicle this beat rides, or the shared vehicle it boards. */
+const editVehicleStyle=(change:(style:VehicleStyle,model:NonNullable<typeof VEHICLE_FOR_CLIP[string]>)=>VehicleStyle)=>void edit(p=>{const selectedTrack=p.actors.find(a=>a.id===selectedActor)!,b=selectedTrack.beats[Math.min(selected,selectedTrack.beats.length-1)],model=VEHICLE_FOR_CLIP[b.clip];if(!model)return;const a=vehicleCatalog(p).get(vehicleKey(selectedTrack,b))?.actor??selectedTrack,params=decodeCharacter(a.character,a.detail)!;params.vehicleStyle=change(params.vehicleStyle,model);a.character=encodeCharacter(params);});
+select('vehicle-body').addEventListener('change',()=>editVehicleStyle((style,model)=>vehicleStyleForBody(model,(select('vehicle-body').value||undefined)as VehicleBody|undefined,style)));
+select('vehicle-livery').addEventListener('change',()=>editVehicleStyle(style=>{const next={...style},value=select('vehicle-livery').value;if(value==='none')delete next.livery;else next.livery=value as VehicleStyle['livery'];return next;}));
+input('vehicle-number').addEventListener('change',()=>editVehicleStyle(style=>{const n=Math.round(Number(input('vehicle-number').value));return Number.isFinite(n)&&n>=0&&n<100?{...style,number:n}:style;}));
 for(const [id,slot]of [['actor-weapon','weapon'],['actor-carry','carry']]as const)select(id).addEventListener('change',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!;a.character=equipActor(a,slot,select(id).value);}));
 orbitControls($<HTMLCanvasElement>('film'),()=>shotAt(project,time).shot.view??project.view,()=>!loading&&!exporting&&!importing&&!timelineDragBefore,()=>{remember();setPlaying(false);},v=>{const shot=shotAt(project,time).shot;if(shot.view||shot.camera)shot.view=v;else project.view=v;dirty=true;renderCameraControls();},()=>{lock();save();},{
   pick:(x,y)=>{setPlaying(false);scene.render(project,time);return scene.pickActor(x,y);},

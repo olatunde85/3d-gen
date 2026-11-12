@@ -49,7 +49,7 @@ export const glowMaterial = (map: T.Texture, color: string, opacity: number) => 
  * wraps to the far side of the box as the camera passes, so speed reads correctly; one draw call, no allocation.
  */
 export class Precipitation {
-  readonly object: T.LineSegments | T.Points;
+  readonly object: T.LineSegments;
   private seeds: Float32Array; private positions: Float32Array;
   constructor(readonly kind: 'rain' | 'sandstorm', private count = kind === 'rain' ? 900 : 520, private box = kind === 'rain' ? 46 : 54, private height = 22) {
     this.seeds = new Float32Array(count * 3);for (let i = 0; i < this.seeds.length; i++) { const v = Math.sin(i * 12.9898 + 78.233) * 43758.5453;this.seeds[i] = v - Math.floor(v); }
@@ -58,8 +58,10 @@ export class Precipitation {
       this.positions = new Float32Array(count * 6);geometry.setAttribute('position', new T.BufferAttribute(this.positions, 3));
       this.object = new T.LineSegments(geometry, new T.LineBasicMaterial({ color: '#c9d6e2', transparent: true, opacity: 0.42, depthWrite: false }));
     } else {
-      this.positions = new Float32Array(count * 3);geometry.setAttribute('position', new T.BufferAttribute(this.positions, 3));
-      this.object = new T.Points(geometry, new T.PointsMaterial({ color: '#d8b68a', size: 0.14, transparent: true, opacity: 0.55, depthWrite: false }));
+      // Dust is drawn as short streaks along the wind, like rain: point sprites break up into coloured specks on some
+      // phone graphics chips.
+      this.positions = new Float32Array(count * 6);geometry.setAttribute('position', new T.BufferAttribute(this.positions, 3));
+      this.object = new T.LineSegments(geometry, new T.LineBasicMaterial({ color: '#e2c497', transparent: true, opacity: 0.38, depthWrite: false }));
     }
     this.object.frustumCulled = false;this.object.renderOrder = 2;
   }
@@ -71,8 +73,8 @@ export class Precipitation {
         const x = wrap(sx - time * 2.5, camera.x), z = wrap(sz, camera.z), y = camera.y - height * 0.35 + ((((sy * height - time * 15) % height) + height) % height);
         const k = i * 6;positions[k] = x;positions[k + 1] = y;positions[k + 2] = z;positions[k + 3] = x + 0.05;positions[k + 4] = y - 0.75;positions[k + 5] = z;
       } else {
-        const x = wrap(sx + time * 11, camera.x), z = wrap(sz + time * 3, camera.z), y = Math.max(0.1, camera.y - 2 + sy * 7 + Math.sin(time * 1.7 + i) * 0.4);
-        positions[i * 3] = x;positions[i * 3 + 1] = y;positions[i * 3 + 2] = z;
+        const x = wrap(sx + time * 11, camera.x), z = wrap(sz + time * 3, camera.z), y = Math.max(0.3, camera.y - 2 + sy * 7 + Math.sin(time * 1.7 + i) * 0.4);
+        const k = i * 6;positions[k] = x;positions[k + 1] = y;positions[k + 2] = z;positions[k + 3] = x - 0.55;positions[k + 4] = y + 0.02;positions[k + 5] = z - 0.15;
       }
     }
     (this.object.geometry.getAttribute('position') as T.BufferAttribute).needsUpdate = true;

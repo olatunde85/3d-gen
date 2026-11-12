@@ -180,7 +180,7 @@ The normal **Open** button accepts the same JSON. Anything invalid (unknown pres
 
 ## Vehicles
 
-Choosing a riding or driving action brings its vehicle, fitted to that character. The action’s **Show vehicle** checkbox controls visibility, and **Vehicle appearance** in Equipment edits colours, finish and styling.
+Choosing a riding or driving action brings its vehicle, fitted to that character. The action’s **Show vehicle** checkbox controls visibility, and **Vehicle appearance** in Equipment edits colours, finish and styling. **Model** swaps in another vehicle that rides the same way, such as a danfo, van or bus for the SUV, a keke, quad bike or scooter for the motorcycle, a box truck for the pickup, or a go-kart, saloon or muscle car for the sports car. **Design** paints race car (with **Race number**), police, taxi or striped versions where the model supports them.
 
 Enable **Move through the set** on the operator’s action and adjust **Travel speed (m/s)**: for example motorcycle 5.4 m/s, car/SUV 4.8 m/s, motorboat 4.2 m/s, helicopter 12 m/s and jet 18 m/s. The rider and vehicle travel together and the animation keeps its timing. Shared passengers follow automatically. Vehicles don’t stop at walls, furniture or other characters, so stage a clear route.
 

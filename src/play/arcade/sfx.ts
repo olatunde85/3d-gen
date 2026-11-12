@@ -68,7 +68,7 @@ export class ArcadeSfx {
     }
     if (!this.bed) return;
     const levels = WEATHER_LEVEL[this.bed.kind as 'rain' | 'sandstorm'], level = on && this.enabled ? (this.bed.recorded ? levels.recorded : levels.noise) : 0;
-    if (this.bed.level !== level) { this.bed.level = level;this.bed.gain.gain.setTargetAtTime(level, c.currentTime, 0.4); }
+    if (this.bed.level !== level) { this.bed.level = level;this.bed.gain.gain.setTargetAtTime(level, c.currentTime, level ? 0.4 : 0.12); }
   }
   /** `strength` 0..1 scales impacts; repeated sounds are rate-limited so a long scrape cannot stack. */
   play(sound: ArcadeSound, strength = 1) {

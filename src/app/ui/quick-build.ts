@@ -13,7 +13,7 @@ import type { Ctx } from './context';
 import { $, el } from './dom';
 import type { History } from './history';
 import * as Q from './quick-data';
-import {VEHICLE_CLIP,VEHICLE_LABELS,VEHICLE_FINISHES,VEHICLE_VARIANTS,type VehicleId,type VehicleStyle} from '../../core/props/vehicles';
+import {VEHICLE_CLIP,VEHICLE_FINISHES,VEHICLE_VARIANTS,VEHICLE_LIVERY_LABELS,bodyFor,liveriesFor,vehicleName,type VehicleBody,type VehicleId,type VehicleStyle} from '../../core/props/vehicles';
 
 type Mode = 'quick' | 'detailed';
 const MODE_KEY = '3dgen.mode';
@@ -39,7 +39,7 @@ const ROWS: Record<StepId, string[]> = {
   colours: ['colours'],
   hair: ['hair', 'hairColour', 'beard', 'eyes', 'expression'],
   extras: ['glasses', 'jewellery', 'earrings', 'hat', 'tattoos', 'bag', 'held'],
-  vehicle: ['vehicle', 'vehicleColour', 'vehicleFinish', 'vehicleVariant'],
+  vehicle: ['vehicle', 'vehicleColour', 'vehicleDesign', 'vehicleFinish', 'vehicleVariant'],
   action: ['action'],
 };
 const READY_SHOWN = 8;
@@ -300,21 +300,26 @@ export function quickBuild(ctx: Ctx, hist: History): void {
   }
 
   function vehicleStep(q: HumanParams) {
-    const current = Q.vehicleOf(q, clip), horse = current === 'horse';
+    const current = Q.vehicleOf(q, clip), horse = current === 'horse', designs = current ? liveriesFor(current, q.vehicleStyle) : [];
     const style = <K extends keyof VehicleStyle>(key: K, value: VehicleStyle[K], row: string) =>
       apply(row, { vehicleStyle: { ...p().vehicleStyle, [key]: value } });
     return [
-      row('vehicle', 'Travel with', Q.VEHICLES.map(o => ({ ...o, on: o.id === (current ?? 'none') })), id => {
+      row('vehicle', 'Travel with', Q.VEHICLES.map(o => ({ ...o, on: o.id === (current ? bodyFor(current, q.vehicleStyle) ?? current : 'none') })), id => {
         if (id === 'none') {
           apply('vehicle', { vehicle: 'none' });
           ctx.playClip('idle');
           return;
         }
-        apply('vehicle', Q.vehiclePatch(p(), id as VehicleId));
-        ctx.playClip(VEHICLE_CLIP[id as VehicleId]);
+        const base = Q.vehicleBase(id as VehicleId | VehicleBody);
+        apply('vehicle', Q.vehiclePatch(p(), id as VehicleId | VehicleBody));
+        if (current !== base) ctx.playClip(VEHICLE_CLIP[base]);
       }, 'pills', 'Pick a vehicle to try its riding animation. Other vehicle animations switch the model automatically.'),
       ...(current ? [
         colourRow('vehicleColour', horse ? 'Coat colour' : 'Body colour', Q.PALETTE, q.vehicleStyle.color, color => style('color', color, 'vehicleColour')),
+        ...(designs.length ? [row('vehicleDesign', 'Design', designs.map(id => ({ id, label: VEHICLE_LIVERY_LABELS[id], on: id === (q.vehicleStyle.livery ?? 'none') })), id => {
+          const next: VehicleStyle = { ...p().vehicleStyle };if (id === 'none') delete next.livery;else next.livery = id as VehicleStyle['livery'];
+          apply('vehicleDesign', { vehicleStyle: next });
+        }, 'pills', 'Race cars carry a number on each door; set it in Detailed.')] : []),
         row('vehicleVariant', horse ? 'Tack style' : 'Style', VEHICLE_VARIANTS.map(id => ({
           id, label: id === 'sport' ? 'Sport' : horse ? 'Traditional' : 'Standard', on: id === q.vehicleStyle.variant,
         })), id => style('variant', id as VehicleStyle['variant'], 'vehicleVariant')),
@@ -342,7 +347,7 @@ export function quickBuild(ctx: Ctx, hist: History): void {
     heritage: (q) => Q.HERITAGES.find((h) => h.id === Q.heritageOf(q))!.label,
     outfit: (q) => Q.styleById.get(Q.styleOf(q) ?? '')?.label ?? 'Their own',
     hair: (q) => Q.HAIRS.find((h) => h.id === q.hair)?.label ?? 'Their own',
-    vehicle:(q)=>{const id=Q.vehicleOf(q,clip);return id?VEHICLE_LABELS[id]:'On foot';},
+    vehicle:(q)=>{const id=Q.vehicleOf(q,clip);return id?vehicleName(id,q.vehicleStyle):'On foot';},
     action: () => clipById.get(clip)?.name ?? 'Bind pose',
   };
 

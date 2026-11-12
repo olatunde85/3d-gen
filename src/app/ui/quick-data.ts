@@ -10,7 +10,7 @@ import { EXPRESSIONS, EXPRESSION_LABELS, type ExpressionId } from '../../core/fa
 import { ageToYears, DEFAULT_PARAMS, PRESETS, type HumanParams } from '../../core/params';
 import { CARRIED, CARRY_LABELS, type CarryId } from '../../core/props/carry';
 import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons';
-import {VEHICLE_IDS,VEHICLE_LABELS,VEHICLE_CLIP,RIDING_VEHICLES,vehicleFor,vehicleStyleForChoice,type VehicleId} from '../../core/props/vehicles';
+import {VEHICLE_IDS,VEHICLE_LABELS,VEHICLE_CLIP,RIDING_VEHICLES,VEHICLE_BODIES,VEHICLE_BODY_LABELS,BODY_BASE,vehicleFor,vehicleStyleForBody,type VehicleBody,type VehicleId} from '../../core/props/vehicles';
 import {VEHICLE_TRANSITIONS,ridingClip} from '../../core/props/vehicle-actions';
 import { VEHICLE_MANOEUVRES } from '../../core/props/vehicle-motion';
 
@@ -378,11 +378,15 @@ export const HELD: Option[] = WEAPONS.map((w) => ({ id: w, label: w === 'none' ?
 
 // --- Motion ---------------------------------------------------------------------------------
 
-export const VEHICLES: Option[] = [{ id: 'none', label: 'On foot' }, ...VEHICLE_IDS.map(id => ({ id, label: VEHICLE_LABELS[id] }))];
+/** Base vehicles, each followed by the further bodies that share its rider fit. */
+export const VEHICLES: Option[] = [{ id: 'none', label: 'On foot' }, ...VEHICLE_IDS.flatMap(id => [{ id, label: VEHICLE_LABELS[id] }, ...VEHICLE_BODIES.filter(b => BODY_BASE[b] === id).map(b => ({ id: b, label: VEHICLE_BODY_LABELS[b] }))])];
+const isBody = (id: string): id is VehicleBody => (VEHICLE_BODIES as readonly string[]).includes(id);
+/** The base vehicle for a pill: a body rides as its base vehicle. */
+export const vehicleBase = (id: VehicleId | VehicleBody): VehicleId => isBody(id) ? BODY_BASE[id] : id;
 /** Quick choices follow the playing action rather than locking out other vehicle animations. */
 export const vehicleOf = (p: HumanParams, clip: string) => vehicleFor(p.vehicle, clip);
-export function vehiclePatch(p: HumanParams, id: VehicleId): Patch {
-  return { vehicle: 'auto', vehicleStyle: vehicleStyleForChoice(id, p.vehicleStyle), rig: p.rig === 'none' ? 'game' : p.rig, animations: true };
+export function vehiclePatch(p: HumanParams, id: VehicleId | VehicleBody): Patch {
+  return { vehicle: 'auto', vehicleStyle: vehicleStyleForBody(vehicleBase(id), isBody(id) ? id : undefined, p.vehicleStyle), rig: p.rig === 'none' ? 'game' : p.rig, animations: true };
 }
 export const vehicleActions = (id: VehicleId, clip = VEHICLE_CLIP[id]) => {
   const ride = RIDING_VEHICLES[ridingClip(clip)] === id ? ridingClip(clip) : VEHICLE_CLIP[id];

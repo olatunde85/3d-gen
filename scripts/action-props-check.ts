@@ -33,7 +33,7 @@ for(const rig of ['game','game_lite','full']as const)for(const weapon of ['pisto
   assert.ok(Math.abs(Math.asin(d[1])*180/Math.PI-pitch)<12,`${rig}/${weapon}/${clip}/${pitch}: ${d}`);checks++;
  }
 }
-assert.equal(animationGroup(clipById.get('board_helicopter')!),'Vehicles · Helicopter / chopper');assert.equal(searchAnimations('chopper').length,5);assert.deepEqual(searchAnimations('','Vehicles · Motorcycle').map(c=>c.id).sort(),['alight_motorcycle','board_motorcycle','crash_fall_motorcycle','crash_motorcycle','ride_motorcycle','tumble_motorcycle']);
+assert.equal(animationGroup(clipById.get('board_helicopter')!),'Vehicles · Helicopter / chopper');assert.equal(searchAnimations('chopper').length,5);assert.ok(searchAnimations('danfo').some(c=>c.id==='drive_suv')&&searchAnimations('kart').some(c=>c.id==='drive_sports_car'),'new bodies are searchable');assert.deepEqual(searchAnimations('','Vehicles · Motorcycle, keke, quad, scooter').map(c=>c.id).sort(),['alight_motorcycle','board_motorcycle','crash_fall_motorcycle','crash_motorcycle','ride_motorcycle','tumble_motorcycle']);
 const p=newProject();p.actors[0].character=encodeCharacter({...DEFAULT_PARAMS,weapon:'pistol'});p.actors[0].beats=[{id:'a',clip:'pistol_aim_one_hand',duration:3,move:false,weaponYaw:30,weaponPitch:45}];assert.deepEqual(parseStudioInput(JSON.stringify(p),lib.catalog),parseProject(JSON.stringify(p)));
 for(const pitch of [-46,61,'up']){const q=structuredClone(p);q.actors[0].beats[0].weaponPitch=pitch as number;assert.throws(()=>parseProject(JSON.stringify(q)));}
 console.log(`Action props: ${checks} rig/weapon/direction cases; fixed limb lengths, muzzle elevation, release, deterministic seek, JSON and grouping passed.`);
