@@ -22,7 +22,7 @@ Choose one of four circuits (City Loop, Desert Run, Harbour Sprint and Forest Ri
 | `nitro` | A meter that refills slowly and from drift boosts; hold Nitro on straights |
 | `pickups` | Boost pads; item boxes giving a boost, an oil slick to drop behind or a nitro refill; oil-slick hazards |
 | `ghost` | Records the best lap and replays it as a translucent car |
-| `car` | Sports car, SUV, pickup or motorcycle, each with its own top speed, acceleration and grip, plus a paint colour |
+| `car` | Sports car, muscle car, saloon, go-kart, SUV, pickup, danfo, van, box truck, motorcycle, scooter, quad bike or keke, each with its own top speed, acceleration and grip, plus a paint colour |
 
 A countdown starts each race; throttle pressed just before GO gives a launch boost. Walls bounce cars back instead of wrecking them, and a car that is stuck or driving the wrong way returns to the road. **F** returns the player to the road at any time. The HUD shows position, laps, lap and best times, the ghost delta, speed, nitro, drift charge, the held item and a minimap. The results show a podium and every driver's time and best lap.
 
@@ -111,7 +111,7 @@ Difficulty (Easy, Normal, Hard) changes incoming damage and visibility. Aggressi
 
 ## Vehicles and air support
 
-A pickup waits from the first frame and stays where it is parked. Approach the driver’s door to board. A rescued companion walks to the opposite door, boards using a fitted passenger performance, and must be seated before driving. Stop before alighting; both occupants can leave and reboard. Actual body size determines cabin clearance and entry anchors. Steering, braking, reverse, walls, props and people use a swept vehicle hull.
+A pickup waits from the first frame and stays where it is parked; **Drivable vehicle** swaps it for a sports car, SUV, motorcycle, saloon, muscle car, danfo minibus, van, box truck, keke tricycle, scooter, quad bike or go-kart, each with its own top speed. Cars, vans and trucks are boarded through the driver’s door; the keke, scooter and quad are mounted like the motorcycle. A rescued companion rides in the pickup. The city district’s parked fleet mixes all of these with a city bus. Approach the driver’s door to board. A rescued companion walks to the opposite door, boards using a fitted passenger performance, and must be seated before driving. Stop before alighting; both occupants can leave and reboard. Actual body size determines cabin clearance and entry anchors. Steering, braking, reverse, walls, props and people use a swept vehicle hull.
 
 Armed drivers can aim, fire and reload while driving. Studio’s mounted weapon layer preserves the seat, feet and control hand. The reachable aim cone is ±110° horizontally and -45° to +60° vertically; the shot uses the same clamped direction. Boarding/alighting hide firearms. Grenades, jumping and crouching remain unavailable while riding.
 

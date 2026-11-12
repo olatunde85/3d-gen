@@ -86,7 +86,7 @@ check('cars bounce off walls instead of wrecking, respawn when stuck and warn wh
   assert.ok(walls > 0 && Math.abs(locate(g.track, p.x, p.z).lateral) < g.track.width / 2 + 0.5 && p.speed >= 0);
   p.yaw += Math.PI;p.vx = p.vz = 0;for (let i = 0; i < 180; i++) g.update(1 / 60, { ...idleInput(), throttle: 1 });assert.ok(p.wrongWay > 0.8 || g.drain().some((e) => e.type === 'respawn'));
   g.update(1 / 60, { ...idleInput(), respawn: true });assert.ok(g.drain().some((e) => e.type === 'respawn') && p.respawning > 0);
-  assert.ok(Object.values(CAR_STATS).every((s) => s.top > 45 && s.grip > 6));
+  assert.ok(Object.values(CAR_STATS).every((s) => s.top >= 40 && s.grip > 6));
 });
 check('runner courses always leave a way through, recycle pieces and move the world back to the origin', () => {
   for (let seed = 1; seed <= 8; seed++) {

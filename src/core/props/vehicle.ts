@@ -17,6 +17,7 @@ import type {Animator,Frame,BakedClip} from '../anim/evaluate';
 import {clipById,type Clip} from '../anim/clips';
 import {ridingClip,boardProgress,doorOpenAt,hatchOpenAt} from './vehicle-actions';
 import {articulateDoors} from './vehicle-doors';
+import {buildBody,type VehicleBody} from './vehicle-bodies';
 import type {MeshData,Material} from '../mesh';
 import type {Q} from '../anim/quat';
 import type {Vec3} from '../math';
@@ -26,12 +27,13 @@ export class Vehicle{
  /** Set by Studio, which flies and moves vehicles along the film itself instead of the clip-authored motion. */
  filmMotion=false;
  private kit?:VehicleKit;private bicycle?:Bicycle;
- constructor(readonly id:VehicleId,rig:Rig,animator:Animator,readonly clip:Clip,style:VehicleStyle,readonly fitOptions?:{cabinRoof?:number}){
+ constructor(readonly id:VehicleId,rig:Rig,animator:Animator,readonly clip:Clip,style:VehicleStyle,readonly fitOptions?:{cabinRoof?:number;body?:VehicleBody}){
   const reference=clipById.get(ridingClip(clip.id))!;
   this.fit=new RiderFit(rig,animator,reference,id);this.lift=this.fit.lift;
   if(id==='bicycle'){this.bicycle=new Bicycle(rig,animator,reference,sanitizeVehicleStyle(style));this.group=this.bicycle.group;this.group.userData.component=true;}
   else{const k=this.kit=new VehicleKit(sanitizeVehicleStyle(style),this.fit);this.group=k.group;
-   if(isCar(id)){buildCar(k);articulateDoors(k);}else if(id==='jet')buildJet(k);else if(id==='tank')buildTank(k);else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else if(id==='helicopter')buildHelicopter(k,fitOptions?.cabinRoof);else buildWatercraft(k);
+   if(fitOptions?.body){buildBody(k,fitOptions.body);if(fitOptions.body==='saloon'||fitOptions.body==='muscle')articulateDoors(k);}
+   else if(isCar(id)){buildCar(k);articulateDoors(k);}else if(id==='jet')buildJet(k);else if(id==='tank')buildTank(k);else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else if(id==='helicopter')buildHelicopter(k,fitOptions?.cabinRoof);else buildWatercraft(k);
   }
   mergeVehicleParts(this.group);this.stuntRoot.name='Vehicle_motion';this.stuntRoot.userData.component=true;this.stuntRoot.add(...[...this.group.children]);this.group.add(this.stuntRoot);this.update(0);
  }

@@ -12,8 +12,8 @@ export const parseMode = (raw: unknown): PlayMode => {
   return raw as PlayMode;
 };
 
-export type RaceCar = 'sports_car' | 'suv' | 'pickup' | 'motorcycle';
-export const RACE_CARS: readonly RaceCar[] = ['sports_car', 'suv', 'pickup', 'motorcycle'];
+export type RaceCar = 'sports_car' | 'muscle' | 'saloon' | 'kart' | 'suv' | 'pickup' | 'danfo' | 'van' | 'truck' | 'motorcycle' | 'scooter' | 'quad' | 'keke';
+export const RACE_CARS: readonly RaceCar[] = ['sports_car', 'muscle', 'saloon', 'kart', 'suv', 'pickup', 'danfo', 'van', 'truck', 'motorcycle', 'scooter', 'quad', 'keke'];
 export type RacePickup = 'boost-pad' | 'item-box' | 'hazard';
 export const RACE_PICKUPS: readonly RacePickup[] = ['boost-pad', 'item-box', 'hazard'];
 export type AiSkill = 'easy' | 'medium' | 'hard';

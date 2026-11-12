@@ -22,7 +22,7 @@ import { TRACK_IDS } from './track';
 import { RACE_CARS, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
 import { cupRecord, dailySeed, decodeGhost, encodeGhost, ghostLink, linkedGhost, raceRecord, runnerRecord, saveCup, saveRace, saveRunner, today, trackKey, type RunnerRecord } from './records';
 
-const CAR_PRICES: Record<RaceCar, number> = { suv: 400, pickup: 400, motorcycle: 600, sports_car: 800 };
+const CAR_PRICES: Record<RaceCar, number> = { keke: 200, scooter: 250, danfo: 300, van: 300, truck: 300, saloon: 400, suv: 400, pickup: 400, quad: 500, kart: 500, motorcycle: 600, muscle: 700, sports_car: 800 };
 const PAINTS = ['#c8372d', '#2d6fc8', '#e2b23a', '#3c9a5f', '#8a4fc0', '#ececec', '#2b2b30'];
 const CASH = [600, 400, 250, 150, 100, 80, 60, 40];
 const UPGRADES = ['magnet', 'shield', 'boost', 'multiplier'] as const;

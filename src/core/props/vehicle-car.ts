@@ -10,16 +10,18 @@ function surface(k:VehicleKit,rows:number,cols:number,point:(row:number,col:numb
  const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(p,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();return k.mesh(geo,mat);
 }
 function line(k:VehicleKit,points:V[],radius:number,mat:T.Material){return k.mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points),32,radius,7,false),mat);}
-export function buildCoveredCar(k:VehicleKit){
+export function buildCoveredCar(k:VehicleKit,variant?:'saloon'|'muscle'){
  const s=k.fit.scale,pickup=k.fit.id==='pickup',suv=k.fit.id==='suv'||pickup,driver=!k.fit.clip.id.includes('passenger'),H=k.fit.average('hip'),cx=(driver?-.36:.36)*s,z=H.z;
  // The coupe sits long and wide on big wheels pushed to the corners, which reads low despite the seated driver's headroom.
- const width=(suv?2.02:1.98)*s,wheelR=(suv?.395:.375)*s,front=(suv?1.52:1.64)*s,rear=(pickup?-1.95:suv?-1.57:-1.42)*s,endF=(suv?2.15:2.34)*s,endR=(pickup?-3.0:suv?-2.48:-2.12)*s;
+ // A saloon stretches the cabin and adds a boot and rear doors; a muscle car runs a long bonnet and squared haunches.
+ const saloon=variant==='saloon',muscle=variant==='muscle';
+ const width=(suv?2.02:saloon?1.9:1.98)*s,wheelR=(suv?.395:saloon?.35:.375)*s,front=(suv?1.52:muscle?1.78:1.64)*s,rear=(pickup?-1.95:suv?-1.57:saloon?-1.72:-1.42)*s,endF=(suv?2.15:muscle?2.5:2.34)*s,endR=(pickup?-3.0:suv?-2.48:saloon?-2.62:-2.12)*s;
  const belt=H.y+(suv?.16:.35)*s,bottom=(suv?.41:.12)*s,roof=Math.max(H.y+.88*s,...k.fit.samples.map(c=>c.headTop.y+.12*s));
- const roofRear=(pickup?-.64:suv?-2.27:-1.02)*s,roofFront=(suv?.53:.37)*s,halfRoof=width*(suv?.43:.36),frontLow=(suv?.72:.99)*s,rearLow=(pickup?-.75:suv?-2.37:-1.74)*s;
+ const roofRear=(pickup?-.64:suv?-2.27:saloon?-1.42:-1.02)*s,roofFront=(suv?.53:saloon?.42:.37)*s,halfRoof=width*(suv?.43:saloon?.39:.36),frontLow=(suv?.72:saloon?.95:.99)*s,rearLow=(pickup?-.75:suv?-2.37:saloon?-2.02:-1.74)*s;
  // Coupe haunches swell over the rear wheels.
- const halfAt=(zz:number)=>suv?width*.49:width*.5*(.84+.16*Math.sin(Math.PI*T.MathUtils.clamp((zz-endR)/(endF-endR),0,1))**.65)+.035*s*Math.exp(-(((zz-rear)/(.55*s))**2));
+ const halfAt=(zz:number)=>suv?width*.49:width*.5*((muscle?.9:.84)+(muscle?.1:.16)*Math.sin(Math.PI*T.MathUtils.clamp((zz-endR)/(endF-endR),0,1))**.65)+.035*s*Math.exp(-(((zz-rear)/(.55*s))**2));
  // The coupe's bonnet falls away to a low nose; the deck drops gently to the tail.
- const shoulderAt=(zz:number)=>suv?belt-.025*s:belt-.40*s*smooth((zz-.55*s)/(endF-.55*s))**.8-.10*s*smooth((-.70*s-zz)/(-.70*s-endR));
+ const shoulderAt=(zz:number)=>suv?belt-.025*s:belt-(saloon?.30:muscle?.22:.40)*s*smooth((zz-.55*s)/(endF-.55*s))**.8-(saloon?.04:muscle?.03:.10)*s*smooth((-.70*s-zz)/(-.70*s-endR));
  const arch=wheelR+.033*s;
  const lowAt=(zz:number)=>{let y=bottom;for(const axle of [front,rear])if(Math.abs(zz-axle)<=arch)y=Math.max(y,wheelR+Math.sqrt(Math.max(0,arch*arch-(zz-axle)**2)));return y;};
  const bodyTopAt=(zz:number)=>Math.max(shoulderAt(zz),lowAt(zz)+.065*s);
@@ -42,7 +44,7 @@ export function buildCoveredCar(k:VehicleKit){
   const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(points,3));geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.computeVertexNormals();k.mesh(geo,k.paint);
   line(k,[v(cx+side*halfAt(-.8*s)*.985,belt-.12*s,z-.8*s),v(cx+side*halfAt(0)*.99,belt-.10*s,z),v(cx+side*halfAt(.7*s)*.985,belt-.14*s,z+.7*s)],.004*s,k.dark);
   // Flush handles, door shut lines and dark sill trim replace the broad chrome strips.
-  for(const doorZ of suv&&!pickup?[-1.22,.08]:[.05]){
+  for(const doorZ of suv&&!pickup?[-1.22,.08]:saloon?[-1.02,.05]:[.05]){
    const zz=doorZ*s,x=cx+side*(halfAt(zz)*.997+.003*s);
    k.box(v(x,belt-.095*s,z+zz),v(.015*s,.025*s,.17*s),k.dark);
    line(k,[v(x,belt-.16*s,z+zz+.12*s),v(x,belt-.34*s,z+zz+.13*s),v(x,bottom+.11*s,z+zz+.10*s)],.0025*s,k.dark);
@@ -69,7 +71,7 @@ export function buildCoveredCar(k:VehicleKit){
   const back=k.box(v(x,seatY+.26*s,z-.30*s),v(.51*s,.62*s,.12*s),k.seat);back.rotation.x=-.11;
   k.box(v(x,seatY+.66*s,z-.36*s),v(.32*s,.18*s,.10*s),k.seat);
  }
- if(suv&&!pickup){
+ if(suv&&!pickup||saloon){
   k.box(v(cx,seatY-.01*s,z-.91*s),v(1.40*s,.12*s,.45*s),k.seat);
   k.box(v(cx,seatY+.25*s,z-1.18*s),v(1.40*s,.57*s,.11*s),k.seat);
   for(const x of [-.44,0,.44])k.box(v(cx+x*s,seatY+.62*s,z-1.20*s),v(.27*s,.17*s,.10*s),k.seat);
@@ -85,7 +87,12 @@ export function buildCoveredCar(k:VehicleKit){
  surface(k,24,30,(t,u)=>roofPoint(t,u).add(v(0,-.035*s,0)),roofMat);
  for(const edge of [0,1])surface(k,1,30,(t,u)=>roofPoint(edge,u).add(v(0,-.035*s*t,0)),roofMat,edge===0);
  for(const edge of [0,1])surface(k,24,1,(t,u)=>roofPoint(t,edge).add(v(0,-.035*s*u,0)),roofMat,edge===1);
- buildCabin(k,{cx,z,belt,roof,roofRear,roofFront,halfRoof,frontLow,rearLow,width,halfAt,suv});
+ buildCabin(k,{cx,z,belt,roof,roofRear,roofFront,halfRoof,frontLow,rearLow,width,halfAt,suv,saloon});
+ // The muscle car's raised bonnet scoop and a ducktail spoiler across the deck.
+ if(muscle){
+  const top=bodyTopAt(1.35*s);k.box(v(cx,top+.05*s,z+1.35*s),v(.62*s,.1*s,.7*s),k.style.variant==='sport'?k.dark:k.paint);k.box(v(cx,top+.06*s,z+1.71*s),v(.5*s,.06*s,.02*s),k.dark);
+  const lip=bodyTopAt(endR+.12*s);k.box(v(cx,lip+.05*s,z+endR+.1*s),v(width*.88,.05*s,.22*s),k.paint).rotation.x=.18;
+ }
  // Painted designs: twin stripes, a race number on each door, or police and taxi equipment.
  const livery=k.style.livery;
  if(livery==='stripes'||livery==='racing'){
@@ -168,17 +175,22 @@ function roundedWindow(points:[number,number][],radius:number){
   if(!i)path.moveTo(start.x,start.y);else path.lineTo(start.x,start.y);path.quadraticCurveTo(x,y,end.x,end.y);
  });path.closePath();return path;
 }
-interface Cabin{cx:number;z:number;belt:number;roof:number;roofRear:number;roofFront:number;halfRoof:number;frontLow:number;rearLow:number;width:number;halfAt:(z:number)=>number;suv:boolean}
+interface Cabin{cx:number;z:number;belt:number;roof:number;roofRear:number;roofFront:number;halfRoof:number;frontLow:number;rearLow:number;width:number;halfAt:(z:number)=>number;suv:boolean;saloon?:boolean}
 function buildCabin(k:VehicleKit,c:Cabin){
- const {cx,z,belt,roof,roofRear,roofFront,halfRoof,frontLow,rearLow,width,halfAt,suv}=c,s=k.fit.scale;
+ const {cx,z,belt,roof,roofRear,roofFront,halfRoof,frontLow,rearLow,width,halfAt,suv,saloon}=c,s=k.fit.scale;
  const outer=new T.Shape();outer.moveTo(frontLow,belt);
  if(suv){outer.quadraticCurveTo(.72*s,roof-.15*s,roofFront,roof-.015*s);outer.lineTo(roofRear,roof-.015*s);outer.quadraticCurveTo(rearLow,roof-.06*s,rearLow,belt);}
+ else if(saloon){outer.quadraticCurveTo(.76*s,roof-.27*s,roofFront,roof-.075*s);outer.bezierCurveTo(.0,roof-.02*s,-.95*s,roof-.02*s,roofRear,roof-.075*s);outer.quadraticCurveTo(-1.72*s,roof-.2*s,rearLow,belt);}
  else{outer.quadraticCurveTo(.77*s,roof-.29*s,roofFront,roof-.085*s);outer.bezierCurveTo(.10*s,roof-.025*s,-.65*s,roof-.025*s,roofRear,roof-.085*s);outer.quadraticCurveTo(-1.27*s,roof-.25*s,rearLow,belt);}
  outer.lineTo(frontLow,belt);outer.closePath();
  const windows:T.Shape[]=k.fit.id==='pickup'?[roundedWindow([[.59*s,belt+.075*s],[-.56*s,belt+.075*s],[-.56*s,roof-.13*s],[.43*s,roof-.13*s]],.065*s)]:suv?[
   roundedWindow([[.59*s,belt+.075*s],[-.35*s,belt+.075*s],[-.35*s,roof-.13*s],[.43*s,roof-.13*s]],.065*s),
   roundedWindow([[-.43*s,belt+.075*s],[-1.23*s,belt+.075*s],[-1.23*s,roof-.13*s],[-.43*s,roof-.13*s]],.065*s),
   roundedWindow([[-1.31*s,belt+.075*s],[-2.21*s,belt+.075*s],[-2.17*s,roof-.13*s],[-1.31*s,roof-.13*s]],.065*s),
+ ]:saloon?[
+  roundedWindow([[.80*s,belt+.06*s],[-.30*s,belt+.06*s],[-.30*s,roof-.12*s],[.28*s,roof-.13*s],[.48*s,roof-.24*s]],.07*s),
+  roundedWindow([[-.37*s,belt+.06*s],[-1.28*s,belt+.06*s],[-1.28*s,roof-.13*s],[-.37*s,roof-.12*s]],.07*s),
+  roundedWindow([[-1.35*s,belt+.06*s],[-1.78*s,belt+.06*s],[-1.40*s,roof-.15*s],[-1.35*s,roof-.15*s]],.05*s),
  ]:[
   roundedWindow([[.82*s,belt+.06*s],[-.22*s,belt+.06*s],[-.22*s,roof-.13*s],[.26*s,roof-.145*s],[.47*s,roof-.26*s]],.07*s),
   roundedWindow([[-.29*s,belt+.06*s],[-1.22*s,belt+.06*s],[-1.10*s,belt+.26*s],[-.85*s,roof-.145*s],[-.29*s,roof-.13*s]],.075*s),

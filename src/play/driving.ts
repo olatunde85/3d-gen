@@ -1,13 +1,19 @@
+import {BODY_BASE,VEHICLE_BODIES,type VehicleBody} from '../core/props/vehicle-bodies';
 /** Deterministic pickup dynamics and oriented collision, shared by preview and exports. */
 import type {VehicleSurface} from './vehicle-surfaces';
 import {blocked,clearPath,distance,type Point,type Rect} from './world';
-export type DriveVehicle='pickup'|'sports_car'|'suv'|'motorcycle';
+export type DriveBase='pickup'|'sports_car'|'suv'|'motorcycle';
+/** Drivable vehicles: the four fitted bases and the bodies that borrow their rider posture and boarding. */
+export type DriveVehicle=DriveBase|VehicleBody;
+export const DRIVE_VEHICLES:readonly DriveVehicle[]=['pickup','sports_car','suv','motorcycle',...VEHICLE_BODIES];
+export const driveBase=(model:DriveVehicle='pickup'):DriveBase=>(BODY_BASE as Record<string,DriveBase>)[model]??model as DriveBase;
+export const DRIVE_NAMES:Record<DriveVehicle,string>={pickup:'pickup',sports_car:'sports car',suv:'SUV',motorcycle:'motorcycle',danfo:'danfo',van:'van',bus:'bus',truck:'truck',keke:'keke',quad:'quad bike',scooter:'scooter',kart:'go-kart',saloon:'saloon',muscle:'muscle car'};
 export interface DrivingSettings {color:string;pace:'relaxed'|'standard'|'fast';model?:DriveVehicle}
 export const defaultDriving=():DrivingSettings=>({color:'#294c60',pace:'standard'});
 export function parseDriving(raw:unknown):DrivingSettings|undefined {
  if(raw===undefined)return undefined;if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Use valid pickup settings.');
  const p=raw as Record<string,unknown>;for(const k of Object.keys(p))if(!['color','pace','model'].includes(k))throw Error(`Unsupported vehicle setting: ${k}.`);
- const result={...defaultDriving(),...p};if(typeof result.color!=='string'||!/^#[a-f0-9]{6}$/i.test(result.color))throw Error('Choose a six-digit vehicle paint colour.');if(!['relaxed','standard','fast'].includes(result.pace as string))throw Error('Choose Relaxed, Standard or Fast driving pace.');if(result.model!==undefined&&!['pickup','sports_car','suv','motorcycle'].includes(String(result.model)))throw Error('Choose a pickup, sports car, SUV or motorcycle.');return result as DrivingSettings;
+ const result={...defaultDriving(),...p};if(typeof result.color!=='string'||!/^#[a-f0-9]{6}$/i.test(result.color))throw Error('Choose a six-digit vehicle paint colour.');if(!['relaxed','standard','fast'].includes(result.pace as string))throw Error('Choose Relaxed, Standard or Fast driving pace.');if(result.model!==undefined&&!DRIVE_VEHICLES.includes(result.model as DriveVehicle))throw Error(`Choose a vehicle: ${DRIVE_VEHICLES.join(', ')}.`);if(result.model==='bus')throw Error('The bus is too long for mission routes; it appears in the city and in races.');return result as DrivingSettings;
 }
 export interface PassengerFit {seat:Point;stand:Point}
 export interface CarFit {model?:DriveVehicle;surfaces?:VehicleSurface[];passenger?:PassengerFit;box:Rect;height:number;stand:Point;scale:number}
@@ -15,7 +21,7 @@ export const defaultCarFit=():CarFit=>({box:{minX:-1.75,maxX:.95,minZ:-2.8,maxZ:
 export interface CarPose extends Point {yaw:number}
 export interface CarState extends CarPose {speed:number;steer:number;distance:number;phase:'parked'|'boarding'|'driving'|'alighting';time:number;fit:CarFit;blocked:number;health?:number;damageCooldown?:number}
 export const DRIVE={boarding:1.05,alighting:1.05,reverse:14,acceleration:14,braking:25,wheelbase:3.47}as const;
-export const topSpeed=(settings:DrivingSettings)=>({relaxed:20,standard:29,fast:40}[settings.pace])*({pickup:1,sports_car:1.25,suv:.9,motorcycle:1.15}[settings.model??'pickup']);
+export const topSpeed=(settings:DrivingSettings)=>({relaxed:20,standard:29,fast:40}[settings.pace])*({pickup:1,sports_car:1.25,suv:.9,motorcycle:1.15,danfo:.85,van:.9,bus:.7,truck:.75,keke:.6,quad:.95,scooter:.8,kart:1,saloon:1.05,muscle:1.3}[settings.model??'pickup']);
 /** The visible pickup zone and success test use the same body-sized radius. */
 export const pickupExtractionRadius=(fit:CarFit)=>Math.max(4.2,(fit.box.maxZ-fit.box.minZ)/2+1.1,(fit.box.maxX-fit.box.minX)/2+1.1);
 export const pickupAtExtraction=(car:CarState,exit:Point)=>Math.hypot(car.x-exit.x,car.z-exit.z)<=pickupExtractionRadius(car.fit)&&Math.abs(car.speed)<=2.5;
