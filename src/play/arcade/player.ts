@@ -20,7 +20,7 @@ import { ArcadeInput } from './input';
 import { SpeedFeel } from './feel';
 import { ArcadeSfx } from './sfx';
 import { TRACK_IDS } from './track';
-import { RACE_CARS, RUNNER_THEME_NAMES, gameTitle, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
+import { RACE_CARS, RUNNER_THEME_NAMES, gameTitle, runnerGoalLabel, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
 import { cupRecord, dailySeed, decodeGhost, encodeGhost, ghostLink, linkedGhost, raceRecord, runnerRecord, saveCup, saveRace, saveRunner, today, trackKey, type RunnerRecord } from './records';
 
 const CAR_PRICES: Record<RaceCar, number> = { keke: 200, scooter: 250, danfo: 300, van: 300, truck: 300, saloon: 400, suv: 400, pickup: 400, quad: 500, kart: 500, motorcycle: 600, muscle: 700, sports_car: 800 };
@@ -115,11 +115,11 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
         ...(rounds() > 1 && !daily ? [{ label: 'Garage', run: garage }] : []),
       ], 'brief');
     } else if (runner) {
-      const record = runnerRecord(gameKey()), settings = runner.settings, goal = settings.goal;
+      const record = runnerRecord(gameKey()), settings = runner.settings, objects = settings.objects ?? [];
       const kicker = daily ? `DAILY RUN · ${today()}` : rounds() > 1 ? `STAGE ${chapter + 1} OF ${rounds()}` : 'ENDLESS RUNNER';
-      const target = goal.type === 'endless' ? 'Endless' : goal.type === 'distance' ? `Run ${goal.target} m` : goal.type === 'coins' ? `Collect ${goal.target} coins` : `Score ${goal.target.toLocaleString()}`;
+      const target = runnerGoalLabel(settings);
       const stats = hud.stats([['BEST', record.best ? Math.floor(record.best).toLocaleString() : '—'], ['FURTHEST', record.bestDistance ? `${Math.floor(record.bestDistance).toLocaleString()} m` : '—'], ['BANK', `● ${record.bank}`, 'hot'], ...(daily && record.daily[today()] ? [['TODAY', Math.floor(record.daily[today()]).toLocaleString()] as [string, string]] : [])]);
-      hud.show(kicker, title(), [...steps(record.stage ?? 0), ...(briefing ? [hud.briefing(briefing)] : []), facts([RUNNER_THEME_NAMES[settings.theme], target, settings.chaser !== 'none' ? 'Chaser' : 'No chaser']), stats, micro(controls())], [
+      hud.show(kicker, title(), [...steps(record.stage ?? 0), ...(briefing ? [hud.briefing(briefing)] : []), facts([RUNNER_THEME_NAMES[settings.theme], target, settings.chaser !== 'none' ? 'Chaser' : 'No chaser']), ...(objects.length ? [hud.section(settings.goal.type === 'objects' ? 'Find them all' : 'Bonus finds', hud.objectList(objects), micro('Objects appear one at a time inside a beam of light. Miss one and it turns up again further on.'))] : []), stats, micro(controls())], [
         { label: 'Run', primary: true, run: start },
         ...(daily ? [{ label: 'Back to the main run', run: () => { daily = false;setup(); } }] : [{ label: 'Daily run', run: () => { daily = true;setup(); } }]),
         { label: 'Shop', run: shop },
@@ -206,6 +206,10 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       if (e.type === 'land') sfx.play('land', 0.4);
       if (e.type === 'turn') sfx.play('whoosh');
       if (e.type === 'stumble') { sfx.play('stumble');hud.say(g.settings.chaser === 'none' ? 'STUMBLE' : 'STUMBLE · THEY ARE CLOSE', 1, 'bad'); }
+      if (e.type === 'find') {
+        const o = g.settings.objects![e.item], n = Math.min(g.found[e.item], o.count);sfx.play(e.all ? 'best' : 'item');
+        hud.showFound(o, e.all ? 'EVERYTHING FOUND' : o.count > 1 ? `FOUND ${n} OF ${o.count}` : 'FOUND');
+      }
       if (e.type === 'power') { sfx.play('power');hud.say({ magnet: 'MAGNET', shield: 'SHIELD', boost: 'BOOST', multiplier: '×2 SCORE' }[e.kind], 1, 'good'); }
       if (e.type === 'shield-break') { sfx.play('shield');hud.say('SHIELD SAVED YOU', 1, 'good'); }
       if (e.type === 'smash') sfx.play('bump', 0.7);
@@ -273,12 +277,13 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     }
     const best = settledNotes.newLap, notes = [...(best ? ['NEW HIGH SCORE'] : []), ...(settledNotes.newRace ? ['FURTHEST RUN'] : [])];
     const stats = hud.stats([['DISTANCE', `${Math.floor(g.distance).toLocaleString()} m`], ['COINS', `● ${g.coins}`, 'hot'], ['MULTIPLIER', `×${g.multiplier}`], ['BEST', record.best.toLocaleString(), best ? 'good' : '']]);
+    const objects = g.settings.objects ?? [], finds = objects.length ? [hud.section(`Objects · ${objects.reduce((n, o, i) => n + Math.min(g.found[i] ?? 0, o.count), 0)} of ${objects.reduce((n, o) => n + o.count, 0)}`, hud.objectList(objects, g.found))] : [];
     const missions = hud.section(`Missions · ×${1 + record.missionLevel} multiplier`, hud.checklist(g.missions.map((m, i) => ({ label: m.label, done: !!g.missionsDone[i], progress: g.missionProgress(i) }))), micro('Finish all three to raise your score multiplier.'));
     const actions: CardAction[] = [{ label: 'Run again', primary: true, run: start }, { label: 'Shop', run: shop }];
     if (rounds() > 1 && (won || g.settings.goal.type === 'endless') && chapter + 1 < rounds()) { actions[0] = { ...actions[0], primary: false };actions.unshift({ label: `Next stage: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup(); } }); }
     if (!daily) actions.push({ label: 'Daily run', run: () => { daily = true;setup(); } });
     const kicker = daily ? `DAILY RUN · ${today()}` : won ? 'GOAL REACHED' : { crash: 'CRASHED', fall: 'FELL', caught: 'CAUGHT' }[g.downReason ?? 'crash'] ?? 'RUN OVER';
-    hud.show(`${kicker} · ${RUNNER_THEME_NAMES[g.settings.theme].toUpperCase()}`, `${score.toLocaleString()} points`, [hud.columns([stats, ...(notes.length ? [hud.badges(notes)] : [])], [missions])], actions, 'wide', hud.aside('BANK', `● ${record.bank.toLocaleString()}`));
+    hud.show(`${kicker} · ${RUNNER_THEME_NAMES[g.settings.theme].toUpperCase()}`, `${score.toLocaleString()} points`, [hud.columns([stats, ...(notes.length ? [hud.badges(notes)] : []), ...finds], [missions])], actions, 'wide', hud.aside('BANK', `● ${record.bank.toLocaleString()}`));
   }
   function revivePrompt() {
     const g = runner!, record = runnerRecord(gameKey()), cost = g.reviveCost();

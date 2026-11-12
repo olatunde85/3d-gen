@@ -22,7 +22,7 @@ export function loadingGame(input: unknown): LoadingGame {
   }
   if (mode === 'runner') {
     const theme = raw.runner?.theme, place = theme && theme in RUNNER_THEME_NAMES ? RUNNER_THEME_NAMES[theme as RunnerTheme] : 'The course';
-    return { mode, title, place, story: briefing || `Run ${place.toLowerCase()} as far as you can. Dodge, jump, slide and grab every coin.`, facts: ['ENDLESS RUN', ...(raw.runner?.chaser ? ['1 CHASER'] : []), ...(chapters > 1 ? [plural(chapters, 'STAGE')] : [])], label: 'Laying out the course…', note: 'Building your runner and the course ahead.' };
+    return { mode, title, place, story: briefing || `Run ${place.toLowerCase()} as far as you can. Dodge, jump, slide and grab every coin.`, facts: ['ENDLESS RUN', ...(Array.isArray(raw.runner?.objects) && raw.runner.objects.length ? [plural(raw.runner.objects.reduce((n, o) => n + (Number(o?.count) || 1), 0), 'OBJECT')] : []), ...(raw.runner?.chaser && raw.runner.chaser !== 'none' ? ['1 CHASER'] : []), ...(chapters > 1 ? [plural(chapters, 'STAGE')] : [])], label: 'Laying out the course…', note: 'Building your runner and the course ahead.' };
   }
   const location = LOCATIONS.find((l) => l.id === raw.mission?.location) ?? LOCATIONS[0], enemies = Array.isArray(raw.enemies) ? raw.enemies.length : 1, lives = Number(raw.mission?.lives) || 3;
   return { mode, title, place: location.name, story: briefing || location.description, facts: [plural(enemies, 'ENEMY', 'ENEMIES'), plural(lives, 'LIFE', 'LIVES'), ...(chapters > 1 ? [plural(chapters, 'CHAPTER')] : [])], label: `Preparing ${location.name.toLowerCase()}…`, note: 'Building your Ara characters.' };

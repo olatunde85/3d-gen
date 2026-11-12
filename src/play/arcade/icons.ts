@@ -1,4 +1,4 @@
-/** Line icons for game modes, vehicles and runners, drawn on a 32 × 32 grid with a 1.5 stroke. */
+/** Line icons for game modes, vehicles, runners and the objects found on runs, drawn on a 32 × 32 grid with a 1.5 stroke. */
 export const ICONS: Record<string, string> = {
   mission: 'M16 29s-9-8.5-9-15a9 9 0 0 1 18 0c0 6.5-9 15-9 15Zm0-11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
   race: 'M7 29V4m0 1h17l-3 6 3 6H7m5-12v12m6-12v12M7 11h16',
@@ -20,6 +20,34 @@ export const ICONS: Record<string, string> = {
   boost: 'M18 3 7 18h8l-2 11 12-16h-8Z',
   multiplier: 'M5 12l9 9m0-9-9 9M18 13a3.5 3.5 0 0 1 7 0c0 3.5-7 5-7 9h7',
   keke: 'M7 25a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm18 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM4 22V8l2-2h16l5 8 3 1v7h-2M10 22h12M27 14H19V6M4 13h15',
+  // Objects and clues to find on a run.
+  dossier: 'M5 8h8l2 3h12v15H5ZM10 16h12M10 20h8',
+  letter: 'M4 9h24v15H4ZM4 9l12 9 12-9M14 21a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z',
+  map: 'M4 8l7-3 10 3 7-3v19l-7 3-10-3-7 3ZM11 5v19M21 8v19M14 13l4 4m0-4-4 4',
+  journal: 'M7 4h16a2 2 0 0 1 2 2v22H9a2 2 0 0 1-2-2ZM7 26a2 2 0 0 1 2-2h16M18 4v8l2.5-2 2.5 2V4',
+  magnifier: 'M13 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM19 19l9 9',
+  key: 'M10 22a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM16 16h13M25 16v5M21 16v4',
+  compass: 'M16 29a13 13 0 1 0 0-26 13 13 0 0 0 0 26ZM21 11l-3 7-7 3 3-7Z',
+  dagger: 'M27 5 14 15l3 3ZM12 13l7 7M15.5 16.5 7 25',
+  figurine: 'M16 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12 24l1-10h6l1 10ZM9 24h14v4H9ZM13 15l-3 4m9-4 3 4',
+  mask: 'M7 7c5-3 13-3 18 0v8c0 7-4 12-9 13-5-1-9-6-9-13ZM11 14l4 1m6-1-4 1M13 22h6',
+  amulet: 'M8 4c0 6 4 10 8 10s8-4 8-10M16 14l-5 7 5 7 5-7Z',
+  gem: 'M9 6h14l5 7-12 15L4 13ZM4 13h24M12 6l-2 7 6 15 6-15-2-7',
+  crown: 'M5 24 3 10l7 5 6-9 6 9 7-5-2 14ZM5 28h22',
+  chest: 'M4 14a12 6 0 0 1 24 0v13H4ZM4 14h24M4 19h24M14 17h4v4h-4Z',
+  hourglass: 'M8 4h16M8 28h16M10 4c0 6 5 8 5 12s-5 6-5 12M22 4c0 6-5 8-5 12s5 6 5 12M13 25h6',
+  star: 'M16 4l3.7 7.6 8.3 1.2-6 5.9 1.4 8.3L16 23l-7.4 4 1.4-8.3-6-5.9 8.3-1.2Z',
+  question: 'M16 29a13 13 0 1 0 0-26 13 13 0 0 0 0 26ZM12 12.5a4 4 0 1 1 5.6 3.7c-1 .5-1.6 1.3-1.6 2.4V20M16 24v.5',
+  eye: 'M3 16s5-8 13-8 13 8 13 8-5 8-13 8S3 16 3 16ZM16 20a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
+  fingerprint: 'M8 25c-1.5-2.5-2.5-5.5-2.5-9a10.5 10.5 0 0 1 21 0M11.5 26c-1.3-2.8-2-6-2-10a6.5 6.5 0 0 1 13 0c0 4-.6 8-2 11.5M16 16c0 4.5-.6 8.5-2 12.5M26.5 18c0 3-.6 5.5-1.5 7.5',
+  footprints: 'M10 17c-2.5 0-4-3-4-6.5S7.5 4 10 4s4 3 4 6.5-1.5 6.5-4 6.5ZM8 21h4M22 24c-2.5 0-4-3-4-6.5S19.5 11 22 11s4 3 4 6.5-1.5 6.5-4 6.5ZM20 28h4',
+  lock: 'M8 15h16v13H8ZM11 15v-4a5 5 0 0 1 10 0v4M16 20v3',
+  skull: 'M16 4C10 4 6 8.5 6 14c0 3.5 1.5 6 4 7.5V27h12v-5.5c2.5-1.5 4-4 4-7.5 0-5.5-4-10-10-10ZM12 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM20 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM14 27v-3m4 3v-3',
+  flag: 'M7 29V4M7 5h17l-4 5 4 5H7',
+  puzzle: 'M6 10h6a3 3 0 1 1 6 0h6v6a3 3 0 1 1 0 6v6h-6a3 3 0 1 0-6 0H6v-6a3 3 0 1 0 0-6Z',
+  feather: 'M26 5C15 6 8 13 7 25l-2 3M26 5c-1 9-7 16-17 18M12 18l6-6M14 21l5-5',
+  moon: 'M24 22A11 11 0 0 1 12 6a11 11 0 1 0 12 16Z',
+  pin: 'M16 29s-9-8.5-9-15a9 9 0 0 1 18 0c0 6.5-9 15-9 15Zm0-11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
 };
 /** An inline SVG for one of the icons, inheriting the text colour. */
 export const iconSvg = (id: string, width = 1.5) => `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[id] ?? ICONS.race}"/></svg>`;

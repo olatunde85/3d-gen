@@ -1,7 +1,7 @@
 /**
  * Endless runner rules: a seeded course of straights joined by corners and T-junctions, three lanes, jumps, slides
  * and turns, obstacles with a guaranteed way through, coins and power-ups, a chaser that closes after stumbles, and
- * scoring with multipliers. Course pieces are generated ahead, recycled behind, and the world origin follows the run.
+ * scoring with multipliers, and the creator's objects to find, placed one at a time. Course pieces are generated ahead, recycled behind, and the world origin follows the run.
  */
 import { seeded } from './race';
 import type { RunnerObstacle, RunnerPowerUp, RunnerSettings } from './modes';
@@ -17,13 +17,15 @@ export const leftOf = (h: number) => DIRS[(((h + 1) % 4) + 4) % 4];
 export interface RunnerThing { id: number; kind: RunnerObstacle; d: number; lanes: number; length: number; moving: number; hit: boolean; passed: boolean }
 export interface RunnerCoin { id: number; d: number; lane: number; y: number; taken: boolean }
 export interface RunnerPickup { id: number; kind: RunnerPowerUp; d: number; lane: number; taken: boolean }
+/** One piece of a creator's object (index into settings.objects) waiting on the course. */
+export interface RunnerFind { id: number; item: number; d: number; lane: number; y: number; taken: boolean }
 export interface RunnerSegment {
   id: number; x: number; z: number; heading: number; length: number; start: number; end: 'left' | 'right' | 'junction';
-  things: RunnerThing[]; coins: RunnerCoin[]; pickups: RunnerPickup[]; gaps: [number, number][]; decor: number; branch?: 'left' | 'right';
+  things: RunnerThing[]; coins: RunnerCoin[]; pickups: RunnerPickup[]; finds: RunnerFind[]; gaps: [number, number][]; decor: number; branch?: 'left' | 'right';
 }
 export type RunnerEvent =
   | { type: 'jump' | 'slide' | 'lane' | 'turn' | 'coin' | 'stumble' | 'shield-break' | 'smash' | 'land' | 'mission' | 'goal' | 'revive' | 'caught' | 'fall' | 'crash' }
-  | { type: 'power'; kind: RunnerPowerUp } | { type: 'near-miss' } | { type: 'rebase'; dx: number; dz: number } | { type: 'speed-up'; speed: number };
+  | { type: 'power'; kind: RunnerPowerUp } | { type: 'find'; item: number; done: boolean; all: boolean } | { type: 'near-miss' } | { type: 'rebase'; dx: number; dz: number } | { type: 'speed-up'; speed: number };
 export interface RunnerInput { left: boolean; right: boolean; jump: boolean; slide: boolean; tiltLane?: number }
 export const MISSION_KINDS = ['coins', 'distance', 'jumps', 'slides', 'powers', 'score'] as const;
 export type MissionKind = (typeof MISSION_KINDS)[number];
@@ -56,22 +58,25 @@ export class RunnerGame {
   coins = 0; score = 0; multiplier = 1; chaser = 14; stumbles = 0; lastStumble = -100; revives = 0; queuedTurn?: 'left' | 'right'; airborne = 0;
   power = { magnet: 0, shield: 0, boost: 0, multiplier: 0 }; stats = { jumps: 0, slides: 0, powers: 0 }; missionsDone: boolean[] = [false, false, false];
   events: RunnerEvent[] = []; downReason?: 'crash' | 'fall' | 'caught'; downTime = 0; goalReached = false; recover = 0; turnLean = 0;
-  private random: () => number; private nextId = 1; private accumulator = 0; private recycle = new Pool<RunnerSegment>(() => ({ id: 0, x: 0, z: 0, heading: 0, length: 0, start: 0, end: 'left', things: [], coins: [], pickups: [], gaps: [], decor: 0 }));
+  private random: () => number; private nextId = 1; private accumulator = 0; private recycle = new Pool<RunnerSegment>(() => ({ id: 0, x: 0, z: 0, heading: 0, length: 0, start: 0, end: 'left', things: [], coins: [], pickups: [], finds: [], gaps: [], decor: 0 }));
   private thingPool = new Pool<RunnerThing>(() => ({ id: 0, kind: 'barrier-low', d: 0, lanes: 0, length: 0, moving: 0, hit: false, passed: false }));
   private coinPool = new Pool<RunnerCoin>(() => ({ id: 0, d: 0, lane: 0, y: 0, taken: false }));
   private lastNearMiss = -10; private coyote = 0;
-  constructor(readonly settings: RunnerSettings, readonly profile: RunnerProfile, readonly seed = settings.seed ?? 1) { this.random = seeded(seed);this.reset(); }
+  /** Pieces found of each object, the piece on the course now, and where along the course the next may appear. */
+  found: number[] = []; liveFind?: RunnerFind; private findSegment?: RunnerSegment; private nextFindAt = 0; private findRandom: () => number;
+  constructor(readonly settings: RunnerSettings, readonly profile: RunnerProfile, readonly seed = settings.seed ?? 1) { this.random = seeded(seed);this.findRandom = seeded(seed + 7919);this.reset(); }
   get missions() { return missionSet(this.profile.missionLevel); }
   get current() { return this.segments[0]; }
   /** World position of the runner. */
   get position() { return this.worldAt(this.current, this.d, this.x); }
   worldAt(s: RunnerSegment, d: number, lateral: number) { const f = forwardOf(s.heading), l = leftOf(s.heading);return { x: s.x + f[0] * d + l[0] * lateral, z: s.z + f[1] * d + l[1] * lateral }; }
   reset(seed = this.seed) {
-    this.random = seeded(seed);this.nextId = 1;
+    this.random = seeded(seed);this.findRandom = seeded(seed + 7919);this.nextId = 1;
     for (const s of [...this.segments, ...this.branches, ...this.behind]) this.releaseSegment(s);
     this.segments = [];this.branches = [];this.behind = [];
     Object.assign(this, { status: 'ready', d: 4, lane: 0, x: 0, y: 0, vy: 0, sliding: 0, grounded: true, heading: 0, speed: this.settings.startSpeed, distance: 0, time: 0, coins: 0, score: 0, chaser: 6, stumbles: 0, lastStumble: -100, revives: 0, queuedTurn: undefined, airborne: 0, downReason: undefined, goalReached: false, recover: 0, turnLean: 0, accumulator: 0, events: [], lastNearMiss: -10 });
     this.power = { magnet: 0, shield: 0, boost: 0, multiplier: 0 };this.stats = { jumps: 0, slides: 0, powers: 0 };this.missionsDone = this.profile.missions.map(Boolean);this.multiplier = 1 + this.profile.missionLevel;
+    this.found = (this.settings.objects ?? []).map(() => 0);this.liveFind = undefined;this.findSegment = undefined;this.nextFindAt = 0;
     this.segments.push(this.makeSegment(0, 0, 0, 0, true));this.fill();
   }
   start() { if (this.status === 'ready') this.status = 'running'; }
@@ -105,7 +110,7 @@ export class RunnerGame {
     this.corner();
     if (this.status !== 'running') return;
     this.collide(dt);
-    this.collect();
+    this.collect();this.placeFind();
     // Carts roll toward the runner once they are 45 m ahead, so they meet in the slot reserved for them.
     for (const t of this.current.things) if (t.moving && !t.hit && t.d - this.d < 45) t.d -= t.moving * dt;
     this.progressMissions();
@@ -205,13 +210,46 @@ export class RunnerGame {
     for (const p of s.pickups) if (!p.taken && Math.abs(p.d - this.d) < 0.8 && Math.abs(p.lane * LANE - this.x) < 1) {
       p.taken = true;this.power[p.kind] = this.duration(p.kind);this.stats.powers++;this.events.push({ type: 'power', kind: p.kind });
     }
+    const f = this.liveFind;
+    if (f && this.findSegment === s) {
+      const dd = f.d - this.d, side = Math.abs(f.lane * LANE - this.x);
+      if (magnet ? dd > -0.5 && dd < 7 && side < LANE * 1.8 : Math.abs(dd) < 0.9 && side < 1) {
+        f.taken = true;this.liveFind = undefined;this.found[f.item]++;this.score += 250 * this.multiplier * (this.power.multiplier > 0 ? 2 : 1);
+        this.nextFindAt = s.start + this.d + 110 + this.findRandom() * 90;
+        this.events.push({ type: 'find', item: f.item, done: this.found[f.item] >= this.settings.objects![f.item].count, all: this.allFound() });
+      } else if (dd < -2) {
+        // A missed object comes back a little further on.
+        s.finds.splice(s.finds.indexOf(f), 1);this.liveFind = undefined;this.nextFindAt = s.start + this.d + 40;
+      }
+    }
+  }
+  allFound() { const list = this.settings.objects ?? [];return list.length > 0 && list.every((o, i) => this.found[i] >= o.count); }
+  /**
+   * Put the next piece on the course well ahead of the runner, in a lane clear of obstacles, gaps and carts. Objects
+   * come in list order, so clues read as a story. Branches at a junction never carry one, so no turn loses it.
+   */
+  private placeFind() {
+    const list = this.settings.objects;if (!list?.length || this.liveFind) return;
+    const item = list.findIndex((o, i) => this.found[i] < o.count);if (item < 0) return;
+    const at = Math.max(this.nextFindAt, this.current.start + this.d + 70);
+    for (const s of this.segments) {
+      if (s.start + s.length - 14 < at) continue;
+      for (let d = Math.max(at - s.start, 16); d < s.length - 14; d += 3.5) {
+        const lanes = [-1, 0, 1].filter((l) => !s.things.some((t) => t.lanes & (1 << (l + 1)) && (t.kind === 'cart' || (d > t.d - 3 && d < t.d + t.length + 3))) && !s.gaps.some(([a, b]) => d > a - 2 && d < b + 2));
+        if (!lanes.length) continue;
+        const lane = lanes[Math.floor(this.findRandom() * lanes.length)], find: RunnerFind = { id: this.nextId++, item, d, lane, y: 1, taken: false };
+        for (const c of s.coins) if (c.lane === lane && Math.abs(c.d - d) < 1.6) c.taken = true;
+        s.finds.push(find);this.liveFind = find;this.findSegment = s;return;
+      }
+    }
   }
   private progressMissions() {
     const values: Record<MissionKind, number> = { coins: this.coins, distance: this.distance, jumps: this.stats.jumps, slides: this.stats.slides, powers: this.stats.powers, score: this.score };
     this.missions.forEach((m, i) => { if (!this.missionsDone[i] && values[m.kind] >= m.target) { this.missionsDone[i] = true;this.events.push({ type: 'mission' }); } });
     if (this.missionsDone.every(Boolean)) { this.profile.missionLevel++;this.missionsDone = [false, false, false];this.multiplier = 1 + this.profile.missionLevel; }
     const g = this.settings.goal;
-    if (!this.goalReached && g.type !== 'endless' && (g.type === 'distance' ? this.distance : g.type === 'coins' ? this.coins : this.score) >= g.target) { this.goalReached = true;this.events.push({ type: 'goal' }); }
+    const reached = g.type === 'objects' ? this.allFound() : g.type !== 'endless' && (g.type === 'distance' ? this.distance : g.type === 'coins' ? this.coins : this.score) >= g.target;
+    if (!this.goalReached && reached) { this.goalReached = true;this.events.push({ type: 'goal' }); }
   }
   /** Mission progress inside a run, 0 to 1. */
   missionProgress(i: number) {
@@ -219,7 +257,7 @@ export class RunnerGame {
     const v = { coins: this.coins, distance: this.distance, jumps: this.stats.jumps, slides: this.stats.slides, powers: this.stats.powers, score: this.score }[m.kind];
     return Math.min(1, v / m.target);
   }
-  private releaseSegment(s: RunnerSegment) { this.thingPool.release(s.things);this.coinPool.release(s.coins);s.pickups.length = 0;s.gaps.length = 0;this.recycle.release([s]); }
+  private releaseSegment(s: RunnerSegment) { this.thingPool.release(s.things);this.coinPool.release(s.coins);s.pickups.length = 0;s.finds.length = 0;s.gaps.length = 0;this.recycle.release([s]); }
   private fill() {
     let ahead = this.segments.reduce((sum, s) => sum + s.length, 0) - this.d;
     while (ahead < 180 && this.segments.at(-1)!.end !== 'junction') {

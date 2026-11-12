@@ -4,7 +4,9 @@ import { nodeLibrary } from './node-assets';
 import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject } from '../src/play/project';
 import { skyLook } from '../src/play/arcade/weather';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
-import { defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle } from '../src/play/arcade/modes';
+import { defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel } from '../src/play/arcade/modes';
+import { RUNNER_GENERIC_ICONS, RUNNER_OBJECT_TYPES } from '../src/play/arcade/objects';
+import { ICONS } from '../src/play/arcade/icons';
 import { TRACK_IDS, TRACK_TEMPLATES, buildTrack, locate, parseTrack, trackPoint } from '../src/play/arcade/track';
 import { CAR_STATS, RaceGame, idleInput } from '../src/play/arcade/race';
 import { LANE, RunnerGame, missionSet } from '../src/play/arcade/runner';
@@ -113,6 +115,47 @@ check('runner obstacles demand the right move: jump low barriers, slide under ba
   const g = new RunnerGame({ ...defaultRunner(), chaser: 'none', obstacles: ['bar-high'] }, profile(), 11);g.start();
   for (let i = 0; i < 120 * 30 && g.status === 'running'; i++) g.update(1 / 120, { ...botInput(g), slide: false });assert.ok(g.stumbles > 0, 'running into a bar trips the runner');
   assert.equal(LANE, 1.8);for (const id of ['run_slide', 'run_lean_left', 'run_lean_right', 'stumble_recover']) assert.ok(clipById.get(id), id);
+});
+check('runner objects parse strictly, keep their names, icons, counts and clues, and need entries for the objects goal', () => {
+  const r = parseRunner({ goal: { type: 'objects' }, objects: [{ type: 'dossier', name: "The Minister's dossier", icon: 'fingerprint', clue: 'Signed in red ink.' }, { type: 'dagger', count: 3 }] }, ['enemy-1']);
+  assert.deepEqual(r.objects, [{ type: 'dossier', name: "The Minister's dossier", icon: 'fingerprint', count: 1, clue: 'Signed in red ink.' }, { type: 'dagger', name: 'Ancient dagger', icon: 'dagger', count: 3 }]);
+  assert.equal(runnerGoalLabel(r), 'Find 4 objects');assert.equal(runnerGoalLabel({ goal: { type: 'objects' }, objects: [r.objects![1]] }), 'Find the ancient dagger ×3');
+  assert.equal(parseRunner({ objects: [] }, ['enemy-1']).objects, undefined);
+  for (const bad of [{ goal: { type: 'objects' } }, { goal: { type: 'objects', target: 2 }, objects: [{ type: 'gem' }] }, { objects: [{ type: 'laptop' }] }, { objects: [{ type: 'gem', name: '' }] }, { objects: [{ type: 'gem', name: 'x'.repeat(41) }] }, { objects: [{ type: 'gem', count: 0 }] }, { objects: [{ type: 'gem', count: 11 }] }, { objects: [{ type: 'gem', icon: 'rocket' }] }, { objects: [{ type: 'gem', clue: 'x'.repeat(161) }] }, { objects: [{ type: 'gem', colour: 'red' }] }, { objects: Array.from({ length: 9 }, () => ({ type: 'gem' })) }]) assert.throws(() => parseRunner(bad, ['enemy-1']), Error, JSON.stringify(bad));
+  for (const icon of [...RUNNER_OBJECT_TYPES, ...RUNNER_GENERIC_ICONS]) assert.ok(ICONS[icon], `icon ${icon}`);
+});
+check('runner objects appear one at a time in clear lanes, in list order, return when missed and complete the objects goal', () => {
+  const objects = [{ type: 'dossier' as const, name: 'Dossier', icon: 'dossier' as const, count: 1 }, { type: 'dagger' as const, name: 'Ancient dagger', icon: 'dagger' as const, count: 2 }, { type: 'chest' as const, name: 'Treasure box', icon: 'chest' as const, count: 1 }];
+  for (const seed of [2, 9, 21]) {
+    const g = new RunnerGame({ ...defaultRunner(), chaser: 'none', goal: { type: 'objects' }, objects }, profile(), seed);g.start();
+    const order: number[] = [];let placed = 0, last: unknown;
+    for (let i = 0; i < 120 * 240 && !g.goalReached && g.status === 'running'; i++) {
+      const input = botInput(g), f = g.liveFind;
+      // Head for the object's lane once the way is clear, as a player would.
+      if (f && !input.left && !input.right && !input.jump && !input.slide && g.current.finds.includes(f) && f.d - g.d < 30 && f.lane !== g.lane) { if (f.lane > g.lane) input.left = true;else input.right = true; }
+      g.update(1 / 120, input);
+      if (g.liveFind && g.liveFind !== last) {
+        placed++;const live = g.liveFind, s = [...g.segments].find((x) => x.finds.includes(live))!;assert.ok(s, 'the object sits on the path ahead, never on a junction branch');
+        assert.equal(g.segments.concat(g.branches).flatMap((x) => x.finds).filter((x) => !x.taken).length, 1, 'one object at a time');
+        assert.ok(!s.things.some((t) => t.lanes & (1 << (live.lane + 1)) && (t.kind === 'cart' || (live.d > t.d - 3 && live.d < t.d + t.length + 3))), 'no obstacle in the object lane');
+        assert.ok(!s.gaps.some(([a, b]) => live.d > a - 2 && live.d < b + 2), 'not over a gap');
+      }
+      last = g.liveFind;
+      for (const e of g.drain()) if (e.type === 'find') order.push(e.item);
+    }
+    assert.ok(g.goalReached, `seed ${seed}: every object found (${g.found} after ${g.distance.toFixed(0)} m, ${g.status} ${g.downReason})`);
+    assert.deepEqual(order, [0, 1, 1, 2], 'objects come in list order');assert.ok(g.allFound());assert.ok(placed >= 4);
+  }
+  // A runner who never reaches for them sees each missed object return further on.
+  const h = new RunnerGame({ ...defaultRunner(), chaser: 'none', objects: [{ type: 'gem', name: 'Gem', icon: 'gem', count: 1 }] }, profile(), 4);h.start();let appearances = 0, seen: unknown;
+  for (let i = 0; i < 120 * 90 && h.status === 'running' && !h.allFound(); i++) { const input = botInput(h), f = h.liveFind;
+    if (f && h.current.finds.includes(f) && !input.left && !input.right && f.lane === h.lane && f.d - h.d < 12) { const side = [h.lane + 1, h.lane - 1].find((l) => Math.abs(l) <= 1 && !h.current.things.some((t) => !t.hit && t.lanes & (1 << (l + 1)) && t.d + t.length > h.d - 1 && t.d < f.d + 3));if (side !== undefined) { if (side > h.lane) input.left = true;else input.right = true; } }
+    h.update(1 / 120, input);if (h.liveFind && h.liveFind !== seen) appearances++;seen = h.liveFind; }
+  assert.ok(appearances >= 3, `a missed object returns (${appearances} appearances)`);
+  // Objects never change the course itself.
+  const plain = new RunnerGame({ ...defaultRunner(), chaser: 'none' }, profile(), 7), withObjects = new RunnerGame({ ...defaultRunner(), chaser: 'none', objects }, profile(), 7);
+  for (const k of [plain, withObjects]) { k.start();for (let i = 0; i < 120 * 20 && k.status === 'running'; i++) k.update(1 / 120, botInput(k)); }
+  assert.deepEqual(withObjects.segments.map((x) => x.things.map((t) => [t.kind, t.d, t.lanes])), plain.segments.map((x) => x.things.map((t) => [t.kind, t.d, t.lanes])));
 });
 check('race and runner games ignore companion boarding and read the chapter atmosphere', () => {
   const base = { ...defaultProject(), mission: { ...defaultProject().mission, story: 'rescue' as const, extraction: 'pickup' as const }, vehicle: { color: '#aa3322', pace: 'standard' as const, model: 'danfo' as const } };

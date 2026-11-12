@@ -3,6 +3,7 @@
  * music and campaign chapters, and brings its own rules, camera, HUD and level generation.
  */
 import { parseTrack, trackTemplate, TRACK_TEMPLATES, type CustomTrack } from './track';
+import { parseRunnerObjects, type RunnerObject } from './objects';
 
 export type PlayMode = 'mission' | 'race' | 'runner';
 export const PLAY_MODES: readonly PlayMode[] = ['mission', 'race', 'runner'];
@@ -30,12 +31,22 @@ export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'c
 export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'];
 export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier';
 export const RUNNER_POWER_UPS: readonly RunnerPowerUp[] = ['magnet', 'shield', 'boost', 'multiplier'];
-export type RunnerGoal = { type: 'endless' } | { type: 'distance' | 'coins' | 'score'; target: number };
+/** Objects is complete when every listed object has been found in one run. */
+export type RunnerGoal = { type: 'endless' } | { type: 'objects' } | { type: 'distance' | 'coins' | 'score'; target: number };
 export interface RunnerSettings {
   theme: RunnerTheme; lanes: 3; startSpeed: number; maxSpeed: number; speedRamp: 'gentle' | 'steady' | 'steep';
   obstacles: RunnerObstacle[]; powerUps: RunnerPowerUp[]; chaser: string; goal: RunnerGoal; revive: boolean; seed?: number;
+  /** Objects placed along the course, one at a time; the objects goal needs every one, otherwise they are bonus finds. */
+  objects?: RunnerObject[];
 }
 export const defaultRunner = (): RunnerSettings => ({ theme: 'temple-ruins', lanes: 3, startSpeed: 10, maxSpeed: 26, speedRamp: 'steady', obstacles: ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'], powerUps: ['magnet', 'shield', 'boost', 'multiplier'], chaser: 'enemy-1', goal: { type: 'endless' }, revive: true });
+
+/** The goal in a few words, e.g. "Run 2000 m" or "Find 3 objects". */
+export function runnerGoalLabel(r: Pick<RunnerSettings, 'goal' | 'objects'>) {
+  const g = r.goal, pieces = (r.objects ?? []).reduce((n, o) => n + o.count, 0);
+  if (g.type === 'objects') return r.objects?.length === 1 ? `Find the ${r.objects[0].name.toLowerCase()}${pieces > 1 ? ` ×${pieces}` : ''}` : `Find ${pieces} objects`;
+  return g.type === 'endless' ? 'Endless' : g.type === 'distance' ? `Run ${g.target} m` : g.type === 'coins' ? `Collect ${g.target} coins` : `Score ${g.target.toLocaleString()}`;
+}
 
 const record = (raw: unknown, label: string, keys: string[]) => {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw Error(`Use valid ${label} settings.`);
@@ -77,7 +88,7 @@ export function parseRace(raw: unknown): RaceSettings {
 export function parseRunner(raw: unknown, enemyIds: readonly string[]): RunnerSettings {
   const d = defaultRunner();
   if (raw === undefined) return { ...d, chaser: enemyIds[0] ?? 'none' };
-  const p = record(raw, 'runner', ['theme', 'lanes', 'startSpeed', 'maxSpeed', 'speedRamp', 'obstacles', 'powerUps', 'chaser', 'goal', 'revive', 'seed']);
+  const p = record(raw, 'runner', ['theme', 'lanes', 'startSpeed', 'maxSpeed', 'speedRamp', 'obstacles', 'powerUps', 'chaser', 'goal', 'revive', 'seed', 'objects']);
   if (p.lanes !== undefined && p.lanes !== 3) throw Error('Runner courses use 3 lanes.');
   const startSpeed = p.startSpeed === undefined ? d.startSpeed : number(p.startSpeed, 6, 20, 'a runner start speed (m/s)');
   const maxSpeed = p.maxSpeed === undefined ? Math.max(d.maxSpeed, startSpeed) : number(p.maxSpeed, startSpeed, 40, 'a runner maximum speed (m/s, at least the start speed)');
@@ -87,16 +98,18 @@ export function parseRunner(raw: unknown, enemyIds: readonly string[]): RunnerSe
   if (typeof chaser !== 'string' || (chaser !== 'none' && !enemyIds.includes(chaser))) throw Error(`runner.chaser must be one of the enemy IDs (${enemyIds.join(', ')}) or none.`);
   let goal: RunnerGoal = d.goal;
   if (p.goal !== undefined) {
-    const g = record(p.goal, 'runner goal', ['type', 'target']), type = choice(g.type, ['endless', 'distance', 'coins', 'score'] as const, 'Choose an endless, distance, coins or score runner goal.');
-    if (type === 'endless') { if (g.target !== undefined) throw Error('An endless runner goal has no target.'); goal = { type }; }
+    const g = record(p.goal, 'runner goal', ['type', 'target']), type = choice(g.type, ['endless', 'distance', 'coins', 'score', 'objects'] as const, 'Choose an endless, distance, coins, score or objects runner goal.');
+    if (type === 'endless' || type === 'objects') { if (g.target !== undefined) throw Error(`An ${type} runner goal has no target.`); goal = { type }; }
     else goal = { type, target: whole(g.target, type === 'coins' ? 10 : 100, type === 'score' ? 1_000_000 : 100_000, `a ${type} goal target`) };
   }
   const seed = p.seed === undefined ? undefined : whole(p.seed, 0, 2_147_483_647, 'a runner seed');
+  const objects = p.objects === undefined ? [] : parseRunnerObjects(p.objects);
+  if (goal.type === 'objects' && !objects.length) throw Error('An objects runner goal needs at least one entry in runner.objects.');
   return {
     theme: p.theme === undefined ? d.theme : choice(p.theme, RUNNER_THEMES, `Choose a runner theme: ${RUNNER_THEMES.join(', ')}.`), lanes: 3, startSpeed, maxSpeed,
     speedRamp: p.speedRamp === undefined ? d.speedRamp : choice(p.speedRamp, ['gentle', 'steady', 'steep'] as const, 'Choose a gentle, steady or steep speed ramp.'),
     obstacles, powerUps: p.powerUps === undefined ? d.powerUps : subset(p.powerUps, RUNNER_POWER_UPS, 'runner.powerUps'), chaser, goal,
-    revive: p.revive === undefined ? d.revive : flag(p.revive, 'runner.revive'), ...(seed === undefined ? {} : { seed }),
+    revive: p.revive === undefined ? d.revive : flag(p.revive, 'runner.revive'), ...(seed === undefined ? {} : { seed }), ...(objects.length ? { objects } : {}),
   };
 }
 
