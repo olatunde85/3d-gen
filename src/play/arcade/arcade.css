@@ -62,7 +62,7 @@ body.arcade-active footer .desktop-help{font-size:0}body.arcade-active footer .d
 /* Game setup in race and runner modes: the same four sections, with mission-only controls set aside. */
 #setup.arcade-mode #mission-settings>:not(.config-page-heading):not(#arcade-mission),
 #setup.arcade-mode #challenge-settings>:not(.config-page-heading):not(#arcade-challenge),
-#setup.arcade-mode #presentation-settings>.config-group:has(#environment-time),
+#setup.arcade-mode #presentation-settings label[for=environment-ambient],#setup.arcade-mode #environment-ambient,#setup.arcade-mode #presentation-settings label[for=environment-volume],#setup.arcade-mode #environment-volume,#setup.arcade-mode #presentation-settings .config-group:has(#environment-time) .camera-permissions,#setup.arcade-mode #environment-mission-note,
 #setup.arcade-mode #presentation-settings>.config-group:has(#camera-default),
 #setup.arcade-mode #hero-panel>:not(label[for=hero]):not(#hero):not(.file-row),
 #setup.arcade-mode #enemy-panel>.enemy-basics,#setup.arcade-mode #enemy-panel>.challenge-basics,#setup.arcade-mode #enemy-panel>.challenge-basics+.micro,
@@ -71,3 +71,5 @@ body.arcade-active footer .desktop-help{font-size:0}body.arcade-active footer .d
 #arcade-cast .extraction-choices{margin-bottom:14px}
 #setup #race-color{width:100%;height:40px;border-radius:8px;background:#fffef9;border:1px solid #cfd8c8;padding:3px}
 #arcade-cast>.config-group:last-child{border-bottom:1px solid #e0e5d9;padding-bottom:22px;margin-bottom:22px}
+#setup.arcade-mode #cast-companion,#setup.arcade-mode #companion-panel{display:none}
+#setup:not(.arcade-mode) #environment-arcade-note{display:none}

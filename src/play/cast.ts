@@ -1,11 +1,10 @@
-import {needsCompanion} from './objectives';
 import {isGun,type Equipment,type Gun} from './weapons';
 /** Prepare a complete cast atomically; identical recipes are generated once per update. */
 import type {Character} from '../core/human';
 import type {HumanParams} from '../core/params';
 import type {Engine} from '../app/engine';
 import {GameActor} from './actor';
-import {heroWeapon,heroGuns,chapterProject,gameProjects,preset,type PlayProject} from './project';
+import {castsCompanion,heroWeapon,heroGuns,chapterProject,gameProjects,preset,type PlayProject} from './project';
 import {defaultCity} from './city';
 export interface PlayCast {hero:GameActor;heroWeapons?:Map<Gun,GameActor>;heroDelivery?:Map<Equipment,GameActor>;pedestrians?:GameActor[];police?:Map<string,GameActor>;guards:Map<string,GameActor>;companion?:GameActor;chapters?:PlayCast[]}
 export async function prepareCast(project:PlayProject,engine:Engine,texture:(file:string)=>string,progress:(text:string)=>void,previous?:PlayCast&{project:PlayProject},sharedHero?:GameActor):Promise<PlayCast>{
@@ -21,7 +20,7 @@ export async function prepareCast(project:PlayProject,engine:Engine,texture:(fil
  try{
   const hero=sharedHero??await build(equipped(project.character,heroWeapon(project)),previous?equipped(previous.project.character,heroWeapon(previous.project)):undefined,previous?.hero),guards=new Map<string,GameActor>();
   for(const enemy of project.enemies){const old=previous?.project.enemies.find(e=>e.id===enemy.id);guards.set(enemy.id,await build(equipped(enemy.character,isGun(enemy.response)?enemy.response:'none'),old?equipped(old.character,isGun(old.response)?old.response:'none'):undefined,previous?.guards.get(enemy.id)));}
-  const companion=needsCompanion(project.mission)?await build(equipped(project.companion.character,'none'),previous?.companion?equipped(previous.project.companion.character,'none'):undefined,previous?.companion):undefined;
+  const companion=castsCompanion(project)?await build(equipped(project.companion.character,'none'),previous?.companion?equipped(previous.project.companion.character,'none'):undefined,previous?.companion):undefined;
   return {hero,guards,companion};
  }catch(error){created.forEach(actor=>actor.dispose());throw error;}
 }

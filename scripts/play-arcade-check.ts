@@ -1,7 +1,8 @@
 /** Arcade race and endless runner contracts: settings, rules, generation, records and portable JSON. */
 import assert from 'node:assert/strict';
 import { nodeLibrary } from './node-assets';
-import { chapterProject, chapterSettings, defaultProject, parseProject } from '../src/play/project';
+import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject } from '../src/play/project';
+import { skyLook } from '../src/play/arcade/weather';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
 import { defaultRace, defaultRunner, parseRace, parseRunner } from '../src/play/arcade/modes';
 import { TRACK_IDS, TRACK_TEMPLATES, buildTrack, locate, parseTrack, trackPoint } from '../src/play/arcade/track';
@@ -112,5 +113,18 @@ check('runner obstacles demand the right move: jump low barriers, slide under ba
   const g = new RunnerGame({ ...defaultRunner(), chaser: 'none', obstacles: ['bar-high'] }, profile(), 11);g.start();
   for (let i = 0; i < 120 * 30 && g.status === 'running'; i++) g.update(1 / 120, { ...botInput(g), slide: false });assert.ok(g.stumbles > 0, 'running into a bar trips the runner');
   assert.equal(LANE, 1.8);for (const id of ['run_slide', 'run_lean_left', 'run_lean_right', 'stumble_recover']) assert.ok(clipById.get(id), id);
+});
+check('race and runner games ignore companion boarding and read the chapter atmosphere', () => {
+  const base = { ...defaultProject(), mission: { ...defaultProject().mission, story: 'rescue' as const, extraction: 'pickup' as const }, vehicle: { color: '#aa3322', pace: 'standard' as const, model: 'danfo' as const } };
+  assert.throws(() => parseProject(JSON.stringify(base), cat), /Companion boarding/);
+  for (const mode of ['race', 'runner'] as const) {
+    const p = parseProject(JSON.stringify({ ...base, mode, ...(mode === 'race' ? { race: defaultRace() } : { runner: defaultRunner() }) }), cat);
+    assert.equal(castsCompanion(p), false, mode);
+  }
+  assert.equal(castsCompanion(parseProject(JSON.stringify({ ...base, vehicle: { color: '#aa3322', pace: 'standard' } }), cat)), true);
+  const theme = { sky: '#aebfca', fog: [90, 420] as [number, number] }, day = skyLook(theme), night = skyLook(theme, { time: 'night', weather: 'clear' }), rain = skyLook(theme, { time: 'day', weather: 'rain' }), fog = skyLook(theme, { time: 'dusk', weather: 'fog' });
+  assert.equal(day.lamps, 0);assert.equal(day.wet, false);assert.deepEqual(day.fog, [90, 420]);
+  assert.equal(night.lamps, 1);assert.ok(night.sun < 0.5 && night.sky.getHSL({ h: 0, s: 0, l: 0 }).l < 0.15);
+  assert.ok(rain.wet && rain.fog[1] < 300);assert.ok(fog.fog[1] < 200 && fog.lamps >= 0.5);
 });
 console.log(`${checks} arcade race and runner contracts passed.`);

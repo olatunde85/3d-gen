@@ -1,7 +1,6 @@
-import {needsCompanion} from './objectives';
 import type {Gun} from './weapons';
 import type {Character} from '../core/human';
-import {gameProjects,heroGuns,type PlayProject} from './project';
+import {castsCompanion,gameProjects,heroGuns,type PlayProject} from './project';
 import type {PlayCast} from './cast';
 import {GameActor} from './actor';
 import {decodeCharacter} from './character-pack';
@@ -12,7 +11,7 @@ export async function loadGameCast(manifest:GameManifest,project:PlayProject,bas
  if(manifest.kind!=='ara-play-game'||manifest.version!==1)throw Error('Choose a supported Ara game bundle.');
  const projects=gameProjects(project),lists=[manifest.actors,...(manifest.chapters??[]).map(c=>c.actors)];
  if(lists.length!==projects.length||manifest.chapters?.some((c,i)=>c.id!==project.chapters![i].id))throw Error('The chapter cast is incomplete.');
- lists.forEach((actors,i)=>{const p=projects[i],guns=heroGuns(project),expected=[['player','player'],...(guns.length>1?guns.map(g=>['player-weapon',g]):[]),...p.enemies.map(e=>['enemy',e.id]),...(needsCompanion(p.mission)?[['companion','companion']]:[])];if(!Array.isArray(actors)||actors.length!==expected.length||actors.length>9||expected.some(([role,id])=>actors.filter(a=>a.role===role&&a.id===id).length!==1)||actors.some(a=>!localAsset(a.asset)||!a.asset.startsWith('characters/'))||i>0&&actors.find(a=>a.role==='player')!.asset!==lists[0].find(a=>a.role==='player')!.asset)throw Error('The game cast is incomplete.');});
+ lists.forEach((actors,i)=>{const p=projects[i],guns=heroGuns(project),expected=[['player','player'],...(guns.length>1?guns.map(g=>['player-weapon',g]):[]),...p.enemies.map(e=>['enemy',e.id]),...(castsCompanion(p)?[['companion','companion']]:[])];if(!Array.isArray(actors)||actors.length!==expected.length||actors.length>9||expected.some(([role,id])=>actors.filter(a=>a.role===role&&a.id===id).length!==1)||actors.some(a=>!localAsset(a.asset)||!a.asset.startsWith('characters/'))||i>0&&actors.find(a=>a.role==='player')!.asset!==lists[0].find(a=>a.role==='player')!.asset)throw Error('The game cast is incomplete.');});
  const characters=new Map<string,Character>(),created:GameActor[]=[],pool=new Map<string,GameActor>(),casts:PlayCast[]=[];const total=lists.reduce((n,a)=>n+a.length,0);let done=0;
  try{
   for(const list of lists){let hero:GameActor|undefined,companion:GameActor|undefined;const guards=new Map<string,GameActor>(),heroWeapons=new Map<Gun,GameActor>();

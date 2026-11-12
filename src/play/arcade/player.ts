@@ -75,13 +75,13 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       const others = drivers(chapter), base = others.map((a) => a.render.character.params.name || 'Rival'), count = settingsCount(base, settings.opponents);
       const names = { player: project.character.name || 'You', drivers: count };
       race = new RaceGame(settings, names, daily ? dailySeed(gameKey()) : 1 + chapter, ghost);
-      raceView = new RaceView(race, castFor(chapter).hero.clone(), others.length ? others : [castFor(chapter).hero], settings.ghost ? castFor(chapter).hero.clone() : undefined, renderer);
+      raceView = new RaceView(race, castFor(chapter).hero.clone(), others.length ? others : [castFor(chapter).hero], settings.ghost ? castFor(chapter).hero.clone() : undefined, renderer, project.mission.environment);
       ghostIndex = 0;hud.reset(`${race.track.name.toUpperCase()} / ARCADE RACE`);
     } else {
       const settings: RunnerSettings = project.runner!, record = runnerRecord(gameKey());
       runner = new RunnerGame(settings, { upgrades: record.upgrades, missionLevel: record.missionLevel, missions: record.missions, bank: record.bank }, daily ? dailySeed(gameKey()) : settings.seed ?? Date.now() % 100000);
       const chaser = settings.chaser !== 'none' ? castFor(chapter).guards.get(settings.chaser)?.clone() : undefined;
-      runnerView = new RunnerView(runner, runnerActor(record), chaser);hud.reset(`${settings.theme.replace('-', ' ').toUpperCase()} / ENDLESS RUN`);
+      runnerView = new RunnerView(runner, runnerActor(record), chaser, project.mission.environment);hud.reset(`${settings.theme.replace('-', ' ').toUpperCase()} / ENDLESS RUN`);
     }
     music.configure(project.music, true);music.setPlaying(false);
     phase = 'intro';intro();
@@ -312,7 +312,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     if (setupOpen() && phase === 'playing' && !paused) setPause(true);
     if (input.tap('Escape', 'KeyP') || input.gamepad()?.edge[9]) { if (phase === 'playing') setPause(!paused); }
     if ((input.tap('KeyR') || input.gamepad()?.edge[8]) && (phase === 'playing' || phase === 'results')) start();
-    sfx.enabled = audioOn();music.setMuted(!audioOn());
+    sfx.enabled = audioOn();music.setMuted(!audioOn());{ const w = project.mission.environment?.weather;sfx.weather(w === 'rain' || w === 'sandstorm' ? w : 'none', active && !paused && phase !== 'intro'); }
     const dt = real * feel.timeScale, running = phase === 'playing' && !paused;
     if (race && raceView) {
       if (running) { race.update(real, raceInput(), feel.timeScale);raceEvents(); }
@@ -332,7 +332,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   }
   function activate(on: boolean) {
     active = on;input.active = on;hud.root.hidden = !on;document.body.classList.toggle('arcade-active', on);
-    if (!on) { music.setPlaying(false);engine.update(false, 0, false);paused = false; }
+    if (!on) { music.setPlaying(false);engine.update(false, 0, false);sfx.weather('none', false);paused = false; }
   }
   function replace(nextProject: PlayProject, nextCast: PlayCast, playNow = true) {
     root = nextProject;cast = nextCast;daily = false;

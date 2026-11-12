@@ -42,7 +42,11 @@ The course is generated from straights, corners and T-junctions in the chosen th
 
 Clipping a low barrier or a bar is a **stumble**: the runner slows and the chaser closes in, and a second stumble soon after is caught. Hitting a blocker or cart, falling into a gap, or missing a corner ends the run unless a shield or boost is active. **Revive** continues the run for coins, doubling the price each time.
 
-Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, speed boost and ×2 score. Score is distance plus coins, times the multiplier. Three missions at a time (for example collect coins, run a distance or jump a number of times) raise the multiplier when all three are done. Coins are banked between runs and buy longer power-ups and extra runners: the companion and the enemies. A `goal` of distance, coins or score completes a stage; with chapters, each stage opens the next. `seed` gives every player the same course, and the **daily run** uses a course chosen by the date.
+Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, speed boost and ×2 score. Score is distance plus coins, times the multiplier. Three missions at a time (for example collect coins, run a distance or jump a number of times) raise the multiplier when all three are done. Coins are banked between runs and buy longer power-ups and extra runners: the enemies. A `goal` of distance, coins or score completes a stage; with chapters, each stage opens the next. `seed` gives every player the same course, and the **daily run** uses a course chosen by the date.
+
+### Time and weather
+
+**Atmosphere → Light, weather & sound** sets the time of day and weather for races and runs, stored as `mission.environment.time` and `weather`; each chapter can choose its own. Dawn and dusk tint the sky and lower the sun. Dusk and night switch on every car's headlamps with light pools on the road ahead, lamp posts with pools along the circuit, and lamps and a lantern pool around the runner. Rain darkens and wets the road so it reflects, with falling streaks and a rain sound; fog closes in the view; a sandstorm adds an orange haze, blowing dust and wind. Thicker fog also shortens the draw distance. The lamps and pools are batched additive decals rather than real lights, so night and weather add a handful of draw calls and no extra lighting cost. Race and runner games have no companion; companion settings stay in the JSON but are unused.
 
 ### Controls and feel
 
@@ -170,7 +174,7 @@ Agile movement chooses vaults and climbs from measured heights and safe landings
 
 ## Save, import and export
 
-- **Save setup** writes `.ara-play.json` without attachments, or `.ara-play.zip` with local story media. **Open setup** accepts both. It imports character settings separately through Cast.
+- **Save setup** writes `.ara-play.json` without attachments, or `.ara-play.zip` with local story media. **Open setup** accepts both. It imports character settings separately through Cast. **Start over** clears every setting back to a fresh mission setup after a confirmation; save first to keep the current one.
 - **Download game ZIP** includes an independent HTML/JavaScript player, exact generated characters, selected textures, recorded sounds/music and story media. It does not run the character generator or require Ara services.
 - `locations.json` contains the selected base map contracts; `staging.json` contains each configured mission’s measured solids, actor starts, objectives, paths, floodlights and extraction area.
 - Unzip and serve the folder with a static host or the local HTTP instructions in its README. Browser module/media rules require HTTP rather than opening `index.html` through `file://`.

@@ -82,7 +82,7 @@ Vehicle bodies, traffic and the district's look grow together; every addition ke
 - [x] Saloon, muscle car, danfo minibus, van, box truck, city bus, keke tricycle, scooter, quad bike and go-kart, built around the rider fit of an existing vehicle. Each is drivable in missions (the bus in the city only), raceable in arcade mode and parked in the city.
 - [x] Moving city traffic on right-turn loops around the blocks, with paved lanes, queuing, waiting for people, horns and passing stopped vehicles. Copies share each vehicle's geometry, merge into one mesh per material, switch to a box version beyond 55 m and are hidden in the fog.
 - [x] Police chase in a marked saloon with flashing beacons.
-- [ ] Arcade scenery and atmosphere: night races with headlights, rain, time and weather in arcade modes.
+- [x] Arcade time of day and weather: dawn, day, dusk and night with headlamps, lamp posts and a runner lantern drawn as batched light decals; rain with a wet road, streaks and sound; fog and sandstorms that shorten the view.
 - [ ] A track builder in Game setup.
 - [ ] A phone performance pass with compressed textures and distance detail for parked cars and scenery.
 
