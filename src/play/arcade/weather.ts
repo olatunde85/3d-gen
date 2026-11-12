@@ -44,25 +44,27 @@ export function poolTexture() {
 /** An additive material for light decals laid on the road. */
 export const glowMaterial = (map: T.Texture, color: string, opacity: number) => new T.MeshBasicMaterial({ map, color, transparent: true, opacity, blending: T.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 
+export type Particles = 'rain' | 'sandstorm' | 'snow' | 'embers' | 'fireflies';
+const PARTICLES: Record<Particles, { count: number; box: number; color: string; opacity: number; additive?: boolean }> = {
+  rain: { count: 900, box: 46, color: '#c9d6e2', opacity: 0.42 }, sandstorm: { count: 520, box: 54, color: '#e2c497', opacity: 0.38 },
+  snow: { count: 700, box: 40, color: '#ffffff', opacity: 0.85 }, embers: { count: 260, box: 40, color: '#ff9a3c', opacity: 0.9, additive: true },
+  fireflies: { count: 120, box: 36, color: '#d8ff7a', opacity: 0.9, additive: true },
+};
 /**
- * Falling rain streaks or blowing dust in a box around the camera. Each drop keeps a fixed place in the world and
+ * Falling rain streaks, blowing dust, drifting snow, rising embers or fireflies in a box around the camera. Each drop keeps a fixed place in the world and
  * wraps to the far side of the box as the camera passes, so speed reads correctly; one draw call, no allocation.
  */
 export class Precipitation {
   readonly object: T.LineSegments;
   private seeds: Float32Array; private positions: Float32Array;
-  constructor(readonly kind: 'rain' | 'sandstorm', private count = kind === 'rain' ? 900 : 520, private box = kind === 'rain' ? 46 : 54, private height = 22) {
-    this.seeds = new Float32Array(count * 3);for (let i = 0; i < this.seeds.length; i++) { const v = Math.sin(i * 12.9898 + 78.233) * 43758.5453;this.seeds[i] = v - Math.floor(v); }
-    const geometry = new T.BufferGeometry();
-    if (kind === 'rain') {
-      this.positions = new Float32Array(count * 6);geometry.setAttribute('position', new T.BufferAttribute(this.positions, 3));
-      this.object = new T.LineSegments(geometry, new T.LineBasicMaterial({ color: '#c9d6e2', transparent: true, opacity: 0.42, depthWrite: false }));
-    } else {
-      // Dust is drawn as short streaks along the wind, like rain: point sprites break up into coloured specks on some
-      // phone graphics chips.
-      this.positions = new Float32Array(count * 6);geometry.setAttribute('position', new T.BufferAttribute(this.positions, 3));
-      this.object = new T.LineSegments(geometry, new T.LineBasicMaterial({ color: '#e2c497', transparent: true, opacity: 0.38, depthWrite: false }));
-    }
+  private count: number; private box: number;
+  constructor(readonly kind: Particles, private height = 22) {
+    const look = PARTICLES[kind];this.count = look.count;this.box = look.box;
+    this.seeds = new Float32Array(this.count * 3);for (let i = 0; i < this.seeds.length; i++) { const v = Math.sin(i * 12.9898 + 78.233) * 43758.5453;this.seeds[i] = v - Math.floor(v); }
+    // Everything is drawn as short line streaks: point sprites break up into coloured specks on some phone graphics
+    // chips. Snowflakes are short crosses, so they read as flakes from any side.
+    const geometry = new T.BufferGeometry();this.positions = new Float32Array(this.count * (kind === 'snow' ? 12 : 6));geometry.setAttribute('position', new T.BufferAttribute(this.positions, 3));
+    this.object = new T.LineSegments(geometry, new T.LineBasicMaterial({ color: look.color, transparent: true, opacity: look.opacity, depthWrite: false, ...(look.additive ? { blending: T.AdditiveBlending, fog: false } : {}) }));
     this.object.frustumCulled = false;this.object.renderOrder = 2;
   }
   update(time: number, camera: T.Vector3) {
@@ -72,6 +74,15 @@ export class Precipitation {
       if (this.kind === 'rain') {
         const x = wrap(sx - time * 2.5, camera.x), z = wrap(sz, camera.z), y = camera.y - height * 0.35 + ((((sy * height - time * 15) % height) + height) % height);
         const k = i * 6;positions[k] = x;positions[k + 1] = y;positions[k + 2] = z;positions[k + 3] = x + 0.05;positions[k + 4] = y - 0.75;positions[k + 5] = z;
+      } else if (this.kind === 'snow') {
+        const sway = Math.sin(time * 1.3 + i * 0.7) * 0.6, x = wrap(sx + time * 0.8 + sway, camera.x), z = wrap(sz + Math.cos(time * 0.9 + i) * 0.4, camera.z), y = camera.y - height * 0.35 + ((((sy * height - time * 1.6) % height) + height) % height);
+        const k = i * 12, r = 0.05;positions.set([x - r, y, z, x + r, y, z, x, y - r, z - r * 0.5, x, y + r, z + r * 0.5], k);
+      } else if (this.kind === 'embers') {
+        const x = wrap(sx + Math.sin(time * 0.8 + i) * 1.5 + time * 0.6, camera.x), z = wrap(sz + Math.cos(time * 0.6 + i * 1.3), camera.z), y = camera.y - 3 + ((((sy * 14 + time * 2.2) % 14) + 14) % 14);
+        const k = i * 6;positions[k] = x;positions[k + 1] = y;positions[k + 2] = z;positions[k + 3] = x + 0.03;positions[k + 4] = y + 0.12;positions[k + 5] = z;
+      } else if (this.kind === 'fireflies') {
+        const blink = Math.sin(time * 2 + i * 2.3) > 0.2 ? 1 : 0, x = wrap(sx + Math.sin(time * 0.5 + i) * 1.2, camera.x), z = wrap(sz + Math.cos(time * 0.4 + i * 1.7) * 1.2, camera.z), y = Math.max(0.3, camera.y - 1.5 + sy * 3.5 + Math.sin(time * 0.9 + i) * 0.3);
+        const k = i * 6, r = 0.05 * blink;positions[k] = x - r;positions[k + 1] = y;positions[k + 2] = z;positions[k + 3] = x + r;positions[k + 4] = y + r;positions[k + 5] = z;
       } else {
         const x = wrap(sx + time * 11, camera.x), z = wrap(sz + time * 3, camera.z), y = Math.max(0.3, camera.y - 2 + sy * 7 + Math.sin(time * 1.7 + i) * 0.4);
         const k = i * 6;positions[k] = x;positions[k + 1] = y;positions[k + 2] = z;positions[k + 3] = x - 0.55;positions[k + 4] = y + 0.02;positions[k + 5] = z - 0.15;
