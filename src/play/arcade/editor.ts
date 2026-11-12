@@ -9,7 +9,8 @@ import { TRACK_TEMPLATES, buildTrack, type CustomTrack, type TrackTemplate } fro
 import { CAR_STATS } from './race';
 import { ICONS, iconSvg } from './icons';
 import { MAX_RUNNER_OBJECTS, RUNNER_GENERIC_ICONS, RUNNER_ICON_NAMES, RUNNER_OBJECT_NAMES, RUNNER_OBJECT_TYPES, runnerObject, type RunnerObject, type RunnerObjectIcon, type RunnerObjectType } from './objects';
-import { defaultRace, defaultRunner, parseRace, parseRunner, RACE_CARS, RUNNER_THEMES, RUNNER_THEME_NAMES, retitle, type PlayMode, type RaceSettings, type RunnerSettings } from './modes';
+import { DEFAULT_RUNNER_MEDALS } from './medals';
+import { defaultRace, defaultRunner, parseRace, parseRunner, RACE_CARS, RUNNER_THEMES, RUNNER_THEME_NAMES, retitle, runnerMedalTargets, type PlayMode, type RaceSettings, type RunnerSettings } from './modes';
 
 const MODES: { id: PlayMode; title: string; lines: [string, string] }[] = [
   { id: 'mission', title: 'Mission', lines: ['Staged goals.', 'Sneak, fight, escape.'] },
@@ -20,6 +21,7 @@ const THEMES: Record<string, { name: string; note: string; ground: string; path:
   'temple-ruins': { name: RUNNER_THEME_NAMES['temple-ruins'], note: 'Stone paths & jungle pillars', ground: '#cfdcc0', path: '#b3a98e', side: '#8f876f' },
   'city-rooftops': { name: RUNNER_THEME_NAMES['city-rooftops'], note: 'Concrete roofs above the streets', ground: '#cfd8de', path: '#8c9096', side: '#b9b6ad' },
   'desert-canyon': { name: RUNNER_THEME_NAMES['desert-canyon'], note: 'Sand trails between rock walls', ground: '#ead8b8', path: '#cfa36b', side: '#a8683f' },
+  'market-street': { name: RUNNER_THEME_NAMES['market-street'], note: 'Stalls, minibuses and tricycles', ground: '#e4d6c3', path: '#7a756e', side: '#e0a03a' },
 };
 const TRACK_GROUND: Record<string, string> = { city: '#dfe5d6', desert: '#ead8b8', harbour: '#d6dfe3', forest: '#cfdcc0' };
 const PICKUP_NOTES: Record<string, [string, string]> = {
@@ -79,6 +81,17 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
   });
   const toggle = (id: string, title: string, value: boolean, note: string, on: (v: boolean) => void) => { const l = el('label'), i = el('input');i.type = 'checkbox';i.id = id;i.checked = value;i.onchange = () => on(i.checked);l.append(i, ` ${title}`);return [l, Object.assign(el('p', 'micro'), { textContent: note })]; };
   const note = el('p', 'micro');note.setAttribute('role', 'status');
+  /** Bronze, silver and gold score targets; each stays above the one before. */
+  const medalTargets = (r: RunnerSettings) => {
+    const t = runnerMedalTargets(r)!, row = el('div', 'runner-medal-targets');
+    for (const key of ['bronze', 'silver', 'gold'] as const) row.append(number(`runner-medal-${key}`, `${key[0].toUpperCase()}${key.slice(1)} · points`, t[key], 1, 1_000_000, (v) => runner((q) => {
+      const next = { ...runnerMedalTargets(q)!, [key]: v ?? DEFAULT_RUNNER_MEDALS[key] };
+      if (key !== 'gold' && next.silver <= next.bronze) next.silver = next.bronze + 1;if (next.gold <= next.silver) next.gold = next.silver + 1;
+      if (key !== 'bronze' && next.bronze >= next.silver) next.bronze = Math.max(1, next.silver - 1);
+      q.medals = next;
+    })));
+    return row;
+  };
   /** The runner's objects to find: type, name, icon, count and clue for each, in the order they appear. */
   const objectsGroup = (r: RunnerSettings) => {
     const list = r.objects ?? [], required = r.goal.type === 'objects', edit = (fn: (objects: RunnerObject[]) => void) => runner((q) => { const objects = q.objects ?? [];fn(objects);if (objects.length) q.objects = objects;else delete q.objects; });
@@ -162,6 +175,7 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
       roots.challenge.append(
         group('Handling & boosts', Object.assign(el('div', 'challenge-basics'), {}), ...toggle('race-nitro', 'Nitro meter', r.nitro, 'Refills slowly and from drift boosts. Hold Shift or Nitro on straights.', (v) => race((q) => { q.nitro = v; })), ...toggle('race-rubber', 'Keep the pack close', r.rubberBand, 'Cars behind you speed up a little and cars ahead ease off, so every race stays close.', (v) => race((q) => { q.rubberBand = v; }))),
         group('Track pickups', ...checks('race-pickup', PICKUP_NOTES, r.pickups, (v) => race((q) => { q.pickups = v as RaceSettings['pickups']; }))),
+        group('Medals', ...toggle('race-medals', 'Podium medals', r.medals !== false, 'Gold, silver or bronze for finishing first, second or third. The best medal for each race is kept.', (v) => race((q) => { if (v) delete q.medals;else q.medals = false; }))),
         group('Replay', ...toggle('race-ghost', 'Best-lap ghost', r.ghost, 'Records your best lap and races it as a translucent car. Share it as a link from the results.', (v) => race((q) => { q.ghost = v; }))),
       );
       roots.challenge.firstElementChild!.querySelector('.challenge-basics')!.append(select('race-handling', 'Handling', [['drift', 'Drift · slide and charge a boost'], ['grip', 'Grip · brake and steer']], r.handling, (v) => race((q) => { q.handling = v as RaceSettings['handling']; }), 'Hold Space or Drift while steering at speed. Release for a boost.'));
@@ -183,6 +197,7 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
         group('Pace', Object.assign(el('div', 'challenge-basics'), {}), 'Speed rises from the start pace to the top pace as the run goes on.'),
         group('Obstacles', ...checks('runner-obstacle', OBSTACLE_NOTES, r.obstacles, (v) => runner((q) => { q.obstacles = v as RunnerSettings['obstacles']; }))),
         group('Power-ups', ...checks('runner-power', POWER_NOTES, r.powerUps, (v) => runner((q) => { q.powerUps = v as RunnerSettings['powerUps']; }))),
+        group('Medals', ...toggle('runner-medals', 'Score medals', r.medals !== false, `Bronze, silver and gold for reaching each score in one run${r.goal.type === 'endless' ? '' : ', once the goal is reached'}. The best medal for each stage is kept.`, (v) => runner((q) => { if (v) delete q.medals;else q.medals = false; })), ...(r.medals === false ? [] : [medalTargets(r)])),
         group('Second chances', ...toggle('runner-revive', 'Revive with coins', r.revive, 'Continue a run for coins; the price doubles each time.', (v) => runner((q) => { q.revive = v; })), Object.assign(el('div', 'challenge-basics'), {})),
       );
       roots.challenge.firstElementChild!.querySelector('.challenge-basics')!.append(

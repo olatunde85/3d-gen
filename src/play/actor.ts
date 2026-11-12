@@ -37,6 +37,8 @@ export class GameActor {
  get deathElapsed(){return this.deathTime;}
  get defeatFinished(){return this.deathTime>=this.defeatDuration;}
  reset(body:Body,time:number,combat?:Combatant){this.blood.reset(combat?.health??100);this.wasDriving=false;this.vehicleFrame=undefined;this.phase=0;this.pose=undefined;this.traversal=undefined;this.fitted=undefined;this.previous=undefined;this.equipTime=0;this.movementYaw=body.yaw;this.deathTime=combat&&combat.health<=0?2:0;this.update(body,1,time,undefined,false,undefined,combat);}
+ /** Before the chapter starts the hero looks around; on a win they dance instead of cheering. */
+ waiting=false;dance=false;
  update(body:Body,dt:number,time:number,action?:EscapeGame['action'],won=false,traversal?:Traversal,combat?:Combatant,throwing?:GrenadeThrow,car?:CarState,passenger?:CompanionState['riding']){
   if(combat&&this.lastHealth===0&&combat.health>0)this.blood.reset(combat.health);if(combat)this.lastHealth=combat.health;
   const dead=!!combat&&combat.health<=0;if(dead){this.deathTime+=dt;this.defeatDuration=car?.phase!==undefined&&car.phase!=='parked'?1.1:defeatClip(combat.hitDirection,(body.crouch??0)>.05).duration;}else this.deathTime=0;
@@ -47,7 +49,7 @@ export class GameActor {
   if(this.previous&&Math.hypot(body.x-this.previous.x,body.z-this.previous.z)>.001)this.movementYaw=Math.atan2(body.x-this.previous.x,body.z-this.previous.z);this.previous={x:body.x,z:body.z};
   if(action?.approach)action=undefined;
   const active=!dead&&traversal&&!traversal.approach?traversal:undefined;if(active!==this.traversal){if(dead)this.pose=undefined;else if(this.traversal&&this.pose&&!active){const from=this.traversal.from,to=this.traversal.to,forward=(to.x-from.x)*this.traversal.normal.x+(to.z-from.z)*this.traversal.normal.z;for(const [i,p]of this.pose.rootPos)this.pose.rootPos.set(i,[p[0],p[1]-(to.y-from.y),p[2]-forward]);}this.traversal=active;this.fitted=active?traversalClip(active):undefined;}
-  const moving=body.speed>.08,id=dead?'death_backward':combat?.melee?'punch':throwing?'throw_grenade':action?INTERACTIONS[action.kind].clip:won?'cheer':!body.grounded?'jump_air':body.landing>0?'jump_land':moving?(traversal?.approach&&((traversal.from.x-body.x)*traversal.normal.x+(traversal.from.z-body.z)*traversal.normal.z)<0?'walk_back':body.speed>2.65?'run':'walk'):'idle';
+  const moving=body.speed>.08,id=dead?'death_backward':combat?.melee?'punch':throwing?'throw_grenade':action?INTERACTIONS[action.kind].clip:won?(this.dance?'dance_groove':'cheer'):!body.grounded?'jump_air':body.landing>0?'jump_land':moving?(traversal?.approach&&((traversal.from.x-body.x)*traversal.normal.x+(traversal.from.z-body.z)*traversal.normal.z)<0?'walk_back':body.speed>2.65?'run':'walk'):this.waiting&&!combat?.aiming?'look_around':'idle';
   const busy=!!combat?.melee||!!action||!!throwing||!!traversal||!body.grounded||body.landing>0||won||dead,armed=!!combat&&isGun(combat.weapon);
   const relative=Math.atan2(Math.sin(this.movementYaw-body.yaw),Math.cos(this.movementYaw-body.yaw));
   const low=!busy&&(body.crouch??0)>.05,base=low?crouchLocomotion(moving):weaponLocomotion(combat?.weapon??'none',moving,body.speed,combat?.aiming??false,relative),clip=dead?defeatClip(combat.hitDirection,(body.crouch??0)>.05):!busy&&armed?combatClip(base,combat):low?base:this.fitted??clipById.get(id)!;

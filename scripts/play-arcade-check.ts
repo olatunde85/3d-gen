@@ -1,10 +1,11 @@
 /** Arcade race and endless runner contracts: settings, rules, generation, records and portable JSON. */
 import assert from 'node:assert/strict';
 import { nodeLibrary } from './node-assets';
-import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject } from '../src/play/project';
+import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject, posesOf } from '../src/play/project';
 import { skyLook } from '../src/play/arcade/weather';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
-import { defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel } from '../src/play/arcade/modes';
+import { defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel, runnerMedalTargets } from '../src/play/arcade/modes';
+import { DEFAULT_RUNNER_MEDALS, raceMedal, runnerMedal } from '../src/play/arcade/medals';
 import { RUNNER_GENERIC_ICONS, RUNNER_OBJECT_TYPES } from '../src/play/arcade/objects';
 import { ICONS } from '../src/play/arcade/icons';
 import { TRACK_IDS, TRACK_TEMPLATES, buildTrack, locate, parseTrack, trackPoint } from '../src/play/arcade/track';
@@ -156,6 +157,18 @@ check('runner objects appear one at a time in clear lanes, in list order, return
   const plain = new RunnerGame({ ...defaultRunner(), chaser: 'none' }, profile(), 7), withObjects = new RunnerGame({ ...defaultRunner(), chaser: 'none', objects }, profile(), 7);
   for (const k of [plain, withObjects]) { k.start();for (let i = 0; i < 120 * 20 && k.status === 'running'; i++) k.update(1 / 120, botInput(k)); }
   assert.deepEqual(withObjects.segments.map((x) => x.things.map((t) => [t.kind, t.d, t.lanes])), plain.segments.map((x) => x.things.map((t) => [t.kind, t.d, t.lanes])));
+});
+check('medals follow podium places and score targets, and character moments are shared settings', () => {
+  assert.deepEqual([1, 2, 3, 4].map(raceMedal), [3, 2, 1, 0]);
+  const t = { bronze: 100, silver: 200, gold: 300 };assert.deepEqual([99, 100, 250, 300].map((n) => runnerMedal(n, t)), [0, 1, 2, 3]);assert.equal(runnerMedal(999, t, false), 0, 'a stage goal comes first');
+  assert.deepEqual(parseRunner({ medals: t }, ['enemy-1']).medals, t);assert.equal(parseRunner({ medals: false }, ['enemy-1']).medals, false);assert.equal(runnerMedalTargets(defaultRunner()), DEFAULT_RUNNER_MEDALS);
+  for (const bad of [{ medals: { bronze: 300, silver: 200, gold: 400 } }, { medals: { bronze: 0 } }, { medals: true }, { medals: { platinum: 1 } }]) assert.throws(() => parseRunner(bad, ['enemy-1']), Error, JSON.stringify(bad));
+  assert.equal(parseRace({ medals: false }).medals, false);assert.equal(parseRace({ medals: true }).medals, undefined);assert.throws(() => parseRace({ medals: 'gold' }));
+  assert.equal(parseRunner({ theme: 'market-street' }, ['enemy-1']).theme, 'market-street');assert.ok(clipById.get('look_around') && clipById.get('dance_groove'));
+  const base = defaultProject() as unknown as Record<string, unknown>;
+  assert.deepEqual(posesOf(parseProject(JSON.stringify(base), cat)), { lookAround: true, dance: true });
+  assert.deepEqual(parseProject(JSON.stringify({ ...base, poses: { dance: false } }), cat).poses, { lookAround: true, dance: false });
+  for (const bad of [{ dance: 'yes' }, { wave: true }, []]) assert.throws(() => parseProject(JSON.stringify({ ...base, poses: bad }), cat));
 });
 check('race and runner games ignore companion boarding and read the chapter atmosphere', () => {
   const base = { ...defaultProject(), mission: { ...defaultProject().mission, story: 'rescue' as const, extraction: 'pickup' as const }, vehicle: { color: '#aa3322', pace: 'standard' as const, model: 'danfo' as const } };

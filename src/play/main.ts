@@ -27,7 +27,7 @@ import {GameScene} from './scene';
 import {CAMERA_VIEWS,MUSIC_TRACKS,type CameraView,type MusicId} from './presentation';
 import {GameMusic} from './music';
 import {EscapeGame} from './runtime';
-import {castsCompanion,defaultProject,parseProject,preset,playable,resizeEnemies,heroWeapon,gameStem,gameProjects,chapterProject,chapterSettings,MAX_CHAPTERS,type PlayProject} from './project';
+import {castsCompanion,defaultProject,parseProject,preset,playable,resizeEnemies,heroWeapon,gameStem,gameProjects,chapterProject,chapterSettings,MAX_CHAPTERS,posesOf,type PlayProject} from './project';
 import {defaultDriving,type DrivingSettings} from './driving';
 import {LOCATIONS,type LocationId} from './locations';
 import {PLANS,defaultMission,missionTimeLimit,usesPickup,missionGoal,extractionMode} from './mission';
@@ -88,6 +88,7 @@ const setupPages=['mission','cast','challenge','presentation']as const;
 function showSetupPage(page:typeof setupPages[number]){$('editing-section').textContent=page==='presentation'?'Atmosphere':page[0].toUpperCase()+page.slice(1);setup.querySelector<HTMLElement>('.setup-content')!.scrollTop=0;for(const name of setupPages){const on=name===page;button('setup-'+name).setAttribute('aria-selected',String(on));button('setup-'+name).tabIndex=on?0:-1;$(name+'-settings').hidden=!on;}if(page!=='presentation')stopMusicPreview();}
 for(const page of setupPages){button('setup-'+page).onclick=()=>showSetupPage(page);button('setup-'+page).addEventListener('keydown',e=>{const index=setupPages.indexOf(page);if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();const next=setupPages[e.key==='Home'?0:e.key==='End'?setupPages.length-1:(index+(['ArrowRight','ArrowDown'].includes(e.key)?1:setupPages.length-1))%setupPages.length];showSetupPage(next);button('setup-'+next).focus();});}
 select('mission-location').replaceChildren(...LOCATIONS.map(l=>new Option(l.name,l.id)));
+function paintMoments(){const m=posesOf(draftRoot);$<HTMLInputElement>('pose-look-around').checked=m.lookAround;$<HTMLInputElement>('pose-dance').checked=m.dance;}
 function paintMission(){$<HTMLInputElement>('stealth-senses').checked=!!draft.mission.stealth;for(const key of ['pursuit','overwatch']as const)$<HTMLInputElement>('support-'+key).checked=!!draft.mission[key];
  const city={...defaultCity(),...draftRoot.city};select('city-size').value=city.size;select('city-pedestrians').value=String(city.pedestrians);select('city-traffic').value=String(city.traffic);select('city-moving-traffic').value=String(city.movingTraffic);select('city-hostility').value=city.pedestrianHostility;for(const [id,key]of [['city-police','police'],['city-repair','repairShop'],['city-gun-shop','gunShop'],['city-fights','pedestrianFights'],['city-weapon-switch','weaponSwitch'],['city-radio','radio']]as const)$<HTMLInputElement>(id).checked=city[key];select('city-radio-country').value=city.radioCountry;
  $<HTMLInputElement>('side-delivery').checked=!!draft.mission.sideQuests?.includes('delivery');$<HTMLInputElement>('side-race').checked=!!draft.mission.sideQuests?.includes('street-race');$<HTMLInputElement>('side-bounty').checked=!!draft.mission.sideQuests?.includes('bounty');$<HTMLInputElement>('side-race').disabled=!usesPickup(draft.mission);
@@ -148,7 +149,7 @@ function paintEnemies(){
 const storyUi=storyEditor($('story-editor'),()=>draft,()=>engine,()=>lib);
 const chainEditor=objectiveEditor($('objective-editor'),()=>draft,()=>paintMission());
 const modeUi=modeEditor({mission:$('arcade-mission'),cast:$('arcade-cast'),challenge:$('arcade-challenge')},()=>draft,()=>editingChapter,()=>{if(castRole==='companion'&&!castsCompanion(draft))showCast('player');wholeDraft();spreadArcadeChapters(draftRoot);retitleAll(draftRoot);if(!draftRoot.mode)automaticTitle();$<HTMLInputElement>('game-title').value=draft.identity.title;paintChapters();paintSetupSummary(setup,draft);});
-function paintDraft(){storyUi.paint();chainEditor.paint();modeUi.paint();paintPicker('hero',draft.character);$('cast-player-name').textContent=draft.character.name||'Custom character';paintEnemies();paintMission();paintLoadout();paintPresentation();paintPicker('companion',draft.companion.character);select('companion-health-setting').value=String(draft.companion.health);$('cast-companion-name').textContent=draft.companion.character.name;$('setup-note').textContent='';showCast(castRole);}
+function paintDraft(){storyUi.paint();chainEditor.paint();modeUi.paint();paintPicker('hero',draft.character);$('cast-player-name').textContent=draft.character.name||'Custom character';paintEnemies();paintMission();paintLoadout();paintPresentation();paintMoments();paintPicker('companion',draft.companion.character);select('companion-health-setting').value=String(draft.companion.health);$('cast-companion-name').textContent=draft.companion.character.name;$('setup-note').textContent='';showCast(castRole);}
 function paintProgression(){select('completion-reward').value=draft.progression.reward??'none';
  select('supplies').value=draft.progression.supplies;select('scoring').value=draft.progression.scoring;
  const count={scarce:2,balanced:4,plentiful:6}[draft.progression.supplies];
@@ -264,5 +265,7 @@ select('completion-reward').onchange=()=>{const v=select('completion-reward').va
 
 for(const key of ['pursuit','overwatch']as const)$<HTMLInputElement>('support-'+key).onchange=()=>{draft.mission[key]=$<HTMLInputElement>('support-'+key).checked;};
 
+// Character moments are shared by every chapter, so they live on the whole game and on the chapter being edited.
+for(const [id,key]of [['pose-look-around','lookAround'],['pose-dance','dance']]as const)$<HTMLInputElement>(id).onchange=()=>{const next={...posesOf(draftRoot),[key]:$<HTMLInputElement>(id).checked};draftRoot.poses=next;draft.poses=next;};
 $<HTMLInputElement>('stealth-senses').onchange=()=>draft.mission.stealth=$<HTMLInputElement>('stealth-senses').checked;
 for(const [id,quest]of [['side-delivery','delivery'],['side-race','street-race'],['side-bounty','bounty']]as const)$<HTMLInputElement>(id).onchange=()=>{const choices=new Set(draft.mission.sideQuests??[]);if($<HTMLInputElement>(id).checked){choices.add(quest);if(quest==='street-race'){draft.mission.driveDifficulty='hard';select('driving-difficulty').value='hard';}}else choices.delete(quest);draft.mission.sideQuests=[...choices];};
