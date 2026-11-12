@@ -4,6 +4,62 @@ Ara Play turns character recipes and a few mission choices into a playable game.
 
 Five measured locations, objective chains, enemy roles, ground and helicopter extraction, combat, story cues and independent game ZIPs use the same simulation in preview and export. The creator chooses the story beats; Ara stages characters, routes, terminals, supplies and vehicles automatically.
 
+## Game modes
+
+**Game setup → Mission → What kind of game?** chooses the rules: **Mission** (the staged maps described below), **Arcade race** or **Endless runner**. Race and runner games keep the same four sections: **Mission** picks the circuit or course and the format (laps, or the runner's goal); **Cast** picks your car and the field of rivals, or the chaser, beside the usual character tabs; **Challenge** sets handling, boosts and pickups, or pace, obstacles and power-ups; **Atmosphere** keeps the music. Mission-only controls are set aside while an arcade mode is chosen. Every mode uses the same hero, cast, music, chapters, saved setups and independent game ZIP. Enemy characters drive the rival cars or play the runner's chaser. In JSON, `"mode": "race"` or `"mode": "runner"` sits at the top level with a matching `race` or `runner` object; chapters share the mode and can each set their own race or runner settings.
+
+### Arcade race
+
+Choose one of four circuits (City Loop, Desert Run, Harbour Sprint and Forest Ring), or supply a custom circuit as 6–64 `[x, z]` control points in metres with a width of 10–24 m. Custom loops are 400–6000 m long, cannot cross or touch themselves, and need corners no tighter than the road allows. Built-in circuits add ramps, and City Loop has a shortcut.
+
+| Setting | Effect |
+| --- | --- |
+| `laps` | 1–9 laps; laps are split into three sectors with live deltas against your best lap |
+| `opponents` | 3–7 AI racers following a racing line that brakes for each corner; repeated characters race under numbered names |
+| `aiSkill` | Easy, medium or hard pace and cornering |
+| `rubberBand` | Cars behind the player speed up slightly and cars ahead ease off, so races stay close |
+| `handling` | **Drift**: hold Drift while steering at speed to slide and charge a boost released on exit; **Grip**: Drift brakes |
+| `nitro` | A meter that refills slowly and from drift boosts; hold Nitro on straights |
+| `pickups` | Boost pads; item boxes giving a boost, an oil slick to drop behind or a nitro refill; oil-slick hazards |
+| `ghost` | Records the best lap and replays it as a translucent car |
+| `car` | Sports car, SUV, pickup or motorcycle, each with its own top speed, acceleration and grip, plus a paint colour |
+
+A countdown starts each race; throttle pressed just before GO gives a launch boost. Walls bounce cars back instead of wrecking them, and a car that is stuck or driving the wrong way returns to the road. **F** returns the player to the road at any time. The HUD shows position, laps, lap and best times, the ghost delta, speed, nitro, drift charge, the held item and a minimap. The results show a podium and every driver's time and best lap.
+
+Best laps, best race times and the best-lap ghost are kept per circuit in the browser. **Copy ghost link** shares the ghost: anyone opening the game with that link races against it on the same circuit. Each game has a **daily challenge** on a circuit chosen by the date. With chapters, the races form a **cup**: points go 10-8-6-5-4-3-2-1, places pay cash, and the **Garage** spends that cash on other cars and paint.
+
+### Endless runner
+
+The course is generated from straights, corners and T-junctions in the chosen theme (temple ruins, city rooftops or desert canyon) and gets harder with distance: shorter straights, tighter spacing and more combined obstacles. Every obstacle leaves a way through.
+
+| Obstacle | Way through |
+| --- | --- |
+| Low barrier | Jump |
+| Overhead bar | Slide |
+| Gap | Jump |
+| Lane blocker | Change lane |
+| Moving cart | Change lane |
+
+Clipping a low barrier or a bar is a **stumble**: the runner slows and the chaser closes in, and a second stumble soon after is caught. Hitting a blocker or cart, falling into a gap, or missing a corner ends the run unless a shield or boost is active. **Revive** continues the run for coins, doubling the price each time.
+
+Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, speed boost and ×2 score. Score is distance plus coins, times the multiplier. Three missions at a time (for example collect coins, run a distance or jump a number of times) raise the multiplier when all three are done. Coins are banked between runs and buy longer power-ups and extra runners: the companion and the enemies. A `goal` of distance, coins or score completes a stage; with chapters, each stage opens the next. `seed` gives every player the same course, and the **daily run** uses a course chosen by the date.
+
+### Controls and feel
+
+| Race | Runner | Keyboard | Gamepad | Touch |
+| --- | --- | --- | --- | --- |
+| Accelerate / brake | — | W / S or ↑ / ↓ | Right / left trigger | The car accelerates by itself; Brake button |
+| Steer | Change lane, turn at corners | A / D or ← / → | Left stick or d-pad | Drag the thumb (race) or swipe (runner) |
+| Drift | Jump | Space (runner: also W / ↑) | A | Drift button / swipe up |
+| Nitro | Slide | Shift (runner: S / ↓) | RB or X (runner: B) | Nitro button / swipe down |
+| Item / back to road | — | E / F | B / Y | Item button |
+| Restart | Restart | R | Back | Restart on the pause card |
+| Pause | Pause | Escape or P | Start | Pause button |
+
+Tilt steering can be switched on from the pause card on phones. The lens widens with speed, impacts shake the camera, speed lines and a soft edge blur grow with pace, boosts flash the screen and near misses briefly slow time; reduced-motion settings soften these effects. Engine pitch follows the car's speed, sound effects are synthesised in the browser, and the music gains tempo and volume as a race goes on or a run speeds up. **R** restarts immediately without reloading the scene. Opening Game setup pauses the game.
+
+Both modes run fixed-step rules, draw repeated objects in batches and reuse course pieces, coins and obstacles instead of creating new ones. Runner pieces are generated ahead of the player and dropped behind, and the world moves back toward the origin on long runs. Distant drivers are hidden. Leaderboards are local to each browser.
+
 ## Mission and locations
 
 Choose Freight depot, Military base, Desert compound, Market street or Urban block. Each has its own solid geometry, measured starts, patrol lanes, roof positions and extraction anchors. Walls and props block movement, sight, bullets and grenade blasts. Twelve arrangements combine three staging patterns with four cover packs. Open, Balanced and Cover-rich layouts remain available.
@@ -124,8 +180,8 @@ LLM Assist’s generated guide enumerates the live capabilities, exact library I
 
 ## Verification and code
 
-`npm run test:play` covers mission migration, navigation, traversal, independent enemy AI, checkpoints, combat, grenades, extraction, progression, campaigns, maps, chains, stealth/melee, specialist roles, aircraft, pursuit, story validation and the LLM contract. `npm run test:play:poses` audits actual generated rigs, supported contacts, upright recovery, hit reactions and bone lengths, including rifle and mounted aim across body sizes. Same-side aircraft approach checks cover every map, four headings, touching occupants, two capsule sizes and reboarding.
+`npm run test:play` covers mission migration, navigation, traversal, independent enemy AI, checkpoints, combat, grenades, extraction, progression, campaigns, maps, chains, stealth/melee, specialist roles, aircraft, pursuit, story validation and the LLM contract. `scripts/play-arcade-check.ts` (part of `npm run test:play`) covers mode parsing, custom circuits, full AI races on every circuit, walls, respawn, ghosts and their links, runner course generation, chasers, revives and goals. `npm run test:play:browser -- --arcade` plays a race cup to its podium, a runner to its results and shop, checks phone layouts, exports a race game and switches back to a mission. `npm run test:play:poses` audits actual generated rigs, supported contacts, upright recovery, hit reactions and bone lengths, including rifle and mounted aim across body sizes. Same-side aircraft approach checks cover every map, four headings, touching occupants, two capsule sizes and reboarding.
 
 The `--boarding-ui` browser check covers shared helicopter approach and persistent mission context across all settings tabs at desktop, phone and landscape sizes. Focused browser checks include `npm run test:play:browser -- --expansion` and `--expansion-export` for the new workflow, film attachment and independent ZIP. Existing `--access`, `--cover`, `--combat`, `--campaign`, `--campaign-export`, `--driving-export`, `--assist` and other flags cover the established gameplay and editor. Chrome checks write ignored screenshots and test downloads to `out/play/`. `ARA_TEST_NATIVE_GPU=1` selects the Mac graphics backend; the default uses SwiftShader.
 
-`runtime.ts` owns fixed-step gameplay. `mission.ts`, `locations.ts`, `staging.ts` and `objectives.ts` own measured staging. `enemy-ai.ts`, `enemy-roles.ts`, `weapons.ts` and `combat.ts` own perception and combat. `driving.ts`, `pursuit.ts`, `air.ts` and their views reuse fitted Ara vehicles. `actor.ts` and combat/traversal/stance performance helpers reuse Ara’s existing rigs and clips. `story.ts`, `story-view.ts`, `media.ts` and `project-bundle.ts` own portable story delivery. `player.ts` is shared by creator preview and the independent game player.
+`runtime.ts` owns fixed-step gameplay. `mission.ts`, `locations.ts`, `staging.ts` and `objectives.ts` own measured staging. `enemy-ai.ts`, `enemy-roles.ts`, `weapons.ts` and `combat.ts` own perception and combat. `driving.ts`, `pursuit.ts`, `air.ts` and their views reuse fitted Ara vehicles. `actor.ts` and combat/traversal/stance performance helpers reuse Ara’s existing rigs and clips. `story.ts`, `story-view.ts`, `media.ts` and `project-bundle.ts` own portable story delivery. `player.ts` is shared by creator preview and the independent game player. `arcade/` holds the race and runner modes: `modes.ts` (settings), `track.ts`, `race.ts` and `race-view.ts`, `runner.ts` and `runner-view.ts`, and the shared `player.ts`, `hud.ts`, `input.ts`, `feel.ts`, `sfx.ts`, `records.ts` and `editor.ts`.

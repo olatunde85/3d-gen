@@ -1,0 +1,73 @@
+/* Arcade modes: HUD over the game canvas, sharing Play's cards and buttons. */
+body.arcade-active #stage>:not(#game):not(.arcade-ui){display:none!important}
+body.arcade-active #cycle-view,body.arcade-active #flashlight{display:none!important}
+.arcade-ui{position:absolute;inset:0;pointer-events:none;color:#fff;font-variant-numeric:tabular-nums;z-index:3}
+.arcade-ui[hidden]{display:none}
+.arcade-speed{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.arcade-top{position:absolute;left:24px;top:18px;display:flex;gap:16px;align-items:flex-start;text-shadow:0 2px 8px #0008}
+.arcade-big{font-size:46px;font-weight:800;letter-spacing:-1.5px;line-height:1}
+.arcade-big::after{content:attr(data-label);display:block;font:600 10px ui-monospace,monospace;letter-spacing:1.2px;margin-top:6px;opacity:.85}
+.arcade-lines{display:grid;gap:2px;font:600 12px ui-monospace,monospace;letter-spacing:.6px;padding-top:4px}
+.arcade-strong{font-size:15px}
+.arcade-good{color:#9ff0b2}.arcade-bad{color:#ffb3a3}
+.arcade-side{position:absolute;right:20px;top:18px;display:grid;gap:8px;justify-items:end;max-width:min(300px,45vw)}
+.arcade-map{width:150px;height:150px;border-radius:14px;background:#10181ccc;box-shadow:0 8px 24px #0004}
+.arcade-mission{background:#10181cc0;border-radius:10px;padding:8px 11px;font-size:12px;line-height:1.35;display:grid;gap:6px;width:100%}
+.arcade-mission i,.arcade-meter i{display:block;height:5px;border-radius:3px;background:#ffffff30;position:relative;overflow:hidden}
+.arcade-mission i::after,.arcade-meter i::after{content:'';position:absolute;inset:0 auto 0 0;width:var(--fill,0%);background:#ffd23f;border-radius:3px}
+.arcade-mission[data-done=true]{background:#2c6b46d0}
+.arcade-center{position:absolute;left:0;right:0;top:30%;display:grid;justify-items:center;gap:8px;text-align:center}
+.arcade-message{font-size:64px;font-weight:850;letter-spacing:-2px;text-shadow:0 4px 18px #000a}
+.arcade-message[data-tone=good]{color:#ffe28a}.arcade-message[data-tone=bad]{color:#ffb3a3}
+.arcade-message.pop{animation:arcade-pop .35s ease-out}
+@keyframes arcade-pop{from{transform:scale(1.35);opacity:.2}to{transform:none;opacity:1}}
+.arcade-warning{font:800 20px ui-monospace,monospace;letter-spacing:3px;color:#ffd0c4;text-shadow:0 2px 10px #000b}
+.arcade-gauge{position:absolute;left:24px;bottom:22px;display:flex;align-items:flex-end;gap:18px;text-shadow:0 2px 8px #0008}
+.arcade-speedo{font-size:52px;font-weight:850;letter-spacing:-2px;line-height:.9}
+.arcade-speedo:not(:empty)::after{content:attr(data-unit);display:block;font:600 10px ui-monospace,monospace;letter-spacing:1.2px;margin-top:6px}
+.arcade-meters{display:grid;gap:6px;min-width:150px;font:700 10px ui-monospace,monospace;letter-spacing:1px}
+.arcade-meter{display:grid;gap:4px}
+.arcade-meter[hidden]{display:none}
+.arcade-meter[data-tone=hot] i::after{background:#7fd1ff}.arcade-meter[data-tone=warm] i::after{background:#ff9e2c}.arcade-meter[data-tone=good] i::after{background:#8fe0a5}
+.arcade-card{pointer-events:auto;color:var(--ink);width:400px;max-height:calc(100% - 40px);overflow:auto}
+.arcade-card[hidden]{display:none}
+.arcade-card h1{font-size:40px}
+.arcade-card h2{font-size:15px;margin:16px 0 8px}
+.arcade-actions{display:grid;gap:4px}
+.arcade-actions .quiet{text-align:left}
+.arcade-table{width:100%;border-collapse:collapse;font-size:12px;margin:0 0 18px}
+.arcade-table th{text-align:left;font:9px ui-monospace,monospace;letter-spacing:.8px;color:var(--muted);padding:4px 0}
+.arcade-table td{padding:5px 6px 5px 0;border-top:1px solid var(--line)}
+.arcade-podium{display:flex;align-items:flex-end;gap:8px;margin:0 0 18px}
+.arcade-podium div{flex:1;background:#e3e4d8;border-radius:8px 8px 0 0;text-align:center;padding:8px 4px;font-size:12px;font-weight:650}
+.arcade-podium div[data-place="1"]{height:96px;background:#e9c96b}.arcade-podium div[data-place="2"]{height:72px;background:#d5d7cf}.arcade-podium div[data-place="3"]{height:56px;background:#d7b08a}
+.arcade-podium small{display:block;font:9px ui-monospace,monospace;color:#3b4a44;margin-top:3px}
+.arcade-shop{display:grid;gap:6px;margin:0 0 16px}
+.arcade-shop button{display:flex;justify-content:space-between;gap:12px;background:#e5e7dc;color:var(--ink);padding:9px 12px;text-align:left}
+.arcade-shop button[aria-pressed=true]{background:#274f45;color:#fff}
+.arcade-touch{position:absolute;right:16px;bottom:18px;display:none;gap:10px;pointer-events:auto}
+.arcade-touch-button{width:68px;height:68px;border-radius:50%;background:#10181cb0;color:#fff;font:700 11px ui-monospace,monospace;letter-spacing:.6px;border:2px solid #ffffff50}
+.arcade-touch-button[data-held]{background:#274f45e0}
+@media (pointer:coarse){.arcade-touch{display:flex}.arcade-gauge{bottom:96px}}
+@media (max-width:640px){.arcade-big{font-size:34px}.arcade-message{font-size:46px}.arcade-map{width:110px;height:110px}.arcade-speedo{font-size:38px}.arcade-side{right:12px;top:12px}.arcade-top{left:14px;top:12px}.arcade-card{left:12px;right:12px;width:auto;bottom:12px}}
+@media (prefers-reduced-motion:reduce){.arcade-message.pop{animation:none}}
+body.arcade-active footer .desktop-help>:not(.arcade-help),body.arcade-active footer .touch-help:not(.arcade-help),body:not(.arcade-active) .arcade-help{display:none!important}
+footer>.arcade-help{display:none}
+@media (pointer:coarse){body.arcade-active footer>.arcade-help{display:inline!important}}
+/* The mission hint includes bare text, so the arcade help replaces the whole line. */
+body.arcade-active footer .desktop-help{font-size:0}body.arcade-active footer .desktop-help>.arcade-help{font-size:10px}
+.arcade-card[data-place=center]{left:50%;bottom:50%;transform:translate(-50%,50%);width:370px}
+.arcade-card .score-breakdown{margin:0 0 16px}
+@media (max-width:640px){.arcade-card[data-place=center]{left:12px;right:12px;width:auto;transform:none;bottom:12px}}
+/* Game setup in race and runner modes: the same four sections, with mission-only controls set aside. */
+#setup.arcade-mode #mission-settings>:not(.config-page-heading):not(#arcade-mission),
+#setup.arcade-mode #challenge-settings>:not(.config-page-heading):not(#arcade-challenge),
+#setup.arcade-mode #presentation-settings>.config-group:has(#environment-time),
+#setup.arcade-mode #presentation-settings>.config-group:has(#camera-default),
+#setup.arcade-mode #hero-panel>:not(label[for=hero]):not(#hero):not(.file-row),
+#setup.arcade-mode #enemy-panel>.enemy-basics,#setup.arcade-mode #enemy-panel>.challenge-basics,#setup.arcade-mode #enemy-panel>.challenge-basics+.micro,
+#setup:not(.arcade-mode) #arcade-cast,#setup:not(.arcade-mode) #arcade-challenge{display:none}
+#arcade-mission .location-art svg{filter:none}
+#arcade-cast .extraction-choices{margin-bottom:14px}
+#setup #race-color{width:100%;height:40px;border-radius:8px;background:#fffef9;border:1px solid #cfd8c8;padding:3px}
+#arcade-cast>.config-group:last-child{border-bottom:1px solid #e0e5d9;padding-bottom:22px;margin-bottom:22px}

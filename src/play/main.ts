@@ -12,7 +12,7 @@ import {ENEMY_ROLES,roleDefaults,type EnemyKind,type EnemyHealth} from './enemy-
 /** Creator shell. The shared player also runs independently in downloaded games. */
 import './setup.css';
 import {assistPanel} from '../app/assist/panel';
-import {generatePlayGuide,parsePlayInput,checkPlayPlacements,playExample,campaignExample,describeGame} from './assist';
+import {generatePlayGuide,parsePlayInput,checkPlayPlacements,playExample,campaignExample,raceExample,runnerExample,describeGame} from './assist';
 import {installSetupChoices,paintSetupSummary} from './setup-ui';
 import {DrivingView} from './driving-view';
 import {AssetLibrary,fetchSource} from '../core/assets';
@@ -33,6 +33,7 @@ import {PLANS,defaultMission,missionTimeLimit,usesPickup,missionGoal,extractionM
 import type {Health,Ammunition} from './combat';
 import {mountPlayer,actorRadius,type Player} from './player';
 import {setupGameDownload} from './download-ui';
+import {modeEditor} from './arcade/editor';
 const $=<T extends HTMLElement>(id:string)=>document.getElementById(id)as T;
 const button=(id:string)=>$<HTMLButtonElement>(id),select=(id:string)=>$<HTMLSelectElement>(id);
 const canvas=$<HTMLCanvasElement>('game'),setup=$<HTMLDialogElement>('setup');
@@ -130,7 +131,8 @@ function paintEnemies(){
 }
 const storyUi=storyEditor($('story-editor'),()=>draft,()=>engine,()=>lib);
 const chainEditor=objectiveEditor($('objective-editor'),()=>draft,()=>paintMission());
-function paintDraft(){storyUi.paint();chainEditor.paint();paintPicker('hero',draft.character);$('cast-player-name').textContent=draft.character.name||'Custom character';paintEnemies();paintMission();paintLoadout();paintPresentation();paintPicker('companion',draft.companion.character);select('companion-health-setting').value=String(draft.companion.health);$('cast-companion-name').textContent=draft.companion.character.name;$('setup-note').textContent='';showCast(castRole);}
+const modeUi=modeEditor({mission:$('arcade-mission'),cast:$('arcade-cast'),challenge:$('arcade-challenge')},()=>draft,()=>editingChapter,()=>paintSetupSummary(setup,draft));
+function paintDraft(){storyUi.paint();chainEditor.paint();modeUi.paint();paintPicker('hero',draft.character);$('cast-player-name').textContent=draft.character.name||'Custom character';paintEnemies();paintMission();paintLoadout();paintPresentation();paintPicker('companion',draft.companion.character);select('companion-health-setting').value=String(draft.companion.health);$('cast-companion-name').textContent=draft.companion.character.name;$('setup-note').textContent='';showCast(castRole);}
 function paintProgression(){select('completion-reward').value=draft.progression.reward??'none';
  select('supplies').value=draft.progression.supplies;select('scoring').value=draft.progression.scoring;
  const count={scarce:2,balanced:4,plentiful:6}[draft.progression.supplies];
@@ -177,6 +179,7 @@ const assist=assistPanel<PlayProject>({dialog:$<HTMLDialogElement>('play-assist-
 });
 const audioChoice=document.createElement('label');audioChoice.className='ai-check ai-audio-choice';const audioToggle=document.createElement('input');audioToggle.type='checkbox';audioToggle.id='pa-generate-audio';audioToggle.checked=true;audioToggle.onchange=()=>generateAssistAudio=audioToggle.checked;audioChoice.append(audioToggle,document.createTextNode('Generate missing dialogue audio during preview'));assist.dialog.querySelector('.ai-review .ai-row')!.append(audioChoice);
 const campaignTry=document.createElement('button');campaignTry.type='button';campaignTry.id='pa-campaign-example';campaignTry.className='ai-link';campaignTry.textContent='Try a campaign';assist.dialog.querySelector('.ai-review .ai-row')!.append(campaignTry);campaignTry.onclick=()=>{assist.restore({...assist.state(),json:JSON.stringify(campaignExample(),null,2)});$<HTMLTextAreaElement>('pa-json').dispatchEvent(new Event('input'));};
+for(const [id,label,example] of [['pa-race-example','Try a race cup',raceExample],['pa-runner-example','Try a runner',runnerExample]]as const){const b=document.createElement('button');b.type='button';b.id=id;b.className='ai-link';b.textContent=label;assist.dialog.querySelector('.ai-review .ai-row')!.append(b);b.onclick=()=>{assist.restore({...assist.state(),json:JSON.stringify(example(),null,2)});$<HTMLTextAreaElement>('pa-json').dispatchEvent(new Event('input'));};}
 const placementCheck=document.createElement('button');placementCheck.type='button';placementCheck.id='pa-check-placements';placementCheck.className='ai-link';placementCheck.textContent='Check placements';assist.dialog.querySelector('.ai-review .ai-row')!.append(placementCheck);placementCheck.onclick=()=>{try{const report=checkPlayPlacements($<HTMLTextAreaElement>('pa-json').value,lib.catalog),blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='ara-play-placements.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);placementCheck.textContent=report.valid?'Placements checked ✓':'Placement issues found · report saved';}catch(error){placementCheck.textContent=(error as Error).message;}};
 button('play-assist-open').onclick=()=>{stopMusicPreview();void assist.open();};
 assist.dialog.addEventListener('close',()=>{if(!assistedPreview)return;project=assistedPreview.project;resetDraft(project);pendingCast=assistedPreview.cast;assistedPreview=undefined;try{localStorage.setItem(storage,JSON.stringify(project));}catch{/* optional persistence */}restartAfterSetup=true;setup.close();});

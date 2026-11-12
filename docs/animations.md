@@ -1,13 +1,13 @@
 # Animations
 
-There are 212 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 216 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
 | Idle & stance | Idle, Crouch idle (loops) |
-| Locomotion | Walk, Slouch walk, Model walk (catwalk), Run, Walk backwards, Strafe left/right (loops; in place, or with root motion) |
+| Locomotion | Walk, Slouch walk, Model walk (catwalk), Run, Run leaning left/right, Walk backwards, Strafe left/right (loops; in place, or with root motion) |
 | Turns | Left/right 45° and 90°, full 360° |
-| Actions | Jump, Fall, Hit reaction; Jump start, Jump (in air) (loop), Jump land and Running jump for engine character controllers; Forward roll, Side dodge left/right |
+| Actions | Jump, Fall, Hit reaction; Jump start, Jump (in air) (loop), Jump land and Running jump for engine character controllers; Forward roll, Side dodge left/right; Running slide, Stumble and recover |
 | Combat | Fighting stance (loop), Punch, Low punch, Punch combo (jab, cross, hook), Front kick, Roundhouse kick, Block (unarmed); Sword idle (guard) (loop), Sword slash, Sword block, Sword combo (three cuts), Sword thrust; Shot in the head, Shot in the chest, Shot in the back, Shot in the stomach, Shot in the leg, Shot in the arm |
 | Reactions | Hit from front / back / left / right, Knockdown, Death (fall forward / backward), Get up (from back / front) |
 | Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push; Carry idle, Carry walk, Head-load idle, Head-load walk (loops) |
