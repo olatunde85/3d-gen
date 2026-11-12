@@ -200,7 +200,7 @@ try{
    await click('#settings');await openSetup(runnerExample(),'temple-dash');await click('#apply');await wait('!document.getElementById("setup").open&&araPlay.mode==="runner"','runner preview',180000);
    await wait('araPlay.phase==="intro"','applied run opens on its start card',30000);await click('.arcade-card button.primary');await wait('araPlay.phase==="playing"','run starts',30000);await evaluate(autoRun);await wait('araPlay.runner.distance>220&&araPlay.runner.coins>3','runner progress',240000);await photo('arcade-runner-run');
    assert.ok(await evaluate('document.querySelectorAll(".arcade-mission").length===3&&araPlay.runner.stats.jumps+araPlay.runner.stats.slides>0'),'missions shown and the course required moves');
-   await evaluate('(()=>{window.__bot=false;return 1})()');await wait('araPlay.phase==="results"','run ends',120000);await photo('arcade-runner-results');
+   await evaluate('(()=>{window.__bot=false;return 1})()');await wait('araPlay.phase==="results"&&!document.querySelector(".arcade-card").hidden&&/points/.test(document.querySelector(".arcade-card h1").textContent)','run ends (after any goal dance)',120000);await photo('arcade-runner-results');
    assert.ok(await evaluate('/points/.test(document.querySelector(".arcade-card h1").textContent)&&JSON.parse(localStorage[Object.keys(localStorage).find(k=>k.startsWith("ara.play.runner."))]).bank>0'),'score shown and coins banked');
    await evaluate('[...document.querySelectorAll(".arcade-card button")].find(b=>b.textContent==="Shop").click()');assert.ok(await evaluate('document.querySelectorAll(".arcade-shop button").length>=5'));await photo('arcade-runner-shop');
   });
