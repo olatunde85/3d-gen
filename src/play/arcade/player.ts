@@ -75,7 +75,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       const others = drivers(chapter), base = others.map((a) => a.render.character.params.name || 'Rival'), count = settingsCount(base, settings.opponents);
       const names = { player: project.character.name || 'You', drivers: count };
       race = new RaceGame(settings, names, daily ? dailySeed(gameKey()) : 1 + chapter, ghost);
-      raceView = new RaceView(race, castFor(chapter).hero.clone(), others.length ? others : [castFor(chapter).hero], settings.ghost ? castFor(chapter).hero.clone() : undefined);
+      raceView = new RaceView(race, castFor(chapter).hero.clone(), others.length ? others : [castFor(chapter).hero], settings.ghost ? castFor(chapter).hero.clone() : undefined, renderer);
       ghostIndex = 0;hud.reset(`${race.track.name.toUpperCase()} / ARCADE RACE`);
     } else {
       const settings: RunnerSettings = project.runner!, record = runnerRecord(gameKey());

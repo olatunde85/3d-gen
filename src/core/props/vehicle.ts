@@ -64,6 +64,13 @@ export class Vehicle{
   if(this.id==='jet')this.setFlight(motion?.retract??0,motion?motion.throttle:transition||parked?0:.15);
   this.group.updateMatrixWorld(true);
  }
+ private lamps?:{head:T.MeshStandardMaterial[];tail:T.MeshStandardMaterial[]};
+ /** Lamps for driving: 0..1 brake (tail lamps brighten) and 0..1 headlights (night and dusk). */
+ setLights(brake:number,headlights=0){
+  if(!this.lamps){const head=new Set<T.MeshStandardMaterial>(),tail=new Set<T.MeshStandardMaterial>();this.group.traverse(o=>{const m=(o as T.Mesh).material;for(const mat of Array.isArray(m)?m:m?[m]:[])if(mat instanceof T.MeshStandardMaterial){if(mat.name==='Vehicle headlight')head.add(mat);if(mat.name==='Vehicle tail lamps')tail.add(mat);}});this.lamps={head:[...head],tail:[...tail]};}
+  for(const m of this.lamps.head)m.emissiveIntensity=.9+2.6*headlights;
+  for(const m of this.lamps.tail)m.emissiveIntensity=.55+2.4*Math.max(brake,headlights*.4);
+ }
  /** Aircraft state from a film: 0..1 gear retraction and engine throttle (0 idle, 1 take-off power). */
  setFlight(retract:number,throttle:number){
   this.group.traverse(o=>{const axis=o.userData.gearFold as T.Vector3|undefined,lift=o.userData.gearLift as T.Vector3|undefined;if(axis)o.quaternion.setFromAxisAngle(axis,retract*Math.PI/2);if(lift){o.userData.gearRest??=o.position.clone();o.position.copy(o.userData.gearRest).addScaledVector(lift,retract);}if(o.name==='Exhaust_glow'){o.visible=throttle>0;o.scale.set(.25+.75*throttle,.25+.75*throttle,.2+1.1*throttle);}});
