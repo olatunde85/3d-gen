@@ -29,9 +29,9 @@ export interface RaceSettings {
 }
 export const defaultRace = (): RaceSettings => ({ track: 'city-loop', laps: 3, opponents: 5, aiSkill: 'medium', rubberBand: true, handling: 'drift', nitro: true, pickups: ['boost-pad'], ghost: true, car: { model: 'sports_car', color: '#c8372d' } });
 
-export type RunnerTheme = 'temple-ruins' | 'city-rooftops' | 'desert-canyon' | 'market-street';
-export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-rooftops', 'desert-canyon', 'market-street'];
-export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon', 'market-street': 'Market street' };
+export type RunnerTheme = 'temple-ruins' | 'city-rooftops' | 'desert-canyon' | 'market-street' | 'snowy-peaks' | 'beach-boardwalk' | 'neon-city' | 'jungle-ruins' | 'train-yard' | 'volcano' | 'haunted-forest';
+export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-rooftops', 'desert-canyon', 'market-street', 'snowy-peaks', 'beach-boardwalk', 'neon-city', 'jungle-ruins', 'train-yard', 'volcano', 'haunted-forest'];
+export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon', 'market-street': 'Market street', 'snowy-peaks': 'Snowy peaks', 'beach-boardwalk': 'Beach boardwalk', 'neon-city': 'Neon city', 'jungle-ruins': 'Jungle ruins', 'train-yard': 'Train yard', volcano: 'Volcano', 'haunted-forest': 'Haunted forest' };
 export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart';
 export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'];
 export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier';

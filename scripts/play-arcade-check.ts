@@ -4,11 +4,12 @@ import { nodeLibrary } from './node-assets';
 import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject, posesOf } from '../src/play/project';
 import { skyLook } from '../src/play/arcade/weather';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
-import { defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel, runnerMedalTargets } from '../src/play/arcade/modes';
+import { RUNNER_THEMES, RUNNER_THEME_NAMES, defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel, runnerMedalTargets } from '../src/play/arcade/modes';
 import { DEFAULT_RUNNER_MEDALS, raceMedal, runnerMedal } from '../src/play/arcade/medals';
 import { RUNNER_GENERIC_ICONS, RUNNER_OBJECT_TYPES } from '../src/play/arcade/objects';
 import { ICONS } from '../src/play/arcade/icons';
-import { TRACK_IDS, TRACK_TEMPLATES, buildTrack, locate, parseTrack, trackPoint } from '../src/play/arcade/track';
+import { TRACK_GROUNDS, TRACK_IDS, TRACK_TEMPLATES, buildTrack, locate, parseTrack, trackPoint, trackTemplate } from '../src/play/arcade/track';
+import { RUNNER_KITS } from '../src/play/arcade/runner-kits';
 import { CAR_STATS, RaceGame, idleInput } from '../src/play/arcade/race';
 import { LANE, RunnerGame, missionSet } from '../src/play/arcade/runner';
 import { decodeGhost, encodeGhost } from '../src/play/arcade/records';
@@ -23,7 +24,7 @@ function runRace(game: RaceGame, seconds = 400) {
   for (let i = 0; i < seconds * 60 && game.cars.some((c) => c.finished === undefined); i++) {
     game.update(1 / 60, game.status !== 'countdown' ? { ...auto(game.player), item: false } : idleInput());
     for (const e of game.drain()) events.push(e.type);
-    for (const c of game.cars) { const p = locate(game.track, c.x, c.z, c.hint);if (!p.onShortcut) maxOff = Math.max(maxOff, Math.abs(p.lateral) - game.track.width / 2); }
+    for (const c of game.cars) { const p = locate(game.track, c.x, c.z, c.hint);if (!p.onShortcut) maxOff = Math.max(maxOff, Math.abs(p.lateral) - game.track.width / 2 - game.track.ground.verge); }
   }
   return { events, maxOff };
 }
@@ -64,7 +65,7 @@ check('race and runner games round-trip through portable JSON, chapters and LLM 
   chapter.chapters[0].race = {};assert.throws(() => parsePlayInput(JSON.stringify(chapter), cat), /need mode/);
 });
 check('built-in circuits satisfy the custom circuit rules and custom loops are validated', () => {
-  for (const t of TRACK_TEMPLATES) { parseTrack({ points: t.points, width: t.width });const track = buildTrack(t);assert.ok(track.length > 900 && track.length < 1500, t.id);const p = trackPoint(track, 200, 2.5), at = locate(track, p.x, p.z);assert.ok(Math.abs(at.s - 200) < 2.5 && Math.abs(at.lateral - 2.5) < 0.2, t.id); }
+  for (const t of TRACK_TEMPLATES) { parseTrack({ points: t.points, width: t.width });const track = buildTrack(t);assert.ok(track.length > 600 && track.length < 1600, t.id);const p = trackPoint(track, 200, 2.5), at = locate(track, p.x, p.z);assert.ok(Math.abs(at.s - 200) < 2.5 && Math.abs(at.lateral - 2.5) < 0.2, t.id); }
   assert.throws(() => parseTrack({ points: [[0, 0], [200, 200], [200, 0], [0, 200], [-50, 100], [-60, 20]] }), /crosses|tighter/);
   assert.throws(() => parseTrack({ points: [[0, 0], [10, 0], [10, 10], [0, 10], [-5, 5], [-3, 2]] }), /long|tighter/);
   const oval = parseTrack({ name: 'Oval', theme: 'forest', width: 16, points: [[0, 0], [0, 200], [60, 260], [140, 260], [200, 200], [200, 0], [140, -60], [60, -60]] });assert.equal(typeof oval, 'object');
@@ -196,5 +197,31 @@ check('arcade games take circuit and course names instead of mission titles', ()
   const own = { mode: 'race' as const, race: defaultRace(), identity: { title: 'Lagos Cup' } };retitle(own);assert.equal(own.identity.title, 'Lagos Cup');assert.equal(gameTitle(own), 'Lagos Cup');
   const back = { identity: { title: 'Forest Ring' } };retitle(back);assert.equal(back.identity.title, 'The Depot');
   assert.ok(isAutomaticTitle('The Depot') && isAutomaticTitle('') && !isAutomaticTitle('Ara Grand Prix'));
+});
+check('themed circuits climb, slide and slow as their ground says', () => {
+  for (const t of TRACK_TEMPLATES) {
+    assert.equal(typeof parseTrack({ name: t.name, theme: t.theme, width: t.width, points: t.points }), 'object', `${t.id} is a clean loop`);
+    const track = buildTrack(t), steep = Math.max(...track.samples.map((s, i) => Math.abs(track.samples[(i + 1) % track.samples.length].y - s.y) / track.spacing));
+    assert.ok(steep <= 0.115, `${t.id} grade ${steep.toFixed(3)}`);assert.ok(Math.abs(track.samples[0].y) < 1e-6 && Math.abs(track.samples[10].y) < 0.05, `${t.id} starts level`);
+  }
+  const pass = buildTrack(trackTemplate('mountain-pass')!), heights = pass.samples.map((s) => s.y);assert.ok(Math.max(...heights) - Math.min(...heights) > 15, 'the mountain pass climbs');
+  assert.ok(buildTrack(trackTemplate('glacier-loop')!).patches.every((p) => p.kind === 'ice') && buildTrack(trackTemplate('jungle-falls')!).patches.some((p) => p.kind === 'mud'));
+  assert.ok(buildTrack(trackTemplate('lagoon-bridges')!).bridges.length === 2 && TRACK_GROUNDS.beach.verge > 0);
+  const icy = new RaceGame({ ...defaultRace(), track: 'glacier-loop' }, names, 1), dry = new RaceGame({ ...defaultRace(), track: 'glacier-loop', traction: 'normal' }, names, 1);assert.ok(icy.icy && !dry.icy);
+  assert.equal(new RaceGame({ ...defaultRace(), track: 'city-loop', traction: 'icy' }, names, 1).icy, true);assert.throws(() => parseRace({ traction: 'wet' }));assert.equal(parseRace({ traction: 'icy' }).traction, 'icy');
+  // On ice a car keeps sliding sideways for longer.
+  const slide = (g: RaceGame) => { countdown(g);const c = g.player;Object.assign(c, { vx: Math.cos(c.yaw) * 8 + Math.sin(c.yaw) * 30, vz: -Math.sin(c.yaw) * 8 + Math.cos(c.yaw) * 30 });for (let i = 0; i < 30; i++) g.update(1 / 60, { ...idleInput(), throttle: 1 });return Math.abs(c.vx * Math.cos(c.yaw) - c.vz * Math.sin(c.yaw)); };
+  assert.ok(slide(icy) > slide(dry) * 1.5, 'ice keeps the slide');
+  // Running wide onto the sand slows a car; climbing slows it more than descending.
+  const beach = new RaceGame({ ...defaultRace(), track: 'palm-coast', opponents: 3 }, names, 1);countdown(beach);const b = beach.player, s = beach.track.samples[30];
+  Object.assign(b, { x: s.x + s.tz * (beach.track.width / 2 + 2), z: s.z - s.tx * (beach.track.width / 2 + 2), yaw: Math.atan2(s.tx, s.tz), vx: s.tx * 40, vz: s.tz * 40, hint: 30 });
+  for (let i = 0; i < 30; i++) beach.update(1 / 60, { ...idleInput(), throttle: 1 });assert.ok(b.speed < 38, `sand verge slows (${b.speed.toFixed(1)})`);
+});
+check('every runner theme builds a fair course, and train-yard carriages are long', () => {
+  for (const theme of RUNNER_THEMES) {
+    const r = parseRunner({ theme, seed: 5 }, ['enemy-1']), g = new RunnerGame(r, profile(), 5);g.start();
+    assert.equal(r.theme, theme);assert.ok(RUNNER_KITS[theme] && RUNNER_THEME_NAMES[theme], theme);
+    const carts = g.segments.flatMap((s) => s.things.filter((t) => t.kind === 'cart'));assert.ok(carts.every((t) => t.length === (theme === 'train-yard' ? 6.5 : 2.2)), theme);
+  }
 });
 console.log(`${checks} arcade race and runner contracts passed.`);
