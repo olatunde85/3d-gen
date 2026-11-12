@@ -15,6 +15,7 @@ import { GUNSHOT } from './gunshot';
 import { RIFLE_COMBAT } from './cover';
 import { VEHICLES, BOARDING, VEHICLE_TUMBLES, VEHICLE_CRASHES } from './vehicles';
 import { DODGES } from './dodge';
+import { RUNNER_MOVES } from './runner';
 import { SWIMMING } from './swimming';
 import { EVERYDAY } from './everyday';
 import { CLIMBING } from './climbing';
@@ -73,6 +74,7 @@ export const CLIPS: Clip[] = withFaces(
     pace(recover(easeFrom(mocap('punch_low', 'Low punch', 'Combat'),idle,.25,true),.45),.5),
     hit,
     ...DODGES,
+    ...RUNNER_MOVES,
     ...REACTIONS,
     ...INTERACTIONS,
     ...SWIMMING,

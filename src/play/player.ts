@@ -15,9 +15,12 @@ import {CarRadio} from './radio';
 import {heroWeapon,chapterProject,type PlayProject} from './project';
 import {planTraversal} from './motor';
 import {traceShot,type Point3} from './combat';
+import {mountArcade,type ArcadePlayer} from './arcade/player';
 export const actorRadius=(actor:GameActor,weight:number)=>Math.min(.48,Math.max(.28,.34*actor.render.height/1.75+(weight-.5)*.08));
 export interface PlayerHooks {stopPreview?:()=>void;renderMusicStatus?:()=>void;unlockPreview?:()=>void;audioChanged?:(enabled:boolean)=>void}
-export function mountPlayer(scene:GameScene,initialProject:PlayProject,initialCast:PlayCast,hooks:PlayerHooks={}){
+function mountMissionPlayer(scene:GameScene,initialProject:PlayProject,initialCast:PlayCast,hooks:PlayerHooks={}){
+/** True while an arcade mode owns the canvas: no rendering, input or sound. */
+let suspended=false;
 const $=<T extends HTMLElement>(id:string)=>document.getElementById(id)as T;
 const button=(id:string)=>$<HTMLButtonElement>(id),select=(id:string)=>$<HTMLSelectElement>(id);
 const canvas=$<HTMLCanvasElement>('game'),setup=document.getElementById('setup')as HTMLDialogElement|null,instructions=$<HTMLDialogElement>('instructions');
@@ -62,7 +65,7 @@ let useHeld=false,meleeTap=false;let brakeHeld=false,crouchToggle=false;
 let aimToggle=false,rightAim=false,fireHeld=false,fireTap=false,reloadTap=false,pointer={x:0,y:0},targetId:string|undefined,aimPoint:Point3|undefined;
 const stopMusicPreview=()=>hooks.stopPreview?.();
 const clearInput=()=>{useHeld=false;meleeTap=false;crouchToggle=false;button('touch-crouch').setAttribute('aria-pressed','false');grenadeMode=false;grenadeTap=false;grenadeTarget=undefined;scene.grenades.aim=undefined;keys.clear();joystick={x:0,z:0};interact=false;jump=false;brakeHeld=false;stickPointer=undefined;look=undefined;$('stick').style.transform='';aimToggle=false;rightAim=false;fireHeld=false;fireTap=false;reloadTap=false;targetId=undefined;aimPoint=undefined;button('touch-aim').setAttribute('aria-pressed','false');game.releaseCombat();};
-function setPaused(next:boolean){paused=next;clearInput();document.body.dataset.paused=String(paused);$('paused').hidden=!paused||game.status!=='playing'||!!setup?.open||instructions.open;button('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');button('pause').textContent=paused?'▷':'Ⅱ';syncMusic();}
+function setPaused(next:boolean){if(suspended)return;paused=next;clearInput();document.body.dataset.paused=String(paused);$('paused').hidden=!paused||game.status!=='playing'||!!setup?.open||instructions.open;button('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');button('pause').textContent=paused?'▷':'Ⅱ';syncMusic();}
 function equipHero(){const delivery=game.sideQuests.some(quest=>quest.id==='delivery'&&quest.status==='active'&&quest.index===0),next=delivery?rootCast.heroDelivery?.get(game.playerCombat.weapon):isGun(game.playerCombat.weapon)?rootCast.heroWeapons?.get(game.playerCombat.weapon):activeCast.hero;if(next&&next!==hero){const previous=hero;previous.render.group.removeFromParent();hero=next;hero.adoptMotion(previous,game.status==='playing'&&lastVisualWeapon==='none'&&isGun(game.playerCombat.weapon));scene.scene.add(hero.render.group);scene.configurePickup(hero,game,companionActor);}lastVisualWeapon=game.playerCombat.weapon;}
 function syncCast(){hero.reset(game.player,game.time,game.playerCombat);for(const enemy of game.enemies)guards.get(enemy.id)!.reset(enemy,game.time,enemy.combat);if(game.companion)companionActor?.reset(game.companion,game.time,game.companion.combat);}
 function reset(){storedAmmo.clear();scene.configureHubPedestrians([]);openingPlayed=false;endingPlayed=false;storyView.reset();clearInput();scene.combat.configure(isGun(heroWeapon(project))||project.enemies.some(e=>isGun(e.response)),(project.loadout.grenades??0)>0);stopMusicPreview();music.setPlaying(false);music.configure(project.music,true);reportedMusicError='';game=new EscapeGame(project.mission,project.enemies,isCampaign()?{...project.loadout,weapon:strongerWeapon(campaignWeapon,project.loadout.weapon),health:campaignArmor?150:project.loadout.health,grenades:Math.max(campaignGrenades,project.loadout.grenades??0) as 0|2|5}:project.loadout,project.companion.health,isCampaign()&&isGun(campaignWeapon)?{...project.progression,weapon:'loadout'}:project.progression,project.vehicle);if(isCampaign()){game.remainingLives=campaignLives;if(campaignLives===0){game.status='caught';game.failure='defeated';}}equipHero();game.player.radius=actorRadius(hero,project.character.weight);game.player.height=hero.render.height;game.player.animationScale=hero.render.scale;game.player.grenadeRelease=hero.grenadeRelease;for(const enemy of game.enemies){const actor=guards.get(enemy.id)!,settings=project.enemies.find(e=>e.id===enemy.id)!;enemy.radius=actorRadius(actor,settings.character.weight);enemy.height=actor.render.height;enemy.animationScale=actor.render.scale;}if(game.companion&&companionActor){game.companion.radius=actorRadius(companionActor,project.companion.character.weight);game.companion.height=companionActor.render.height;game.companion.animationScale=companionActor.render.scale;}scene.configurePickup(hero,game,companionActor);scene.combat.configure(isGun(game.playerCombat.weapon)||project.enemies.some(e=>isGun(e.response)),game.grenades>0);seenEventTime=-1;noticeUntil=0;$('announcement').textContent='';lastState='';touchRun=false;button('touch-run').setAttribute('aria-pressed','false');$('brief-title').textContent=project.identity.title;document.title=rootProject.identity.title+' · Ara Play';$('brief-story').textContent=project.identity.briefingIf&&campaignFlags.includes(project.identity.briefingIf.flag)?project.identity.briefingIf.text:project.identity.briefing||game.defaultBriefing;paintBestMedals();$('location-label').textContent=game.world.name.toUpperCase()+' / ARA OPERATIONS';$('map-label').textContent=game.world.name.toUpperCase()+' / NORTH ↑';$('map').setAttribute('aria-label',game.world.name+' map. White is you, amber marks enemies, gold is the key, blue is a checkpoint and green is available extraction.');$('companion-count-summary').hidden=!game.companion;$('enemy-count-summary').textContent=`${game.enemies.length} ${game.enemies.length===1?'ENEMY':'ENEMIES'}`;if(game.assaultCarEnabled)scene.configurePursuit(guards.get(game.assaultDriver?.id??game.guard.id)!,game);scene.configureRace(guards.get(game.guard.id)!,game);scene.configureHubFleet(hero,game);syncCast();$('life-count-summary').textContent=project.mission.lives==='unlimited'?'∞ LIVES':`${project.mission.lives} ${project.mission.lives===1?'LIFE':'LIVES'}`;scene.configureCamera(project.camera,game);paintPlayerCamera();setPaused(false);renderHud();}
@@ -164,7 +167,7 @@ function renderCombatHud(){
  const incoming=game.enemies.filter(e=>e.combat.health>0&&e.combat.windup>0).sort((a,b)=>a.combat.windup-b.combat.windup)[0];$('enemy-warning').hidden=!incoming||paused||game.status!=='playing';
  if(incoming){const p=scene.projectPoint({x:incoming.x,y:incoming.y+incoming.height+.3,z:incoming.z});$('enemy-warning').hidden=!p.visible||paused||game.status!=='playing';$('enemy-warning').style.left=`${p.x}px`;$('enemy-warning').style.top=`${p.y}px`;}
 }
-let nextHudFrame=0,nextMapFrame=0;function frame(now:number){const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
+let nextHudFrame=0,nextMapFrame=0;function frame(now:number){if(suspended){last=now;requestAnimationFrame(frame);return;}const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
  if(!loading){
   if(!paused&&game.status==='playing'){
    const right=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+joystick.x,forward=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)+joystick.z;
@@ -193,7 +196,7 @@ function switchCamera(view?:CameraView,direction=1){
 }
 button('cycle-view').onclick=()=>switchCamera();select('player-view').onchange=()=>switchCamera(select('player-view').value as CameraView);
 // Keyboard input never steals arrows, Space or E from forms and native dialogs.
-window.addEventListener('keydown',e=>{if(setup?.open||instructions.open||loading)return;engineSound.unlock();pursuitSound.unlock();scene.combat.unlock();if(game.vehicleBusy&&(game.car?.phase!=='driving'||['KeyG','KeyC'].includes(e.code))&&['KeyQ','KeyF','KeyR','KeyG','KeyC'].includes(e.code)){e.preventDefault();return;}if(e.key==='Escape'&&game.status==='playing'){e.preventDefault();if(grenadeMode){grenadeMode=false;scene.grenades.aim=undefined;}else setPaused(!paused);return;}if((e.target as HTMLElement).closest('input,select,textarea,button,a'))return;
+window.addEventListener('keydown',e=>{if(suspended||setup?.open||instructions.open||loading)return;engineSound.unlock();pursuitSound.unlock();scene.combat.unlock();if(game.vehicleBusy&&(game.car?.phase!=='driving'||['KeyG','KeyC'].includes(e.code))&&['KeyQ','KeyF','KeyR','KeyG','KeyC'].includes(e.code)){e.preventDefault();return;}if(e.key==='Escape'&&game.status==='playing'){e.preventDefault();if(grenadeMode){grenadeMode=false;scene.grenades.aim=undefined;}else setPaused(!paused);return;}if((e.target as HTMLElement).closest('input,select,textarea,button,a'))return;
  if(e.code==='KeyJ'&&!e.repeat&&inHub&&game.city.radio&&game.car?.phase==='driving'){e.preventDefault();radio.next();return;}
  if(inHub&&game.city.weaponSwitch&&!e.repeat&&['Digit1','Digit2','Digit3'].includes(e.code)){e.preventDefault();selectWeapon(e.code==='Digit1'?'none':e.code==='Digit2'?'pistol':'rifle');return;}
  if(['KeyX','KeyL','KeyW','KeyA','KeyS','KeyD','KeyC','KeyG','KeyQ','KeyF','KeyR','KeyV','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','KeyE','Space'].includes(e.code)){e.preventDefault();if(e.code==='KeyL'){if(!e.repeat&&game.status==='playing'){game.flashlight=!game.flashlight;announce(game.flashlight?'Flashlight on':'Flashlight off');}return;}if(e.code==='KeyV'){if(!e.repeat&&game.status==='playing')switchCamera(undefined,e.shiftKey?-1:1);return;}if(e.code==='KeyG'&&!e.repeat){toggleGrenade();return;}if(grenadeMode&&e.code==='KeyF'){if(!e.repeat)grenadeTap=true;return;}if(e.code==='ShiftLeft'||e.code==='ShiftRight')crouchToggle=false;if(e.code==='KeyC'){if(!e.repeat)toggleCrouch();return;}keys.add(e.code);if(e.code==='KeyE'&&!e.repeat)interact=true;if(e.code==='Space'&&!e.repeat)jump=true;if(e.code==='KeyQ'&&!e.repeat&&isGun(game.playerCombat.weapon)){aimToggle=!aimToggle;targetId=undefined;button('touch-aim').setAttribute('aria-pressed',String(aimToggle));}if(e.code==='KeyR'&&!e.repeat)reloadTap=true;if(e.code==='KeyF'&&!e.repeat&&isGun(game.playerCombat.weapon)){fireTap=true;scene.combat.unlock();}}
@@ -220,11 +223,11 @@ for(const event of ['pointerup','pointercancel','lostpointercapture'])button('to
 button('drive-brake').addEventListener('pointerdown',e=>{e.preventDefault();brakeHeld=true;button('drive-brake').setPointerCapture(e.pointerId);});for(const event of ['pointerup','pointercancel','lostpointercapture'])button('drive-brake').addEventListener(event,()=>{brakeHeld=false;});
 const updatePointer=(e:PointerEvent)=>{const r=canvas.getBoundingClientRect();pointer={x:(e.clientX-r.x)/r.width*2-1,y:1-(e.clientY-r.y)/r.height*2};};
 // Mouse chording does not emit a second pointerdown while another button is held.
-canvas.addEventListener('mousedown',e=>{if(loading||paused||(game.vehicleBusy&&game.car?.phase!=='driving')||grenadeMode||game.status!=='playing'||!isGun(game.playerCombat.weapon))return;if(e.button===2)rightAim=true;if(e.button===0&&(rightAim||aimToggle)){fireHeld=true;fireTap=true;scene.combat.unlock();}});
+canvas.addEventListener('mousedown',e=>{if(suspended||loading||paused||(game.vehicleBusy&&game.car?.phase!=='driving')||grenadeMode||game.status!=='playing'||!isGun(game.playerCombat.weapon))return;if(e.button===2)rightAim=true;if(e.button===0&&(rightAim||aimToggle)){fireHeld=true;fireTap=true;scene.combat.unlock();}});
 window.addEventListener('mouseup',e=>{if(e.button===0)fireHeld=false;if(e.button===2)rightAim=false;});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('pointerdown',e=>{
- if(loading||setup?.open||instructions.open||paused||game.status!=='playing')return;canvas.focus({preventScroll:true});updatePointer(e);canvas.setPointerCapture(e.pointerId);
+ if(suspended||loading||setup?.open||instructions.open||paused||game.status!=='playing')return;canvas.focus({preventScroll:true});updatePointer(e);canvas.setPointerCapture(e.pointerId);
  if(grenadeMode){grenadeTarget=scene.pickGrenade(pointer,game);if(e.button===0&&e.pointerType!=='touch')grenadeTap=true;return;}
  if((!game.vehicleBusy||game.car?.phase==='driving')&&isGun(game.playerCombat.weapon)&&e.button===2){rightAim=true;return;}
  if((!game.vehicleBusy||game.car?.phase==='driving')&&isGun(game.playerCombat.weapon)&&e.button===0&&(rightAim||aimToggle&&e.pointerType!=='touch')){fireHeld=true;fireTap=true;scene.combat.unlock();return;}
@@ -246,6 +249,23 @@ function replace(nextProject:PlayProject,next:PlayCast,play=true){
 }
 for(const actor of [hero,...guards.values(),...(companionActor?[companionActor]:[])])scene.scene.add(actor.render.group);
 reset();chapterIntro();$('actor-name').textContent=project.character.name;button('start').disabled=false;button('help').disabled=false;button('sound').disabled=false;requestAnimationFrame(frame);
-return {get state(){return {game,scene,hero,guard:guards.get(game.guard.id),guards,companionActor,project:rootProject,chapterProject:project,chapter:chapterIndex,paused,loading,music};},replace,openSettings:()=>{if(setup)openModal(setup);},closeSettings:closeModal};
+function suspend(){if(suspended)return;setPaused(false);suspended=true;music.setPlaying(false);engineSound.stop();pursuitSound.stop();radio.stop();clearInput();}
+function resume(){suspended=false;}
+return {get state(){return {game,scene,hero,guard:guards.get(game.guard.id),guards,companionActor,project:rootProject,chapterProject:project,chapter:chapterIndex,paused,loading,music};},replace,openSettings:()=>{if(setup)openModal(setup);},closeSettings:closeModal,suspend,resume};
+}
+const arcadeMode=(p:PlayProject)=>p.mode==='race'||p.mode==='runner';
+/**
+ * The game player: staged missions use the mission player; race and runner modes hand the canvas to the arcade
+ * player. Switching modes suspends one and resumes the other without reloading the page.
+ */
+export function mountPlayer(scene:GameScene,initialProject:PlayProject,initialCast:PlayCast,hooks:PlayerHooks={}){
+ const mission=mountMissionPlayer(scene,initialProject,initialCast,hooks);let arcade:ArcadePlayer|undefined,current=initialProject;
+ if(arcadeMode(initialProject)){mission.suspend();arcade=mountArcade(scene,initialProject,initialCast,hooks);}
+ function replace(next:PlayProject,cast:PlayCast,play=true){
+  current=next;
+  if(arcadeMode(next)){mission.suspend();if(arcade){arcade.resume();arcade.replace(next,cast,play);}else arcade=mountArcade(scene,next,cast,hooks,play);}
+  else{arcade?.suspend();mission.resume();mission.replace(next,cast,play);}
+ }
+ return {get state(){return arcadeMode(current)&&arcade?arcade.state:mission.state;},replace,openSettings:mission.openSettings,closeSettings:mission.closeSettings};
 }
 export type Player=ReturnType<typeof mountPlayer>;

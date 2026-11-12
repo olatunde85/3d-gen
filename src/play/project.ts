@@ -13,6 +13,7 @@ import {defaultLoadout,parseLoadout,type Loadout,type EnemyResponse,type Health}
 import {defaultProgression,parseProgression,type ProgressionSettings} from './progression';
 import {needsCompanion} from './objectives';
 import {defaultCamera,parseCamera,defaultMusic,parseMusic,type CameraSettings,type MusicSettings} from './presentation';
+import {parseMode,parseRace,parseRunner,type PlayMode,type RaceSettings,type RunnerSettings} from './arcade/modes';
 export interface EnemySettings extends EnemyRole {character:HumanParams;response:EnemyResponse;health:EnemyHealth}
 export interface CompanionSettings {character:HumanParams;health:Health}
 export const defaultCompanion=():CompanionSettings=>({character:preset('The Female Executive'),health:100});
@@ -30,13 +31,14 @@ export function parseIdentity(raw:unknown):GameIdentity {
 }
 export interface PlayBranch {prompt:string;options:{label:string;next:string;flag:string}[]}
 export function parseBranch(raw:unknown):PlayBranch|undefined{if(raw===undefined)return;if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Use a valid chapter branch.');const p=raw as Record<string,unknown>;if(Object.keys(p).some(k=>!['prompt','options'].includes(k))||typeof p.prompt!=='string'||!p.prompt.trim()||p.prompt.length>160||!Array.isArray(p.options)||p.options.length<2||p.options.length>3)throw Error('A chapter branch needs a prompt and two or three choices.');const options=p.options.map((item:unknown)=>{if(!item||typeof item!=='object'||Array.isArray(item))throw Error('Use valid branch choices.');const o=item as Record<string,unknown>;if(Object.keys(o).some(k=>!['label','next','flag'].includes(k))||typeof o.label!=='string'||!o.label.trim()||o.label.length>80||typeof o.next!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(o.next)||typeof o.flag!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(o.flag))throw Error('Each branch choice needs a label, next chapter ID and story flag.');return {label:o.label.trim(),next:o.next,flag:o.flag};});if(new Set(options.map(o=>o.next)).size!==options.length||new Set(options.map(o=>o.flag)).size!==options.length)throw Error('Branch choices need different next chapters and story flags.');return {prompt:p.prompt.trim(),options};}
-export interface PlayProject {story?:StorySettings;branch?:PlayBranch;kind:'ara-play';version:2;template:'escape-depot';identity:GameIdentity;character:HumanParams;loadout:Loadout;enemies:EnemySettings[];companion:CompanionSettings;mission:MissionSettings;vehicle?:DrivingSettings;city?:CitySettings;progression:ProgressionSettings;camera:CameraSettings;music:MusicSettings;chapters?:PlayChapter[]}
-export type PlayChapter=Omit<PlayProject,'kind'|'version'|'template'|'character'|'chapters'|'city'>&{id:string};
+/** `mode` chooses the rules: a staged mission (default), an arcade race or an endless runner. Chapters share the game's mode. */
+export interface PlayProject {story?:StorySettings;branch?:PlayBranch;kind:'ara-play';version:2;template:'escape-depot';mode?:PlayMode;race?:RaceSettings;runner?:RunnerSettings;identity:GameIdentity;character:HumanParams;loadout:Loadout;enemies:EnemySettings[];companion:CompanionSettings;mission:MissionSettings;vehicle?:DrivingSettings;city?:CitySettings;progression:ProgressionSettings;camera:CameraSettings;music:MusicSettings;chapters?:PlayChapter[]}
+export type PlayChapter=Omit<PlayProject,'kind'|'version'|'template'|'mode'|'character'|'chapters'|'city'>&{id:string};
 export const MAX_CHAPTERS=5;
 export function heroGuns(p:PlayProject):Gun[]{const result=new Set<Gun>();for(const g of gameProjects(p)){if(isGun(g.loadout.weapon))result.add(g.loadout.weapon);if(g.progression.reward)result.add(g.progression.reward);if(g.progression.weapon!=='loadout')result.add(g.progression.unlock??'pistol');}return [...result];}
 export const heroWeapon=(p:PlayProject):Equipment=>heroGuns(p).reduce<Equipment>((a,b)=>strongerWeapon(a,b),'none');
 export function chapterProject(p:PlayProject,index:number):PlayProject{const {chapters,...base}=p;if(index===0)return base;const c=chapters?.[index-1];if(!c)throw Error('Choose an available chapter.');const {id,...settings}=c;return {...base,...settings,branch:c.branch,character:p.character};}
-export function chapterSettings(p:PlayProject,id:string):PlayChapter{const {kind,version,template,character,chapters,city,...settings}=p;return {id,...settings};}
+export function chapterSettings(p:PlayProject,id:string):PlayChapter{const {kind,version,template,mode,character,chapters,city,...settings}=p;return {id,...settings};}
 export const gameProjects=(p:PlayProject)=>Array.from({length:1+(p.chapters?.length??0)},(_,i)=>chapterProject(p,i));
 export function playable(p:HumanParams):HumanParams{return {...p,rig:'game',detail:'medium',restPose:'A',animations:true,vehicle:'none',weapon:'none',carry:['backpack','parachute'].includes(p.carry)?p.carry:'none'};}
 export function preset(name:string):HumanParams {if(!Object.hasOwn(PRESETS,name))throw Error('Choose a character from the list.');return playable({...structuredClone(DEFAULT_PARAMS),...structuredClone(PRESETS[name]),name});}
@@ -47,10 +49,15 @@ export function resizeEnemies(project:PlayProject,count:number){
  project.enemies=project.enemies.slice(0,count);
  while(project.enemies.length<count){let n=1;while(project.enemies.some(e=>e.id===`enemy-${n}`))n++;project.enemies.push({...structuredClone(project.enemies[0]),id:`enemy-${n}`});}
 }
+/** Arcade settings travel with their mode; a mission project carries neither. */
+export function arcadeSettings(p:{mode?:unknown;race?:unknown;runner?:unknown},enemyIds:readonly string[]):Pick<PlayProject,'mode'|'race'|'runner'>{
+ const mode=parseMode(p.mode);if(mode==='mission'){if(p.race!==undefined||p.runner!==undefined)throw Error('race and runner settings need mode "race" or "runner".');return {};}
+ return mode==='race'?{mode,race:parseRace(p.race)}:{mode,runner:parseRunner(p.runner,enemyIds)};
+}
 export function parseProject(text:string,catalog:Catalog,validateCampaignLinks=true):PlayProject {
  if(text.length>512_000)throw Error('Choose a setup smaller than 512 KB.');const p=JSON.parse(text);
  if(!p||p.kind!=='ara-play'||![1,2].includes(p.version)||p.template!=='escape-depot')throw Error('Choose an Ara Play game setup (version 1 or 2).');
- const allowed=p.version===1?['kind','version','template','story','identity','difficulty','character','enemy','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch']:['kind','version','template','story','identity','difficulty','character','enemies','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch'];
+ const allowed=p.version===1?['kind','version','template','story','identity','difficulty','character','enemy','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch']:['kind','version','template','mode','race','runner','story','identity','difficulty','character','enemies','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch'];
  for(const key of Object.keys(p))if(!allowed.includes(key))throw Error(`Unsupported game setting: ${key}.`);
  // Older recipes split pursuit speed from aggression. Keep imports compatible,
  // but use one explicit aggression profile for new setups and live gameplay.
@@ -72,15 +79,15 @@ export function parseProject(text:string,catalog:Catalog,validateCampaignLinks=t
  let companion=defaultCompanion();if(p.companion!==undefined){const c=p.companion;if(!c||typeof c!=='object'||Array.isArray(c))throw Error('Use valid companion settings.');for(const key of Object.keys(c))if(!['character','health'].includes(key))throw Error(`Unsupported companion setting: ${key}.`);const health=c.health===undefined?100:c.health;if(![50,100,150].includes(health))throw Error('Choose 50, 100 or 150 companion health.');companion={character:read(c.character),health};}
  const loadout=parseLoadout(p.loadout),progression=parseProgression(p.progression),mission=parseMission(p.mission);validateMissionEquipment(mission,loadout,progression);if(mission.pursuit&&!enemies.some(e=>e.kind!=='sniper'))throw Error('Pursuit needs at least one ground enemy to drive the pickup.');if(p.vehicle?.model&&p.vehicle.model!=='pickup'&&needsCompanion(mission))throw Error('Companion boarding currently needs the pickup vehicle.');
  if(progression.weapon!=='loadout'&&loadout.weapon!=='none')throw Error('Find / unlock pistol missions must start unarmed.');
- const result:PlayProject={kind:'ara-play',version:2,template:'escape-depot',...(p.story===undefined?{}:{story:parseStory(p.story,enemies.map(e=>e.id))}),...(p.branch===undefined?{}:{branch:parseBranch(p.branch)}),identity:parseIdentity(p.identity),character,loadout,enemies,companion,mission,...(p.vehicle===undefined?{}:{vehicle:parseDriving(p.vehicle)}),city:parseCity(p.city),progression,camera:parseCamera(p.camera),music:parseMusic(p.music)};
+ const result:PlayProject={kind:'ara-play',version:2,template:'escape-depot',...(p.story===undefined?{}:{story:parseStory(p.story,enemies.map(e=>e.id))}),...(p.branch===undefined?{}:{branch:parseBranch(p.branch)}),identity:parseIdentity(p.identity),...arcadeSettings(p,enemies.map(e=>e.id)),character,loadout,enemies,companion,mission,...(p.vehicle===undefined?{}:{vehicle:parseDriving(p.vehicle)}),city:parseCity(p.city),progression,camera:parseCamera(p.camera),music:parseMusic(p.music)};
  if(p.chapters!==undefined){
   if(!Array.isArray(p.chapters)||p.chapters.length<1||p.chapters.length>=MAX_CHAPTERS)throw Error(`A game supports one to ${MAX_CHAPTERS} chapters, including the first mission.`);
   const ids=new Set(['chapter-1']);result.chapters=p.chapters.map((c:unknown)=>{
    if(!c||typeof c!=='object'||Array.isArray(c))throw Error('Use a valid chapter.');const row=c as Record<string,unknown>;
-   for(const field of Object.keys(row))if(!['id','story','identity','mission','enemies','companion','loadout','progression','vehicle','camera','music','branch'].includes(field))throw Error(`Unsupported chapter setting: ${field}. The player is shared by all chapters.`);
+   for(const field of Object.keys(row))if(!['id','story','identity','mission','enemies','companion','loadout','progression','vehicle','camera','music','branch','race','runner'].includes(field))throw Error(`Unsupported chapter setting: ${field}. The player is shared by all chapters.`);
    if(typeof row.id!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(row.id)||ids.has(row.id))throw Error('Use unique chapter IDs; chapter-1 is reserved for the first mission.');ids.add(row.id);
    const suppliedLives=row.mission&&typeof row.mission==='object'?(row.mission as Record<string,unknown>).lives:undefined;if(suppliedLives!==undefined&&suppliedLives!==mission.lives)throw Error(`${row.id} › lives: shared across chapters. Set the life budget on the first mission.`);
-   const {id,...patch}=row;try{const chapter=parseProject(JSON.stringify({...result,chapters:undefined,...patch,branch:undefined,character,mission:{...mission,...(row.mission as object??{})}}),catalog,false);if(row.branch!==undefined)chapter.branch=parseBranch(row.branch);chapter.mission.lives=mission.lives;return chapterSettings(chapter,id);}catch(error){throw Error(`${id} › ${(error as Error).message}`);}
+   const {id,...patch}=row;try{const chapter=parseProject(JSON.stringify({...result,chapters:undefined,...patch,branch:undefined,character,mission:{...mission,...(row.mission as object??{})}}),catalog,false);if(result.mode==='mission'||result.mode===undefined){delete chapter.race;delete chapter.runner;}if(row.branch!==undefined)chapter.branch=parseBranch(row.branch);chapter.mission.lives=mission.lives;return chapterSettings(chapter,id);}catch(error){throw Error(`${id} › ${(error as Error).message}`);}
   });
  }
  if(!validateCampaignLinks){storyMedia(result);return result;}

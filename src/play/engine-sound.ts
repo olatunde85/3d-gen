@@ -1,9 +1,10 @@
 /** One streamed engine loop. Gesture, pause, mute and project changes cannot stack playback. */
 export class EngineSound {
  private audio?:HTMLAudioElement;private wanted=false;private requested=false;private generation=0;private failed=false;
- update(playing:boolean,speed:number,enabled:boolean){
+ /** `range` is the speed at full pitch; arcade cars pass their top speed so the engine climbs across it. */
+ update(playing:boolean,speed:number,enabled:boolean,range?:number){
   this.wanted=playing&&enabled;if(!this.wanted){this.stop();return;}
-  if(this.audio){this.audio.volume=.045+Math.min(.08,Math.abs(speed)*.008);this.audio.playbackRate=.7+Math.min(.8,Math.abs(speed)*.065);}
+  if(this.audio){const ratio=range?Math.min(1.25,Math.abs(speed)/range):undefined;this.audio.volume=ratio===undefined?.045+Math.min(.08,Math.abs(speed)*.008):.06+.09*Math.min(1,ratio);this.audio.playbackRate=ratio===undefined?.7+Math.min(.8,Math.abs(speed)*.065):.65+ratio*1.15;}
   this.play();
  }
  unlock(){this.failed=false;if(this.wanted)this.play();}
