@@ -91,6 +91,14 @@ export class VehicleKit{
   this.updates.push(c=>{const L=c.left.clone().add(offset),R=c.right.clone().add(offset),x=L.clone().sub(R).normalize(),normal=v(0,Math.sin(tilt),-Math.cos(tilt)).applyQuaternion(c.chest),y=new T.Vector3().crossVectors(normal,x).normalize();g.position.copy(L).add(R).multiplyScalar(.5);g.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(x,y,normal));});
   return g;
  }
+ /** A steering column from a fixed mount on the body to the hub of a steering wheel that follows the hands. */
+ column(anchor:V,steering:T.Object3D,r:number,mat:T.Material){
+  // A component of its own, so it moves each frame instead of being merged into the static body.
+  const g=this.component('Steering_column',anchor.clone()),m=this.mesh(new T.CylinderGeometry(r,r,1,12).translate(0,.5,0),mat,g),up=v(0,1,0),d=v();
+  const place=()=>{d.copy(steering.position).sub(anchor);const len=d.length();if(len<1e-4)return;g.quaternion.setFromUnitVectors(up,d.divideScalar(len));m.scale.set(1,len,1);};
+  this.updates.push(place);place();
+  return g;
+ }
  dispose(){const geos=new Set<T.BufferGeometry>(),mats=new Set<T.Material>([this.paint,this.trim,this.seat,this.rubber,this.dark,this.glass,this.light,this.tail]);this.group.traverse(o=>{if(o instanceof T.Mesh){geos.add(o.geometry);for(const mat of Array.isArray(o.material)?o.material:[o.material])mats.add(mat);}});geos.forEach(g=>g.dispose());mats.forEach(m=>m.dispose());}
 }
 /** Seven-segment digits as thin boxes on a plane facing +Z, so numbers need no canvas or texture. */

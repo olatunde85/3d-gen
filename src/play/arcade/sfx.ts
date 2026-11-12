@@ -1,7 +1,20 @@
 /**
- * Arcade sound effects synthesised with Web Audio, so exported games need no extra files: countdown beeps, coins,
- * boosts, crashes, whooshes and pickups. Silent until a user gesture unlocks audio; respects the game's mute.
+ * Arcade sound effects synthesised with Web Audio: countdown beeps, coins, boosts, crashes, whooshes and pickups.
+ * Rain and sandstorms loop Studio's recordings, with filtered noise until the recording loads or if it cannot.
+ * Silent until a user gesture unlocks audio; respects the game's mute.
  */
+import { soundEffectById } from '../../studio/audio/effects-catalog';
+const WEATHER_EFFECT = { rain: 'heavy-rain', sandstorm: 'sandstorm' } as const;
+const WEATHER_LEVEL = { rain: { noise: 0.16, recorded: 0.7 }, sandstorm: { noise: 0.22, recorded: 0.45 } } as const;
+/** A loop of the recording whose end crossfades into its start, so the seam is not heard. */
+function seamless(c: BaseAudioContext, b: AudioBuffer) {
+  const fade = Math.min(Math.floor(b.sampleRate * 0.4), Math.floor(b.length / 3)), length = b.length - fade, out = c.createBuffer(b.numberOfChannels, length, b.sampleRate);
+  for (let ch = 0; ch < b.numberOfChannels; ch++) {
+    const src = b.getChannelData(ch), dst = out.getChannelData(ch);dst.set(src.subarray(0, length));
+    for (let i = 0; i < fade; i++) { const k = i / fade;dst[i] = src[i] * Math.sqrt(k) + src[length + i] * Math.sqrt(1 - k); }
+  }
+  return out;
+}
 export type ArcadeSound = 'beep' | 'go' | 'coin' | 'boost' | 'crash' | 'bump' | 'whoosh' | 'power' | 'jump' | 'slide' | 'land' | 'lap' | 'best' | 'stumble' | 'shield' | 'spin' | 'item' | 'win' | 'lose';
 export class ArcadeSfx {
   private context?: AudioContext; private master?: GainNode; private noise?: AudioBuffer; private last = new Map<ArcadeSound, number>();
@@ -30,18 +43,32 @@ export class ArcadeSfx {
     g.gain.setValueAtTime(volume, t);g.gain.exponentialRampToValueAtTime(0.0001, t + length);
     s.connect(f).connect(g).connect(this.master!);s.start(t, Math.random() * 0.5);s.stop(t + length + 0.02);
   }
-  private bed?: { source: AudioBufferSourceNode; gain: GainNode; kind: string; level: number };
-  /** A looping filtered-noise bed for rain or a sandstorm; it follows the play state and the game's mute. */
+  private bed?: { source: AudioBufferSourceNode; gain: GainNode; kind: string; level: number; recorded: boolean };
+  private recordings = new Map<'rain' | 'sandstorm', AudioBuffer | null>();
+  private loading = new Set<string>();
+  /** Fetch and decode a weather recording once; a failure leaves the noise bed in place. */
+  private loadWeather(kind: 'rain' | 'sandstorm') {
+    const c = this.context, effect = soundEffectById(WEATHER_EFFECT[kind]);if (!c || !effect || this.recordings.has(kind) || this.loading.has(kind)) return;
+    this.loading.add(kind);
+    const base = new URL(import.meta.env?.BASE_URL ?? '/', location.href);
+    fetch(new URL(`media/effects/${effect.file}`, base)).then(r => { if (!r.ok) throw Error('Audio unavailable');return r.arrayBuffer(); }).then(b => c.decodeAudioData(b))
+      .then(b => { this.recordings.set(kind, seamless(c, b)); }, () => { this.recordings.set(kind, null); })
+      .finally(() => { this.loading.delete(kind);if (this.bed?.kind === kind && !this.bed.recorded && this.recordings.get(kind)) { const { level } = this.bed;this.bed.gain.gain.setTargetAtTime(0, c.currentTime, 0.3);const old = this.bed.source;setTimeout(() => { try { old.stop(); } catch { /* Ended. */ } }, 1200);this.bed = undefined;this.weather(kind, level > 0); } });
+  }
+  /** A looping rain or sandstorm bed; it follows the play state and the game's mute. */
   weather(kind: 'rain' | 'sandstorm' | 'none', on: boolean) {
     const c = this.context;if (!c || !this.noise || !this.master) return;
     if (this.bed && this.bed.kind !== kind) { this.bed.source.stop();this.bed = undefined; }
     if (!this.bed && kind !== 'none') {
-      const source = c.createBufferSource(), filter = c.createBiquadFilter(), gain = c.createGain();source.buffer = this.noise;source.loop = true;
-      filter.type = kind === 'rain' ? 'highpass' : 'lowpass';filter.frequency.value = kind === 'rain' ? 1400 : 650;gain.gain.value = 0;
-      source.connect(filter).connect(gain).connect(this.master);source.start();this.bed = { source, gain, kind, level: 0 };
+      this.loadWeather(kind);
+      const recording = this.recordings.get(kind), source = c.createBufferSource(), gain = c.createGain();source.loop = true;gain.gain.value = 0;
+      if (recording) { source.buffer = recording;source.connect(gain); }
+      else { const filter = c.createBiquadFilter();source.buffer = this.noise;filter.type = kind === 'rain' ? 'highpass' : 'lowpass';filter.frequency.value = kind === 'rain' ? 1400 : 650;source.connect(filter).connect(gain); }
+      gain.connect(this.master);source.start();this.bed = { source, gain, kind, level: 0, recorded: !!recording };
     }
-    const level = on && this.enabled ? (kind === 'rain' ? 0.16 : 0.22) : 0;
-    if (this.bed && this.bed.level !== level) { this.bed.level = level;this.bed.gain.gain.setTargetAtTime(level, c.currentTime, 0.4); }
+    if (!this.bed) return;
+    const levels = WEATHER_LEVEL[this.bed.kind as 'rain' | 'sandstorm'], level = on && this.enabled ? (this.bed.recorded ? levels.recorded : levels.noise) : 0;
+    if (this.bed.level !== level) { this.bed.level = level;this.bed.gain.gain.setTargetAtTime(level, c.currentTime, 0.4); }
   }
   /** `strength` 0..1 scales impacts; repeated sounds are rate-limited so a long scrape cannot stack. */
   play(sound: ArcadeSound, strength = 1) {

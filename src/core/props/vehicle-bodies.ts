@@ -202,9 +202,13 @@ function buildKart(k:VehicleKit){
  k.tube(v(-.55*s,.13*s,fz+.47*s),v(.55*s,.13*s,fz+.47*s),.025*s,k.trim);
  for(const side of [-1,1]){const pod=k.ellipsoid(v(side*.55*s,.2*s,z0+.25*s),v(.12*s,.1*s,.42*s),k.paint);pod.rotation.x=.05;}
  k.box(v(0,.18*s,rz-.32*s),v(1.35*s,.12*s,.08*s),k.paint);
- k.box(v(-.32*s,seatY,rz+.05*s),v(.22*s,.24*s,.26*s),k.dark);
+ // Struts tie the bumpers, side pods and seat to the tube frame; the engine sits on the frame beside the seat.
+ for(const side of [-1,1]){k.tube(v(side*.36*s,.12*s,rz),v(side*.36*s,.16*s,rz-.29*s),.018*s,k.trim);k.tube(v(side*.33*s,.12*s,z0+.25*s),v(side*.46*s,.18*s,z0+.25*s),.018*s,k.trim);k.tube(v(side*.3*s,.12*s,fz+.1*s),v(side*.3*s,.13*s,fz+.47*s),.018*s,k.trim);}
+ k.tube(v(-.34*s,.12*s,z0-.05*s),v(.34*s,.12*s,z0-.05*s),.02*s,k.trim);
+ k.box(v(-.36*s,.12*s+.12*s,rz+.05*s),v(.22*s,.24*s,.26*s),k.dark);
  const number=raceNumber(k,k.style.number??8,.12*s,k.dark);number.position.set(0,.29*s,fz+.31*s);k.group.add(number);
- steeringWheel(k,z0+.62*s,0,0,.15);
+ // The wheel follows the fitted hands; its column runs down into the top of the nose, with a mounting block there.
+ const mount=v(0,.4*s,z0+.56*s),wheel=k.steering(.15*s,32*Math.PI/180);k.column(mount,wheel,.022*s,k.dark);k.box(mount,v(.1*s,.07*s,.12*s),k.dark);
 }
 
 const BOXES:Partial<Record<VehicleBody,BoxSpec>>={

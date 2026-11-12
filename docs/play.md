@@ -46,7 +46,7 @@ Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, s
 
 ### Time and weather
 
-**Atmosphere → Light, weather & sound** sets the time of day and weather for races and runs, stored as `mission.environment.time` and `weather`; each chapter can choose its own. Dawn and dusk tint the sky and lower the sun. Dusk and night switch on every car's headlamps with light pools on the road ahead, lamp posts with pools along the circuit, and lamps and a lantern pool around the runner. Rain darkens and wets the road so it reflects, with falling streaks and a rain sound; fog closes in the view; a sandstorm adds an orange haze, blowing dust and wind. Thicker fog also shortens the draw distance. The lamps and pools are batched additive decals rather than real lights, so night and weather add a handful of draw calls and no extra lighting cost. Race and runner games have no companion; companion settings stay in the JSON but are unused.
+**Atmosphere → Light, weather & sound** sets the time of day and weather for races and runs, stored as `mission.environment.time` and `weather`; each chapter can choose its own. Dawn and dusk tint the sky and lower the sun. Dusk and night switch on every car's headlamps with light pools on the road ahead, lamp posts with pools along the circuit, and lamps and a lantern pool around the runner. Night runs keep a bright moonlit fill, a longer view and faintly lit obstacles so the course stays readable. Rain darkens and wets the road so it reflects, with falling streaks and the Heavy rain recording; fog closes in the view; a sandstorm adds an orange haze, blowing dust and the Sandstorm recording. Both recordings loop with a crossfaded seam, and filtered noise stands in until they load. Thicker fog also shortens the draw distance. The lamps and pools are batched additive decals rather than real lights, so night and weather add a handful of draw calls and no extra lighting cost. Race and runner games have no companion; companion settings stay in the JSON but are unused.
 
 ### Controls and feel
 
@@ -60,7 +60,7 @@ Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, s
 | Restart | Restart | R | Back | Restart on the pause card |
 | Pause | Pause | Escape or P | Start | Pause button |
 
-Tilt steering can be switched on from the pause card on phones. The lens widens with speed, impacts shake the camera, speed lines and a soft edge blur grow with pace, boosts flash the screen and near misses briefly slow time; reduced-motion settings soften these effects. Engine pitch follows the car's speed, sound effects are synthesised in the browser, and the music gains tempo and volume as a race goes on or a run speeds up. **R** restarts immediately without reloading the scene. Opening Game setup pauses the game.
+Tilt steering can be switched on from the pause card on phones. The lens widens with speed, impacts shake the camera, speed lines and a soft edge blur grow with pace, boosts flash the screen and near misses briefly slow time; reduced-motion settings soften these effects. Engine pitch follows the car's speed, other sound effects are synthesised in the browser, and the music gains tempo and volume as a race goes on or a run speeds up. **R** restarts immediately without reloading the scene. Opening Game setup pauses the game.
 
 Both modes run fixed-step rules, draw repeated objects in batches and reuse course pieces, coins and obstacles instead of creating new ones. Runner pieces are generated ahead of the player and dropped behind, and the world moves back toward the origin on long runs. Distant drivers are hidden. Leaderboards are local to each browser.
 
@@ -129,7 +129,7 @@ Armed drivers can aim, fire and reload while driving. Studio’s mounted weapon 
 
 Atmosphere provides Dawn, Day, Dusk and Night, plus Clear, Rain, Fog and Sandstorm. Night and adverse weather reduce guard visibility. Floodlights have measured solid posts; their lighting reach is shared with perception. A player flashlight reveals nearby terrain and makes the player easier to spot. Close contact and sound still matter at night.
 
-Choose quiet ambience, automatic ambience, wind, forest/birds or ocean from Studio’s compressed recordings. Automatic ambience uses wind in the desert or poor weather, birds at a daytime market, and quiet elsewhere. Combat/movement effects include gunshots, impacts, punches, footsteps and body falls. Pickup engines use the recorded engine loop. Playback is bounded, lazy, pause-aware and respects master mute. Audio failures do not stop gameplay.
+Choose quiet ambience, automatic ambience, wind, forest/birds, ocean, heavy rain or sandstorm from Studio’s compressed recordings. Automatic ambience uses heavy rain in rain, the sandstorm recording in a sandstorm, wind in fog or the desert, birds at a daytime market, and quiet elsewhere. Combat/movement effects include gunshots, impacts, punches, footsteps and body falls. Pickup engines use the recorded engine loop. Playback is bounded, lazy, pause-aware and respects master mute. Audio failures do not stop gameplay.
 
 Choose allowed camera views and the starting view. Players switch among permitted views with V, the camera button or the pause menu. Third person and Close follow start directly behind the character near eye height, with a slight 3° downward tilt. Players can lower the tilt to a fully level view. Orbit and Close follow support horizontal rotation and vertical tilt; fixed Overhead/Isometric views retain their intended elevation. Creators can disable rotation or zoom. Background music comes from the same compressed music library as Studio and loops during active play.
 
@@ -173,6 +173,8 @@ Completed runs award **No alarms**, **No damage** and **Under par** medals. Defa
 Agile movement chooses vaults and climbs from measured heights and safe landings. Parked pickups can be climbed from the hood or rear tailgate, walked across and climbed from the bed onto the roof. Occupied vehicles cannot be climbed. Return to ground level to board. Grounded movement disables jumping/traversal. Crouching lowers actual sight, bullet and blast geometry; it is not invulnerability.
 
 ## Save, import and export
+
+- While a game loads, the briefing card names it from the saved setup: its mode, circuit, course or location, title, briefing and key facts, over a plain backdrop for missions, races or runs. The 3D view appears once the cast is ready, and progress shows under the button.
 
 - **Save setup** writes `.ara-play.json` without attachments, or `.ara-play.zip` with local story media. **Open setup** accepts both. It imports character settings separately through Cast. **Start over** clears every setting back to a fresh mission setup after a confirmation; save first to keep the current one.
 - **Download game ZIP** includes an independent HTML/JavaScript player, exact generated characters, selected textures, recorded sounds/music and story media. It does not run the character generator or require Ara services.
