@@ -118,6 +118,14 @@ export class ArcadeHud {
   columns(left: HTMLElement[], right: HTMLElement[], lead: 'left' | 'right' = 'left') { const d = el('div', 'arcade-columns'), l = el('div'), r = el('div');d.dataset.lead = lead;l.append(...left);r.append(...right);d.append(l, r);return d; }
   /** Big number tiles, e.g. time, best lap and cash. */
   stats(rows: [string, string, Tone?][]) { const d = el('div', 'arcade-stats');for (const [k, v, tone] of rows) { const s = el('div');if (tone) s.dataset.tone = tone;s.append(el('span', '', k), el('strong', '', v));d.append(s); } return d; }
+  /** The chapter briefing as a quoted panel. */
+  briefing(text: string, label = 'BRIEFING') { const d = el('div', 'arcade-briefing');d.append(el('span', '', label), el('p', '', text));return d; }
+  /** Every chapter in order: finished ones ticked, the current one highlighted. */
+  progress(items: { label: string; state: 'done' | 'current' | 'next' }[]) {
+    const list = el('ol', 'arcade-progress');
+    items.forEach((item, i) => { const li = el('li');li.dataset.state = item.state;li.append(el('b', '', item.state === 'done' ? '✓' : String(i + 1)), el('span', '', item.label));list.append(li); });
+    return list;
+  }
   /** Highlights such as a new best lap. */
   badges(texts: string[]) { const d = el('div', 'arcade-badges');for (const t of texts) d.append(el('span', '', t));return d; }
   /** A large figure beside the card title, e.g. cash in the garage. */

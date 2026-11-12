@@ -103,11 +103,13 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   function intro() {
     help();
     const briefing = project.identity.briefing.trim();
+    /** Cup races or run stages with their names, ticking those already won or cleared. */
+    const steps = (done: number) => rounds() > 1 && !daily ? [hud.progress(Array.from({ length: rounds() }, (_, i) => ({ label: gameTitle(chapterProject(root, i)), state: i === chapter ? 'current' as const : i < done ? 'done' as const : 'next' as const })))] : [];
     if (race) {
       const settings = race.settings, record = raceRecord(gameKey(), trackKey(settings.track)), cup = cupRecord(gameKey());
       const kicker = daily ? `DAILY CHALLENGE · ${today()}` : rounds() > 1 ? `CUP · RACE ${chapter + 1} OF ${rounds()}` : 'ARCADE RACE';
       const stats = hud.stats([['BEST LAP', record.bestLap ? clock(record.bestLap) : '—'], ['BEST RACE', record.bestRace ? clock(record.bestRace) : '—'], ...(rounds() > 1 && !daily ? [['CUP POINTS', String(cup.points[project.character.name || 'You'] ?? 0), 'hot'] as [string, string, 'hot'], ['CASH', `$${cup.cash}`] as [string, string]] : [])]);
-      hud.show(kicker, title(), [...(briefing ? [briefing] : []), facts([race.track.name, `${settings.laps} ${settings.laps === 1 ? 'lap' : 'laps'}`, `${settings.opponents + 1} cars`, CAR_STATS[settings.car.model].name]), stats, ...(linkedGhost(trackKey(settings.track)) ? [hud.badges(['RACING A SHARED GHOST'])] : []), micro(controls())], [
+      hud.show(kicker, title(), [...steps(cup.complete ? rounds() : cup.round), ...(briefing ? [hud.briefing(briefing)] : []), facts([race.track.name, `${settings.laps} ${settings.laps === 1 ? 'lap' : 'laps'}`, `${settings.opponents + 1} cars`, CAR_STATS[settings.car.model].name]), stats, ...(linkedGhost(trackKey(settings.track)) ? [hud.badges(['RACING A SHARED GHOST'])] : []), micro(controls())], [
         { label: 'Start race', primary: true, run: start },
         ...(daily ? [{ label: 'Back to the main race', run: () => { daily = false;setup(); } }] : [{ label: 'Daily challenge', run: () => { daily = true;setup(); } }]),
         ...(rounds() > 1 && !daily ? [{ label: 'Garage', run: garage }] : []),
@@ -117,7 +119,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       const kicker = daily ? `DAILY RUN · ${today()}` : rounds() > 1 ? `STAGE ${chapter + 1} OF ${rounds()}` : 'ENDLESS RUNNER';
       const target = goal.type === 'endless' ? 'Endless' : goal.type === 'distance' ? `Run ${goal.target} m` : goal.type === 'coins' ? `Collect ${goal.target} coins` : `Score ${goal.target.toLocaleString()}`;
       const stats = hud.stats([['BEST', record.best ? Math.floor(record.best).toLocaleString() : '—'], ['FURTHEST', record.bestDistance ? `${Math.floor(record.bestDistance).toLocaleString()} m` : '—'], ['BANK', `● ${record.bank}`, 'hot'], ...(daily && record.daily[today()] ? [['TODAY', Math.floor(record.daily[today()]).toLocaleString()] as [string, string]] : [])]);
-      hud.show(kicker, title(), [...(briefing ? [briefing] : []), facts([RUNNER_THEME_NAMES[settings.theme], target, settings.chaser !== 'none' ? 'Chaser' : 'No chaser']), stats, micro(controls())], [
+      hud.show(kicker, title(), [...steps(record.stage ?? 0), ...(briefing ? [hud.briefing(briefing)] : []), facts([RUNNER_THEME_NAMES[settings.theme], target, settings.chaser !== 'none' ? 'Chaser' : 'No chaser']), stats, micro(controls())], [
         { label: 'Run', primary: true, run: start },
         ...(daily ? [{ label: 'Back to the main run', run: () => { daily = false;setup(); } }] : [{ label: 'Daily run', run: () => { daily = true;setup(); } }]),
         { label: 'Shop', run: shop },
@@ -245,7 +247,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       stats.push(['CASH', `$${cup.cash}`, 'hot'], ...(settledNotes.earned ? [['EARNED', `+$${settledNotes.earned}`, 'good'] as [string, string, 'good']] : []));
       right.push(hud.section(cup.complete ? 'Final cup standings' : `Cup after race ${chapter + 1} of ${rounds()}`, hud.bars(order.map(([name, value]) => ({ name, value, you: name === you })))));
       if (cup.complete) cupWin = order[0]?.[0] === you ? 'YOU WIN THE CUP' : `${order[0]?.[0].toUpperCase()} WINS THE CUP`;
-      if (!cup.complete && chapter + 1 < rounds()) actions.unshift({ label: `Next race: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup();start(); } });
+      if (!cup.complete && chapter + 1 < rounds()) actions.unshift({ label: `Next race: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup(); } });
       actions.push({ label: 'Garage', run: garage });
       if (cup.complete) actions.push({ label: 'Restart the cup', run: () => { saveCup(gameKey(), { round: 0, points: {}, cash: 0, garage: cup.garage, car: cup.car, paint: cup.paint, complete: false });chapter = 0;setup(); } });
     }
@@ -273,7 +275,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     const stats = hud.stats([['DISTANCE', `${Math.floor(g.distance).toLocaleString()} m`], ['COINS', `● ${g.coins}`, 'hot'], ['MULTIPLIER', `×${g.multiplier}`], ['BEST', record.best.toLocaleString(), best ? 'good' : '']]);
     const missions = hud.section(`Missions · ×${1 + record.missionLevel} multiplier`, hud.checklist(g.missions.map((m, i) => ({ label: m.label, done: !!g.missionsDone[i], progress: g.missionProgress(i) }))), micro('Finish all three to raise your score multiplier.'));
     const actions: CardAction[] = [{ label: 'Run again', primary: true, run: start }, { label: 'Shop', run: shop }];
-    if (rounds() > 1 && (won || g.settings.goal.type === 'endless') && chapter + 1 < rounds()) { actions[0] = { ...actions[0], primary: false };actions.unshift({ label: `Next stage: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup();start(); } }); }
+    if (rounds() > 1 && (won || g.settings.goal.type === 'endless') && chapter + 1 < rounds()) { actions[0] = { ...actions[0], primary: false };actions.unshift({ label: `Next stage: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup(); } }); }
     if (!daily) actions.push({ label: 'Daily run', run: () => { daily = true;setup(); } });
     const kicker = daily ? `DAILY RUN · ${today()}` : won ? 'GOAL REACHED' : { crash: 'CRASHED', fall: 'FELL', caught: 'CAUGHT' }[g.downReason ?? 'crash'] ?? 'RUN OVER';
     hud.show(`${kicker} · ${RUNNER_THEME_NAMES[g.settings.theme].toUpperCase()}`, `${score.toLocaleString()} points`, [hud.columns([stats, ...(notes.length ? [hud.badges(notes)] : [])], [missions])], actions, 'wide', hud.aside('BANK', `● ${record.bank.toLocaleString()}`));

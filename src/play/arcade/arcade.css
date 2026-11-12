@@ -163,3 +163,16 @@ body.arcade-active footer .desktop-help{font-size:0}body.arcade-active footer .d
 .arcade-ui:has(.arcade-card:not([hidden]):not([data-place=brief])) :is(.arcade-top,.arcade-side,.arcade-gauge,.arcade-center,.arcade-touch){opacity:0;transition:opacity .2s}
 .arcade-ui:has(.arcade-card[data-place=brief]:not([hidden])) :is(.arcade-gauge,.arcade-center,.arcade-touch){opacity:0}
 .arcade-card[data-place=brief] .arcade-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* Chapter briefing and the cup or stage progress strip on the briefing card. */
+.arcade-briefing{position:relative;padding:14px 16px 15px 18px;border-radius:12px;background:linear-gradient(135deg,#ffd23f1c,#ffffff08 70%);border:1px solid #ffd23f40}
+.arcade-briefing::before{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--gold)}
+.arcade-briefing span{display:block;font:700 9px ui-monospace,monospace;letter-spacing:1.6px;color:var(--gold);margin-bottom:6px}
+.card.arcade-card .arcade-briefing p{color:#fff;font-size:15px;line-height:1.55;font-weight:500}
+.arcade-progress{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:6px}
+.arcade-progress li{min-width:0;display:grid;gap:5px;padding:8px 9px;border-radius:10px;background:#ffffff08;border:1px solid var(--edge)}
+.arcade-progress b{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:700 10px ui-monospace,monospace;background:#ffffff17;color:var(--dim)}
+.arcade-progress span{font-size:11px;font-weight:600;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arcade-progress li[data-state=current]{border-color:var(--gold);background:#ffd23f14}
+.arcade-progress li[data-state=current] b{background:var(--gold);color:#1d1b10}
+.arcade-progress li[data-state=current] span{color:#fff}
+.arcade-progress li[data-state=done] b{background:var(--good);color:#12261b}
