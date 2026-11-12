@@ -8,10 +8,8 @@ import {VehicleKit,raceNumber,v} from './vehicle-kit';
 import {buildCoveredCar} from './vehicle-car';
 import {ConvexGeometry} from 'three/examples/jsm/geometries/ConvexGeometry.js';
 
-export const VEHICLE_BODIES=['danfo','van','bus','truck','keke','quad','scooter','kart','saloon','muscle']as const;
-export type VehicleBody=typeof VEHICLE_BODIES[number];
-/** The vehicle whose rider posture, boarding and lift each body borrows. */
-export const BODY_BASE:Record<VehicleBody,'suv'|'pickup'|'motorcycle'|'sports_car'>={danfo:'suv',van:'suv',bus:'suv',truck:'pickup',keke:'motorcycle',quad:'motorcycle',scooter:'motorcycle',kart:'sports_car',saloon:'sports_car',muscle:'sports_car'};
+import {VEHICLE_BODIES,BODY_BASE,type VehicleBody} from './vehicles';
+export {VEHICLE_BODIES,BODY_BASE,type VehicleBody};
 
 /** A side wall in the car's length (z) and height (y), with wheel arches cut from its lower edge. */
 function sideShape(back:number,front:number,bottom:number,top:number,arches:[number,number,number][],noseRound=0,tailRound=0){
@@ -105,12 +103,10 @@ function boxVehicle(k:VehicleKit,spec:BoxSpec){
  k.box(v(cx-half*.5,seatY-.03*s,z0-.02*s),v(.62*s,.12*s,.5*s),k.seat);k.box(v(cx-half*.5,seatY+.3*s,z0-.32*s),v(.6*s,.66*s,.12*s),k.seat);
  for(const zz of spec.bench??[]){k.box(v(cx,seatY-.03*s,z0+zz*s),v(width*.86,.12*s,.48*s),k.seat);k.box(v(cx,seatY+.28*s,z0+(zz-.26)*s),v(width*.86,.6*s,.1*s),k.seat);}
  steeringWheel(k,z0+.58*s,cx);
- // The danfo's roof rack: side rails and slats on short legs, with a strapped load.
+ // The danfo's roof rack: side rails and slats on short legs, carried empty.
  if(spec.rack){const z0r=back+.35*s,z1r=front-rake-.25*s,y=roof+.14*s,hw=half*.86,mid=(z0r+z1r)/2;
   for(const side of [-1,1]){k.tube(v(cx+side*hw,y,z0r),v(cx+side*hw,y,z1r),.018*s,k.dark);for(const zz of [z0r,mid,z1r])k.tube(v(cx+side*hw,roof,zz),v(cx+side*hw,y,zz),.015*s,k.dark);}
-  for(let i=0;i<=6;i++){const zz=z0r+(z1r-z0r)*i/6;k.tube(v(cx-hw,y,zz),v(cx+hw,y,zz),.012*s,k.dark);}
-  const sack=new T.MeshStandardMaterial({name:'Danfo load',color:'#8a7656',roughness:.95}),bag=new T.MeshStandardMaterial({name:'Danfo bag',color:'#2f5d7c',roughness:.85});
-  k.box(v(cx-.25*s,y+.14*s,mid-.6*s),v(.6*s,.26*s,.8*s),sack);k.box(v(cx+.3*s,y+.11*s,mid-.3*s),v(.5*s,.2*s,.55*s),bag);k.ellipsoid(v(cx+.1*s,y+.12*s,mid+.5*s),v(.32*s,.13*s,.26*s),sack);}
+  for(let i=0;i<=6;i++){const zz=z0r+(z1r-z0r)*i/6;k.tube(v(cx-hw,y,zz),v(cx+hw,y,zz),.012*s,k.dark);}}
  if(spec.destination){k.box(v(cx,roof-.13*s,front-rake-.03*s),v(width*.7,.18*s,.04*s),k.dark);k.box(v(cx,roof-.13*s,front-rake-.005*s),v(width*.62,.12*s,.01*s),new T.MeshStandardMaterial({name:'Vehicle destination sign',color:'#f5a623',emissive:'#b86b00',emissiveIntensity:.8,roughness:.4}));}
  // A truck's cargo box rides behind the cab.
  if(spec.cargo){const c=spec.cargo,len=(c.front-c.back)*s,zc=z0+(c.front+c.back)/2*s,top=H.y+c.top*s;

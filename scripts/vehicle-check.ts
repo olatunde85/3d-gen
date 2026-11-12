@@ -8,7 +8,7 @@ import {DEFAULT_PARAMS} from '../src/core/params';
 import {Animator} from '../src/core/anim/evaluate';
 import {clipById} from '../src/core/anim/clips';
 import {Vehicle} from '../src/core/props/vehicle';
-import {DEFAULT_VEHICLE_STYLE,VEHICLE_FOR_CLIP,VEHICLE_FITS,vehicleFor,vehicleLift} from '../src/core/props/vehicles';
+import {DEFAULT_VEHICLE_STYLE,VEHICLE_FOR_CLIP,VEHICLE_FITS,VEHICLE_BODIES,BODY_BASE,VEHICLE_CLIP,sanitizeVehicleStyle,vehicleStyleForBody,vehicleFor,vehicleLift} from '../src/core/props/vehicles';
 import {DEFAULT_EXPORT,planExport,runExport} from '../src/export';
 import {unzipSync} from 'fflate';
 const smoke=process.argv.includes('--smoke'),lib=await nodeLibrary();let checked=0;
@@ -59,6 +59,16 @@ for(const rig of smoke?['game']as const:['game','game_lite','full']as const)for(
   }
   // Static export uses a concrete selection and includes a stand-alone OBJ/MTL prop.
   const car={...ch,params:{...ch.params,vehicle:'car' as const}};const plan=planExport(car,{...DEFAULT_EXPORT,format:'obj',mode:'static'}),zip=unzipSync((await runExport(lib,car,plan)).data);assert.ok(Object.keys(zip).some(k=>k.includes('props/car_driver/')&&k.endsWith('.obj')));
+ }
+ if(rig==='game'&&restPose==='A'&&!Object.keys(body).length){
+  // A saved style's body is built for its base vehicle (and ignored for others), with its own size and paint.
+  for(const b of VEHICLE_BODIES){
+   const base=BODY_BASE[b],style=sanitizeVehicleStyle(JSON.parse(JSON.stringify(vehicleStyleForBody(base,b,DEFAULT_VEHICLE_STYLE))));assert.equal(style.body,b,`${b} survives saving`);
+   const plain=new Vehicle(base,ch.rig!,A,clipById.get(VEHICLE_CLIP[base])!,DEFAULT_VEHICLE_STYLE),styled=new Vehicle(base,ch.rig!,A,clipById.get(VEHICLE_CLIP[base])!,style),size=(v:Vehicle)=>v.bounds.getSize(new T.Vector3());
+   assert.ok(size(plain).distanceTo(size(styled))>.05,`${b} differs from the plain ${base}`);plain.dispose();styled.dispose();
+   const other=base==='motorcycle'?'bicycle':'motorcycle',ignored=new Vehicle(other,ch.rig!,A,clipById.get(VEHICLE_CLIP[other])!,style),reference=new Vehicle(other,ch.rig!,A,clipById.get(VEHICLE_CLIP[other])!,{...style,body:undefined});
+   assert.ok(size(ignored).distanceTo(size(reference))<1e-6,`${b} leaves other vehicles alone`);ignored.dispose();reference.dispose();
+  }
  }
  console.log('OK',rig,restPose,body);
 }

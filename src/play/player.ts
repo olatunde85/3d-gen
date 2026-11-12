@@ -263,7 +263,8 @@ export function mountPlayer(scene:GameScene,initialProject:PlayProject,initialCa
  if(arcadeMode(initialProject)){mission.suspend();arcade=mountArcade(scene,initialProject,initialCast,hooks);}
  function replace(next:PlayProject,cast:PlayCast,play=true){
   current=next;
-  if(arcadeMode(next)){mission.suspend();if(arcade){arcade.resume();arcade.replace(next,cast,play);}else arcade=mountArcade(scene,next,cast,hooks,play);}
+  // An applied arcade game opens on its briefing card, so the player starts the race or run when ready.
+  if(arcadeMode(next)){mission.suspend();if(arcade){arcade.resume();arcade.replace(next,cast,false);}else arcade=mountArcade(scene,next,cast,hooks);}
   else{arcade?.suspend();mission.resume();mission.replace(next,cast,play);}
  }
  return {get state(){return arcadeMode(current)&&arcade?arcade.state:mission.state;},replace,openSettings:mission.openSettings,closeSettings:mission.closeSettings};

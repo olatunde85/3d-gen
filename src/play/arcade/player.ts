@@ -356,6 +356,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       renderer.render(runnerView.scene, runnerView.camera);
     }
     feel.update(real);hud.tick(real);renderHud();
+    const pauseButton = document.getElementById('pause') as HTMLButtonElement | null;if (pauseButton) pauseButton.disabled = phase !== 'playing';
   }
   function activate(on: boolean) {
     active = on;input.active = on;hud.root.hidden = !on;document.body.classList.toggle('arcade-active', on);
@@ -366,6 +367,8 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     const cup = cupRecord(gameKey()), stage = runnerRecord(gameKey()).stage ?? 0;chapter = Math.min(rounds() - 1, mode() === 'race' ? (cup.complete ? 0 : cup.round) : stage);
     setup();if (playNow && active) start();
   }
+  // A hidden page stops drawing frames, so the game pauses and its loops fall silent at once instead of on the next frame.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden || !active) return;if (phase === 'playing') setPause(true);sfx.weather('none', false);engine.update(false, 0, false);music.setPlaying(false); });
   document.getElementById('pause')?.addEventListener('click', () => { if (active && phase === 'playing') setPause(!paused); });
   // How to play shows this mode's controls instead of the mission briefing.
   document.getElementById('help')?.addEventListener('click', (e) => { if (!active) return;e.stopImmediatePropagation();if (phase === 'playing') setPause(true);else if (phase === 'intro') intro(); }, true);

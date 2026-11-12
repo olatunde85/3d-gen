@@ -152,7 +152,18 @@ Choose a riding or driving animation and its vehicle appears, fitted to the ride
 | Motorboat | `drive_boat` | Helm wheel, outboard propeller and side boarding gate |
 | Helicopter | `fly_helicopter`, `bailout_helicopter` | Cyclic/collective, four doors, main/tail rotors and skids |
 
-Body/coat, trim/mane and seats/tack colours, paint finish and classic/sport variants are saved in `vehicleStyle`. Choosing the sports car, SUV, pickup, tank, jet or helicopter with untouched colours applies its factory appearance; edited colours are kept. Fitting measures the rider's hips, palms, knees, feet and headroom and builds the vehicle around them; limbs are never stretched. Car and boat fittings raise the rider onto the cabin or deck floor. The clips also work without a vehicle.
+Body/coat, trim/mane and seats/tack colours, paint finish and classic/sport variants are saved in `vehicleStyle`. Choosing the sports car, SUV, pickup, tank, jet or helicopter with untouched colours applies its factory appearance; edited colours are kept.
+
+Further models ride like an existing vehicle and use its animations, boarding and fitting:
+
+| Model | Rides like | Animations |
+| --- | --- | --- |
+| Danfo minibus, van, city bus | SUV | `drive_suv` and the SUV actions |
+| Box truck | Pickup truck | `drive_pickup` and the pickup actions |
+| Keke tricycle, quad bike, scooter | Motorcycle | `ride_motorcycle` and the motorcycle actions |
+| Go-kart, saloon, muscle car | Modern sports car | `drive_sports_car` and the sports car actions |
+
+Pick one under **Travel with** in Quick build, or under **Model** in Detailed; it is saved as `vehicleStyle.body` and used whenever its base vehicle appears. The animation list names these models beside their base vehicle, and searching for one (for example "danfo") finds its actions. **Design** paints stripes, a race car with its number on each door (`vehicleStyle.livery` and `vehicleStyle.number`), police colours with roof beacons, or a taxi with checks and a roof sign. Every design suits the sports car, SUV, pickup, saloon and muscle car; the go-kart takes the race number. Fitting measures the rider's hips, palms, knees, feet and headroom and builds the vehicle around them; limbs are never stretched. Car and boat fittings raise the rider onto the cabin or deck floor. The clips also work without a vehicle.
 
 Exports include a **separate vehicle prop** when a ride is selected; turn it off in the export panel if you only need the rider. GLB and FBX contain the animated controls, wheels, doors and tack as rigid joints; OBJ is static. Static and rigged-only exports use the currently previewed vehicle action to choose and fit the prop. Place the rider and vehicle at the **same origin and transform** and play their matching clips together. To use your own game vehicle, uncheck Show vehicle and use the rider animations with your seat transform.
 

@@ -46,7 +46,7 @@ Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, s
 
 ### Time and weather
 
-**Atmosphere → Light, weather & sound** sets the time of day and weather for races and runs, stored as `mission.environment.time` and `weather`; each chapter can choose its own. Dawn and dusk tint the sky and lower the sun. Dusk and night switch on every car's headlamps with light pools on the road ahead, lamp posts with pools along the circuit, and lamps and a lantern pool around the runner. Night runs keep a bright moonlit fill, a longer view and faintly lit obstacles so the course stays readable. Rain darkens and wets the road so it reflects, with falling streaks and the Heavy rain recording; fog closes in the view; a sandstorm adds an orange haze, blowing dust and the Sandstorm recording. Both recordings loop with a crossfaded seam, and filtered noise stands in until they load. Thicker fog also shortens the draw distance. The lamps and pools are batched additive decals rather than real lights, so night and weather add a handful of draw calls and no extra lighting cost. Race and runner games have no companion; companion settings stay in the JSON but are unused.
+**Atmosphere → Light, weather & sound** sets the time of day and weather for races and runs, stored as `mission.environment.time` and `weather`; each chapter can choose its own. Dawn and dusk tint the sky and lower the sun. Dusk and night switch on every car's headlamps with light pools on the road ahead, lamp posts with pools along the circuit, and lamps and a lantern pool around the runner. Night runs keep a bright moonlit fill, a longer view and faintly lit obstacles so the course stays readable. Rain darkens and wets the road so it reflects, with falling streaks and the Heavy rain recording; fog closes in the view; a sandstorm adds an orange haze, blowing dust and the Sandstorm recording. Both recordings loop with a crossfaded seam, and filtered noise stands in until they load. Weather sound falls silent while the game is paused or the page is in the background. Thicker fog also shortens the draw distance. The lamps and pools are batched additive decals rather than real lights, so night and weather add a handful of draw calls and no extra lighting cost. Race and runner games have no companion; companion settings stay in the JSON but are unused.
 
 ### Controls and feel
 
@@ -59,6 +59,8 @@ Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, s
 | Item / back to road | — | E / F | B / Y | Item button |
 | Restart | Restart | R | Back | Restart on the pause card |
 | Pause | Pause | Escape or P | Start | Pause button |
+
+A race or run applied from Game setup or LLM Assist opens on its briefing card; it starts when the player presses Start.
 
 Tilt steering can be switched on from the pause card on phones. The lens widens with speed, impacts shake the camera, speed lines and a soft edge blur grow with pace, boosts flash the screen and near misses briefly slow time; reduced-motion settings soften these effects. Engine pitch follows the car's speed, other sound effects are synthesised in the browser, and the music gains tempo and volume as a race goes on or a run speeds up. **R** restarts immediately without reloading the scene. Opening Game setup pauses the game.
 
