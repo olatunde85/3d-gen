@@ -34,17 +34,23 @@ export class RunnerView {
     const hemi = new T.HemisphereLight('#fff5e6', theme.below, 1.5);this.scene.add(hemi);
     this.sun = new T.DirectionalLight('#fff1d8', 2.4);
     this.sky = skyLook(theme, atmosphere);applyLook(this.sky, this.scene, hemi, this.sun, { hemi: 1.5, sun: 2.4, env: 1 });
-    // Night runs stay readable: the moonlit fill is kept brighter than a race's, and a lantern pool follows the runner.
-    if (this.sky.night) hemi.intensity = Math.max(hemi.intensity, 0.75);
+    // Night runs stay readable: a bright moonlit fill and sky, a longer view, obstacles that glow faintly in their own
+    // colour, and a lantern pool that follows the runner. Dusk and bad weather keep a floor under the fill as well.
+    hemi.intensity = Math.max(hemi.intensity, 1.05);
+    if (this.sky.night) {
+      hemi.intensity = 1.35;hemi.color.set('#b4c6ee');hemi.groundColor.set('#3a3f4c');this.sun.intensity = 1.5;this.sun.color.set('#c4d4f6');
+      const sky = new T.Color('#2a3c5e');this.scene.background = sky;this.scene.fog = new T.Fog(sky.clone(), theme.fog[0] * 0.85, theme.fog[1] * 0.9);this.sky = { ...this.sky, sky, fog: [theme.fog[0] * 0.85, theme.fog[1] * 0.9] };
+    }
+    const glowAtNight = (color: string, k = 0.22): T.MeshStandardMaterialParameters => this.sky.night ? { emissive: new T.Color(color).multiplyScalar(k) } : {};
     this.camera.far = Math.min(400, this.sky.fog[1] * 1.15 + 20);this.sun.castShadow = true;this.sun.shadow.mapSize.set(1024, 1024);Object.assign(this.sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 120 });this.sun.shadow.normalBias = 0.03;this.scene.add(this.sun, this.sun.target);
     this.floor = batch(new T.BoxGeometry(1, 1, 1).translate(0, -0.5, 0), mat(this.sky.wet ? '#8d9196' : '#ffffff', this.sky.wet ? 0.45 : 0.95, { envMapIntensity: this.sky.wet ? 0.3 : 1 }), 260, false);
-    this.edges = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(theme.edge, 0.9), 520);
+    this.edges = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(theme.edge, 0.9, glowAtNight(theme.edge, 0.12)), 520);
     const decorGeometry = game.settings.theme === 'temple-ruins' ? new T.CylinderGeometry(0.45, 0.55, 1, 10).translate(0, 0.5, 0) : new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
     this.decor = batch(decorGeometry, mat(theme.decor, 0.95), 320);this.walls = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(theme.edge, 0.9), 24);
-    this.low = batch(new T.BoxGeometry(LANE * 0.92, 0.7, 0.5).translate(0, 0.35, 0), mat(theme.low, 0.85), 60);
-    this.beams = batch(new T.BoxGeometry(1, 1, 1), mat('#5b4a3a', 0.8), 120);
-    this.blocks = batch(new T.BoxGeometry(LANE * 0.9, 2.6, 1.4).translate(0, 1.3, 0), mat(theme.block, 0.95), 60);
-    this.carts = batch(new T.BoxGeometry(1.4, 1.15, 2.2).translate(0, 0.85, 0), mat('#6b4a2c', 0.7, { metalness: 0.2 }), 20);
+    this.low = batch(new T.BoxGeometry(LANE * 0.92, 0.7, 0.5).translate(0, 0.35, 0), mat(theme.low, 0.85, glowAtNight(theme.low, 0.35)), 60);
+    this.beams = batch(new T.BoxGeometry(1, 1, 1), mat('#5b4a3a', 0.8, glowAtNight('#c79a6a', 0.3)), 120);
+    this.blocks = batch(new T.BoxGeometry(LANE * 0.9, 2.6, 1.4).translate(0, 1.3, 0), mat(theme.block, 0.95, glowAtNight(theme.block, 0.3)), 60);
+    this.carts = batch(new T.BoxGeometry(1.4, 1.15, 2.2).translate(0, 0.85, 0), mat('#6b4a2c', 0.7, { metalness: 0.2, ...glowAtNight('#b07a48', 0.3) }), 20);
     this.wheels = batch(new T.CylinderGeometry(0.3, 0.3, 0.16, 12).rotateZ(Math.PI / 2), mat('#2c2c2e', 0.5, { metalness: 0.6 }), 80);
     this.coins = batch(new T.CylinderGeometry(0.3, 0.3, 0.07, 18).rotateX(Math.PI / 2), mat('#f2c23c', 0.25, { metalness: 0.85, emissive: '#6b4c08', emissiveIntensity: 0.4 + this.sky.lamps * 1.4 }), 420, false);
     if (this.sky.lamps >= 0.5) {

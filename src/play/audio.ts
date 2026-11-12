@@ -5,7 +5,7 @@ import {isGun,weaponProfile} from './weapons';
 import {ambientEffect,defaultEnvironment} from './environment';
 import type {EscapeGame} from './runtime';
 export function gameEffects(project:PlayProject):Set<SoundEffectId>{
- const effects=new Set<SoundEffectId>();for(const p of gameProjects(project)){const e=p.mission.environment??defaultEnvironment();for(const cue of p.story?.cues??[])if(cue.sound)effects.add(cue.sound);if(e.effects){for(const id of ['take-cover-steps','body-fall-thump','bullet-hit','low-punch']as const)effects.add(id);for(const gun of [...heroGuns(p),...p.enemies.map(x=>x.response).filter(isGun)])effects.add(weaponProfile(gun).sound);}const ambient=ambientEffect(e,p.mission.location??'depot');if(ambient!=='none')effects.add(ambient);}return effects;
+ const effects=new Set<SoundEffectId>();for(const p of gameProjects(project)){const e=p.mission.environment??defaultEnvironment();for(const cue of p.story?.cues??[])if(cue.sound)effects.add(cue.sound);if(e.effects){for(const id of ['take-cover-steps','body-fall-thump','bullet-hit','low-punch']as const)effects.add(id);for(const gun of [...heroGuns(p),...p.enemies.map(x=>x.response).filter(isGun)])effects.add(weaponProfile(gun).sound);}const ambient=ambientEffect(e,p.mission.location??'depot');if(ambient!=='none')effects.add(ambient);if(project.mode&&project.mode!=='mission'&&(e.weather==='rain'||e.weather==='sandstorm'))effects.add(e.weather==='rain'?'heavy-rain':'sandstorm');}return effects;
 }
 export class PlayAudio{
  private context?:AudioContext;private buffers=new Map<SoundEffectId,AudioBuffer>();private fetching=new Map<SoundEffectId,Promise<AudioBuffer|undefined>>();private sources:AudioBufferSourceNode[]=[];private epoch=0;private active=true;

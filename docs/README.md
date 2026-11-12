@@ -21,7 +21,7 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 
 **Playing games**
 
-- [Ara Play prototype](play.md): arcade race and endless runner modes, depot escape and rescue/escort stories with character selection, collision, guard pursuit, optional pistol combat, lives/checkpoints, keyboard/touch controls and portable setup JSON
+- [Ara Play](play.md): missions, campaigns, arcade races and endless runs, with downloadable games
 
 **Under the hood**
 

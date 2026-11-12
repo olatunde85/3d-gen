@@ -1,9 +1,10 @@
 Ara Studio sound effects
 
-Recordings supplied by the project owner in sound-for-ara, new-sound-effects and newer-sound-effects.
+Recordings supplied by the project owner in sound-for-ara, new-sound-effects, newer-sound-effects and newest-sounds.
 Audio retains its own rights and is not covered by Ara's MIT code licence.
 Web versions use FFmpeg VBR MP3 compression at 48 kHz stereo, with 1 dB
-of additional headroom. No trimming, looping or time-stretching is applied.
+of additional headroom. Heavy rain and sandstorm are raised so their peaks sit
+about 1 dB below full scale. No trimming, looping or time-stretching is applied.
 
 Suppressed pistol shot
 Original: sound-for-ara/Single_suppressed_pistol_shot.wav
@@ -84,3 +85,11 @@ Web file: bullet-hit.mp3
 Bullet hit and fall
 Original: newer-sound-effects/A_bullet_impact_and__#2-1794176488234.wav
 Web file: bullet-hit-fall.mp3
+
+Heavy rain
+Original: newest-sounds/HEAVY_RAIN_#2-1794487207359.wav
+Web file: heavy-rain.mp3
+
+Sandstorm
+Original: newest-sounds/SANDSTORM_#1-1794487280784.wav
+Web file: sandstorm.mp3

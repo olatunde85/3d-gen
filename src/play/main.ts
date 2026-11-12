@@ -1,5 +1,6 @@
 import {AirView} from './air-view';
 import {saveSetup,openSetup} from './project-bundle';
+import {finishLoading,paintLoading,savedGame} from './loading';
 import {storyEditor} from './story-editor';
 import {generateImportedVoices} from './voice-import';
 import {objectiveEditor} from './objective-editor';
@@ -238,12 +239,13 @@ button('preview-music').onclick=()=>{if(previewingMusic){stopMusicPreview();rend
 
 async function init(){
  try{
-  scene=new GameScene(canvas);const waiting=new EscapeGame();const loadingFrame=()=>{if(loading){scene.render(waiting,0);requestAnimationFrame(loadingFrame);}};requestAnimationFrame(loadingFrame);
+  scene=new GameScene(canvas);
   const assets=new URL(`${import.meta.env.BASE_URL}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);
   try{const saved=localStorage.getItem(storage);if(saved)project=parseProject(saved,lib.catalog);}catch{/* invalid/stale local drafts do not block play */}
   const linked=new URLSearchParams(location.hash.slice(1)).get('c');if(linked){const character=decodeCharacter(linked,'medium');if(character)project.character=playable(character);}
-  const cast=await prepareGameCast(project,engine,f=>lib.textureUrl(f),text=>{$('load-label').textContent=text;});gameCast=cast;loading=false;
+  const cast=await prepareGameCast(project,engine,f=>lib.textureUrl(f),text=>{$('load-note').textContent=text;});gameCast=cast;loading=false;
   player=mountPlayer(scene,project,cast,{stopPreview:stopMusicPreview,renderMusicStatus,unlockPreview:()=>musicPreview.unlock(),audioChanged:enabled=>{musicPreview.setMuted(!enabled);renderMusicStatus();}});
+  finishLoading();
   if(import.meta.env.DEV||new URLSearchParams(location.hash.slice(1)).has('demo'))Object.defineProperty(window,'araPlay',{get:()=>({...player.state,musicPreview})});
  }catch(error){$('load-label').textContent='Try loading again';$('load-note').textContent=(error as Error).message;button('start').disabled=false;button('start').onclick=()=>location.reload();}
 }
@@ -252,7 +254,7 @@ setupGameDownload({project:()=>parseProject(JSON.stringify(wholeDraft()),lib.cat
  const existing=castActors(gameCast);
  return {cast:next,dispose:()=>{for(const actor of castActors(next))if(!existing.has(actor))actor.dispose();}};
 },busy:value=>{applying=value;},stopPreview:stopMusicPreview});
-button('cycle-view').disabled=true;button('settings').disabled=true;button('help').disabled=true;button('sound').disabled=true;void init().finally(()=>{button('settings').disabled=loading;});
+button('cycle-view').disabled=true;button('settings').disabled=true;button('help').disabled=true;button('sound').disabled=true;paintLoading(savedGame(storage));void init().finally(()=>{button('settings').disabled=loading;});
 
 for(const key of ['time','weather','ambient','effects','flashlight','volume']as const){const el=$<HTMLInputElement>('environment-'+key);el.addEventListener('change',()=>{const e=draft.mission.environment??defaultEnvironment();(e as unknown as Record<string,unknown>)[key]=key==='effects'||key==='flashlight'?el.checked:key==='volume'?Number(el.value)/100:el.value;draft.mission.environment=e as EnvironmentSettings;if(key==='time'&&e.time==='night'){draft.mission.stealth=true;$<HTMLInputElement>('stealth-senses').checked=true;}});}
 
