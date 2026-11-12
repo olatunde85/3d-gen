@@ -37,6 +37,7 @@
     "test:animations": "tsx scripts/animation-improvement-check.ts",
     "test:boarding": "tsx scripts/boarding-check.ts && tsx scripts/boarding-foot-check.ts",
     "test:armed-riding": "tsx scripts/armed-riding-check.ts",
+    "test:traffic": "tsx scripts/play-traffic-check.ts",
     "test:vehicles": "tsx scripts/vehicle-check.ts && tsx scripts/vehicle-export-check.ts",
     "test:parcel": "tsx scripts/parcel-check.ts",
     "test:gltf": "tsx scripts/gltf-check.ts",
