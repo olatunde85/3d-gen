@@ -1,11 +1,13 @@
 /**
  * Arcade HUD and cards, created once inside the stage so the creator preview and exported games share them:
  * race position, laps, sector deltas, speed, nitro, drift charge, item slot and minimap; runner score, coins,
- * distance, power-up timers, missions and the chaser warning; plus start, pause and result cards and touch buttons.
+ * distance, power-up timers, missions, objects to find and the chaser warning; plus start, pause and result cards and touch buttons.
  */
 import './arcade.css';
 import type { RaceGame } from './race';
 import type { RunnerGame } from './runner';
+import { iconSvg } from './icons';
+import type { RunnerObject } from './objects';
 import type { Track } from './track';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') => { const e = document.createElement(tag);if (className) e.className = className;if (text) e.textContent = text;return e; };
@@ -23,16 +25,28 @@ export class ArcadeHud {
   readonly gauge = el('div', 'arcade-gauge'); readonly speed = el('div', 'arcade-speedo'); readonly meters = el('div', 'arcade-meters');
   readonly side = el('div', 'arcade-side'); readonly map = el('canvas', 'arcade-map');
   readonly card = el('section', 'card arcade-card'); readonly touch = el('div', 'arcade-touch');
+  readonly finds = el('div', 'arcade-finds'); readonly found = el('div', 'arcade-found');
+  private findsKey = ''; private foundTimer = 0;
   private mapBase?: { canvas: HTMLCanvasElement; scale: number; cx: number; cz: number }; private messageTimer = 0; private meterBars = new Map<string, HTMLElement>();
   constructor(stage: HTMLElement) {
     this.card.setAttribute('role', 'region');this.card.setAttribute('aria-live', 'polite');
-    this.top.append(this.big, this.lines);this.center.append(this.message, this.warning);this.gauge.append(this.speed, this.meters);this.side.append(this.map);
-    this.root.append(this.top, this.side, this.center, this.gauge, this.touch, this.card);this.root.hidden = true;
+    this.top.append(this.big, this.lines);this.center.append(this.message, this.warning, this.found);this.found.hidden = true;this.gauge.append(this.speed, this.meters);this.side.append(this.map);
+    this.root.append(this.top, this.finds, this.side, this.center, this.gauge, this.touch, this.card);this.root.hidden = true;
     stage.append(this.root);
   }
   /** A short centred message, e.g. GO, BEST LAP or CLOSE CALL. */
   say(text: string, seconds = 1.2, tone: 'normal' | 'good' | 'bad' = 'normal') { this.message.textContent = text;this.message.dataset.tone = tone;this.message.classList.remove('pop');void this.message.offsetWidth;this.message.classList.add('pop');this.messageTimer = seconds; }
-  tick(dt: number) { this.messageTimer -= dt;if (this.messageTimer <= 0 && this.message.textContent) this.message.textContent = ''; }
+  tick(dt: number) {
+    this.messageTimer -= dt;if (this.messageTimer <= 0 && this.message.textContent) this.message.textContent = '';
+    this.foundTimer -= dt;if (this.foundTimer <= 0 && !this.found.hidden) this.found.hidden = true;
+  }
+  /** The object just found: its icon, name and clue, held long enough to read the clue. */
+  showFound(o: RunnerObject, kicker: string) {
+    const icon = el('span', 'arcade-found-icon');icon.innerHTML = iconSvg(o.icon, 1.6);
+    const text = el('div');text.append(el('span', 'eyebrow', kicker), el('strong', '', o.name), ...(o.clue ? [el('p', '', o.clue)] : []));
+    this.found.replaceChildren(icon, text);this.found.hidden = false;this.found.classList.remove('pop');void this.found.offsetWidth;this.found.classList.add('pop');
+    this.foundTimer = Math.min(6, 2.2 + (o.clue?.length ?? 0) / 28);
+  }
   meter(id: string, label: string, value: number, tone = '') {
     let bar = this.meterBars.get(id);
     if (!bar) { bar = el('div', 'arcade-meter');bar.append(el('span', '', label), el('i'));this.meters.append(bar);this.meterBars.set(id, bar); }
@@ -60,7 +74,7 @@ export class ArcadeHud {
     const c = this.map.getContext('2d')!, b = this.mapBase;c.setTransform(1, 0, 0, 1, 0, 0);c.clearRect(0, 0, this.map.width, this.map.height);c.drawImage(b.canvas, 0, 0);c.scale(dpr, dpr);
     for (const car of [...cars].sort((a) => (a.player ? 1 : -1))) { c.fillStyle = car.player ? '#ffd23f' : car.color;c.strokeStyle = '#111';c.lineWidth = 1.5;c.beginPath();c.arc(size / 2 - (car.x - b.cx) * b.scale, size / 2 - (car.z - b.cz) * b.scale, car.player ? 5 : 3.5, 0, Math.PI * 2);c.fill();c.stroke(); }
   }
-  resetMap() { this.mapBase = undefined;this.missionKey = '';this.side.replaceChildren(this.map);this.lines.replaceChildren(); }
+  resetMap() { this.mapBase = undefined;this.missionKey = '';this.findsKey = '';this.finds.replaceChildren();this.found.hidden = true;this.side.replaceChildren(this.map);this.lines.replaceChildren(); }
   /** Fresh HUD for a new race or run. */
   reset(_place: string) { this.resetMap();this.clearMeters();this.warning.textContent = ''; }
   race(g: RaceGame, ghostDelta?: number) {
@@ -89,6 +103,13 @@ export class ArcadeHud {
     const missions = g.missions, key = missions.map((m) => m.label).join('|');
     if (key !== this.missionKey) { this.missionKey = key;this.side.replaceChildren(...missions.map((m) => { const row = el('div', 'arcade-mission');row.append(el('span', '', m.label), el('i'));return row; })); }
     missions.forEach((_, i) => { const row = this.side.children[i] as HTMLElement;row.dataset.done = String(g.missionsDone[i]);(row.lastElementChild as HTMLElement).style.setProperty('--fill', `${Math.round(g.missionProgress(i) * 100)}%`); });
+    // Objects to find: one chip each, dim until found, with a count for objects in several pieces.
+    const list = g.settings.objects ?? [], objectsKey = list.map((o) => `${o.icon}:${o.name}:${o.count}`).join('|');
+    if (objectsKey !== this.findsKey) { this.findsKey = objectsKey;this.finds.replaceChildren(...list.map((o) => { const chip = el('span', 'arcade-find');chip.title = o.name;chip.setAttribute('aria-label', o.name);chip.innerHTML = iconSvg(o.icon, 1.8);chip.append(el('b'));return chip; })); }
+    list.forEach((o, i) => {
+      const chip = this.finds.children[i] as HTMLElement, n = Math.min(g.found[i] ?? 0, o.count), text = o.count > 1 ? `${n}/${o.count}` : '', done = String(n >= o.count);
+      if (chip.dataset.done !== done) chip.dataset.done = done;const label = chip.lastElementChild!;if (label.textContent !== text) label.textContent = text;
+    });
   }
   /**
    * A card with a heading, body and buttons. The briefing card sits where the mission briefing sits; results, garage
@@ -172,6 +193,16 @@ export class ArcadeHud {
     const list = el('ul', 'arcade-checklist');
     for (const r of rows) { const li = el('li');li.dataset.done = String(r.done);const bar = el('i');bar.style.setProperty('--fill', `${Math.round(Math.max(0, Math.min(1, r.progress)) * 100)}%`);li.append(el('b', '', r.done ? '✓' : ''), el('span', '', r.label), bar);list.append(li); }
     return list;
+  }
+  /** Objects to find with their icons; with counts found, each found object shows its clue. */
+  objectList(list: readonly RunnerObject[], found?: readonly number[]) {
+    const ul = el('ul', 'arcade-objects');
+    list.forEach((o, i) => {
+      const n = Math.min(found?.[i] ?? 0, o.count), done = !!found && n >= o.count, li = el('li'), icon = el('span', 'arcade-object-icon');li.dataset.done = String(done);icon.innerHTML = iconSvg(o.icon, 1.7);
+      const text = el('div');text.append(el('strong', '', o.name));if (done && o.clue) text.append(el('p', '', o.clue));
+      li.append(icon, text, el('b', '', found ? (o.count > 1 ? `${n}/${o.count}` : done ? '✓' : '—') : o.count > 1 ? `×${o.count}` : ''));ul.append(li);
+    });
+    return ul;
   }
   touchButtons(buttons: { id: string; label: string; hold?: boolean }[], press: (id: string, down: boolean) => void) {
     this.touch.replaceChildren();

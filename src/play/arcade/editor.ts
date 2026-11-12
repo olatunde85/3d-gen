@@ -7,7 +7,8 @@
 import type { PlayProject } from '../project';
 import { TRACK_TEMPLATES, buildTrack, type CustomTrack, type TrackTemplate } from './track';
 import { CAR_STATS } from './race';
-import { ICONS } from './icons';
+import { ICONS, iconSvg } from './icons';
+import { MAX_RUNNER_OBJECTS, RUNNER_GENERIC_ICONS, RUNNER_ICON_NAMES, RUNNER_OBJECT_NAMES, RUNNER_OBJECT_TYPES, runnerObject, type RunnerObject, type RunnerObjectIcon, type RunnerObjectType } from './objects';
 import { defaultRace, defaultRunner, parseRace, parseRunner, RACE_CARS, RUNNER_THEMES, RUNNER_THEME_NAMES, retitle, type PlayMode, type RaceSettings, type RunnerSettings } from './modes';
 
 const MODES: { id: PlayMode; title: string; lines: [string, string] }[] = [
@@ -78,6 +79,35 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
   });
   const toggle = (id: string, title: string, value: boolean, note: string, on: (v: boolean) => void) => { const l = el('label'), i = el('input');i.type = 'checkbox';i.id = id;i.checked = value;i.onchange = () => on(i.checked);l.append(i, ` ${title}`);return [l, Object.assign(el('p', 'micro'), { textContent: note })]; };
   const note = el('p', 'micro');note.setAttribute('role', 'status');
+  /** The runner's objects to find: type, name, icon, count and clue for each, in the order they appear. */
+  const objectsGroup = (r: RunnerSettings) => {
+    const list = r.objects ?? [], required = r.goal.type === 'objects', edit = (fn: (objects: RunnerObject[]) => void) => runner((q) => { const objects = q.objects ?? [];fn(objects);if (objects.length) q.objects = objects;else delete q.objects; });
+    const g = group('Objects to find', required ? 'Find every object to complete the run. They appear one at a time, in this order; a missed one turns up again further on.' : 'Optional bonus finds worth 250 points each. Choose Find objects as the goal to make them the aim of the run.');
+    list.forEach((o, i) => {
+      const box = el('div', 'chain-card runner-object'), head = el('div', 'chain-head'), art = el('span', 'runner-object-icon', iconSvg(o.icon, 1.7));
+      const type = el('select');type.setAttribute('aria-label', `Object ${i + 1} type`);for (const t of RUNNER_OBJECT_TYPES) type.add(new Option(RUNNER_OBJECT_NAMES[t], t, false, t === o.type));
+      // A new type brings its own name and icon unless the creator renamed the object or chose another icon.
+      type.onchange = () => edit((q) => { const t = type.value as RunnerObjectType, was = q[i];q[i] = { ...was, type: t, name: was.name === RUNNER_OBJECT_NAMES[was.type] ? RUNNER_OBJECT_NAMES[t] : was.name, icon: was.icon === was.type ? t : was.icon }; });
+      head.append(art, type);
+      for (const [text, title, disabled, act] of [['↑', 'Move earlier', i === 0, (q: RunnerObject[]) => { [q[i - 1], q[i]] = [q[i], q[i - 1]]; }], ['↓', 'Move later', i === list.length - 1, (q: RunnerObject[]) => { [q[i + 1], q[i]] = [q[i], q[i + 1]]; }], ['×', 'Remove object', required && list.length === 1, (q: RunnerObject[]) => { q.splice(i, 1); }]] as const) {
+        const b = el('button', 'quiet');b.type = 'button';b.textContent = text;b.title = title;b.setAttribute('aria-label', `${title}: ${o.name}`);b.disabled = disabled;b.onclick = () => edit(act);head.append(b);
+      }
+      const name = el('input');Object.assign(name, { type: 'text', maxLength: 40, value: o.name, placeholder: RUNNER_OBJECT_NAMES[o.type] });name.setAttribute('aria-label', `Object ${i + 1} name`);
+      name.onchange = () => edit((q) => { q[i] = { ...q[i], name: name.value.trim() || RUNNER_OBJECT_NAMES[q[i].type] }; });
+      const icon = el('select');icon.setAttribute('aria-label', `Object ${i + 1} icon`);
+      for (const [label, ids] of [['This object', [o.type]], ['Objects', RUNNER_OBJECT_TYPES.filter((t) => t !== o.type)], ['Clues & symbols', RUNNER_GENERIC_ICONS]] as const) { const og = el('optgroup');og.label = label;for (const id of ids) og.append(new Option(RUNNER_ICON_NAMES[id], id, false, id === o.icon));icon.append(og); }
+      icon.onchange = () => edit((q) => { q[i] = { ...q[i], icon: icon.value as RunnerObjectIcon }; });
+      const count = el('select');count.setAttribute('aria-label', `Object ${i + 1} pieces`);for (let n = 1; n <= 10; n++) count.add(new Option(n === 1 ? 'One' : `${n} pieces`, String(n), false, n === o.count));
+      count.onchange = () => edit((q) => { q[i] = { ...q[i], count: Number(count.value) }; });
+      const row = el('div', 'runner-object-row');row.append(icon, count);
+      const clue = el('input');Object.assign(clue, { type: 'text', maxLength: 160, value: o.clue ?? '', placeholder: 'Clue shown when found (optional)' });clue.setAttribute('aria-label', `Object ${i + 1} clue`);
+      clue.onchange = () => edit((q) => { const next = { ...q[i] }, text = clue.value.trim();if (text) next.clue = text;else delete next.clue;q[i] = next; });
+      box.append(head, name, row, clue);g.append(box);
+    });
+    const add = el('button', 'quiet');add.type = 'button';add.textContent = '+ Add object';add.disabled = list.length >= MAX_RUNNER_OBJECTS;
+    add.onclick = () => edit((q) => { const used = new Set(q.map((o) => o.type));q.push(runnerObject(RUNNER_OBJECT_TYPES.find((t) => !used.has(t)) ?? 'gem')); });
+    g.append(add);return g;
+  };
   function apply(edit: (p: PlayProject) => void) {
     const p = draft(), before = { race: structuredClone(p.race), runner: structuredClone(p.runner), mode: p.mode, identity: { ...p.identity } };
     try {
@@ -141,8 +171,12 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
       m.append(group('Choose the course', grid('location-choices', 'Course', RUNNER_THEMES.map((t) => card({ pressed: r.theme === t, title: THEMES[t].name, note: THEMES[t].note, art: themeArt(t), location: true, on: () => runner((q) => { q.theme = t; }) }))), 'Straights, corners, junctions and gaps are generated as you run, and get harder with distance.'),
         group('Give your runner a goal', Object.assign(el('div', 'challenge-basics'), {})));
       m.lastElementChild!.querySelector('.challenge-basics')!.append(
-        select('runner-goal', 'Goal', [['endless', 'Endless · beat your best'], ['distance', 'Run a distance'], ['coins', 'Collect coins'], ['score', 'Reach a score']], goal.type, (v) => runner((q) => { q.goal = v === 'endless' ? { type: 'endless' } : { type: v as 'distance', target: v === 'coins' ? 200 : v === 'score' ? 20000 : 2000 }; }), 'With chapters, reaching the goal opens the next stage.'),
-        ...(goal.type === 'endless' ? [] : [number('runner-target', goal.type === 'distance' ? 'Metres' : goal.type === 'coins' ? 'Coins' : 'Points', goal.target, goal.type === 'coins' ? 10 : 100, 100000, (v) => runner((q) => { q.goal = { type: goal.type, target: v ?? 0 }; }))]));
+        select('runner-goal', 'Goal', [['endless', 'Endless · beat your best'], ['distance', 'Run a distance'], ['coins', 'Collect coins'], ['score', 'Reach a score'], ['objects', 'Find objects']], goal.type, (v) => runner((q) => {
+          if (v === 'objects') { q.goal = { type: 'objects' };if (!q.objects?.length) q.objects = [runnerObject('dossier')]; }
+          else q.goal = v === 'endless' ? { type: 'endless' } : { type: v as 'distance', target: v === 'coins' ? 200 : v === 'score' ? 20000 : 2000 };
+        }), 'With chapters, reaching the goal opens the next stage.'),
+        ...(goal.type === 'endless' || goal.type === 'objects' ? [] : [((t) => number('runner-target', t.type === 'distance' ? 'Metres' : t.type === 'coins' ? 'Coins' : 'Points', t.target, t.type === 'coins' ? 10 : 100, 100000, (v) => runner((q) => { q.goal = { type: t.type, target: v ?? 0 }; })))(goal)]));
+      m.append(objectsGroup(r));
       roots.cast.append(group('Who’s chasing?', Object.assign(el('div', 'challenge-basics'), {}), 'The chaser closes in after each stumble; two stumbles close together and you are caught. Dress the chaser under Chaser below.'));
       roots.cast.firstElementChild!.querySelector('.challenge-basics')!.append(select('runner-chaser', 'Chaser', [['none', 'Nobody · run free'], ...p.enemies.map((e) => [e.id, e.character.name || e.id] as [string, string])], r.chaser, (v) => runner((q) => { q.chaser = v; })));
       roots.challenge.append(
