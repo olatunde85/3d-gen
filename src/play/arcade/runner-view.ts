@@ -14,13 +14,15 @@ import { UMBRELLA_COLORS } from './market';
 import { objectMarker, objectMaterials, objectModel } from './runner-objects';
 import type { RunnerObjectType } from './objects';
 import { RUNNER_KITS, umbrellaGeometry, type Decor, type RunnerKit } from './runner-kits';
-import { POWER_MODELS } from './power-models';
+import { hoverDeck, POWER_MODELS } from './power-models';
 import type { RunnerPowerUp } from './modes';
 import { canvasTexture, cyl, lavaMaterial, painted, Sky, waterMaterial, type Part } from './scenery';
 import { applyLook, glowMaterial, poolTexture, Precipitation, skyLook, type ArcadeAtmosphere, type SkyLook } from './weather';
 
 const PATH = LANE * 3 + 1.2;
-const POWER_COLORS = { magnet: '#d8473d', shield: '#3d8ad8', boost: '#f0a02d', multiplier: '#3fae63', springs: '#b45cff' } as const;
+/** The hoverboard stance: knees bent from the crouch clip. */
+const HOVER_CLIP = 'crouch', HOVER_AT = 0.35;
+const POWER_COLORS = { magnet: '#d8473d', shield: '#3d8ad8', boost: '#f0a02d', multiplier: '#3fae63', springs: '#b45cff', hoverboard: '#20c4d8', 'coin-rush': '#f2c23c' } as const;
 /** A repeatable 0..1 value from a segment's decor seed and a position. */
 const hashed = (seed: number, k: number) => { const v = Math.sin(seed * 0.000123 + k * 12.9898) * 43758.5453;return v - Math.floor(v); };
 
@@ -40,6 +42,7 @@ export class RunnerView {
   private finds = new Map<RunnerObjectType, T.Object3D>(); private findMarker?: ReturnType<typeof objectMarker>; private findGroup = new T.Group();
   private kit: RunnerKit;
   /** Spring boots: a coil under each foot while the power-up lasts. */
+  private board: T.Mesh; private hover = 0;
   private springs: T.Mesh[] = []; private feet: T.Bone[] = []; private foot = new T.Vector3();
   constructor(readonly game: RunnerGame, readonly runner: GameActor, readonly chaser?: GameActor, atmosphere?: ArcadeAtmosphere) {
     const kit = this.kit = RUNNER_KITS[game.settings.theme], mat = (color: string, rough = 0.9, extra: T.MeshStandardMaterialParameters = {}) => { const m = new T.MeshStandardMaterial({ color, roughness: rough, ...extra });this.disposables.push(m);return m; };
@@ -118,6 +121,9 @@ export class RunnerView {
     const coilMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.5, emissive: '#3c1466', emissiveIntensity: 0.6 });this.disposables.push(coil, coilMat);
     this.feet = runner.render.mesh.skeleton.bones.filter((b) => /^(Left|Right)Foot$|^foot\.[LR]$/.test(b.name)).slice(0, 2);
     for (const _ of this.feet) { const m = new T.Mesh(coil, coilMat);m.castShadow = true;m.visible = false;this.springs.push(m);this.scene.add(m); }
+    // The hoverboard rides under the runner, who stands on it a little above the floor.
+    const deck = hoverDeck(), deckMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.3, emissive: '#0a5560', emissiveIntensity: 0.8 });this.disposables.push(deck, deckMat);
+    this.board = new T.Mesh(deck, deckMat);this.board.castShadow = true;this.board.visible = false;this.scene.add(this.board);
     this.hero.add(runner.render.group, this.shield);this.scene.add(this.hero);runner.render.mesh.castShadow = true;
     if (chaser) { this.chaserGroup.add(chaser.render.group);this.scene.add(this.chaserGroup);chaser.render.mesh.castShadow = true; }
     this.snapCamera();
@@ -134,9 +140,9 @@ export class RunnerView {
       if (e.type === 'stumble') feel.shake(0.55);
       if (e.type === 'crash' || e.type === 'caught') feel.shake(1);
       if (e.type === 'find') feel.flash(0.3, '255,215,120');
-      if (e.type === 'power' || e.type === 'revive') feel.flash(0.25, e.type === 'power' && e.kind === 'boost' ? '255,190,110' : '255,255,255');
+      if (e.type === 'power' || e.type === 'revive') feel.flash(e.type === 'power' && e.kind === 'coin-rush' ? 0.45 : 0.25, e.type === 'power' && e.kind === 'boost' ? '255,190,110' : e.type === 'power' && e.kind === 'coin-rush' ? '255,215,90' : '255,255,255');
       if (e.type === 'near-miss') feel.slowMotion(0.4);
-      if (e.type === 'smash' || e.type === 'shield-break') feel.shake(0.4);
+      if (e.type === 'smash' || e.type === 'shield-break' || e.type === 'board-break') feel.shake(0.4);
     }
   }
   private put(mesh: T.InstancedMesh, s: RunnerSegment, d: number, lateral: number, y: number, sx: number, sy: number, sz: number, color?: T.Color, spin = 0) {
@@ -210,6 +216,7 @@ export class RunnerView {
       if (g.status === 'ready') { clip = clipById.get(this.moments.lookAround ? 'look_around' : 'idle')!;t = this.time % clip.duration; }
       else if (g.status === 'won') { clip = clipById.get(this.moments.dance ? 'dance_groove' : 'idle')!;t = this.wonAge % clip.duration; }
       else if (g.status === 'down' || g.status === 'over') { clip = clipById.get('fall')!;t = Math.min(clip.duration - 0.01, g.downTime ?? 0); }
+      else if (g.hovering && g.sliding <= 0) { clip = clipById.get(HOVER_CLIP)!;t = HOVER_AT * clip.duration; }
       else if (!g.grounded) { clip = clipById.get('jump_air')!;t = (this.phase * 0.6) % clip.duration; }
       else if (g.sliding > 0) { clip = clipById.get('run_slide')!;t = ((RUN.slide - g.sliding) / RUN.slide) * clip.duration * 0.85; }
       else if (g.recover > 0) { clip = clipById.get('stumble_recover')!;t = (1 - g.recover / 1.1) * clip.duration; }
@@ -232,7 +239,11 @@ export class RunnerView {
     this.animate(this.runner, g.status === 'running' ? dt : dt * 0.3, g.speed);
     // The whole body banks into the turn from the feet, so the run cycle never changes clip mid-stride.
     const bank = k < 1 ? -turn.dir * 0.24 * Math.sin(Math.PI * k) : 0;
-    this.hero.position.set(p.x, g.y, p.z);this.hero.rotation.set(0, this.yaw, bank, 'YXZ');
+    // On the board the runner floats a hand's width up, bobbing gently.
+    this.hover += ((g.hovering && g.status !== 'won' ? 1 : 0) - this.hover) * (1 - Math.exp(-dt * 10));
+    const lift = this.hover * (0.32 + Math.sin(this.time * 5) * 0.04);
+    this.hero.position.set(p.x, g.y + lift, p.z);
+    this.board.visible = this.hover > 0.05;if (this.board.visible) { this.board.position.set(p.x, g.y + lift - 0.25, p.z);this.board.rotation.set(0, this.yaw, bank * 1.4 + Math.sin(this.time * 3) * 0.04, 'YXZ'); }this.hero.rotation.set(0, this.yaw, bank, 'YXZ');
     this.shield.visible = g.power.shield > 0;this.shield.position.y = 0.95;
     this.shadow.position.set(p.x, g.floor + 0.02, p.z);this.shadow.scale.setScalar(Math.max(0.4, 1 - (g.y - g.floor) * 0.25));this.shadow.visible = g.grounded || g.y > g.floor - 0.2;
     // Coils sit under the feet, following each foot through the stride.

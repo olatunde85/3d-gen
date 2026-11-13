@@ -250,6 +250,26 @@ check('spring boots clear bars, land on train roofs, drop on demand and step off
     assert.equal(stumbles, springs ? 0 : 1, `springs ${springs}`);
   }
 });
+check('a hoverboard glides over low barriers and gaps and breaks instead of the runner; coin rush turns obstacles into coins', () => {
+  const idle = { left: false, right: false, jump: false, slide: false };
+  const board = new RunnerGame(parseRunner({ theme: 'temple-ruins', seed: 4, obstacles: ['barrier-low', 'gap'], chaser: 'none' }, ['enemy-1']), profile(), 4);board.start();
+  let stumbles = 0, breaks = 0;
+  for (let i = 0; i < 60 * 25 && board.status === 'running'; i++) {
+    board.power.hoverboard = 9;const s = board.current;board.update(1 / 60, { ...idle, left: s.length - board.d < 6 && s.end !== 'right', right: s.length - board.d < 6 && s.end === 'right' });
+    for (const e of board.drain()) { if (e.type === 'stumble') stumbles++;if (e.type === 'board-break') breaks++; }
+  }
+  assert.equal(board.status, 'running');assert.ok(board.distance > 200 && stumbles === 0 && breaks === 0, `${board.distance.toFixed(0)} m, ${stumbles} stumbles`);
+  // A blocker hit breaks the board; the next one ends the run.
+  const crash = new RunnerGame(parseRunner({ theme: 'temple-ruins', seed: 4, obstacles: ['blocker'], chaser: 'none' }, ['enemy-1']), profile(), 4);crash.start();crash.power.hoverboard = 9;
+  for (let i = 0; i < 60 * 20 && crash.status === 'running'; i++) { const s = crash.current;crash.update(1 / 60, { ...idle, left: s.length - crash.d < 6 && s.end !== 'right', right: s.length - crash.d < 6 && s.end === 'right' });if (crash.drain().some((e) => e.type === 'board-break')) breaks++; }
+  assert.equal(breaks, 1);assert.equal(crash.downReason, 'crash');assert.equal(crash.power.hoverboard, 0);
+  // Coin rush: nothing ahead can be hit for the rush and the coins are collected without steering.
+  const rush = new RunnerGame(parseRunner({ theme: 'temple-ruins', seed: 6, chaser: 'none' }, ['enemy-1']), profile(), 6);rush.start();
+  rush.current.pickups.push({ id: 9999, kind: 'coin-rush', d: rush.d + 0.5, lane: 0, taken: false });rush.update(1 / 60, idle);
+  assert.ok(rush.power['coin-rush'] > 3);const converted = rush.current.things.filter((t) => t.hit).length, coinsAhead = rush.current.coins.length;assert.ok(converted >= 1 && rush.current.gaps.every(([a]) => a > rush.d + 50), `${converted} obstacles turned to coins`);const before = rush.coins;let t = 0;
+  while (rush.power['coin-rush'] > 0 && rush.status === 'running') { const s = rush.current;rush.update(1 / 60, { ...idle, left: s.length - rush.d < 6 && s.end !== 'right', right: s.length - rush.d < 6 && s.end === 'right' });t += 1 / 60; }
+  assert.equal(rush.status, 'running');assert.ok(rush.coins - before > 5 && coinsAhead > 0 && t > 3, `${rush.coins - before} coins in ${t.toFixed(1)} s`);
+});
 check('expert rivals lap faster than hard ones', () => {
   const finish = (aiSkill: 'hard' | 'expert') => { const g = new RaceGame({ ...defaultRace(), track: 'forest-ring', laps: 1, aiSkill, rubberBand: false, pickups: [] }, names, 3);runRace(g);return Math.min(...g.cars.filter((c) => c.ai).map((c) => c.finished ?? 999)); };
   const hard = finish('hard'), expert = finish('expert');assert.ok(expert < hard * 0.96 && expert < 999, `expert ${expert.toFixed(1)} s vs hard ${hard.toFixed(1)} s`);

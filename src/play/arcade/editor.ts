@@ -49,6 +49,8 @@ const POWER_NOTES: Record<string, [string, string]> = {
   boost: ['Speed boost', 'A burst of speed that smashes through obstacles.'],
   multiplier: ['Score ×2', 'Doubles every point and coin while it lasts.'],
   springs: ['Spring boots', 'Jump high over overhead bars and onto rooftops and trains.'],
+  hoverboard: ['Hoverboard', 'Glide over low barriers and gaps; a crash breaks the board instead of ending the run.'],
+  'coin-rush': ['Coin rush', 'Turns every obstacle ahead into coins for a few seconds.'],
 };
 
 const svg = (inner: string, view = '0 0 32 32', extra = 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"') => `<svg viewBox="${view}" ${extra} aria-hidden="true">${inner}</svg>`;

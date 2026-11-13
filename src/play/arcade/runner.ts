@@ -2,7 +2,9 @@
  * Endless runner rules: a seeded course of straights joined by corners and T-junctions, three lanes, jumps, slides
  * and turns, obstacles with a guaranteed way through, coins and power-ups, a chaser that closes after stumbles, and
  * scoring with multipliers, and the creator's objects to find, placed one at a time. Spring boots jump high enough to
- * clear overhead bars and land on roofs: blocks and train carriages carry the runner until they step off the end. Course pieces are generated ahead, recycled behind, and the world origin follows the run.
+ * clear overhead bars and land on roofs: blocks and train carriages carry the runner until they step off the end. A
+ * hoverboard glides over low barriers and gaps and breaks in place of the runner; coin rush turns the obstacles ahead
+ * into coins. Course pieces are generated ahead, recycled behind, and the world origin follows the run.
  */
 import { seeded } from './race';
 import type { RunnerObstacle, RunnerPowerUp, RunnerSettings } from './modes';
@@ -34,7 +36,7 @@ export interface RunnerSegment {
   things: RunnerThing[]; coins: RunnerCoin[]; pickups: RunnerPickup[]; finds: RunnerFind[]; gaps: [number, number][]; decor: number; branch?: 'left' | 'right';
 }
 export type RunnerEvent =
-  | { type: 'jump' | 'spring' | 'bounce' | 'drop' | 'slide' | 'lane' | 'turn' | 'coin' | 'stumble' | 'shield-break' | 'smash' | 'land' | 'mission' | 'goal' | 'revive' | 'caught' | 'fall' | 'crash' }
+  | { type: 'jump' | 'spring' | 'bounce' | 'drop' | 'board-break' | 'slide' | 'lane' | 'turn' | 'coin' | 'stumble' | 'shield-break' | 'smash' | 'land' | 'mission' | 'goal' | 'revive' | 'caught' | 'fall' | 'crash' }
   | { type: 'power'; kind: RunnerPowerUp } | { type: 'find'; item: number; done: boolean; all: boolean } | { type: 'near-miss' } | { type: 'rebase'; dx: number; dz: number } | { type: 'speed-up'; speed: number };
 export interface RunnerInput { left: boolean; right: boolean; jump: boolean; slide: boolean; tiltLane?: number }
 export const MISSION_KINDS = ['coins', 'distance', 'jumps', 'slides', 'powers', 'score'] as const;
@@ -66,7 +68,7 @@ export class RunnerGame {
   /** Distance into the current segment, lateral lane position, height, and the height of what is underfoot. */
   floor = 0; d = 0; lane = 0; x = 0; y = 0; vy = 0; sliding = 0; grounded = true; heading = 0; speed = 0; distance = 0; time = 0;
   coins = 0; score = 0; multiplier = 1; chaser = 14; stumbles = 0; lastStumble = -100; revives = 0; queuedTurn?: 'left' | 'right'; airborne = 0;
-  power = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0 }; stats = { jumps: 0, slides: 0, powers: 0 }; missionsDone: boolean[] = [false, false, false];
+  power: Record<RunnerPowerUp, number> = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0, hoverboard: 0, 'coin-rush': 0 }; stats = { jumps: 0, slides: 0, powers: 0 }; missionsDone: boolean[] = [false, false, false];
   events: RunnerEvent[] = []; downReason?: 'crash' | 'fall' | 'caught'; downTime = 0; goalReached = false; recover = 0; turnLean = 0;
   private random: () => number; private nextId = 1; private accumulator = 0; private recycle = new Pool<RunnerSegment>(() => ({ id: 0, x: 0, z: 0, heading: 0, length: 0, start: 0, end: 'left', things: [], coins: [], pickups: [], finds: [], gaps: [], decor: 0 }));
   private thingPool = new Pool<RunnerThing>(() => ({ id: 0, kind: 'barrier-low', d: 0, lanes: 0, length: 0, moving: 0, hit: false, passed: false }));
@@ -85,7 +87,7 @@ export class RunnerGame {
     for (const s of [...this.segments, ...this.branches, ...this.behind]) this.releaseSegment(s);
     this.segments = [];this.branches = [];this.behind = [];
     Object.assign(this, { status: 'ready', floor: 0, d: 4, lane: 0, x: 0, y: 0, vy: 0, sliding: 0, grounded: true, heading: 0, speed: this.settings.startSpeed, distance: 0, time: 0, coins: 0, score: 0, chaser: 6, stumbles: 0, lastStumble: -100, revives: 0, queuedTurn: undefined, airborne: 0, downReason: undefined, goalReached: false, recover: 0, turnLean: 0, accumulator: 0, events: [], lastNearMiss: -10 });
-    this.power = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0 };this.stats = { jumps: 0, slides: 0, powers: 0 };this.missionsDone = this.profile.missions.map(Boolean);this.multiplier = 1 + this.profile.missionLevel;
+    this.power = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0, hoverboard: 0, 'coin-rush': 0 };this.rushUntil = 0;this.stats = { jumps: 0, slides: 0, powers: 0 };this.missionsDone = this.profile.missions.map(Boolean);this.multiplier = 1 + this.profile.missionLevel;
     this.found = (this.settings.objects ?? []).map(() => 0);this.liveFind = undefined;this.findSegment = undefined;this.nextFindAt = 0;
     this.segments.push(this.makeSegment(0, 0, 0, 0, true));this.fill();
   }
@@ -100,11 +102,16 @@ export class RunnerGame {
     const s = this.settings, f = s.speedRamp === 'gentle' ? 1 - Math.exp(-this.distance / 4000) : Math.min(1, this.distance / (s.speedRamp === 'steady' ? 2600 : 1300));
     return s.startSpeed + (s.maxSpeed - s.startSpeed) * f;
   }
-  duration(kind: RunnerPowerUp) { return { magnet: 10, shield: 12, boost: 5, multiplier: 15, springs: 10 }[kind] + 2 * (this.profile.upgrades[kind] ?? 0); }
+  duration(kind: RunnerPowerUp) { return { magnet: 10, shield: 12, boost: 5, multiplier: 15, springs: 10, hoverboard: 12, 'coin-rush': 4 }[kind] + (kind === 'coin-rush' ? 0.75 : 2) * (this.profile.upgrades[kind] ?? 0); }
+  /** Course distance up to which coin rush has turned obstacles into coins. */
+  private rushUntil = 0;
+  get hovering() { return this.power.hoverboard > 0; }
   private step(dt: number, input: RunnerInput) {
     if (this.status !== 'running') return;
     this.time += dt;
     for (const key of Object.keys(this.power) as RunnerPowerUp[]) this.power[key] = Math.max(0, this.power[key] - dt);
+    // A hoverboard never runs out over a gap: it carries the runner to the far side first.
+    if (this.power.hoverboard > 0 && this.power.hoverboard < 0.05 && this.overGap()) this.power.hoverboard = 0.05;
     this.recover = Math.max(0, this.recover - dt);this.turnLean *= Math.exp(-dt * 5);
     const target = this.baseSpeed() * (this.power.boost > 0 ? 1.55 : 1) * (this.recover > 0 ? 0.72 : 1), before = Math.floor(this.speed / 2);
     this.speed += (target - this.speed) * (1 - Math.exp(-dt * 2.5));
@@ -116,7 +123,7 @@ export class RunnerGame {
     if (this.grounded && this.y > this.floor + 0.01) { this.grounded = false;this.vy = 0;this.airborne = 0; }
     if (!this.grounded) {
       this.vy -= RUN.gravity * dt * (input.slide ? 2.2 : 1);this.y += this.vy * dt;this.airborne += dt;
-      if (this.y <= this.floor && (this.floor > 0 || !this.overGap())) { this.y = this.floor;this.vy = 0;this.grounded = true;this.events.push({ type: 'land' });if (input.slide) this.beginSlide(); }
+      if (this.y <= this.floor && (this.floor > 0 || this.hovering || !this.overGap())) { this.y = this.floor;this.vy = 0;this.grounded = true;this.events.push({ type: 'land' });if (input.slide) this.beginSlide(); }
     }
     this.sliding = Math.max(0, this.sliding - dt);
     const targetX = this.lane * LANE;this.x += Math.sign(targetX - this.x) * Math.min(Math.abs(targetX - this.x), RUN.laneSpeed * dt);
@@ -177,18 +184,20 @@ export class RunnerGame {
   private collide(dt: number) {
     const s = this.current, height = this.sliding > 0 ? RUN.slideHeight : RUN.height;
     // Gaps: a short grace keeps a jump pressed at the edge fair.
-    if (this.grounded && this.floor === 0 && this.overGap()) { this.coyote += dt;if (this.coyote > 0.08) { this.grounded = false;this.vy = -2;this.down('fall');return; } } else this.coyote = 0;
+    if (this.grounded && this.floor === 0 && !this.hovering && this.overGap()) { this.coyote += dt;if (this.coyote > 0.08) { this.grounded = false;this.vy = -2;this.down('fall');return; } } else this.coyote = 0;
     if (this.y < -1.2) { this.down('fall');return; }
     for (const t of s.things) {
       if (t.hit) continue;
       if (!t.passed && this.d - 0.3 > t.d + t.length) { t.passed = true;this.nearMiss(t, height); }
       if (!this.hitBox(t)) continue;
-      const top = this.roof(t), clear = t.kind === 'barrier-low' ? this.y > 0.72 : t.kind === 'bar-high' ? height < 1.15 || this.y > BAR_TOP : t.kind === 'gap' ? true : this.y >= (top ?? OVER) - 0.35;
+      const top = this.roof(t), clear = t.kind === 'barrier-low' ? this.y > 0.72 || this.hovering : t.kind === 'bar-high' ? height < 1.15 || this.y > BAR_TOP : t.kind === 'gap' ? true : this.y >= (top ?? OVER) - 0.35;
       if (clear) continue;
       // Spring boots bounce off the top of anything that cannot be stood on.
       if (!top && this.power.springs > 0 && !this.grounded && this.vy < 0 && this.y > OVER - 1) { this.vy = RUN.springJump * 0.8;this.y = Math.max(this.y, OVER - 0.3);this.events.push({ type: 'bounce' });continue; }
       t.hit = true;
       if (this.power.boost > 0) { this.events.push({ type: 'smash' });continue; }
+      // The board takes the knock and breaks; the runner carries on, briefly shielded while they find their feet.
+      if (this.hovering) { this.power.hoverboard = 0;this.power.shield = Math.max(this.power.shield, 1);this.events.push({ type: 'board-break' });continue; }
       if (t.kind === 'barrier-low' || t.kind === 'bar-high') { this.stumble();continue; }
       if (this.power.shield > 0) { this.power.shield = 0;this.events.push({ type: 'shield-break' });continue; }
       this.down('crash');return;
@@ -228,7 +237,7 @@ export class RunnerGame {
   /** Finish a run that cannot continue. */
   end() { if (this.status === 'down') this.status = 'over'; }
   private collect() {
-    const s = this.current, magnet = this.power.magnet > 0;
+    const s = this.current, magnet = this.power.magnet > 0 || this.power['coin-rush'] > 0;
     for (const c of s.coins) {
       if (c.taken) continue;const dd = c.d - this.d;
       const hit = magnet ? dd > -0.5 && dd < 7 && Math.abs(c.lane * LANE - this.x) < LANE * 1.8 : Math.abs(dd) < 0.7 && Math.abs(c.lane * LANE - this.x) < 0.9 && Math.abs(c.y - (this.y + 0.6)) < 1.1;
@@ -236,6 +245,7 @@ export class RunnerGame {
     }
     for (const p of s.pickups) if (!p.taken && Math.abs(p.d - this.d) < 0.8 && Math.abs(p.lane * LANE - this.x) < 1) {
       p.taken = true;this.power[p.kind] = this.duration(p.kind);this.stats.powers++;this.events.push({ type: 'power', kind: p.kind });
+      if (p.kind === 'coin-rush') { this.rushUntil = s.start + this.d + 12 + this.speed * 1.5 * this.power['coin-rush'];for (const seg of [...this.segments, ...this.branches]) this.rush(seg); }
     }
     const f = this.liveFind;
     if (f && this.findSegment === s) {
@@ -284,18 +294,29 @@ export class RunnerGame {
     const v = { coins: this.coins, distance: this.distance, jumps: this.stats.jumps, slides: this.stats.slides, powers: this.stats.powers, score: this.score }[m.kind];
     return Math.min(1, v / m.target);
   }
+  /** Coin rush: every obstacle up to the rush distance becomes a line of coins in its lanes, and gaps close over. */
+  private rush(s: RunnerSegment) {
+    const from = this.segments[0] === s ? this.d + 1 : 0, until = this.rushUntil - s.start;if (until <= from) return;
+    for (const t of s.things) {
+      if (t.hit || t.d + t.length < from || t.d > until) continue;t.hit = true;
+      const lanes = [-1, 0, 1].filter((_, i) => t.lanes & (1 << i)), y = t.kind === 'bar-high' ? 1.3 : 0.9;
+      for (const lane of lanes) for (let d = t.d; d <= t.d + Math.max(0.1, t.length); d += 1.3) this.addCoin(s, d, lane, y);
+    }
+    s.gaps = s.gaps.filter(([a, b]) => b < from || a > until);
+  }
   private releaseSegment(s: RunnerSegment) { this.thingPool.release(s.things);this.coinPool.release(s.coins);s.pickups.length = 0;s.finds.length = 0;s.gaps.length = 0;this.recycle.release([s]); }
   private fill() {
     let ahead = this.segments.reduce((sum, s) => sum + s.length, 0) - this.d;
     while (ahead < 180 && this.segments.at(-1)!.end !== 'junction') {
       const last = this.segments.at(-1)!, f = forwardOf(last.heading), turn = last.end === 'left' ? 1 : -1;
       const next = this.makeSegment(last.x + f[0] * last.length, last.z + f[1] * last.length, last.heading + turn, last.start + last.length);
+      if (this.rushUntil > next.start) this.rush(next);
       this.segments.push(next);ahead += next.length;
     }
     const last = this.segments.at(-1)!;
     if (last.end === 'junction' && !this.branches.length) {
       const f = forwardOf(last.heading), x = last.x + f[0] * last.length, z = last.z + f[1] * last.length;
-      for (const side of ['left', 'right'] as const) { const b = this.makeSegment(x, z, last.heading + (side === 'left' ? 1 : -1), last.start + last.length);b.branch = side;this.branches.push(b); }
+      for (const side of ['left', 'right'] as const) { const b = this.makeSegment(x, z, last.heading + (side === 'left' ? 1 : -1), last.start + last.length);b.branch = side;if (this.rushUntil > b.start) this.rush(b);this.branches.push(b); }
     }
   }
   /** Move the world back near the origin on long runs so float precision stays fine. */

@@ -1,6 +1,6 @@
 /**
  * Power-up pickups as small models of what they do: a horseshoe magnet, a knight's shield, a lightning bolt, a green
- * ×2 badge and a spring boot. Each is one painted geometry centred on its middle and facing +Z, about 0.8 m tall.
+ * ×2 badge, a spring boot, a hoverboard and a stack of coins. Each is one painted geometry centred on its middle and facing +Z, about 0.8 m tall.
  */
 import * as T from 'three';
 import type { RunnerPowerUp } from './modes';
@@ -56,4 +56,28 @@ function springBoot() {
   ]).rotateY(Math.PI / 2).translate(0, 0.08, 0);
 }
 
-export const POWER_MODELS: Record<RunnerPowerUp, () => T.BufferGeometry> = { magnet, shield, boost: bolt, multiplier, springs: springBoot };
+/** A hoverboard: a rounded deck with a glowing strip underneath, tilted so its top shows. */
+export function hoverDeck() {
+  const s = new T.Shape(), w = 0.22, l = 0.62;
+  s.moveTo(-w, -l + w);s.quadraticCurveTo(-w, -l, 0, -l);s.quadraticCurveTo(w, -l, w, -l + w);s.lineTo(w, l - w);s.quadraticCurveTo(w, l, 0, l);s.quadraticCurveTo(-w, l, -w, l - w);s.closePath();
+  const deck = extrude(s, 0.05, 0.015).rotateX(-Math.PI / 2);
+  return painted([
+    [deck, '#20c4d8'], [box(0.3, 0.015, 0.9, 0, 0.045, 0), '#1b2430'], [box(0.06, 0.016, 0.9, 0, 0.052, 0), '#ffd23f'],
+    [box(0.3, 0.03, 0.5, 0, -0.04, 0), '#7ff8ff'],
+    // A truck under each end with a wheel either side of the deck.
+    ...[-0.4, 0.4].flatMap((z) => [[box(0.36, 0.05, 0.08, 0, -0.06, z), '#9aa3ad'] as Part, ...[-1, 1].map((x) => [cyl(0.075, 0.075, 0.07, 16).rotateZ(Math.PI / 2).translate(x * 0.23, -0.1, z), '#2b2f36'] as Part), ...[-1, 1].map((x) => [cyl(0.035, 0.035, 0.072, 10).rotateZ(Math.PI / 2).translate(x * 0.23, -0.1, z), '#20c4d8'] as Part)]),
+  ]).translate(0, 0.175, 0);
+}
+/** Flat, as it rides, raised so its wheels sit at the pickup's middle. */
+const hoverboard = () => hoverDeck().translate(0, -0.1, 0);
+
+/** A leaning stack of gold coins. */
+function coinStack() {
+  const gold = '#f2c23c', rim = '#c9961e';
+  return painted([
+    ...Array.from({ length: 6 }, (_, i) => [cyl(0.22, 0.22, 0.06, 20, Math.sin(i * 1.7) * 0.03, -0.3 + i * 0.07, Math.cos(i * 1.3) * 0.03), i % 2 ? gold : rim] as Part),
+    [cyl(0.24, 0.24, 0.05, 22).rotateX(Math.PI / 2).rotateZ(0.25).translate(0.04, 0.2, 0.05), gold], [cyl(0.15, 0.15, 0.055, 18).rotateX(Math.PI / 2).rotateZ(0.25).translate(0.04, 0.2, 0.06), '#ffe27a'],
+  ]);
+}
+
+export const POWER_MODELS: Record<RunnerPowerUp, () => T.BufferGeometry> = { magnet, shield, boost: bolt, multiplier, springs: springBoot, hoverboard, 'coin-rush': coinStack };

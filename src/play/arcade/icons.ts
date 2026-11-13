@@ -19,6 +19,8 @@ export const ICONS: Record<string, string> = {
   shield: 'M16 4 6 8v7c0 6 4.5 10.5 10 13 5.5-2.5 10-7 10-13V8Zm-5 12 4 4 7-8',
   boost: 'M18 3 7 18h8l-2 11 12-16h-8Z',
   springs: 'M9 4h8l2 6h4v4H9ZM10 18h12M10 18l12 3-12 3 12 3M9 28h14',
+  hoverboard: 'M4 18c0-2 2-3 4-3h16c2 0 4 1 4 3s-2 3-4 3H8c-2 0-4-1-4-3ZM9 25h3m8 0h3M14 11a2 2 0 1 0 4 0 2 2 0 0 0-4 0',
+  'coin-rush': 'M9 24a7 3 0 1 0 14 0 7 3 0 1 0-14 0ZM9 24v3a7 3 0 0 0 14 0v-3M9 17a7 3 0 1 0 14 0 7 3 0 1 0-14 0ZM9 17v3m14-3v3M26 5l-2 4M6 6l3 3M16 3v4',
   multiplier: 'M5 12l9 9m0-9-9 9M18 13a3.5 3.5 0 0 1 7 0c0 3.5-7 5-7 9h7',
   keke: 'M7 25a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm18 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM4 22V8l2-2h16l5 8 3 1v7h-2M10 22h12M27 14H19V6M4 13h15',
   // Objects and clues to find on a run.
