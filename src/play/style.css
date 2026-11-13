@@ -373,3 +373,11 @@ body[data-grenade=true] #interaction{display:none}
 @media(prefers-reduced-motion:reduce){#stage[data-loading] #start::after{animation:none;width:100%;opacity:.25}}
 #stage[data-loading]::before,#stage[data-loading]::after{pointer-events:none;z-index:0}
 #stage[data-loading] #brief{z-index:2}
+
+.film-card{padding:12px 14px;margin:10px 0;border:1px solid var(--line);border-radius:12px;display:grid;gap:8px}
+.film-card[data-attached=true]{border-color:#7aa892;background:#e7f0e6}
+.film-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.film-badge{font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#e2e2da;color:var(--muted)}
+.film-card[data-attached=true] .film-badge{background:var(--green);color:#fff}
+.film-preview{width:100%;max-height:180px;border-radius:8px;background:#11181a}
+.film-card .micro{margin:0;overflow-wrap:anywhere}

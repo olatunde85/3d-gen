@@ -189,7 +189,7 @@ Choose allowed camera views and the starting view. Players switch among permitte
 
 ## Story, text and voice
 
-Atmosphere → **Story & dialogue** accepts a Studio JSON or project ZIP and renders it locally into a portable film, or accepts an MP4/WebM. Films are limited to 60 seconds and 24 MiB after rendering. Films play before/after that chapter and are skippable. A missing or unsupported clip cannot permanently block the mission.
+Atmosphere → **Story & dialogue** accepts a Studio JSON or project ZIP and renders it locally into a portable film, or accepts an MP4/WebM. Films are limited to 60 seconds and 24 MiB after rendering. Films play before/after that chapter in every mode and are skippable. The opening film plays when a mission, race or run first starts; the ending film plays when a mission is won, a race is finished or a run goal is reached. Retries and daily challenges skip the films. A missing or unsupported clip cannot permanently block the game.
 
 Add up to 24 cues triggered by mission start, a time, an objective number, detection, overwatch, reinforcement arrival, objective completion or extraction. Cues support subtitles, captions and comic speech/thought bubbles following the selected character. Text timers pause with the game. Each cue plays once per run; checkpoint retries can replay later cues. Cues can also use any recorded Studio sound effect.
 

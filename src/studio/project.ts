@@ -62,8 +62,14 @@ function number(v: unknown, min: number, max: number, name: string) {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) throw new Error(`Invalid ${name}.`);
   return v;
 }
+/** A compass direction in degrees, folded into -180..180: 200° faces the same way as -160°. */
+function angle(v: unknown, name: string) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`Invalid ${name}.`);
+  const a = ((((v + 180) % 360) + 360) % 360) - 180;
+  return a === -180 && v > 0 ? 180 : a;
+}
 function record(v: unknown): Record<string, unknown> { if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('Choose a valid Ara Studio project.'); return v as Record<string, unknown>; }
-function parseView(raw:unknown):View { const v=record(raw);return {azimuth:number(v.azimuth,-180,180,'camera rotation'),elevation:number(v.elevation,-35,65,'camera elevation'),zoom:number(v.zoom,.5,3,'camera zoom')}; }
+function parseView(raw:unknown):View { const v=record(raw);return {azimuth:angle(v.azimuth,'camera rotation'),elevation:number(v.elevation,-35,65,'camera elevation'),zoom:number(v.zoom,.5,3,'camera zoom')}; }
 /** Migrate saved v1 films; reject unsupported versions and malformed tracks before building models. */
 export function parseProject(text: string): StudioProject {
   if (text.length > 100_000) throw new Error('Choose a project smaller than 100 KB.');
@@ -105,7 +111,7 @@ export function parseProject(text: string): StudioProject {
       return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: (b.move||forcedTravel(clip)) && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(b.showProp!==undefined?{showProp:b.showProp as boolean}:{}),...(b.showBlood!==undefined?{showBlood:b.showBlood as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}) };
     });
     if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');
-    return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -STAGE_LIMIT, STAGE_LIMIT, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -STAGE_LIMIT, STAGE_LIMIT, 'character Z'), yaw: number(a.yaw, -180, 180, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
+    return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -STAGE_LIMIT, STAGE_LIMIT, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -STAGE_LIMIT, STAGE_LIMIT, 'character Z'), yaw: angle(a.yaw, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
   });
   if (!Array.isArray(p.shots) || !p.shots.length || p.shots.length > MAX_SHOTS) throw new Error(`Use one to ${MAX_SHOTS} camera shots.`);
   const shots = p.shots.map((raw, i): CameraShot => { const s = record(raw);

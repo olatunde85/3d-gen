@@ -9,6 +9,7 @@ import type { GameActor } from '../actor';
 import type { PlayerHooks } from '../player';
 import { chapterProject, gameStem, posesOf, type PlayProject } from '../project';
 import { EngineSound } from '../engine-sound';
+import { StoryView } from '../story-view';
 import { GameMusic } from '../music';
 import { RaceGame, CAR_STATS, POINTS, type RaceInput } from './race';
 import { RunnerGame, type RunnerInput } from './runner';
@@ -41,6 +42,8 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   const hud = new ArcadeHud(stage), feel = new SpeedFeel(), input = new ArcadeInput(canvas), sfx = new ArcadeSfx(), engine = new EngineSound();
   const music = new GameMusic(new URL(import.meta.env.BASE_URL, location.href).href);
   hud.root.prepend(feel.overlay);
+  /** Each chapter's opening film plays before its first start, and its ending film once the race is finished or the run goal reached. */
+  const story = new StoryView(scene, !document.getElementById('settings'));let openingShown = false, endingShown = false, filmChapter = -1, filmRoot: PlayProject | undefined;
   let root = initialProject, cast = initialCast, active = false, paused = false, last = performance.now(), size = { w: 0, h: 0 };
   let phase: 'intro' | 'playing' | 'down' | 'results' = 'intro', chapter = 0, daily = false, settled = 0, reviveTimer = 0, touchHeld = new Set<string>(), stickX = 0, stickY = 0;
   let race: RaceGame | undefined, raceView: RaceView | undefined, runner: RunnerGame | undefined, runnerView: RunnerView | undefined, ghostIndex = 0;
@@ -77,6 +80,8 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   /** Build the rules and scene for the current chapter; cheap enough to run on every mode switch. */
   function setup() {
     dispose();project = chapterProject(root, Math.min(chapter, rounds() - 1));feel.reset();
+    // Films play once per chapter visit: retries and quitting to the start card don't replay them.
+    if (filmChapter !== chapter || filmRoot !== root) { filmChapter = chapter;filmRoot = root;openingShown = false;endingShown = false; }
     if (mode() === 'race') {
       const settings = raceSettings(), key = trackKey(settings.track), record = raceRecord(gameKey(), key);
       const ghost = settings.ghost ? linkedGhost(key) ?? (record.ghost ? decodeGhost(record.ghost) : undefined) : undefined;
@@ -143,6 +148,9 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   }
   /** One-tap start or retry: rules reset in place, the scene stays loaded. */
   function start() {
+    if (story.playingFilm) return;
+    const opening = project.story?.opening;
+    if (opening && !openingShown && !daily) { openingShown = true;hud.hideCard();music.setPlaying(false);void story.playFilm(opening, audioOn()).then(start);return; }
     sfx.unlock();engine.unlock();music.unlock();hooks.stopPreview?.();hud.hideCard();input.clear();feel.reset();
     if (race) { race.reset();raceView!.events([], feel);ghostIndex = 0; }
     runRef = {};
@@ -243,6 +251,9 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   // ---- Results ----
   function results() {
     phase = 'results';music.setPlaying(false);engine.update(false, 0, false);
+    if (story.playingFilm) return;
+    const ending = project.story?.ending, won = race ? race.status === 'finished' : !!runner && (runner.status === 'won' || runner.goalReached);
+    if (ending && won && !endingShown && !daily) { endingShown = true;hud.hideCard();void story.playFilm(ending, audioOn()).then(() => { if (phase === 'results') results(); });return; }
     if (race) raceResults();else runnerResults();
   }
   function raceResults() {
