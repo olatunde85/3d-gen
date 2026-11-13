@@ -1,6 +1,7 @@
 /** Real browser coverage for the playable loop, controls, character swaps and mobile UI. */
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {createServer} from 'node:http';
 import {existsSync,mkdirSync,mkdtempSync,readFileSync,rmSync,statSync,writeFileSync} from 'node:fs';
 import {join,extname} from 'node:path';
@@ -21,7 +22,7 @@ const accessOnly=process.argv.includes('--access');
 const coverExport=process.argv.includes('--cover-export'),coverOnly=coverExport||process.argv.includes('--cover');
 const campaignUi=process.argv.includes('--campaign-ui'),campaignCityOnly=process.argv.includes('--campaign-city'),campaignOnly=campaignUi||campaignCityOnly||process.argv.includes('--campaign'),campaignExport=process.argv.includes('--campaign-export');
 const assistOnly=process.argv.includes('--assist');
-const arcadeOnly=process.argv.includes('--arcade');
+const filmsOnly=process.argv.includes('--films'),arcadeOnly=filmsOnly||process.argv.includes('--arcade');
 const rescueDrivingOnly=process.argv.includes('--rescue-driving'),rescueDrivingExport=process.argv.includes('--rescue-driving-export');
 const missionVisualsOnly=process.argv.includes('--mission-visuals');
 const drivingOnly=process.argv.includes('--driving'),drivingExport=process.argv.includes('--driving-export');
@@ -34,7 +35,7 @@ const progressionOnly=process.argv.includes('--progression');
 const mobileOnly=process.argv.includes('--mobile'),traversalOnly=process.argv.includes('--traversal'),recoveryOnly=process.argv.includes('--recovery'),combatOnly=process.argv.includes('--combat'),combatFeedbackOnly=process.argv.includes('--combat-feedback'),rescueOnly=process.argv.includes('--rescue'),rescueLayoutOnly=process.argv.includes('--rescue-layout');
 const chromePath=process.env.CHROME??'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 await build({logLevel:'error'});const dist=join(import.meta.dirname,'../dist'),profile=mkdtempSync(join(tmpdir(),'ara-play-'));
-const types:Record<string,string>={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.wasm':'application/wasm','.mp3':'audio/mpeg','.wav':'audio/wav','.mp4':'video/mp4','.webm':'video/webm'};
+const types:Record<string,string>={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.wasm':'application/wasm','.mp3':'audio/mpeg','.wav':'audio/wav','.mp4':'video/mp4','.webm':'video/webm'};
 const server=createServer((req,res)=>{let p=join(dist,decodeURIComponent((req.url??'/').split('?')[0]));if(existsSync(p)&&statSync(p).isDirectory())p=join(p,'index.html');if(!p.startsWith(dist)||!existsSync(p)){res.statusCode=404;res.end();return;}res.setHeader('Content-Type',types[extname(p)]??'application/octet-stream');res.end(readFileSync(p));});await new Promise<void>(r=>server.listen(4407,'127.0.0.1',r));
 const chrome=spawn(chromePath,['--headless=new','--use-angle='+(process.env.ARA_TEST_NATIVE_GPU==='1'?'metal':'swiftshader'),'--enable-unsafe-swiftshader','--no-first-run',`--user-data-dir=${profile}`,'--remote-debugging-pipe','--window-size=1280,900','about:blank'],{stdio:['ignore','ignore','ignore','pipe','pipe']});
 const input=chrome.stdio[3]as Writable,output=chrome.stdio[4]as Readable,pending=new Map<number,{resolve:(v:unknown)=>void;reject:(e:Error)=>void}>();let seq=0,session='',buffer='';const errors:string[]=[];
@@ -73,20 +74,23 @@ async function playCampaign(prefix:string){
  await send('Page.reload');await wait('window.araPlay&&!document.getElementById("start").disabled','campaign resume loads',120000);assert.ok(await evaluate('araPlay.chapter===1&&araPlay.game.remainingLives===2&&araPlay.game.playerCombat.weapon==="pistol"&&document.getElementById("load-label").textContent.includes("Resume")'));await click('#start');await evaluate('araPlay.game.enemies.forEach(e=>e.combat.health=0)');await keyboardRoute(await evaluate<any>('araPlay.game.world.rescue.approach'),'rescue captive');await press('KeyE');await wait('araPlay.game.companion.rescued&&!araPlay.game.action','Maya rescued');await keyboardRoute(driverStand(await evaluate<any>('araPlay.game.car')),'shared pickup');await press('KeyE');await wait('araPlay.game.readyToDrive','both aboard',45000);await driveCourseKeyboard(prefix);assert.ok(await evaluate('araPlay.game.routeStage===2&&araPlay.game.companion.riding.phase==="seated"&&document.getElementById("result-title").textContent==="Campaign complete."'));await photo(prefix+'-complete');
  await send('Page.reload');await wait('window.araPlay&&!document.getElementById("start").disabled','completed campaign reload',120000);assert.equal(await evaluate('document.getElementById("brief-title").textContent'),'Campaign complete.');await click('#start');assert.ok(await evaluate('araPlay.chapter===0&&araPlay.game.remainingLives===3&&araPlay.game.playerCombat.weapon==="none"&&!araPlay.game.hasCargo'));await press('Escape');
 }
-let checks=0;async function check(name:string,fn:()=>Promise<void>){if(arcadeOnly&&!/builds two|arcade/.test(name))return;if(studioFilmOnly&&!/builds two|Studio JSON film/.test(name))return;if(boardingUi&&!/builds two|boarding followup|mission context/.test(name))return;if(expansionOnly&&!/builds two|expansion/.test(name))return;if(accessOnly&&!/builds two|access setup|access gameplay/.test(name))return;if(coverOnly&&!/builds two|cover setup|cover gameplay/.test(name))return;if((campaignOnly||campaignExport)&&!/builds two|campaign gameplay|campaign setup|campaign export/.test(name))return;if(assistOnly&&!/builds two|assist setup|assist game/.test(name))return;if(rescueDrivingOnly&&!/builds two|rescue pickup/.test(name))return;if(missionVisualsOnly&&!/builds two|mission visuals/.test(name))return;if(drivingOnly&&!/builds two|pickup gameplay/.test(name))return;if(locationsOnly&&!/builds two|location scenarios/.test(name))return;if(grenadesOnly&&!/builds two|grenade gameplay/.test(name))return;if(exportOnly&&!/builds two|game export/.test(name))return;if(tiltOnly&&!/builds two|camera tilt/.test(name))return;if(presentationOnly&&!/builds two|presentation/.test(name))return;if(progressionOnly&&!/builds two|progression/.test(name))return;if(combatFeedbackOnly&&!/builds two|combat feedback/.test(name))return;if(rescueLayoutOnly&&!/builds two|rescue story retains/.test(name))return;if(rescueOnly&&!/builds two|rescue story/.test(name))return;if(combatOnly&&!/builds two|pistol combat|combat feedback/.test(name))return;if(recoveryOnly&&!/builds two|checkpoint retries/.test(name))return;if(mobileOnly&&!/builds two|customisable|saved setup/.test(name))return;if(traversalOnly&&!/builds two|contextual|abstract mission/.test(name))return;console.log('RUN',name);await fn();checks++;console.log('OK',name);}
+let checks=0;async function check(name:string,fn:()=>Promise<void>){if(filmsOnly&&!/builds two|films/.test(name))return;if(arcadeOnly&&!/builds two|arcade/.test(name))return;if(studioFilmOnly&&!/builds two|Studio JSON film/.test(name))return;if(boardingUi&&!/builds two|boarding followup|mission context/.test(name))return;if(expansionOnly&&!/builds two|expansion/.test(name))return;if(accessOnly&&!/builds two|access setup|access gameplay/.test(name))return;if(coverOnly&&!/builds two|cover setup|cover gameplay/.test(name))return;if((campaignOnly||campaignExport)&&!/builds two|campaign gameplay|campaign setup|campaign export/.test(name))return;if(assistOnly&&!/builds two|assist setup|assist game/.test(name))return;if(rescueDrivingOnly&&!/builds two|rescue pickup/.test(name))return;if(missionVisualsOnly&&!/builds two|mission visuals/.test(name))return;if(drivingOnly&&!/builds two|pickup gameplay/.test(name))return;if(locationsOnly&&!/builds two|location scenarios/.test(name))return;if(grenadesOnly&&!/builds two|grenade gameplay/.test(name))return;if(exportOnly&&!/builds two|game export/.test(name))return;if(tiltOnly&&!/builds two|camera tilt/.test(name))return;if(presentationOnly&&!/builds two|presentation/.test(name))return;if(progressionOnly&&!/builds two|progression/.test(name))return;if(combatFeedbackOnly&&!/builds two|combat feedback/.test(name))return;if(rescueLayoutOnly&&!/builds two|rescue story retains/.test(name))return;if(rescueOnly&&!/builds two|rescue story/.test(name))return;if(combatOnly&&!/builds two|pistol combat|combat feedback/.test(name))return;if(recoveryOnly&&!/builds two|checkpoint retries/.test(name))return;if(mobileOnly&&!/builds two|customisable|saved setup/.test(name))return;if(traversalOnly&&!/builds two|contextual|abstract mission/.test(name))return;console.log('RUN',name);await fn();checks++;console.log('OK',name);}
 try{
  const {targetId}=await send<{targetId:string}>('Target.createTarget',{url:'about:blank'},false);({sessionId:session}=await send<{sessionId:string}>('Target.attachToTarget',{targetId,flatten:true},false));await send('Page.enable');await send('Runtime.enable');await send('Page.navigate',{url:'http://127.0.0.1:4407/play/#demo'});
  await check('builds two existing Ara characters and presents a playable mission',async()=>{await wait('window.araPlay&&!document.getElementById("start").disabled','characters ready',90000);assert.equal(await evaluate('araPlay.game.status'),'ready');await photo('desktop-intro');});
 
 
  await check('Studio JSON film renders into a portable opening',async()=>{
-  const project=blankProject(),file=join(profile,'studio-opening.json');writeFileSync(file,JSON.stringify(project));
+  // A scripted line with no recorded audio is voiced on the device before the film renders. STUDIO_FILM checks a real film file instead.
+  const project=blankProject();project.audio.speech=[{source:'tts',id:'line',name:'Narrator: Hello there.',actor:'narrator',text:'Hello there.',voice:'F1',start:.5,duration:1.5,offset:0,speed:1,volume:1,pan:0,effect:'natural'}];
+  const file=process.env.STUDIO_FILM??join(profile,'studio-opening.json');if(!process.env.STUDIO_FILM)writeFileSync(file,JSON.stringify(project));
   await click('#settings');await click('#setup-presentation');await send('Page.setInterceptFileChooserDialog',{enabled:true});
   await evaluate('Array.from(document.querySelectorAll("#story-editor button")).find(b=>b.textContent==="Use Studio project").click()');
   await wait('!!document.querySelector("input[data-story-attachment]")','Studio project input');
   const dom=await send<{root:{nodeId:number}}>('DOM.getDocument'),input=await send<{nodeId:number}>('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'input[data-story-attachment]'});
   await send('DOM.setFileInputFiles',{nodeId:input.nodeId,files:[file]});
-  await wait('document.getElementById("story-editor").textContent.includes("Studio film ready")||document.getElementById("story-editor").textContent.includes("could not")||document.getElementById("story-editor").textContent.includes("unavailable")','Studio film render result',180000);
+  const report=setInterval(()=>{void evaluate<string>('document.querySelector("#story-editor [role=status]")?.textContent??""').then(t=>console.log('  …',t)).catch(()=>{});},20000);
+  try{await wait('document.getElementById("story-editor").textContent.includes("Studio film ready")||document.getElementById("story-editor").textContent.includes("could not")||document.getElementById("story-editor").textContent.includes("unavailable")','Studio film render result',1200000);}finally{clearInterval(report);}
   const status=await evaluate<string>('document.getElementById("story-editor").textContent');assert.ok(status.includes('Studio film ready'),status.slice(-500));
   await send('Page.setInterceptFileChooserDialog',{enabled:false});
  });
@@ -223,6 +227,32 @@ try{
    await click('#settings');await openSetup(runnerExample(),'runner-again');await click('#apply');await wait('!document.getElementById("setup").open&&araPlay.mode==="runner"','runner again',180000);
    await click('#settings');await openSetup(playExample(),'mission-again');await click('#apply');await wait('!document.getElementById("setup").open&&!!araPlay.game&&araPlay.game.status!==undefined','mission again',180000);
    assert.ok(await evaluate('!document.body.classList.contains("arcade-active")&&document.querySelector(".arcade-ui").hidden'));await photo('arcade-back-to-mission');
+  });
+  await check('arcade race, runner and mission chapters each play their opening and ending films, after editing a chapter',async()=>{
+   // An eight-second film stored like an attached Studio export.
+   const film=join(profile,'film.webm');const made=spawnSync('ffmpeg',['-loglevel','error','-y','-f','lavfi','-i','color=c=#2d6fc8:s=160x90:d=8','-c:v','libvpx','-b:v','80k',film]);assert.equal(made.status,0,String(made.stderr));
+   const bytes=readFileSync(film),ref={id:createHash('sha256').update(bytes).digest('hex'),name:'Chapter film',mime:'video/webm',duration:8};
+   await evaluate(`(async()=>{const bytes=Uint8Array.from(atob(${JSON.stringify(bytes.toString('base64'))}),c=>c.charCodeAt(0));const db=await new Promise((ok,no)=>{const r=indexedDB.open('ara-play-media',1);r.onupgradeneeded=()=>r.result.createObjectStore('assets',{keyPath:'id'});r.onsuccess=()=>ok(r.result);r.onerror=no;});await new Promise((ok,no)=>{const tx=db.transaction('assets','readwrite');tx.objectStore('assets').put({...${JSON.stringify(ref)},blob:new Blob([bytes],{type:'video/webm'})});tx.oncomplete=ok;tx.onerror=no;});return 1})()`);
+   const base=raceExample(),run=runnerExample().runner;
+   const campaign={...base,identity:{title:'Film campaign',briefing:'Race, run, then break out.'},poses:{lookAround:true,dance:false},story:{opening:ref,ending:ref,cues:[]},race:{...base.race,laps:1,opponents:3},
+    chapters:[{id:'dash',mode:'runner',identity:{title:'Dash',briefing:'Run 100 m.'},runner:{...run,chaser:'none',goal:{type:'distance',target:100},objects:undefined}},{id:'yard',mode:'mission',identity:{title:'Yard',briefing:'Break out.'}}]};
+   await click('#settings');await openSetup(campaign as {identity:{title:string}},'film-campaign');
+   await click('#setup-presentation');await wait('document.querySelectorAll("#story-editor .film-card[data-attached=true]").length===2&&[...document.querySelectorAll("#story-editor .film-preview")].every(v=>v.readyState>=1)','film cards show both attached films');await evaluate('document.querySelector("#story-editor .film-card").scrollIntoView({block:"start"})');await photo('films-editor');
+   await click('[data-chapter="1"]');await click('#apply');
+   await wait('!document.getElementById("setup").open&&araPlay.mode==="race"&&araPlay.phase==="intro"','edited mixed campaign applies',180000);
+   const filmOpen='document.querySelector(".story-film[open]")',skip=`[...document.querySelectorAll(".story-film[open] button")].find(b=>/Skip film/.test(b.textContent))?.click()`;
+   const watch=async(label:string,ms=30000)=>{await wait(`!!${filmOpen}&&!!document.querySelector(".story-film[open] video").src`,label+' film opens',ms);await photo('films-'+label);await evaluate(skip);await wait(`!${filmOpen}`,label+' film closes');};
+   await click('.arcade-card button.primary');await watch('race-opening');await wait('araPlay.phase==="playing"','race starts after its film');await evaluate(autoRace);
+   await watch('race-ending',480000);await wait('araPlay.phase==="results"&&/place/.test(document.querySelector(".arcade-card h1").textContent)','race results after its film',480000);
+   // A retry plays straight away, and finishing again goes straight to the results.
+   await evaluate('[...document.querySelectorAll(".arcade-card button")].find(b=>/Race again/.test(b.textContent)).click()');await wait('araPlay.phase==="playing"','retry starts');assert.equal(await evaluate(`!!${filmOpen}`),false,'a retry skips the opening film');
+   await wait(`araPlay.phase==="results"&&!${filmOpen}&&/place/.test(document.querySelector(".arcade-card h1").textContent)`,'second finish shows results without the film',480000);
+   await evaluate('[...document.querySelectorAll(".arcade-card button")].find(b=>/Next/.test(b.textContent)).click()');await wait('araPlay.mode==="runner"&&araPlay.phase==="intro"','runner chapter');
+   await click('.arcade-card button.primary');await watch('runner-opening');await wait('araPlay.phase==="playing"','run starts after its film');await evaluate(autoRun);
+   await watch('runner-ending',240000);await wait('araPlay.phase==="results"&&/GOAL REACHED/.test(document.querySelector(".arcade-card .eyebrow").textContent)','runner results after its film',240000);
+   await evaluate('[...document.querySelectorAll(".arcade-card button")].find(b=>/Next mission/.test(b.textContent)).click()');await wait('!document.body.classList.contains("arcade-active")&&araPlay.chapter===2&&araPlay.game.status==="ready"','mission chapter',120000);
+   await click('#start');await watch('mission-opening');await wait('araPlay.game.status==="playing"','mission starts after its film');
+   await evaluate('araPlay.game.status="won"');await watch('mission-ending');
   });
  }
  if(assistOnly){

@@ -51,4 +51,7 @@ const movedEffect=moveTimelineClip(p,{kind:'effect',id:'engine'},1);assert.equal
 assert.deepEqual(clipWindow(moveTimelineClip(p,{kind:'music'},2),{kind:'music'}),{start:2,duration:7});
 assert.ok(clipWindow(moveTimelineClip(p,{kind:'music'},100),{kind:'music'}).start<durationOf(p));
 assert.throws(()=>moveTimelineClip(p,action,1));assert.equal(JSON.stringify(p),before,'moves must not change the source snapshot');
+// Directions wrap around the compass: an LLM's 200° shot or actor turn means -160°.
+{const turned=structuredClone(p);turned.shots[0].view={azimuth:200,elevation:6,zoom:1};turned.actors[0].yaw=-190;const read=parseProject(JSON.stringify(turned));assert.equal(read.shots[0].view!.azimuth,-160);assert.equal(read.actors[0].yaw,170);
+ turned.shots[0].view={azimuth:540,elevation:6,zoom:1};assert.equal(parseProject(JSON.stringify(turned)).shots[0].view!.azimuth,180);turned.shots[0].view={azimuth:Number.NaN,elevation:6,zoom:1};assert.throws(()=>parseProject(JSON.stringify(turned)),/camera rotation/);}
 console.log('Timeline dragging: reorder within tracks, drop slots, cue moves keep length and source trims, film limits.');

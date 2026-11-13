@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {nodeLibrary} from './node-assets';
 import {campaignExample,parsePlayInput,generatePlayGuide} from '../src/play/assist';
-import {parseProject,gameProjects,chapterProject,heroWeapon,MAX_CHAPTERS} from '../src/play/project';
+import {parseProject,gameProjects,chapterProject,chapterSettings,heroWeapon,MAX_CHAPTERS} from '../src/play/project';
 import {campaignRecipe,campaignKey,readCampaign,type CampaignProgress} from '../src/play/campaign';
 const lib=await nodeLibrary();let checks=0;function check(name:string,fn:()=>void){fn();checks++;console.log('OK',name);}
 check('connected games normalize independent missions while preserving one hero and life budget',()=>{const p=parsePlayInput(JSON.stringify(campaignExample()),lib.catalog),games=gameProjects(p);assert.equal(games.length,2);assert.equal(games[0].mission.story,'escape');assert.equal(games[0].mission.cargo,'briefcase');assert.equal(games[1].mission.story,'rescue');assert.equal(games[1].mission.driveDifficulty,'standard');assert.equal(games[1].mission.extraction,'pickup');assert.equal(games[0].character, games[1].character);assert.equal(heroWeapon(p),'pistol');assert.deepEqual(parseProject(JSON.stringify(p),lib.catalog),p);assert.equal(campaignRecipe(parseProject(JSON.stringify(p),lib.catalog)),campaignRecipe(p));assert.equal(chapterProject(p,1).chapters,undefined);assert.throws(()=>chapterProject(p,9));});
@@ -16,5 +16,10 @@ check('chapter choices skip forward, set flags, and resume with the chosen path'
  for(const changed of [{path:[1,2]},{path:[0,1]},{chapter:2},{flags:['spared','spared']},{flags:['spared','bad flag']}])assert.equal(readCampaign(JSON.stringify({...state,...changed}),p),undefined);
  const bad=structuredClone(raw);bad.chapters[0].branch.options[0].next='chapter-1';assert.throws(()=>parseProject(JSON.stringify(bad),lib.catalog),/chapter-2.*later chapter/);assert.throws(()=>parseProject(JSON.stringify({...raw,branch:{prompt:'Bad',options:[{label:'A',next:'missing',flag:'a'},{label:'B',next:'chapter-2',flag:'b'}]}}),lib.catalog),/chapter-1.*later chapter/);
 });
-check('the live LLM contract enumerates theft add-ons, route challenges and branch semantics',()=>{const guide=generatePlayGuide(lib.catalog);for(const term of ['mission.cargo','briefcase','package','mission.driveDifficulty','~150 m','~300 m','CONNECTED CHAPTERS','ADDITIONAL chapters','5 missions','shared','Restart campaign','briefingIf','Branch flags','CONNECTED GAME EXAMPLE'])assert.ok(guide.includes(term),term);});
+check('the live LLM contract enumerates theft add-ons, route challenges and branch semantics',()=>{const guide=generatePlayGuide(lib.catalog);for(const term of ['mission.cargo','briefcase','package','mission.driveDifficulty','~150 m','~300 m','CONNECTED CHAPTERS','ADDITIONAL chapters','1..9 ADDITIONAL','maximum 10 chapters','shared','Restart campaign','briefingIf','Branch flags','CONNECTED GAME EXAMPLE'])assert.ok(guide.includes(term),term);});
+check('shared hero moments stay top-level when a chapter is edited and saved again',()=>{
+ const p=parsePlayInput(JSON.stringify({...campaignExample(),poses:{lookAround:false,dance:true}}),lib.catalog),edited=chapterSettings(chapterProject(p,1),p.chapters![0].id);
+ assert.equal('poses'in edited,false);const saved=parseProject(JSON.stringify({...p,chapters:[edited]}),lib.catalog);assert.deepEqual(saved.poses,{lookAround:false,dance:true});
+ const copied=parseProject(JSON.stringify({...p,chapters:[{...edited,poses:{lookAround:true,dance:false}}]}),lib.catalog);assert.equal('poses'in copied.chapters![0],false);assert.deepEqual(chapterProject(copied,1).poses,{lookAround:false,dance:true});
+});
 console.log(`${checks} campaign contracts passed.`);

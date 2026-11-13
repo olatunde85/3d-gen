@@ -14,7 +14,7 @@ import {defaultMission} from '../src/play/mission';
 const lib=await nodeLibrary(),human=await buildHuman(lib,{...DEFAULT_PARAMS,rig:'game',detail:'low',weapon:'none',carry:'none',faceShapes:false}),anim=new Animator(human.rig!);
 const road={minX:-500,maxX:500,minZ:-500,maxZ:500},settings=parseDriving({pace:'standard'})!,car:CarState={x:0,z:0,yaw:0,speed:0,steer:0,distance:0,phase:'driving',time:0,fit:defaultCarFit(),blocked:0};
 for(let i=0;i<300;i++)driveStep(car,1/60,1,0,false,settings,[],road);
-assert.ok(car.speed>=28.9&&car.z>100,'standard pickup reaches the higher forward speed on an open road');
+assert.ok(car.speed>=26.9&&car.z>100,'standard pickup reaches the higher forward speed on an open road');
 for(let i=0;i<240;i++)driveStep(car,1/60,-1,0,false,settings,[],road);
 assert.ok(car.speed<=-DRIVE.reverse+.1&&car.z<120,'pickup reaches the higher reverse speed and actually moves backward');
 console.log('OK pickup accelerates to 29 m/s forward and 14 m/s in reverse');

@@ -21,7 +21,7 @@ export const defaultCarFit=():CarFit=>({box:{minX:-1.75,maxX:.95,minZ:-2.8,maxZ:
 export interface CarPose extends Point {yaw:number}
 export interface CarState extends CarPose {speed:number;steer:number;distance:number;phase:'parked'|'boarding'|'driving'|'alighting';time:number;fit:CarFit;blocked:number;health?:number;damageCooldown?:number}
 export const DRIVE={boarding:1.05,alighting:1.05,reverse:14,acceleration:14,braking:25,wheelbase:3.47}as const;
-export const topSpeed=(settings:DrivingSettings)=>({relaxed:20,standard:29,fast:40}[settings.pace])*({pickup:1,sports_car:1.25,suv:.9,motorcycle:1.15,danfo:.85,van:.9,bus:.7,truck:.75,keke:.6,quad:.95,scooter:.8,kart:1,saloon:1.05,muscle:1.3}[settings.model??'pickup']);
+export const topSpeed=(settings:DrivingSettings)=>({relaxed:19,standard:27,fast:37}[settings.pace])*({pickup:1,sports_car:1.25,suv:.9,motorcycle:1.15,danfo:.85,van:.9,bus:.7,truck:.75,keke:.6,quad:.95,scooter:.8,kart:1,saloon:1.05,muscle:1.3}[settings.model??'pickup']);
 /** The visible pickup zone and success test use the same body-sized radius. */
 export const pickupExtractionRadius=(fit:CarFit)=>Math.max(4.2,(fit.box.maxZ-fit.box.minZ)/2+1.1,(fit.box.maxX-fit.box.minX)/2+1.1);
 export const pickupAtExtraction=(car:CarState,exit:Point)=>Math.hypot(car.x-exit.x,car.z-exit.z)<=pickupExtractionRadius(car.fit)&&Math.abs(car.speed)<=2.5;
@@ -53,9 +53,10 @@ export function canReachDoor(from:Point,car:CarState,radius:number,rects:readonl
 /** Substeps bound both translation and corner sweep, preventing thin-wall tunnelling at speed. */
 export function driveStep(car:CarState,dt:number,throttle:number,steer:number,brake:boolean,settings:DrivingSettings,rects:readonly Rect[],bounds:Rect,people:readonly (Point&{radius:number})[]=[]){
  car.blocked=Math.max(0,car.blocked-dt);car.damageCooldown=Math.max(0,(car.damageCooldown??0)-dt);if(car.health!==undefined&&car.health<=0){car.speed=0;return;}const t=Number.isFinite(throttle)?Math.max(-1,Math.min(1,throttle)):0,r=Number.isFinite(steer)?Math.max(-1,Math.min(1,steer)):0;
- car.steer+=(r*.5-car.steer)*(1-Math.exp(-dt*8));
+ // Above 12 m/s the wheel turns in more gently, and above 18 m/s lock and turn rate ease off, so fast cars carve steady arcs instead of snapping round.
+ car.steer+=(r*.5/(1+Math.max(0,Math.abs(car.speed)-18)/10)-car.steer)*(1-Math.exp(-dt*(8-3*Math.min(1,Math.max(0,(Math.abs(car.speed)-12)/15)))));
  const desired=brake?0:t>0?topSpeed(settings)*t:t<0?DRIVE.reverse*t:0,rate=brake||car.speed*desired<0?DRIVE.braking:t?DRIVE.acceleration:2;
  car.speed+=Math.max(-rate*dt,Math.min(rate*dt,desired-car.speed));if(Math.abs(car.speed)<.01)car.speed=0;
- const yawRate=-car.speed/(DRIVE.wheelbase*car.fit.scale)*Math.tan(car.steer),turn=Math.max(-1.8,Math.min(1.8,yawRate))*dt,travel=car.speed*dt,b=car.fit.box,radius=Math.hypot(Math.max(Math.abs(b.minX),Math.abs(b.maxX)),Math.max(Math.abs(b.minZ),Math.abs(b.maxZ))),steps=Math.max(1,Math.ceil((Math.abs(travel)+radius*Math.abs(turn))/.055));
+ const yawRate=-car.speed/(DRIVE.wheelbase*car.fit.scale)*Math.tan(car.steer),yawCap=1.8-.5*Math.min(1,Math.max(0,(Math.abs(car.speed)-18)/9)),turn=Math.max(-yawCap,Math.min(yawCap,yawRate))*dt,travel=car.speed*dt,b=car.fit.box,radius=Math.hypot(Math.max(Math.abs(b.minX),Math.abs(b.maxX)),Math.max(Math.abs(b.minZ),Math.abs(b.maxZ))),steps=Math.max(1,Math.ceil((Math.abs(travel)+radius*Math.abs(turn))/.055));
  for(let i=0;i<steps;i++){const yaw=car.yaw+turn/steps,p={x:car.x+Math.sin(yaw)*travel/steps,z:car.z+Math.cos(yaw)*travel/steps,yaw};if(!carClear(p,car.fit,rects,bounds,people)){if(car.health!==undefined&&Math.abs(car.speed)>2.5&&car.damageCooldown===0){car.health=Math.max(0,car.health-Math.min(35,Math.ceil(Math.abs(car.speed)*3)));car.damageCooldown=.7;}car.speed=0;car.blocked=.55;break;}Object.assign(car,p);car.distance+=travel/steps;}
 }

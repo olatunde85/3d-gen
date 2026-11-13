@@ -32,6 +32,12 @@ const chase=new EscapeGame({...defaultMission(),location:'urban-block',story:'ge
 chase.configureCar(defaultCarFit());chase.configurePursuit(defaultCarFit());chase.start();chase.protection=Infinity;
 const samples:{x:number;z:number}[]=[];for(let i=0;i<42*60;i++){chase.update(1/60,idle);if(i%60===59)samples.push({...chase.pursuit!.car});}
 assert.ok(samples.length>=40&&samples.some(p=>distance(p,samples[0])>9),JSON.stringify(samples));assert.ok(new Set(samples.map(p=>Math.round(p.z/3))).size>=3,`courier keeps circulating: ${JSON.stringify(samples)}`);
+// The courier flees a hunter parked in its path: it turns away and keeps its distance, at more than walking pace.
+{const flee=new EscapeGame({...defaultMission(),location:'urban-block',story:'getaway',extraction:'pickup',steps:[{type:'chase'}]},actors);flee.configureCar(defaultCarFit());flee.configurePursuit(defaultCarFit());flee.start();flee.protection=Infinity;flee.car!.phase='driving';
+ for(let i=0;i<4*60;i++)flee.update(1/60,idle);let top=0;const goal=(flee as unknown as {chaseGoal:{x:number;z:number}}).chaseGoal;Object.assign(flee.car!,{x:(flee.pursuit!.car.x+goal.x)/2,z:(flee.pursuit!.car.z+goal.z)/2,speed:0});
+ for(let i=0;i<10*60;i++){flee.update(1/60,{...idle,brake:true});top=Math.max(top,Math.abs(flee.pursuit!.car.speed));}
+ assert.notDeepEqual((flee as unknown as {chaseGoal:unknown}).chaseGoal,goal,'a cut-off courier picks another lane');assert.ok(distance(flee.car!,flee.pursuit!.car)>12,`courier keeps away: ${distance(flee.car!,flee.pursuit!.car)}`);assert.ok(top>12,`courier speeds up when hunted: ${top}`);assert.equal(flee.stepIndex,0);}
+console.log('OK courier flees a hunter that cuts it off');
 assert.equal(chase.stepIndex,0);chase.car!.phase='driving';Object.assign(chase.car!,{x:chase.pursuit!.car.x,z:chase.pursuit!.car.z+5,speed:0});chase.update(1/60,{...idle,brake:true});assert.equal(chase.stepIndex,1);console.log('OK courier loops until caught in a driven vehicle');
 
 const convoy=new EscapeGame({...defaultMission(),location:'urban-block',story:'getaway',extraction:'pickup',steps:[{type:'convoy'}]},actors);
