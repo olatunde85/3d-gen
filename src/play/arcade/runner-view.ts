@@ -45,7 +45,7 @@ export class RunnerView {
   private kit: RunnerKit;
   /** Spring boots: a coil under each foot while the power-up lasts. */
   private board: T.Mesh; private hover = 0; private lastX = 0; private sway = 0;
-  /** Limbs posed on top of the clip while riding: arms out for balance, knees soft. */
+  /** Arms posed on top of the clip while riding, held out for balance. */
   private limbs = new Map<string, T.Bone>(); private qa = new T.Quaternion(); private qb = new T.Quaternion(); private axis = new T.Vector3();
   private springs: T.Mesh[] = []; private feet: T.Bone[] = []; private foot = new T.Vector3();
   constructor(readonly game: RunnerGame, readonly runner: GameActor, readonly chaser?: GameActor, atmosphere?: ArcadeAtmosphere) {
@@ -123,7 +123,7 @@ export class RunnerView {
     }
     const coil = painted([[cyl(0.11, 0.12, 0.04, 14, 0, 0.02, 0), '#3a2a52'], ...[0.07, 0.12, 0.17].map((y) => [new T.TorusGeometry(0.075, 0.018, 6, 16).rotateX(Math.PI / 2).translate(0, y, 0), '#d9dde3'] as Part), [cyl(0.1, 0.1, 0.04, 14, 0, 0.22, 0), '#b45cff']]);
     const coilMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.5, emissive: '#3c1466', emissiveIntensity: 0.6 });this.disposables.push(coil, coilMat);
-    for (const b of runner.render.mesh.skeleton.bones) if (/^(Left|Right)(Arm|ForeArm|UpLeg|Leg)$/.test(b.name)) this.limbs.set(b.name, b);
+    for (const b of runner.render.mesh.skeleton.bones) if (/^(Left|Right)(Arm|ForeArm)$/.test(b.name)) this.limbs.set(b.name, b);
     this.feet = runner.render.mesh.skeleton.bones.filter((b) => /^(Left|Right)Foot$|^foot\.[LR]$/.test(b.name)).slice(0, 2);
     for (const _ of this.feet) { const m = new T.Mesh(coil, coilMat);m.castShadow = true;m.visible = false;this.springs.push(m);this.scene.add(m); }
     // The hoverboard rides under the runner, who stands on it a little above the floor.
@@ -249,13 +249,13 @@ export class RunnerView {
     // On the board the runner stands on the foot pads; the wheels roll on the floor.
     this.hover += ((g.hovering && g.status !== 'won' ? 1 : 0) - this.hover) * (1 - Math.exp(-dt * 10));
     // Riding is never still: the rider leans into lane changes and turns, tips forward with speed, carves gently from
-    // side to side and flexes at the knees, and the board tilts with them.
+    // side to side, and the board tilts with them.
     const lateral = dt > 0 ? (g.x - this.lastX) / dt : 0;this.lastX = g.x;
     this.sway += (Math.max(-1, Math.min(1, lateral / 9)) - this.sway) * (1 - Math.exp(-dt * 8));
-    const h = this.hover, carve = Math.sin(this.time * 1.7) * 0.07 * h, flex = Math.sin(this.time * 6.2) * 0.018 * h;
+    const h = this.hover, carve = Math.sin(this.time * 1.7) * 0.07 * h;
     const roll = bank * (1 + h * 0.6) - this.sway * 0.32 * h + carve * 0.5, pitch = h * (0.06 + 0.1 * Math.min(1, g.speed / Math.max(1, g.settings.maxSpeed)) + Math.sin(this.time * 3.1) * 0.025);
     const lift = h * BOARD_TOP;
-    this.hero.position.set(p.x, g.y + lift + flex, p.z);
+    this.hero.position.set(p.x, g.y + lift, p.z);
     this.board.visible = h > 0.05;if (this.board.visible) { this.board.position.set(p.x, g.y + lift - BOARD_TOP, p.z);this.board.rotation.set(pitch * 0.25, this.yaw + carve, roll * 0.8, 'YXZ'); }
     this.hero.rotation.set(pitch, this.yaw + carve, roll, 'YXZ');
     if (h > 0.05) this.balance(h, carve);
@@ -292,18 +292,14 @@ export class RunnerView {
     bone.parent.getWorldQuaternion(this.qa);this.qb.setFromAxisAngle(axis, angle);
     bone.quaternion.premultiply(this.qa.clone().invert().multiply(this.qb).multiply(this.qa));bone.updateMatrixWorld(true);
   }
-  /** Riding pose: arms held out and swinging against the lean, knees bent and pumping a little. */
+  /** Riding pose: arms held out and swinging against the lean; the legs stay straight under the body. */
   private balance(h: number, carve: number) {
     this.hero.updateMatrixWorld(true);
     const forward = this.axis.set(Math.sin(this.yaw + carve), 0, Math.cos(this.yaw + carve)), right = new T.Vector3(-forward.z, 0, forward.x);
-    const pump = Math.sin(this.time * 6.2);
     for (const [side, s] of [['Left', 1], ['Right', -1]] as const) {
       this.turnBone(`${side}Arm`, forward, s * h * (0.75 + this.sway * s * 0.35 + Math.sin(this.time * 2.3 + s) * 0.1));
       this.turnBone(`${side}ForeArm`, right, -h * 0.35);
-      this.turnBone(`${side}UpLeg`, right, -h * (0.42 + pump * 0.06));
-      this.turnBone(`${side}Leg`, right, h * (0.8 + pump * 0.12));
     }
-    this.hero.position.y -= h * (0.09 + pump * 0.015);
   }
   reset() { this.phase = 0;this.wonAge = 0;this.turn.age = 9;this.snapCamera(); }
   dispose() {
