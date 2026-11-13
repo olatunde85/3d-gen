@@ -1,10 +1,10 @@
 /** Arcade race and endless runner contracts: settings, rules, generation, records and portable JSON. */
 import assert from 'node:assert/strict';
 import { nodeLibrary } from './node-assets';
-import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject, posesOf } from '../src/play/project';
+import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject, posesOf, resizeEnemies } from '../src/play/project';
 import { skyLook } from '../src/play/arcade/weather';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
-import { type RunnerSettings, RUNNER_THEMES, RUNNER_THEME_NAMES, defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel, runnerMedalTargets } from '../src/play/arcade/modes';
+import { type RunnerSettings, runnerGunman, runnerWeapon, RUNNER_THEMES, RUNNER_THEME_NAMES, defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel, runnerMedalTargets } from '../src/play/arcade/modes';
 import { DEFAULT_RUNNER_MEDALS, raceMedal, runnerMedal } from '../src/play/arcade/medals';
 import { RUNNER_GENERIC_ICONS, RUNNER_OBJECT_TYPES } from '../src/play/arcade/objects';
 import { ICONS } from '../src/play/arcade/icons';
@@ -84,6 +84,16 @@ check('runner enemies stand in one lane, fall to a shot down that lane, and fire
   for (let i = 0; i < 60 * 40 && idle.status === 'running'; i++) { idle.update(1 / 60, { left: false, right: false, jump: false, slide: false });events.push(...idle.drain().map((e) => e.type)); }
   assert.ok(events.includes('enemy-fire') && events.includes('stumble'), events.join(','));assert.equal(idle.downReason, 'crash');
   assert.equal(new RunnerGame({ ...settings, obstacles: ['blocker'] }, profile(), 11).armed, false, 'runs without enemies have no gun');
+});
+check('the armed enemy and the runner\'s gun are configurable, with sensible automatic choices', () => {
+  const enemies = [{ id: 'chaser', response: 'capture' }, { id: 'grunt', response: 'capture' }, { id: 'shooter', response: 'rifle' }];
+  assert.equal(runnerGunman({ chaser: 'chaser' }, enemies)?.id, 'shooter', 'an armed enemy other than the chaser');
+  assert.equal(runnerGunman({ chaser: 'chaser', gunman: 'grunt' }, enemies)?.id, 'grunt', 'the configured enemy');
+  assert.equal(runnerGunman({ chaser: 'shooter' }, enemies)?.id, 'chaser', 'with the only armed enemy chasing, another enemy is used');
+  assert.equal(runnerWeapon({}, 'none'), 'pistol');assert.equal(runnerWeapon({}, 'rifle'), 'rifle');assert.equal(runnerWeapon({ weapon: 'pistol' }, 'rifle'), 'pistol');
+  const ids = ['chaser', 'grunt'], r = parseRunner({ obstacles: ['gunman'], chaser: 'chaser', gunman: 'grunt', weapon: 'rifle' }, ids);assert.equal(r.gunman, 'grunt');assert.equal(r.weapon, 'rifle');
+  assert.throws(() => parseRunner({ gunman: 'nobody' }, ids), /runner.gunman/);assert.throws(() => parseRunner({ weapon: 'sword' }, ids), /pistol or rifle/);
+  const p = defaultProject();p.mode = 'runner';p.enemies = [{ ...p.enemies[0], id: 'a' }, { ...p.enemies[0], id: 'b' }];p.runner = { ...defaultRunner(), chaser: 'b', gunman: 'b' };resizeEnemies(p, 1);assert.equal(p.runner.chaser, 'a');assert.equal(p.runner.gunman, undefined);
 });
 check('built-in circuits satisfy the custom circuit rules and custom loops are validated', () => {
   for (const t of TRACK_TEMPLATES) { parseTrack({ points: t.points, width: t.width });const track = buildTrack(t);assert.ok(track.length > 600 && track.length < 1600, t.id);const p = trackPoint(track, 200, 2.5), at = locate(track, p.x, p.z);assert.ok(Math.abs(at.s - 200) < 2.5 && Math.abs(at.lateral - 2.5) < 0.2, t.id); }

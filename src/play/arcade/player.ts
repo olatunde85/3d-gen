@@ -22,7 +22,7 @@ import { ArcadeInput } from './input';
 import { SpeedFeel } from './feel';
 import { bedFor, ArcadeSfx } from './sfx';
 import { TRACK_IDS } from './track';
-import { RACE_CARS, RUNNER_POWER_NAMES, RUNNER_POWER_UPS, RUNNER_THEME_NAMES, gameTitle, runnerGoalLabel, runnerMedalTargets, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
+import { RACE_CARS, runnerWeapon, RUNNER_POWER_NAMES, RUNNER_POWER_UPS, RUNNER_THEME_NAMES, gameTitle, runnerGoalLabel, runnerMedalTargets, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
 import { cupRecord, dailySeed, decodeGhost, encodeGhost, ghostLink, linkedGhost, raceRecord, runnerRecord, saveCup, saveRace, saveRunner, today, trackKey, type RunnerRecord } from './records';
 
 const CAR_PRICES: Record<RaceCar, number> = { keke: 200, scooter: 250, danfo: 300, van: 300, truck: 300, saloon: 400, suv: 400, pickup: 400, quad: 500, kart: 500, motorcycle: 600, muscle: 700, sports_car: 800 };
@@ -75,7 +75,9 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   function runnerActor(record: RunnerRecord): GameActor {
     const c = castFor(chapter), choice = record.runner;
     const pick = choice === 'companion' ? c.companion : choice && choice !== 'hero' ? c.guards.get(choice) : undefined;
-    return (pick ?? c.hero).clone();
+    // In a run with armed enemies the hero carries their gun; other runners stay as chosen in the shop.
+    const armed = !pick && project.runner?.obstacles.includes('gunman') ? c.heroWeapons?.get(runnerWeapon(project.runner, project.loadout.weapon)) : undefined;
+    return (pick ?? armed ?? c.hero).clone();
   }
   /** Build the rules and scene for the current chapter; cheap enough to run on every mode switch. */
   function setup() {

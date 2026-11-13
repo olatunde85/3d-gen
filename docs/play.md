@@ -55,7 +55,7 @@ The course is generated from straights, corners and T-junctions in the chosen th
 | Moving cart | Change lane |
 | Armed enemy | Shoot it down your lane (F, Enter or the Shoot button), or change lane |
 
-Armed enemies rise into view about 32 m ahead in one lane, using the chapter's armed enemy, or its first enemy given a pistol. A shot travels down the runner's own lane and drops the nearest enemy within 38 m for 150 points and two coins. An enemy still standing in the runner's lane at 14 m fires once: a shield, hoverboard or boost takes the hit, otherwise the runner stumbles. Running into one ends the run.
+Armed enemies rise into view about 32 m ahead in one lane. **Cast → Armed enemies** chooses which enemy appears (`runner.gunman`; automatic picks an armed enemy other than the chaser, and an unarmed one is given a pistol) and the runner's gun (`runner.weapon`; automatic uses the chapter's loadout gun, else a pistol). The runner carries that gun throughout the run. A shot travels down the runner's own lane and drops the nearest enemy within 38 m for 150 points and two coins. An enemy still standing in the runner's lane at 14 m fires once: a shield, hoverboard or boost takes the hit, otherwise the runner stumbles. Running into one ends the run.
 
 Clipping a low barrier or a bar is a **stumble**: the runner slows and the chaser closes in, and a second stumble soon after is caught. Hitting a blocker or cart, falling into a gap, or missing a corner ends the run unless a shield or boost is active. **Revive** continues the run for coins, doubling the price each time.
 

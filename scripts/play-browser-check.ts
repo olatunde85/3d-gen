@@ -230,7 +230,8 @@ try{
   });
   await check('arcade runner enemies pop up in a lane and fall to the runner\'s shots',async()=>{
    const base=runnerExample();await click('#settings');await openSetup({...base,identity:{title:'Shootout run',briefing:'Shoot your way through.'},runner:{...base.runner,chaser:'none',obstacles:['gunman','barrier-low'],powerUps:[],objects:undefined,goal:{type:'endless'}}} as {identity:{title:string}},'runner-enemies');await click('#apply');
-   await wait('!document.getElementById("setup").open&&araPlay.mode==="runner"&&araPlay.phase==="intro"','armed run',180000);await click('.arcade-card button.primary');await wait('araPlay.phase==="playing"','run starts');
+   await wait('!document.getElementById("setup").open&&araPlay.mode==="runner"&&araPlay.phase==="intro"','armed run',180000);
+   assert.equal(await evaluate('araPlay.runnerView.runner.render.character.params.weapon'),'pistol','the runner carries the default pistol');assert.ok(await evaluate('["pistol","rifle"].includes(araPlay.runnerView.foes[0].actor.render.character.params.weapon)'),'the armed enemy holds a gun');await click('.arcade-card button.primary');await wait('araPlay.phase==="playing"','run starts');
    // The shooting hook goes under the reading bot, so the bot's own inputs carry the shot.
    await evaluate(`(()=>{const g=araPlay.runner,run=g.update.bind(g);g.update=(dt,inp,sc)=>{const s=g.current,lane=Math.round(g.x/1.8);const ahead=s.things.find(t=>t.kind==='gunman'&&!t.hit&&t.lanes&(1<<(lane+1))&&t.d>g.d&&t.d-g.d<20);return run(dt,{...inp,shoot:!!ahead&&window.__fire!==false},sc);};return 1})()`);await evaluate(autoRun);
    await evaluate('window.__fire=false');await wait('araPlay.runner.current.things.some(t=>t.kind==="gunman"&&!t.hit&&t.d-araPlay.runner.d>9&&t.d-araPlay.runner.d<16)','an enemy stands close ahead',60000);await photo('runner-enemy-ahead');

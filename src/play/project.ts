@@ -61,6 +61,8 @@ export function resizeEnemies(project:PlayProject,count:number){
  if(!Number.isInteger(count)||count<1||count>MAX_ENEMIES)throw Error(`Use one to ${MAX_ENEMIES} enemies.`);
  project.enemies=project.enemies.slice(0,count);
  while(project.enemies.length<count){let n=1;while(project.enemies.some(e=>e.id===`enemy-${n}`))n++;project.enemies.push({...structuredClone(project.enemies[0]),id:`enemy-${n}`});}
+ // A run's chaser and armed enemy must still be in the cast: a removed chaser falls back to the first enemy, a removed armed enemy to automatic.
+ const r=project.runner,ids=project.enemies.map(e=>e.id);if(r){if(r.chaser!=='none'&&!ids.includes(r.chaser))r.chaser=ids[0];if(r.gunman&&!ids.includes(r.gunman))delete r.gunman;}
 }
 /** Arcade settings travel with their mode; a mission project carries neither. */
 export function arcadeSettings(p:{mode?:unknown;race?:unknown;runner?:unknown},enemyIds:readonly string[]):Pick<PlayProject,'mode'|'race'|'runner'>{
