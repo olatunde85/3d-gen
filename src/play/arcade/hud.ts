@@ -7,6 +7,7 @@ import './arcade.css';
 import type { RaceGame } from './race';
 import type { RunnerGame } from './runner';
 import { iconSvg } from './icons';
+import { RUNNER_POWER_NAMES, RUNNER_POWER_UPS } from './modes';
 import type { RunnerObject } from './objects';
 import type { Track } from './track';
 
@@ -16,7 +17,6 @@ export const clock = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2)
 export type Tone = 'good' | 'bad' | 'hot' | '';
 export interface Standing { place: number; name: string; color: string; time: string; gap: string; you: boolean }
 export interface CardAction { label: string; primary?: boolean; run: () => void; disabled?: boolean }
-const POWER_LABELS = { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score' } as const;
 
 export class ArcadeHud {
   readonly root = el('div', 'arcade-ui');
@@ -98,7 +98,7 @@ export class ArcadeHud {
     this.big.textContent = Math.floor(g.score).toLocaleString();this.big.dataset.label = `×${g.multiplier * (g.power.multiplier > 0 ? 2 : 1)}`;
     this.setLines([[`● ${g.coins}`, 'arcade-strong'], [`${Math.floor(g.distance).toLocaleString()} m`, ''], [`${(g.speed * 3.6).toFixed(0)} km/h`, '']]);
     this.speed.textContent = '';
-    for (const kind of ['magnet', 'shield', 'boost', 'multiplier'] as const) this.meter(kind, POWER_LABELS[kind], g.power[kind] > 0 ? g.power[kind] / g.duration(kind) : -1, kind === 'boost' ? 'hot' : 'good');
+    for (const kind of RUNNER_POWER_UPS) this.meter(kind, RUNNER_POWER_NAMES[kind], g.power[kind] > 0 ? g.power[kind] / g.duration(kind) : -1, kind === 'boost' ? 'hot' : 'good');
     this.warning.textContent = g.settings.chaser !== 'none' && g.chaser < 6 && g.status === 'running' ? 'CHASER CLOSE' : '';
     const missions = g.missions, key = missions.map((m) => m.label).join('|');
     if (key !== this.missionKey) { this.missionKey = key;this.side.replaceChildren(...missions.map((m) => { const row = el('div', 'arcade-mission');row.append(el('span', '', m.label), el('i'));return row; })); }

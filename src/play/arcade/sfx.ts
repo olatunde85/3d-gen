@@ -20,7 +20,7 @@ function seamless(c: BaseAudioContext, b: AudioBuffer) {
   }
   return out;
 }
-export type ArcadeSound = 'beep' | 'go' | 'coin' | 'boost' | 'crash' | 'bump' | 'whoosh' | 'power' | 'jump' | 'slide' | 'land' | 'lap' | 'best' | 'stumble' | 'shield' | 'spin' | 'item' | 'win' | 'lose';
+export type ArcadeSound = 'beep' | 'go' | 'coin' | 'boost' | 'crash' | 'bump' | 'whoosh' | 'power' | 'jump' | 'spring' | 'slide' | 'land' | 'lap' | 'best' | 'stumble' | 'shield' | 'spin' | 'item' | 'win' | 'lose';
 export class ArcadeSfx {
   private context?: AudioContext; private master?: GainNode; private noise?: AudioBuffer; private last = new Map<ArcadeSound, number>();
   enabled = true;
@@ -91,6 +91,7 @@ export class ArcadeSfx {
       case 'whoosh': this.hiss(0.45, 300, 2400, 0.35);break;
       case 'power': [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 0.12, 'triangle', 0.18, undefined, i * 0.06));break;
       case 'jump': this.tone(330, 0.18, 'triangle', 0.18, 660);break;
+      case 'spring': this.tone(220, 0.32, 'sine', 0.22, 990);this.tone(440, 0.22, 'triangle', 0.1, 1320, 0.04);break;
       case 'slide': this.hiss(0.35, 1400, 500, 0.3, 'lowpass');break;
       case 'land': this.hiss(0.12, 500, 150, 0.3 * v, 'lowpass');break;
       case 'lap': this.tone(880, 0.12, 'triangle', 0.2);this.tone(1175, 0.25, 'triangle', 0.2, undefined, 0.1);break;

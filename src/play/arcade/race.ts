@@ -24,8 +24,11 @@ export const CAR_STATS: Record<RaceCar, CarStats> = {
   quad: { name: 'Quad bike', top: 52, accel: 18, grip: 9.5, turn: 1.35, mass: 0.7, radius: 1.0 },
   keke: { name: 'Keke', top: 40, accel: 13, grip: 7.5, turn: 1.2, mass: 0.8, radius: 1.05 },
 };
-const SKILL: Record<AiSkill, { pace: number; lateral: number; wobble: number }> = {
-  easy: { pace: 0.84, lateral: 15, wobble: 0.6 }, medium: { pace: 0.93, lateral: 18, wobble: 0.25 }, hard: { pace: 1, lateral: 21, wobble: 0 },
+/** Pace is a share of the car's top speed, lateral the cornering grip the line is planned for, brake the deceleration
+ * planned into each corner, ease how far the pack lifts when it leads the player, and nitro the meter level it fires at. */
+const SKILL: Record<AiSkill, { pace: number; lateral: number; wobble: number; brake: number; ease: number; nitro: number }> = {
+  easy: { pace: 0.84, lateral: 15, wobble: 0.6, brake: 24, ease: 0.09, nitro: 0.7 }, medium: { pace: 0.93, lateral: 18, wobble: 0.25, brake: 24, ease: 0.09, nitro: 0.7 },
+  hard: { pace: 1, lateral: 21, wobble: 0, brake: 24, ease: 0.09, nitro: 0.3 }, expert: { pace: 1.07, lateral: 24.5, wobble: 0, brake: 29, ease: 0.025, nitro: 0.15 },
 };
 export const POINTS = [10, 8, 6, 5, 4, 3, 2, 1];
 export type RaceItem = 'boost' | 'oil' | 'nitro';
@@ -297,14 +300,14 @@ export class RaceGame {
   private aiPace(car: RaceCarState) {
     const skill = SKILL[this.settings.aiSkill];if (!this.settings.rubberBand || car.finished !== undefined) return skill.pace;
     const gap = this.player.best - car.best;
-    return skill.pace * (gap > 0 ? 1 + Math.min(0.12, gap / 350) : 1 - Math.min(0.09, -gap / 550));
+    return skill.pace * (gap > 0 ? 1 + Math.min(0.12, gap / 350) : 1 - Math.min(skill.ease, -gap / 550));
   }
   /** Corner speed limits along the racing line, braking back from each corner. */
   private limitsFor(skill: AiSkill) {
     let limit = this.limits.get(skill);if (limit) return limit;
     const t = this.track, n = t.samples.length, lateral = SKILL[skill].lateral * (this.icy ? 0.6 : 1);limit = new Float32Array(n);
     for (let i = 0; i < n; i++) { let k = 0;for (let j = -3; j <= 3; j++) k += Math.abs(t.samples[(i + j + n) % n].curvature);limit[i] = Math.sqrt(lateral / Math.max(1e-4, k / 7)); }
-    for (let pass = 0; pass < 2; pass++) for (let i = n - 1; i >= 0; i--) limit[i] = Math.min(limit[i], Math.sqrt(limit[(i + 1) % n] ** 2 + 2 * 24 * t.spacing));
+    for (let pass = 0; pass < 2; pass++) for (let i = n - 1; i >= 0; i--) limit[i] = Math.min(limit[i], Math.sqrt(limit[(i + 1) % n] ** 2 + 2 * SKILL[skill].brake * t.spacing));
     this.limits.set(skill, limit);return limit;
   }
   private aiInput(car: RaceCarState): RaceInput {
@@ -327,7 +330,7 @@ export class RaceGame {
     const want = Math.min(car.stats.top * (car.ai ? this.aiPace(car) : 0.7), limit), straight = limits[(car.hint + 40) % n] > car.stats.top;
     return {
       throttle: car.speed < want ? 1 : car.speed > want + 4 ? -1 : 0.3, steer: clamp(-angle * 2.4, -1, 1), brake: car.speed > want + 6, drift: false,
-      nitro: straight && car.nitro > (this.settings.aiSkill === 'hard' ? 0.3 : 0.7) && car.speed > 25, item: !!car.item && (car.item !== 'oil' || this.cars.some((c) => c !== car && car.best - c.best > 0 && car.best - c.best < 12)), respawn: false,
+      nitro: straight && car.nitro > skill.nitro && car.speed > 25, item: !!car.item && (car.item !== 'oil' || this.cars.some((c) => c !== car && car.best - c.best > 0 && car.best - c.best < 12)), respawn: false,
     };
   }
   /** After the flag, a finished player car cruises along the racing line. */

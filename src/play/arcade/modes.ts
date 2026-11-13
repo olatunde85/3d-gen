@@ -18,7 +18,7 @@ export type RaceCar = 'sports_car' | 'muscle' | 'saloon' | 'kart' | 'suv' | 'pic
 export const RACE_CARS: readonly RaceCar[] = ['sports_car', 'muscle', 'saloon', 'kart', 'suv', 'pickup', 'danfo', 'van', 'truck', 'motorcycle', 'scooter', 'quad', 'keke'];
 export type RacePickup = 'boost-pad' | 'item-box' | 'hazard';
 export const RACE_PICKUPS: readonly RacePickup[] = ['boost-pad', 'item-box', 'hazard'];
-export type AiSkill = 'easy' | 'medium' | 'hard';
+export type AiSkill = 'easy' | 'medium' | 'hard' | 'expert';
 export interface RaceSettings {
   track: string | CustomTrack; laps: number; opponents: number; aiSkill: AiSkill; rubberBand: boolean;
   handling: 'grip' | 'drift'; nitro: boolean; pickups: RacePickup[]; ghost: boolean; car: { model: RaceCar; color: string };
@@ -34,8 +34,9 @@ export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-roof
 export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon', 'market-street': 'Market street', 'snowy-peaks': 'Snowy peaks', 'beach-boardwalk': 'Beach boardwalk', 'neon-city': 'Neon city', 'jungle-ruins': 'Jungle ruins', 'train-yard': 'Train yard', volcano: 'Volcano', 'haunted-forest': 'Haunted forest' };
 export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart';
 export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'];
-export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier';
-export const RUNNER_POWER_UPS: readonly RunnerPowerUp[] = ['magnet', 'shield', 'boost', 'multiplier'];
+export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier' | 'springs';
+export const RUNNER_POWER_UPS: readonly RunnerPowerUp[] = ['magnet', 'shield', 'boost', 'multiplier', 'springs'];
+export const RUNNER_POWER_NAMES: Record<RunnerPowerUp, string> = { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score', springs: 'Spring boots' };
 /** Objects is complete when every listed object has been found in one run. */
 export type RunnerGoal = { type: 'endless' } | { type: 'objects' } | { type: 'distance' | 'coins' | 'score'; target: number };
 export interface RunnerSettings {
@@ -47,7 +48,7 @@ export interface RunnerSettings {
   medals?: RunnerMedals | false;
 }
 export const runnerMedalTargets = (r: Pick<RunnerSettings, 'medals'>) => (r.medals === false ? undefined : r.medals ?? DEFAULT_RUNNER_MEDALS);
-export const defaultRunner = (): RunnerSettings => ({ theme: 'temple-ruins', lanes: 3, startSpeed: 10, maxSpeed: 26, speedRamp: 'steady', obstacles: ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'], powerUps: ['magnet', 'shield', 'boost', 'multiplier'], chaser: 'enemy-1', goal: { type: 'endless' }, revive: true });
+export const defaultRunner = (): RunnerSettings => ({ theme: 'temple-ruins', lanes: 3, startSpeed: 10, maxSpeed: 26, speedRamp: 'steady', obstacles: ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'], powerUps: ['magnet', 'shield', 'boost', 'multiplier', 'springs'], chaser: 'enemy-1', goal: { type: 'endless' }, revive: true });
 
 /** The goal in a few words, e.g. "Run 2000 m" or "Find 3 objects". */
 export function runnerGoalLabel(r: Pick<RunnerSettings, 'goal' | 'objects'>) {
@@ -83,7 +84,7 @@ export function parseRace(raw: unknown): RaceSettings {
     track: p.track === undefined ? d.track : parseTrack(p.track),
     laps: p.laps === undefined ? d.laps : whole(p.laps, 1, 9, 'race laps'),
     opponents: p.opponents === undefined ? d.opponents : whole(p.opponents, 3, 7, 'race opponents'),
-    aiSkill: p.aiSkill === undefined ? d.aiSkill : choice(p.aiSkill, ['easy', 'medium', 'hard'] as const, 'Choose easy, medium or hard AI skill.'),
+    aiSkill: p.aiSkill === undefined ? d.aiSkill : choice(p.aiSkill, ['easy', 'medium', 'hard', 'expert'] as const, 'Choose easy, medium, hard or expert AI skill.'),
     rubberBand: p.rubberBand === undefined ? d.rubberBand : flag(p.rubberBand, 'race.rubberBand'),
     handling: p.handling === undefined ? d.handling : choice(p.handling, ['grip', 'drift'] as const, 'Choose grip or drift handling.'),
     nitro: p.nitro === undefined ? d.nitro : flag(p.nitro, 'race.nitro'),
