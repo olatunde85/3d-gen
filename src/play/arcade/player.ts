@@ -21,13 +21,13 @@ import { ArcadeInput } from './input';
 import { SpeedFeel } from './feel';
 import { bedFor, ArcadeSfx } from './sfx';
 import { TRACK_IDS } from './track';
-import { RACE_CARS, RUNNER_THEME_NAMES, gameTitle, runnerGoalLabel, runnerMedalTargets, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
+import { RACE_CARS, RUNNER_POWER_NAMES, RUNNER_POWER_UPS, RUNNER_THEME_NAMES, gameTitle, runnerGoalLabel, runnerMedalTargets, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
 import { cupRecord, dailySeed, decodeGhost, encodeGhost, ghostLink, linkedGhost, raceRecord, runnerRecord, saveCup, saveRace, saveRunner, today, trackKey, type RunnerRecord } from './records';
 
 const CAR_PRICES: Record<RaceCar, number> = { keke: 200, scooter: 250, danfo: 300, van: 300, truck: 300, saloon: 400, suv: 400, pickup: 400, quad: 500, kart: 500, motorcycle: 600, muscle: 700, sports_car: 800 };
 const PAINTS: string[] = ['#c8372d', '#2d6fc8', '#e2b23a', '#3c9a5f', '#8a4fc0', '#ececec', '#2b2b30'];
 const CASH = [600, 400, 250, 150, 100, 80, 60, 40];
-const UPGRADES = ['magnet', 'shield', 'boost', 'multiplier'] as const;
+const UPGRADES = RUNNER_POWER_UPS;
 const RUNNER_PRICE = 1000;
 
 /** One name per opponent: characters repeat when there are fewer than the field, so repeats get car numbers. */
@@ -216,6 +216,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     for (const e of list) {
       if (e.type === 'coin') sfx.play('coin');
       if (e.type === 'jump') sfx.play('jump');
+      if (e.type === 'spring' || e.type === 'bounce') sfx.play('spring');
       if (e.type === 'slide') sfx.play('slide');
       if (e.type === 'land') sfx.play('land', 0.4);
       if (e.type === 'turn') sfx.play('whoosh');
@@ -224,7 +225,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
         const o = g.settings.objects![e.item], n = Math.min(g.found[e.item], o.count);sfx.play(e.all ? 'best' : 'item');
         hud.showFound(o, e.all ? 'EVERYTHING FOUND' : o.count > 1 ? `FOUND ${n} OF ${o.count}` : 'FOUND');
       }
-      if (e.type === 'power') { sfx.play('power');hud.say({ magnet: 'MAGNET', shield: 'SHIELD', boost: 'BOOST', multiplier: '×2 SCORE' }[e.kind], 1, 'good'); }
+      if (e.type === 'power') { sfx.play('power');hud.say(RUNNER_POWER_NAMES[e.kind].toUpperCase(), 1, 'good'); }
       if (e.type === 'shield-break') { sfx.play('shield');hud.say('SHIELD SAVED YOU', 1, 'good'); }
       if (e.type === 'smash') sfx.play('bump', 0.7);
       if (e.type === 'near-miss') { sfx.play('whoosh');hud.say('CLOSE CALL', 0.8, 'good'); }
@@ -321,7 +322,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     const record = runnerRecord(gameKey());
     const upgrades = UPGRADES.map((kind) => {
       const level = record.upgrades[kind] ?? 0, price = (level + 1) * 250;
-      const tile = hud.tile({ icon: iconSvg(kind), title: { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score' }[kind], tag: level >= 5 ? 'MAX' : `● ${price}`, note: 'Lasts longer each level', disabled: level >= 5 || record.bank < price, run: () => { record.bank -= price;record.upgrades[kind] = level + 1;saveRunner(gameKey(), record);shop(); } });
+      const tile = hud.tile({ icon: iconSvg(kind), title: RUNNER_POWER_NAMES[kind], tag: level >= 5 ? 'MAX' : `● ${price}`, note: 'Lasts longer each level', disabled: level >= 5 || record.bank < price, run: () => { record.bank -= price;record.upgrades[kind] = level + 1;saveRunner(gameKey(), record);shop(); } });
       tile.append(hud.pips(level, 5));return tile;
     });
     const c = castFor(chapter), people: [string, string][] = [['hero', c.hero.render.character.params.name || 'Hero'], ...(c.companion ? [['companion', c.companion.render.character.params.name || 'Companion'] as [string, string]] : []), ...[...c.guards.entries()].map(([id, a]) => [id, a.render.character.params.name || id] as [string, string])];

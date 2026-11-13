@@ -99,6 +99,14 @@ export class RaceView {
     }
     if (this.sky.lamps >= 0.4) this.headlightBeams();
     this.snapCamera();
+    // The ghost first appears after a lap. One frame drawn now with it in view compiles its see-through materials and
+    // uploads its meshes and textures, so the race does not stall when it shows up. The next frame draws over it.
+    if (renderer && this.ghost) {
+      const roots = [this.ghost.view.vehicle.group, this.ghost.actor.render.group];
+      for (const root of roots) { root.visible = true;root.position.set(game.player.x, 0, game.player.z); }
+      renderer.render(this.scene, this.camera);
+      for (const root of roots) root.visible = false;
+    }
   }
   /** Headlight pools on the road ahead of every car: one batched additive decal. */
   private headlightBeams() {

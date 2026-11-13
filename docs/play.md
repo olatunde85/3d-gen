@@ -29,7 +29,7 @@ Climbs slow cars and descents speed them up; cars tilt with the road and the cam
 | --- | --- |
 | `laps` | 1–9 laps; laps are split into three sectors with live deltas against your best lap |
 | `opponents` | 3–7 AI racers following a racing line that brakes for each corner; repeated characters race under numbered names |
-| `aiSkill` | Easy, medium or hard pace and cornering |
+| `aiSkill` | Easy, medium, hard or expert pace and cornering. Expert rivals run past their car's listed top speed, brake late, take corners faster, fire nitro early and barely ease off when they lead |
 | `rubberBand` | Cars behind the player speed up slightly and cars ahead ease off, so races stay close |
 | `handling` | **Drift**: hold Drift while steering at speed to slide and charge a boost released on exit; **Grip**: Drift brakes |
 | `nitro` | A meter that refills slowly and from drift boosts; hold Nitro on straights |
@@ -56,7 +56,7 @@ The course is generated from straights, corners and T-junctions in the chosen th
 
 Clipping a low barrier or a bar is a **stumble**: the runner slows and the chaser closes in, and a second stumble soon after is caught. Hitting a blocker or cart, falling into a gap, or missing a corner ends the run unless a shield or boost is active. **Revive** continues the run for coins, doubling the price each time.
 
-Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, speed boost and ×2 score. Score is distance plus coins, times the multiplier. Three missions at a time (for example collect coins, run a distance or jump a number of times) raise the multiplier when all three are done. Coins are banked once per run, and the run's result shows distance, coins, multiplier, best score and mission progress. The **Shop** spends banked coins on five levels of each power-up and on extra runners: the enemies. A `goal` of distance, coins or score completes a stage; with chapters, each stage opens the next. `seed` gives every player the same course, and the **daily run** uses a course chosen by the date.
+Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, speed boost, ×2 score and spring boots, each shown on the course as a small model of itself over a ring in its colour. Spring boots jump high enough to clear overhead bars and to land on tall blocks and train roofs: the runner runs along a roof until it ends and drops back down, and pressing slide in the air brings them straight down to pick a landing. Anything that cannot be stood on bounces a spring-booted runner back up. In the train yard half the trains stand still, one to three carriages long, with coins along their roofs. Score is distance plus coins, times the multiplier. Three missions at a time (for example collect coins, run a distance or jump a number of times) raise the multiplier when all three are done. Coins are banked once per run, and the run's result shows distance, coins, multiplier, best score and mission progress. The **Shop** spends banked coins on five levels of each power-up and on extra runners: the enemies. A `goal` of distance, coins or score completes a stage; with chapters, each stage opens the next. `seed` gives every player the same course, and the **daily run** uses a course chosen by the date.
 
 Each theme draws its own obstacles, props, floor, sky and what lies below the gaps:
 

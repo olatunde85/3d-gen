@@ -33,6 +33,8 @@ export interface RunnerKit {
   particles?: Particles; umbrellas?: boolean;
   /** How much props glow in their own colour at night; dark themes keep their shadows. */
   nightGlow?: number;
+  /** Extra light on the course for themes that are always dark. */
+  fill?: number;
 }
 
 const LANE_W = 1.65;
@@ -56,7 +58,7 @@ const rails = (c: CanvasRenderingContext2D) => {
   for (const lane of [-1, 0, 1]) for (const k of [-1, 1]) { const u = ((3.3 + lane * 1.8 + k * 0.6) / 6.6) * 128;c.fillStyle = '#9aa0a6';c.fillRect(u - 2, 0, 4, 128);c.fillStyle = '#d4d9de';c.fillRect(u - 1, 0, 1.5, 128); }
 };
 const planks = (c: CanvasRenderingContext2D) => { const r = random(9);for (let v = 0; v < 128; v += 16) { c.fillStyle = ['#b98c5a', '#a97c4c', '#c49764'][Math.floor(r() * 3)];c.fillRect(0, v, 128, 15);c.fillStyle = '#6e4e30';c.fillRect(0, v + 15, 128, 1);for (let i = 0; i < 6; i++) { c.fillStyle = 'rgba(80,50,25,0.25)';c.fillRect(r() * 128, v + 3 + r() * 9, 18 + r() * 30, 1); } } };
-const neonRoof = (c: CanvasRenderingContext2D) => { speckle('#2a2d36', '#3a3e4a', 700)(c);c.fillStyle = '#20232b';for (const lane of [-1, 1]) c.fillRect(((3.3 + lane * 0.9) / 6.6) * 128 - 1, 0, 2, 128); };
+const neonRoof = (c: CanvasRenderingContext2D) => { speckle('#5a6074', '#747b90', 700)(c);c.fillStyle = '#41465a';for (const lane of [-1, 1]) c.fillRect(((3.3 + lane * 0.9) / 6.6) * 128 - 1, 0, 2, 128); };
 const neonLines = (c: CanvasRenderingContext2D) => { c.fillStyle = '#000';c.fillRect(0, 0, 128, 128);for (const [lane, color] of [[-1.5, '#ff3fa4'], [1.5, '#3ff0ff']] as const) { c.fillStyle = color;c.fillRect(((3.3 + lane * 1.8) / 6.6) * 128 - 1.5, 0, 3, 128); } };
 const basalt = (c: CanvasRenderingContext2D) => { speckle('#2c2624', '#463b36', 900)(c);c.strokeStyle = '#1c1715';c.lineWidth = 2;const r = random(4);for (let i = 0; i < 14; i++) { c.beginPath();c.moveTo(r() * 128, r() * 128);c.lineTo(r() * 128, r() * 128);c.stroke(); } };
 const cracks = (c: CanvasRenderingContext2D) => { c.fillStyle = '#000';c.fillRect(0, 0, 128, 128);c.strokeStyle = '#ff6a1c';c.lineWidth = 1.5;const r = random(4);for (let i = 0; i < 8; i++) { c.beginPath();let x = r() * 128, y = r() * 128;c.moveTo(x, y);for (let k = 0; k < 4; k++) { x += (r() - 0.5) * 40;y += (r() - 0.5) * 40;c.lineTo(x, y); } c.stroke(); } };
@@ -98,12 +100,12 @@ export const RUNNER_KITS: Record<RunnerTheme, RunnerKit> = {
     decor: [{ geo: () => P.palmTree(4), every: 13, offset: 3.6, scale: [0.8, 1.1], spin: 'random' }, { geo: P.pierPost, every: 6, offset: 0.4, lamp: 3.05 }, { geo: () => P.beachUmbrella('#ffffff'), every: 14, offset: 6.2, start: 7, colors: ['#d8473d', '#2f9fd8', '#f2b81c', '#2f9e60'] }, { geo: () => P.beachHut('#f6d0c4'), every: 47, offset: 6.6, spin: 'face' }],
   },
   'neon-city': {
-    sky: '#2a1840', zenith: '#06040e', fog: [40, 190], silhouette: 'skyline', tint: '#120c1e', night: true, nightGlow: 0, floor: ['#ffffff', '#e6e6e6'], paintFloor: neonRoof, glowFloor: neonLines, floorRough: 0.3,
-    edge: '#3a3f4a', below: { color: '#141826', y: -40, kind: 'ground' }, low: () => painted([[box(LANE_W, 0.62, 0.5, 0, 0.31, 0), '#2a2d36'], [box(LANE_W, 0.08, 0.52, 0, 0.62, 0), '#ff3fa4']]),
-    bar: (w) => painted([[box(w, 0.3, 0.3, 0, 1.4, 0), '#2a2d36'], [box(w, 0.06, 0.32, 0, 1.25, 0), '#3ff0ff'], ...[-1, 1].map((s) => [box(0.22, 1.5, 0.22, (s * (w - 0.2)) / 2, 0.75, 0), '#2a2d36'] as Part)]),
-    blocker: () => painted([[box(LANE_W * 0.98, 2.4, 1.4, 0, 1.2, 0), '#30343e'], [box(LANE_W * 0.7, 0.9, 0.05, 0, 1.6, 0.71), '#7a5cff'], [box(LANE_W, 0.12, 1.42, 0, 2.45, 0), '#ffe23f']]),
-    cart: () => painted([[box(1.5, 1.0, 2.2, 0, 0.75, 0), '#1d1f26'], [box(1.3, 0.5, 1.3, 0, 1.45, -0.1), '#2b3640'], [box(0.3, 0.12, 0.05, -0.5, 0.75, 1.11), '#fff4c8'], [box(0.3, 0.12, 0.05, 0.5, 0.75, 1.11), '#fff4c8'], [box(1.52, 0.06, 2.22, 0, 0.3, 0), '#3ff0ff']]),
-    decor: [{ geo: () => painted([[box(2.2, 1, 2.2, 0, 0.5, 0), '#262a33'], [box(2.25, 0.1, 2.25, 0, 0.95, 0), '#ff3fa4']]), every: 7, offset: 1.2, height: [1, 2.5], lamp: 1.3 }, { geo: () => P.neonSign().translate(0, 4.2, 0), every: 21, offset: 2.2, start: 10, spin: 'face', glow: true, colors: ['#ff3fa4', '#3ff0ff', '#ffe23f', '#7a5cff', '#3fff8a'] }, { geo: () => new T.BoxGeometry(4, 1, 4).translate(0, 0.5, 0), every: 9, offset: 6, height: [8, 26], windows: true }],
+    sky: '#3a2560', zenith: '#0a0618', fog: [55, 210], silhouette: 'skyline', tint: '#1c1430', night: true, nightGlow: 0.5, fill: 1.6, floor: ['#ffffff', '#e6e6e6'], paintFloor: neonRoof, glowFloor: neonLines, floorRough: 0.3,
+    edge: '#7a8196', below: { color: '#1c2236', y: -40, kind: 'ground' }, low: () => painted([[box(LANE_W, 0.62, 0.5, 0, 0.31, 0), '#5a5f70'], [box(LANE_W, 0.1, 0.52, 0, 0.62, 0), '#ff3fa4'], [box(LANE_W, 0.08, 0.52, 0, 0.12, 0), '#ff3fa4']]),
+    bar: (w) => painted([[box(w, 0.3, 0.3, 0, 1.4, 0), '#5a5f70'], [box(w, 0.1, 0.32, 0, 1.25, 0), '#3ff0ff'], [box(w, 0.06, 0.32, 0, 1.57, 0), '#3ff0ff'], ...[-1, 1].map((s) => [box(0.22, 1.5, 0.22, (s * (w - 0.2)) / 2, 0.75, 0), '#5a5f70'] as Part)]),
+    blocker: () => painted([[box(LANE_W * 0.98, 2.4, 1.4, 0, 1.2, 0), '#565c6e'], [box(LANE_W * 0.7, 0.9, 0.05, 0, 1.6, 0.71), '#9a7cff'], [box(LANE_W, 0.12, 1.42, 0, 2.45, 0), '#ffe23f'], ...[-1, 1].map((s) => [box(0.06, 2.4, 0.06, (s * LANE_W * 0.98) / 2, 1.2, 0.7), '#ffe23f'] as Part)]),
+    cart: () => painted([[box(1.5, 1.0, 2.2, 0, 0.75, 0), '#c8372d'], [box(1.3, 0.5, 1.3, 0, 1.45, -0.1), '#3a4a58'], [box(1.52, 0.06, 2.22, 0, 1.22, 0), '#3ff0ff'], [box(0.3, 0.12, 0.05, -0.5, 0.75, 1.11), '#fff4c8'], [box(0.3, 0.12, 0.05, 0.5, 0.75, 1.11), '#fff4c8'], [box(1.52, 0.06, 2.22, 0, 0.3, 0), '#3ff0ff']]),
+    decor: [{ geo: () => painted([[box(2.2, 1, 2.2, 0, 0.5, 0), '#3e4352'], [box(2.25, 0.1, 2.25, 0, 0.95, 0), '#ff3fa4']]), every: 7, offset: 1.2, height: [1, 2.5], lamp: 1.3 }, { geo: () => P.neonSign().translate(0, 4.2, 0), every: 21, offset: 2.2, start: 10, spin: 'face', glow: true, colors: ['#ff3fa4', '#3ff0ff', '#ffe23f', '#7a5cff', '#3fff8a'] }, { geo: () => new T.BoxGeometry(4, 1, 4).translate(0, 0.5, 0), every: 9, offset: 6, height: [8, 26], windows: true }],
   },
   'jungle-ruins': {
     sky: '#b9cdb4', zenith: '#6d9fc0', fog: [32, 150], silhouette: 'canopy', tint: '#24452a', floor: ['#ffffff', '#ececec'], paintFloor: mossStone,

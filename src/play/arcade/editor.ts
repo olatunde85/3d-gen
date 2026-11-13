@@ -48,6 +48,7 @@ const POWER_NOTES: Record<string, [string, string]> = {
   shield: ['Shield', 'Absorbs one crash.'],
   boost: ['Speed boost', 'A burst of speed that smashes through obstacles.'],
   multiplier: ['Score ×2', 'Doubles every point and coin while it lasts.'],
+  springs: ['Spring boots', 'Jump high over overhead bars and onto rooftops and trains.'],
 };
 
 const svg = (inner: string, view = '0 0 32 32', extra = 'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"') => `<svg viewBox="${view}" ${extra} aria-hidden="true">${inner}</svg>`;
@@ -171,7 +172,7 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
       group('Race format', Object.assign(el('div', 'challenge-basics'), {}), 'Each lap splits into three sectors, with live gaps to your best lap.'));
       m.lastElementChild!.querySelector('.challenge-basics')!.append(
         select('race-laps', 'Laps', Array.from({ length: 9 }, (_, i) => [String(i + 1), i ? `${i + 1} laps` : '1 lap · sprint']), String(r.laps), (v) => race((q) => { q.laps = Number(v); })),
-        select('race-skill', 'Rival skill', [['easy', 'Easy · forgiving'], ['medium', 'Medium'], ['hard', 'Hard · fast lines']], r.aiSkill, (v) => race((q) => { q.aiSkill = v as RaceSettings['aiSkill']; })));
+        select('race-skill', 'Rival skill', [['easy', 'Easy · forgiving'], ['medium', 'Medium'], ['hard', 'Hard · fast lines'], ['expert', 'Expert · late braking, no let-up']], r.aiSkill, (v) => race((q) => { q.aiSkill = v as RaceSettings['aiSkill']; })));
       const colour = el('input');Object.assign(colour, { id: 'race-color', type: 'color', value: r.car.color });colour.onchange = () => race((q) => { q.car.color = colour.value; });
       const paintRow = el('div', 'race-paint');paintRow.append(Object.assign(el('label'), { htmlFor: 'race-color', textContent: 'Paint' }), colour);
       roots.cast.append(

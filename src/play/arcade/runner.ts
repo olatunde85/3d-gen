@@ -1,14 +1,24 @@
 /**
  * Endless runner rules: a seeded course of straights joined by corners and T-junctions, three lanes, jumps, slides
  * and turns, obstacles with a guaranteed way through, coins and power-ups, a chaser that closes after stumbles, and
- * scoring with multipliers, and the creator's objects to find, placed one at a time. Course pieces are generated ahead, recycled behind, and the world origin follows the run.
+ * scoring with multipliers, and the creator's objects to find, placed one at a time. Spring boots jump high enough to
+ * clear overhead bars and land on roofs: blocks and train carriages carry the runner until they step off the end. Course pieces are generated ahead, recycled behind, and the world origin follows the run.
  */
 import { seeded } from './race';
 import type { RunnerObstacle, RunnerPowerUp, RunnerSettings } from './modes';
 
 export const RUNNER_STEP = 1 / 120;
 export const LANE = 1.8;
-export const RUN = { jump: 7.4, gravity: 21, slide: 0.72, laneSpeed: 13, height: 1.8, slideHeight: 0.8 } as const;
+/** One train carriage, end to end. */
+export const TRAIN_CAR = 6.5;
+export const RUN = { jump: 7.4, springJump: 12.6, springDrop: 11, gravity: 21, slide: 0.72, laneSpeed: 13, height: 1.8, slideHeight: 0.8 } as const;
+/** The top of each tall obstacle, and whether a runner can stand on it; anything else bounces a spring-booted runner off. */
+const TOPS: Partial<Record<RunnerSettings['theme'], { blocker?: number; cart?: number }>> = {
+  'temple-ruins': { blocker: 2.6 }, 'city-rooftops': { blocker: 2.6 }, 'desert-canyon': { blocker: 2.6 }, 'snowy-peaks': { blocker: 2.65 },
+  'neon-city': { blocker: 2.51 }, 'jungle-ruins': { blocker: 2.6 }, 'train-yard': { blocker: 2.6, cart: 2.8 },
+};
+/** Clearance over an overhead bar, and the height a bounce needs over obstacles that cannot be stood on. */
+const BAR_TOP = 1.75, OVER = 2.2;
 const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]] as const;
 export const forwardOf = (h: number) => DIRS[((h % 4) + 4) % 4];
 /** Left is a quarter turn anticlockwise from forward, matching Ara's characters (+X is a character's left). */
@@ -24,7 +34,7 @@ export interface RunnerSegment {
   things: RunnerThing[]; coins: RunnerCoin[]; pickups: RunnerPickup[]; finds: RunnerFind[]; gaps: [number, number][]; decor: number; branch?: 'left' | 'right';
 }
 export type RunnerEvent =
-  | { type: 'jump' | 'slide' | 'lane' | 'turn' | 'coin' | 'stumble' | 'shield-break' | 'smash' | 'land' | 'mission' | 'goal' | 'revive' | 'caught' | 'fall' | 'crash' }
+  | { type: 'jump' | 'spring' | 'bounce' | 'drop' | 'slide' | 'lane' | 'turn' | 'coin' | 'stumble' | 'shield-break' | 'smash' | 'land' | 'mission' | 'goal' | 'revive' | 'caught' | 'fall' | 'crash' }
   | { type: 'power'; kind: RunnerPowerUp } | { type: 'find'; item: number; done: boolean; all: boolean } | { type: 'near-miss' } | { type: 'rebase'; dx: number; dz: number } | { type: 'speed-up'; speed: number };
 export interface RunnerInput { left: boolean; right: boolean; jump: boolean; slide: boolean; tiltLane?: number }
 export const MISSION_KINDS = ['coins', 'distance', 'jumps', 'slides', 'powers', 'score'] as const;
@@ -53,10 +63,10 @@ export class RunnerGame {
   segments: RunnerSegment[] = []; branches: RunnerSegment[] = [];
   /** The straight just left and any branch not taken: drawn until the next corner so the floor never vanishes underfoot. */
   behind: RunnerSegment[] = [];
-  /** Distance into the current segment, lateral lane position and height. */
-  d = 0; lane = 0; x = 0; y = 0; vy = 0; sliding = 0; grounded = true; heading = 0; speed = 0; distance = 0; time = 0;
+  /** Distance into the current segment, lateral lane position, height, and the height of what is underfoot. */
+  floor = 0; d = 0; lane = 0; x = 0; y = 0; vy = 0; sliding = 0; grounded = true; heading = 0; speed = 0; distance = 0; time = 0;
   coins = 0; score = 0; multiplier = 1; chaser = 14; stumbles = 0; lastStumble = -100; revives = 0; queuedTurn?: 'left' | 'right'; airborne = 0;
-  power = { magnet: 0, shield: 0, boost: 0, multiplier: 0 }; stats = { jumps: 0, slides: 0, powers: 0 }; missionsDone: boolean[] = [false, false, false];
+  power = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0 }; stats = { jumps: 0, slides: 0, powers: 0 }; missionsDone: boolean[] = [false, false, false];
   events: RunnerEvent[] = []; downReason?: 'crash' | 'fall' | 'caught'; downTime = 0; goalReached = false; recover = 0; turnLean = 0;
   private random: () => number; private nextId = 1; private accumulator = 0; private recycle = new Pool<RunnerSegment>(() => ({ id: 0, x: 0, z: 0, heading: 0, length: 0, start: 0, end: 'left', things: [], coins: [], pickups: [], finds: [], gaps: [], decor: 0 }));
   private thingPool = new Pool<RunnerThing>(() => ({ id: 0, kind: 'barrier-low', d: 0, lanes: 0, length: 0, moving: 0, hit: false, passed: false }));
@@ -74,8 +84,8 @@ export class RunnerGame {
     this.random = seeded(seed);this.findRandom = seeded(seed + 7919);this.nextId = 1;
     for (const s of [...this.segments, ...this.branches, ...this.behind]) this.releaseSegment(s);
     this.segments = [];this.branches = [];this.behind = [];
-    Object.assign(this, { status: 'ready', d: 4, lane: 0, x: 0, y: 0, vy: 0, sliding: 0, grounded: true, heading: 0, speed: this.settings.startSpeed, distance: 0, time: 0, coins: 0, score: 0, chaser: 6, stumbles: 0, lastStumble: -100, revives: 0, queuedTurn: undefined, airborne: 0, downReason: undefined, goalReached: false, recover: 0, turnLean: 0, accumulator: 0, events: [], lastNearMiss: -10 });
-    this.power = { magnet: 0, shield: 0, boost: 0, multiplier: 0 };this.stats = { jumps: 0, slides: 0, powers: 0 };this.missionsDone = this.profile.missions.map(Boolean);this.multiplier = 1 + this.profile.missionLevel;
+    Object.assign(this, { status: 'ready', floor: 0, d: 4, lane: 0, x: 0, y: 0, vy: 0, sliding: 0, grounded: true, heading: 0, speed: this.settings.startSpeed, distance: 0, time: 0, coins: 0, score: 0, chaser: 6, stumbles: 0, lastStumble: -100, revives: 0, queuedTurn: undefined, airborne: 0, downReason: undefined, goalReached: false, recover: 0, turnLean: 0, accumulator: 0, events: [], lastNearMiss: -10 });
+    this.power = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0 };this.stats = { jumps: 0, slides: 0, powers: 0 };this.missionsDone = this.profile.missions.map(Boolean);this.multiplier = 1 + this.profile.missionLevel;
     this.found = (this.settings.objects ?? []).map(() => 0);this.liveFind = undefined;this.findSegment = undefined;this.nextFindAt = 0;
     this.segments.push(this.makeSegment(0, 0, 0, 0, true));this.fill();
   }
@@ -90,7 +100,7 @@ export class RunnerGame {
     const s = this.settings, f = s.speedRamp === 'gentle' ? 1 - Math.exp(-this.distance / 4000) : Math.min(1, this.distance / (s.speedRamp === 'steady' ? 2600 : 1300));
     return s.startSpeed + (s.maxSpeed - s.startSpeed) * f;
   }
-  duration(kind: RunnerPowerUp) { return { magnet: 10, shield: 12, boost: 5, multiplier: 15 }[kind] + 2 * (this.profile.upgrades[kind] ?? 0); }
+  duration(kind: RunnerPowerUp) { return { magnet: 10, shield: 12, boost: 5, multiplier: 15, springs: 10 }[kind] + 2 * (this.profile.upgrades[kind] ?? 0); }
   private step(dt: number, input: RunnerInput) {
     if (this.status !== 'running') return;
     this.time += dt;
@@ -101,7 +111,13 @@ export class RunnerGame {
     if (Math.floor(this.speed / 2) > before && this.power.boost <= 0 && this.speed > this.settings.startSpeed + 2) this.events.push({ type: 'speed-up', speed: this.speed });
     this.controls(input);
     // Vertical motion: jumps arc over low obstacles and gaps; sliding while airborne pulls the runner down.
-    if (!this.grounded) { this.vy -= RUN.gravity * dt * (input.slide ? 2.2 : 1);this.y += this.vy * dt;this.airborne += dt; if (this.y <= 0 && !this.overGap()) { this.y = 0;this.vy = 0;this.grounded = true;this.events.push({ type: 'land' });if (input.slide) this.beginSlide(); } }
+    // Roofs carry the runner; stepping off the end of one drops them back down.
+    this.floor = this.support();
+    if (this.grounded && this.y > this.floor + 0.01) { this.grounded = false;this.vy = 0;this.airborne = 0; }
+    if (!this.grounded) {
+      this.vy -= RUN.gravity * dt * (input.slide ? 2.2 : 1);this.y += this.vy * dt;this.airborne += dt;
+      if (this.y <= this.floor && (this.floor > 0 || !this.overGap())) { this.y = this.floor;this.vy = 0;this.grounded = true;this.events.push({ type: 'land' });if (input.slide) this.beginSlide(); }
+    }
     this.sliding = Math.max(0, this.sliding - dt);
     const targetX = this.lane * LANE;this.x += Math.sign(targetX - this.x) * Math.min(Math.abs(targetX - this.x), RUN.laneSpeed * dt);
     const advance = this.speed * dt;this.d += advance;this.distance += advance;
@@ -126,10 +142,19 @@ export class RunnerGame {
       if (Math.abs(next) <= 1) { this.lane = next;this.events.push({ type: 'lane' }); }
     }
     if (input.tiltLane !== undefined && Math.abs(input.tiltLane) <= 1 && input.tiltLane !== this.lane) { this.lane = input.tiltLane;this.events.push({ type: 'lane' }); }
-    if (input.jump && this.grounded) { this.grounded = false;this.vy = RUN.jump;this.y = 0.001;this.airborne = 0;this.sliding = 0;this.stats.jumps++;this.events.push({ type: 'jump' }); }
+    if (input.jump && this.grounded) { const spring = this.power.springs > 0;this.grounded = false;this.vy = spring ? RUN.springJump : RUN.jump;this.y += 0.001;this.airborne = 0;this.sliding = 0;this.stats.jumps++;this.events.push({ type: spring ? 'spring' : 'jump' }); }
     if (input.slide && this.grounded && this.sliding <= 0) this.beginSlide();
+    // With spring boots, down in the air drops the runner fast, to pick the roof or gap they land on.
+    if (input.slide && !this.grounded && this.power.springs > 0 && this.vy > -RUN.springDrop) { this.vy = -RUN.springDrop;this.events.push({ type: 'drop' }); }
   }
   private beginSlide() { this.sliding = RUN.slide;this.stats.slides++;this.events.push({ type: 'slide' }); }
+  /** The roof under the runner when they are on or above it, otherwise the ground. */
+  private support() {
+    let floor = 0;
+    for (const t of this.current.things) { const top = this.roof(t);if (top && !t.hit && this.hitBox(t) && this.y >= top - 0.35) floor = Math.max(floor, top); }
+    return floor;
+  }
+  private roof(t: RunnerThing) { return t.kind === 'blocker' || t.kind === 'cart' ? TOPS[this.settings.theme]?.[t.kind] : undefined; }
   private overGap() { const d = this.d;return this.current.gaps.some(([a, b]) => d > a + 0.25 && d < b - 0.25); }
   /** At the corner the queued turn carries the runner onto the next straight; without it they hit the wall. */
   private corner() {
@@ -152,14 +177,16 @@ export class RunnerGame {
   private collide(dt: number) {
     const s = this.current, height = this.sliding > 0 ? RUN.slideHeight : RUN.height;
     // Gaps: a short grace keeps a jump pressed at the edge fair.
-    if (this.grounded && this.overGap()) { this.coyote += dt;if (this.coyote > 0.08) { this.grounded = false;this.vy = -2;this.down('fall');return; } } else this.coyote = 0;
+    if (this.grounded && this.floor === 0 && this.overGap()) { this.coyote += dt;if (this.coyote > 0.08) { this.grounded = false;this.vy = -2;this.down('fall');return; } } else this.coyote = 0;
     if (this.y < -1.2) { this.down('fall');return; }
     for (const t of s.things) {
       if (t.hit) continue;
       if (!t.passed && this.d - 0.3 > t.d + t.length) { t.passed = true;this.nearMiss(t, height); }
       if (!this.hitBox(t)) continue;
-      const clear = t.kind === 'barrier-low' ? this.y > 0.72 : t.kind === 'bar-high' ? height < 1.15 : t.kind === 'gap' ? true : this.y > 2.2;
+      const top = this.roof(t), clear = t.kind === 'barrier-low' ? this.y > 0.72 : t.kind === 'bar-high' ? height < 1.15 || this.y > BAR_TOP : t.kind === 'gap' ? true : this.y >= (top ?? OVER) - 0.35;
       if (clear) continue;
+      // Spring boots bounce off the top of anything that cannot be stood on.
+      if (!top && this.power.springs > 0 && !this.grounded && this.vy < 0 && this.y > OVER - 1) { this.vy = RUN.springJump * 0.8;this.y = Math.max(this.y, OVER - 0.3);this.events.push({ type: 'bounce' });continue; }
       t.hit = true;
       if (this.power.boost > 0) { this.events.push({ type: 'smash' });continue; }
       if (t.kind === 'barrier-low' || t.kind === 'bar-high') { this.stumble();continue; }
@@ -194,7 +221,7 @@ export class RunnerGame {
     for (const t of ahead) if (t.d < this.d + 14) t.hit = true;
     if (this.d > s.length - 2) this.d = s.length - 2;
     s.gaps = s.gaps.filter(([a, b]) => b < this.d - 1 || a > this.d + 14);
-    Object.assign(this, { y: 0, vy: 0, grounded: true, sliding: 0, speed: this.baseSpeed() * 0.7, chaser: 10, lastStumble: -100, queuedTurn: this.queuedTurn });
+    Object.assign(this, { y: 0, vy: 0, floor: 0, grounded: true, sliding: 0, speed: this.baseSpeed() * 0.7, chaser: 10, lastStumble: -100, queuedTurn: this.queuedTurn });
     this.power.shield = Math.max(this.power.shield, 3);this.events.push({ type: 'revive' });
     return cost;
   }
@@ -287,6 +314,13 @@ export class RunnerGame {
     while (d < s.length - 14) {
       const kind = this.settings.obstacles[Math.floor(r() * this.settings.obstacles.length)];
       this.place(s, kind, d, difficulty);
+      // A parked train fills its lane for its whole length, with coins along the roof for spring-booted runners.
+      const parked = s.things.at(-1)!;
+      if (parked.kind === 'cart' && !parked.moving) {
+        const lane = [-1, 0, 1].find((_, i) => parked.lanes & (1 << i))!;
+        if (this.settings.powerUps.includes('springs')) for (let cd = parked.d + 1.5; cd < parked.d + parked.length - 1; cd += 2.6) this.addCoin(s, cd, lane, (TOPS['train-yard']!.cart ?? 0) + 0.9);
+        d += parked.length;
+      }
       // Coins lead into the next obstacle, sometimes arcing over a jump.
       const lane = Math.floor(r() * 3) - 1, run = Math.floor(spacing / 2.6) - 1, thing = s.things.at(-1);
       for (let k = 1; k < run; k++) { const cd = d + (thing?.length ?? 0) + 1.5 + k * 2.6;if (cd > s.length - 6) break;if (s.things.some((t) => t.lanes & (1 << (lane + 1)) && cd > t.d - 1 && cd < t.d + t.length + 1) || s.gaps.some(([a, b]) => cd > a - 1 && cd < b + 1)) continue;this.addCoin(s, cd, lane, 0.9); }
@@ -301,8 +335,10 @@ export class RunnerGame {
   private place(s: RunnerSegment, kind: RunnerObstacle, d: number, difficulty: number) {
     const r = this.random, t = this.thingPool.get(), all = 0b111, oneLane = () => 1 << Math.floor(r() * 3), twoLanes = () => all & ~oneLane();
     const lanes = kind === 'bar-high' || kind === 'gap' ? all : kind === 'barrier-low' ? (r() < 0.4 + difficulty * 0.4 ? all : twoLanes()) : kind === 'cart' ? oneLane() : r() < 0.35 + difficulty * 0.35 ? twoLanes() : oneLane();
-    Object.assign(t, { id: this.nextId++, kind, d, lanes, length: kind === 'gap' ? 2.6 + r() * difficulty * 1.4 : kind === 'cart' ? (this.settings.theme === 'train-yard' ? 6.5 : 2.2) : kind === 'blocker' ? 1.4 : 0.5, moving: kind === 'cart' ? 5 + difficulty * 4 : 0, hit: false, passed: false });
-    if (kind === 'cart') { const v = this.settings.startSpeed + (this.settings.maxSpeed - this.settings.startSpeed) * difficulty;t.d += (t.moving * 45) / (v + t.moving); }
+    // In the train yard half the trains stand still, one to three carriages long; moving trains are one carriage.
+    const train = kind === 'cart' && this.settings.theme === 'train-yard', parked = train && r() < 0.5;
+    Object.assign(t, { id: this.nextId++, kind, d, lanes, length: kind === 'gap' ? 2.6 + r() * difficulty * 1.4 : train ? TRAIN_CAR * (parked ? 1 + Math.floor(r() * 3) : 1) : kind === 'cart' ? 2.2 : kind === 'blocker' ? 1.4 : 0.5, moving: kind === 'cart' && !parked ? 5 + difficulty * 4 : 0, hit: false, passed: false });
+    if (kind === 'cart' && t.moving) { const v = this.settings.startSpeed + (this.settings.maxSpeed - this.settings.startSpeed) * difficulty;t.d += (t.moving * 45) / (v + t.moving); }
     if (kind === 'gap') s.gaps.push([t.d, t.d + t.length]);
     s.things.push(t);
   }

@@ -11,7 +11,7 @@ import { ICONS } from '../src/play/arcade/icons';
 import { TRACK_GROUNDS, TRACK_IDS, TRACK_TEMPLATES, buildTrack, locate, parseTrack, trackPoint, trackTemplate } from '../src/play/arcade/track';
 import { RUNNER_KITS } from '../src/play/arcade/runner-kits';
 import { CAR_STATS, RaceGame, idleInput } from '../src/play/arcade/race';
-import { LANE, RunnerGame, missionSet } from '../src/play/arcade/runner';
+import { LANE, RunnerGame, TRAIN_CAR, missionSet } from '../src/play/arcade/runner';
 import { decodeGhost, encodeGhost } from '../src/play/arcade/records';
 import { clipById } from '../src/core/anim/clips';
 
@@ -221,7 +221,37 @@ check('every runner theme builds a fair course, and train-yard carriages are lon
   for (const theme of RUNNER_THEMES) {
     const r = parseRunner({ theme, seed: 5 }, ['enemy-1']), g = new RunnerGame(r, profile(), 5);g.start();
     assert.equal(r.theme, theme);assert.ok(RUNNER_KITS[theme] && RUNNER_THEME_NAMES[theme], theme);
-    const carts = g.segments.flatMap((s) => s.things.filter((t) => t.kind === 'cart'));assert.ok(carts.every((t) => t.length === (theme === 'train-yard' ? 6.5 : 2.2)), theme);
+    // Train-yard trains are whole carriages: moving ones single, parked ones up to three coupled together.
+    const carts = g.segments.flatMap((s) => s.things.filter((t) => t.kind === 'cart'));assert.ok(carts.every((t) => theme === 'train-yard' ? (t.moving ? t.length === TRAIN_CAR : [1, 2, 3].includes(t.length / TRAIN_CAR)) : t.length === 2.2), theme);
   }
+});
+check('spring boots clear bars, land on train roofs, drop on demand and step off the end', () => {
+  const idle = { left: false, right: false, jump: false, slide: false };
+  const yard = new RunnerGame({ ...parseRunner({ theme: 'train-yard', seed: 5, obstacles: ['cart'], chaser: 'none' }, ['enemy-1']) }, profile(), 5);yard.start();
+  let roof = 0, landed = 0, maxY = 0;
+  for (let i = 0; i < 60 * 40 && yard.status === 'running'; i++) {
+    yard.power.springs = 9;const s = yard.current, t = s.things.filter((t) => !t.hit && t.d + t.length > yard.d).sort((a, b) => a.d - b.d)[0], input = { ...idle };
+    if (t) { const lane = [-1, 0, 1].find((_, k) => t.lanes & (1 << k))!, dist = t.d - yard.d;if (!t.moving) { if (yard.lane !== lane && yard.y === 0) input[lane > yard.lane ? 'left' : 'right'] = true;else if (dist > 0 && dist < yard.speed * 0.32 + 1.5 && yard.grounded) input.jump = true; } else if (yard.lane === lane && dist < 30) input[lane < 1 ? 'left' : 'right'] = true; }
+    if (s.length - yard.d < 6 && !yard.queuedTurn) input[s.end === 'right' ? 'right' : 'left'] = true;
+    yard.update(1 / 60, input);maxY = Math.max(maxY, yard.y);if (yard.floor > 0 && yard.grounded) roof += 1 / 60;
+    for (const e of yard.drain()) if (e.type === 'land' && yard.floor > 0) landed++;
+  }
+  assert.equal(yard.status, 'running');assert.ok(landed >= 4 && roof > 3, `roof landings ${landed}, ${roof.toFixed(1)} s on roofs`);assert.ok(maxY > 3.4, 'spring jumps go high');
+  // Off the roof the runner drops to the ground; down in the air brings them straight back.
+  const g = new RunnerGame(parseRunner({ theme: 'temple-ruins', seed: 3, chaser: 'none' }, ['enemy-1']), profile(), 3);g.start();g.current.things.length = 0;g.current.gaps.length = 0;
+  g.power.springs = 9;g.update(1 / 60, { ...idle, jump: true });for (let i = 0; i < 12; i++) g.update(1 / 60, idle);
+  const high = g.y;g.update(1 / 60, { ...idle, slide: true });assert.ok(g.vy <= -10, 'down drops fast');let t = 0;while (!g.grounded && t < 2) { g.update(1 / 60, { ...idle, slide: true });t += 1 / 60; }
+  assert.ok(high > 1.5 && t < 0.4, `dropped from ${high.toFixed(2)} m in ${t.toFixed(2)} s`);
+  // Spring jumps clear an overhead bar that a normal jump runs into.
+  for (const springs of [0, 9]) {
+    const b = new RunnerGame(parseRunner({ theme: 'temple-ruins', seed: 3, obstacles: ['bar-high'], chaser: 'none' }, ['enemy-1']), profile(), 3);b.start();
+    const bar = b.current.things[0];b.current.things.splice(1);b.current.gaps.length = 0;bar.d = b.d + 4.2;let stumbles = 0;
+    for (let i = 0; i < 90; i++) { b.power.springs = springs;b.update(1 / 60, { ...idle, jump: i === 0 });for (const e of b.drain()) if (e.type === 'stumble') stumbles++; }
+    assert.equal(stumbles, springs ? 0 : 1, `springs ${springs}`);
+  }
+});
+check('expert rivals lap faster than hard ones', () => {
+  const finish = (aiSkill: 'hard' | 'expert') => { const g = new RaceGame({ ...defaultRace(), track: 'forest-ring', laps: 1, aiSkill, rubberBand: false, pickups: [] }, names, 3);runRace(g);return Math.min(...g.cars.filter((c) => c.ai).map((c) => c.finished ?? 999)); };
+  const hard = finish('hard'), expert = finish('expert');assert.ok(expert < hard * 0.96 && expert < 999, `expert ${expert.toFixed(1)} s vs hard ${hard.toFixed(1)} s`);
 });
 console.log(`${checks} arcade race and runner contracts passed.`);

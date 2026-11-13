@@ -8,17 +8,19 @@
 import * as T from 'three';
 import { clipById } from '../../core/anim/clips';
 import type { GameActor } from '../actor';
-import { forwardOf, leftOf, LANE, RUN, type RunnerEvent, type RunnerGame, type RunnerSegment } from './runner';
+import { forwardOf, leftOf, LANE, RUN, TRAIN_CAR, type RunnerEvent, type RunnerGame, type RunnerSegment } from './runner';
 import type { SpeedFeel } from './feel';
 import { UMBRELLA_COLORS } from './market';
 import { objectMarker, objectMaterials, objectModel } from './runner-objects';
 import type { RunnerObjectType } from './objects';
 import { RUNNER_KITS, umbrellaGeometry, type Decor, type RunnerKit } from './runner-kits';
-import { canvasTexture, lavaMaterial, Sky, waterMaterial } from './scenery';
+import { POWER_MODELS } from './power-models';
+import type { RunnerPowerUp } from './modes';
+import { canvasTexture, cyl, lavaMaterial, painted, Sky, waterMaterial, type Part } from './scenery';
 import { applyLook, glowMaterial, poolTexture, Precipitation, skyLook, type ArcadeAtmosphere, type SkyLook } from './weather';
 
 const PATH = LANE * 3 + 1.2;
-const POWER_COLORS = { magnet: '#d8473d', shield: '#3d8ad8', boost: '#f0a02d', multiplier: '#3fae63' } as const;
+const POWER_COLORS = { magnet: '#d8473d', shield: '#3d8ad8', boost: '#f0a02d', multiplier: '#3fae63', springs: '#b45cff' } as const;
 /** A repeatable 0..1 value from a segment's decor seed and a position. */
 const hashed = (seed: number, k: number) => { const v = Math.sin(seed * 0.000123 + k * 12.9898) * 43758.5453;return v - Math.floor(v); };
 
@@ -28,7 +30,7 @@ export class RunnerView {
   private low: T.InstancedMesh; private bars: T.InstancedMesh; private blocks: T.InstancedMesh; private carts: T.InstancedMesh; private wheels?: T.InstancedMesh;
   private decor: { mesh: T.InstancedMesh; spec: Decor; colors?: T.Color[] }[] = []; private side?: T.InstancedMesh; private arches?: T.InstancedMesh; private umbrellas?: T.InstancedMesh;
   private umbrellaColors = UMBRELLA_COLORS.map((c) => new T.Color(c));
-  private coins: T.InstancedMesh; private powers: T.InstancedMesh; private shadow: T.Mesh; private shield: T.Mesh; private below: T.Mesh;
+  private coins: T.InstancedMesh; private powers = new Map<RunnerPowerUp, T.InstancedMesh>(); private halos: T.InstancedMesh; private shadow: T.Mesh; private shield: T.Mesh; private below: T.Mesh;
   private hero = new T.Group(); private chaserGroup = new T.Group(); private sun: T.DirectionalLight;
   private sky: SkyLook; private dome: Sky; private weather?: Precipitation; private lantern?: T.Mesh; private glows?: T.InstancedMesh; private flows: ((time: number) => void)[] = [];
   private o = new T.Object3D(); private color = new T.Color(); private time = 0; private phase = 0; private chasePhase = 0;
@@ -37,6 +39,8 @@ export class RunnerView {
   moments = { lookAround: true, dance: true }; private wonAge = 0;
   private finds = new Map<RunnerObjectType, T.Object3D>(); private findMarker?: ReturnType<typeof objectMarker>; private findGroup = new T.Group();
   private kit: RunnerKit;
+  /** Spring boots: a coil under each foot while the power-up lasts. */
+  private springs: T.Mesh[] = []; private feet: T.Bone[] = []; private foot = new T.Vector3();
   constructor(readonly game: RunnerGame, readonly runner: GameActor, readonly chaser?: GameActor, atmosphere?: ArcadeAtmosphere) {
     const kit = this.kit = RUNNER_KITS[game.settings.theme], mat = (color: string, rough = 0.9, extra: T.MeshStandardMaterialParameters = {}) => { const m = new T.MeshStandardMaterial({ color, roughness: rough, ...extra });this.disposables.push(m);return m; };
     const batch = (geometry: T.BufferGeometry, material: T.Material, count: number, shadow = true) => { const m = new T.InstancedMesh(geometry, material, count);m.count = 0;m.castShadow = shadow;m.receiveShadow = true;m.frustumCulled = false;this.scene.add(m);this.disposables.push(geometry);return m; };
@@ -53,6 +57,7 @@ export class RunnerView {
       hemi.intensity = 1.35;hemi.color.set('#b4c6ee');hemi.groundColor.set('#3a3f4c');this.sun.intensity = 1.5;this.sun.color.set('#c4d4f6');
       this.scene.background = moon;this.scene.fog = new T.Fog(moon.clone(), kit.fog[0] * 0.85, kit.fog[1] * 0.9);this.sky = { ...this.sky, sky: moon, fog: [kit.fog[0] * 0.85, kit.fog[1] * 0.9] };
     }
+    if (kit.fill) { hemi.intensity *= kit.fill;this.sun.intensity *= kit.fill; }
     if (kit.below.kind === 'lava') { hemi.groundColor.set('#ff6a2a');hemi.intensity *= 1.1; }
     const glowAtNight = (color: string, k = 0.22): T.MeshStandardMaterialParameters => this.sky.night ? { emissive: new T.Color(color).multiplyScalar(k) } : {};
     this.camera.far = Math.min(400, this.sky.fog[1] * 1.15 + 20);this.sun.castShadow = true;this.sun.shadow.mapSize.set(1024, 1024);Object.assign(this.sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 120 });this.sun.shadow.normalBias = 0.03;this.scene.add(this.sun, this.sun.target);
@@ -66,7 +71,7 @@ export class RunnerView {
     const glowK = kit.nightGlow ?? 1, paint = (k = 0.12) => mat('#ffffff', 0.8, { vertexColors: true, ...glowAtNight('#ffffff', k * glowK) }), props = paint(), obstacles = paint(kit.nightGlow === undefined ? 0.3 : 0.06);
     this.edges = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(kit.edge, 0.9, glowAtNight(kit.edge, 0.12)), 520);
     this.walls = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(kit.edge, 0.9), 24);
-    this.low = batch(kit.low(), obstacles, 60);this.bars = batch(kit.bar(PATH), obstacles, 60);this.blocks = batch(kit.blocker(), obstacles, 60);this.carts = batch(kit.cart(), obstacles, 20);
+    this.low = batch(kit.low(), obstacles, 60);this.bars = batch(kit.bar(PATH), obstacles, 60);this.blocks = batch(kit.blocker(), obstacles, 60);this.carts = batch(kit.cart(), obstacles, 48);
     if (kit.wheels) this.wheels = batch(new T.CylinderGeometry(0.3, 0.3, 0.16, 12).rotateZ(Math.PI / 2), mat('#2c2c2e', 0.5, { metalness: 0.6 }), 80);
     if (kit.side) this.side = batch(new T.BoxGeometry(1, 1, 1).translate(0, -0.5, 0), mat(kit.side.color, 0.95, glowAtNight(kit.side.color, 0.08)), 520, false);
     if (kit.umbrellas) this.umbrellas = batch(umbrellaGeometry(), mat('#ffffff', 0.8, glowAtNight('#ffffff', 0.15)), 320);
@@ -90,7 +95,13 @@ export class RunnerView {
     // Weather first; otherwise the theme's own particles (snow, embers, fireflies).
     const weather = atmosphere?.weather === 'rain' ? (kit.particles === 'snow' ? 'snow' : 'rain') : atmosphere?.weather === 'sandstorm' ? 'sandstorm' : kit.particles;
     if (weather) { this.weather = new Precipitation(weather);this.scene.add(this.weather.object); }
-    this.powers = batch(new T.IcosahedronGeometry(0.42, 0), mat('#ffffff', 0.3, { emissive: '#222222' }), 24, false);
+    // Each power-up is a small model of what it does, over a glowing ring in its colour.
+    const powerMat = mat('#ffffff', 0.35, { vertexColors: true, metalness: 0.2 }), glow = this.sky.night ? 0.45 : 0.08;
+    // They glow in their own painted colours, so a red magnet stays red under moonlight.
+    powerMat.onBeforeCompile = (shader) => { shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n  totalEmissiveRadiance += vColor.rgb * ${glow.toFixed(2)};`); };
+    for (const kind of game.settings.powerUps) this.powers.set(kind, batch(POWER_MODELS[kind](), powerMat, 12));
+    const halo = new T.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false });this.disposables.push(halo);
+    this.halos = batch(new T.RingGeometry(0.42, 0.55, 28).rotateX(-Math.PI / 2), halo, 24, false);this.halos.receiveShadow = false;
     // Below the course: ground, water or lava, seen through the gaps.
     const below = kit.below.kind === 'water' ? waterMaterial(kit.below.color, 220) : kit.below.kind === 'lava' ? lavaMaterial(120) : undefined;
     if (below) { this.disposables.push(below);this.flows.push(below.flow); }
@@ -103,6 +114,10 @@ export class RunnerView {
       for (const type of types) { const model = objectModel(type, materials);model.position.y = 1.15;model.visible = false;model.traverse((o) => { if (o instanceof T.Mesh) this.disposables.push(o.geometry); });this.finds.set(type, model);this.findGroup.add(model); }
       this.findGroup.add(this.findMarker.group);this.findGroup.visible = false;this.scene.add(this.findGroup);
     }
+    const coil = painted([[cyl(0.11, 0.12, 0.04, 14, 0, 0.02, 0), '#3a2a52'], ...[0.07, 0.12, 0.17].map((y) => [new T.TorusGeometry(0.075, 0.018, 6, 16).rotateX(Math.PI / 2).translate(0, y, 0), '#d9dde3'] as Part), [cyl(0.1, 0.1, 0.04, 14, 0, 0.22, 0), '#b45cff']]);
+    const coilMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.5, emissive: '#3c1466', emissiveIntensity: 0.6 });this.disposables.push(coil, coilMat);
+    this.feet = runner.render.mesh.skeleton.bones.filter((b) => /^(Left|Right)Foot$|^foot\.[LR]$/.test(b.name)).slice(0, 2);
+    for (const _ of this.feet) { const m = new T.Mesh(coil, coilMat);m.castShadow = true;m.visible = false;this.springs.push(m);this.scene.add(m); }
     this.hero.add(runner.render.group, this.shield);this.scene.add(this.hero);runner.render.mesh.castShadow = true;
     if (chaser) { this.chaserGroup.add(chaser.render.group);this.scene.add(this.chaserGroup);chaser.render.mesh.castShadow = true; }
     this.snapCamera();
@@ -133,7 +148,7 @@ export class RunnerView {
   /** Refill every batch from the visible course. */
   private course() {
     const g = this.game, kit = this.kit, shades = kit.floor.map((c) => new T.Color(c)), cartLength = kit.cartLength ?? 2.2;
-    const batches = [this.floor, this.edges, this.walls, this.low, this.bars, this.blocks, this.carts, this.coins, this.powers, ...this.decor.map((d) => d.mesh), ...[this.wheels, this.glows, this.umbrellas, this.side, this.arches].filter((m): m is T.InstancedMesh => !!m)];
+    const batches = [this.floor, this.edges, this.walls, this.low, this.bars, this.blocks, this.carts, this.coins, this.halos, ...this.powers.values(), ...this.decor.map((d) => d.mesh), ...[this.wheels, this.glows, this.umbrellas, this.side, this.arches].filter((m): m is T.InstancedMesh => !!m)];
     for (const m of batches) m.count = 0;
     this.findGroup.visible = false;
     const visible = [...g.behind, ...g.segments, ...g.branches];
@@ -171,7 +186,8 @@ export class RunnerView {
         if (t.kind === 'bar-high') this.put(this.bars, s, t.d + 0.25, 0, 0, 1, 1, 1);
         // Blockers and carts face the runner; carts drive toward them.
         if (t.kind === 'blocker') for (const l of lanes) this.put(this.blocks, s, t.d + t.length / 2, l * LANE, 0, 1, 1, 1, undefined, Math.PI);
-        if (t.kind === 'cart') for (const l of lanes) { this.put(this.carts, s, t.d + cartLength / 2, l * LANE, 0, 1, 1, 1, undefined, Math.PI);if (this.wheels && kit.wheels) for (const [x, z] of kit.wheels) this.put(this.wheels, s, t.d + z, l * LANE + x, 0.3, 1, 1, 1); }
+        // A parked train is several carriages coupled end to end.
+        if (t.kind === 'cart') for (const l of lanes) { for (let k = 0; k < (kit.cartLength ? Math.max(1, Math.round(t.length / TRAIN_CAR)) : 1); k++) this.put(this.carts, s, t.d + cartLength * (k + 0.5), l * LANE, 0, 1, 1, 1, undefined, Math.PI);if (this.wheels && kit.wheels) for (const [x, z] of kit.wheels) this.put(this.wheels, s, t.d + z, l * LANE + x, 0.3, 1, 1, 1); }
       }
       for (const c of s.coins) if (!c.taken) this.put(this.coins, s, c.d, c.lane * LANE, c.y, 1, 1, 1, undefined, this.time * 4);
       for (const f of s.finds) if (!f.taken) {
@@ -180,7 +196,7 @@ export class RunnerView {
         for (const [t, model] of this.finds) { model.visible = t === type;if (t === type) { model.rotation.y = this.time * 1.6;model.position.y = f.y + 0.15 + Math.sin(this.time * 2.4) * 0.08; } }
         if (this.findMarker) this.findMarker.ring.scale.setScalar(1 + 0.12 * Math.sin(this.time * 4));
       }
-      for (const p of s.pickups) if (!p.taken) this.put(this.powers, s, p.d, p.lane * LANE, 1 + Math.sin(this.time * 3 + p.id) * 0.15, 1, 1, 1, this.color.set(POWER_COLORS[p.kind]), this.time * 1.5);
+      for (const p of s.pickups) if (!p.taken) { const mesh = this.powers.get(p.kind);if (!mesh) continue;this.put(mesh, s, p.d, p.lane * LANE, 1.05 + Math.sin(this.time * 3 + p.id) * 0.12, 1.45, 1.45, 1.45, undefined, this.time * 1.8);this.put(this.halos, s, p.d, p.lane * LANE, 0.04, 1, 1, 1, this.color.set(POWER_COLORS[p.kind])); }
     });
     for (const m of batches) { m.instanceMatrix.needsUpdate = true;if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
@@ -218,7 +234,11 @@ export class RunnerView {
     const bank = k < 1 ? -turn.dir * 0.24 * Math.sin(Math.PI * k) : 0;
     this.hero.position.set(p.x, g.y, p.z);this.hero.rotation.set(0, this.yaw, bank, 'YXZ');
     this.shield.visible = g.power.shield > 0;this.shield.position.y = 0.95;
-    this.shadow.position.set(p.x, 0.02, p.z);this.shadow.scale.setScalar(Math.max(0.4, 1 - g.y * 0.25));this.shadow.visible = g.grounded || g.y > -0.2;
+    this.shadow.position.set(p.x, g.floor + 0.02, p.z);this.shadow.scale.setScalar(Math.max(0.4, 1 - (g.y - g.floor) * 0.25));this.shadow.visible = g.grounded || g.y > g.floor - 0.2;
+    // Coils sit under the feet, following each foot through the stride.
+    const springy = g.power.springs > 0 && g.status !== 'won';
+    if (springy) this.hero.updateMatrixWorld(true);
+    this.feet.forEach((bone, i) => { const m = this.springs[i];m.visible = springy;if (!springy) return;bone.getWorldPosition(this.foot);m.position.set(this.foot.x, this.foot.y - 0.2, this.foot.z);m.rotation.set(0, this.yaw, 0); });
     if (this.chaser) {
       const c = Math.max(0.6, g.chaser), show = g.settings.chaser !== 'none' && c < 13 && g.status !== 'won';this.chaserGroup.visible = show;
       if (show) { this.animate(this.chaser, g.status === 'running' ? dt : 0, g.speed, true);this.chaserGroup.position.set(p.x - f[0] * c, 0, p.z - f[1] * c);this.chaserGroup.rotation.set(0, this.yaw, 0); }
@@ -230,14 +250,14 @@ export class RunnerView {
       const k = Math.min(1, this.wonAge / 1.4), a = this.yaw + Math.PI * (k * k * (3 - 2 * k)), r = 4.2 - k * 0.8;
       this.cameraPos.set(p.x - Math.sin(a) * r, 2.2 - k * 0.6, p.z - Math.cos(a) * r);this.look.set(p.x, 1.05, p.z);
     } else {
-      const desired = new T.Vector3(p.x - cf[0] * (4.6 + feel.ratio * 0.6) - l[0] * (g.x - lateralFollow), 2.5 + g.y * 0.35, p.z - cf[1] * (4.6 + feel.ratio * 0.6) - l[1] * (g.x - lateralFollow));
-      this.cameraPos.lerp(desired, 1 - Math.exp(-dt * 10));this.look.lerp(new T.Vector3(p.x + cf[0] * 7, 1.1 + g.y * 0.4, p.z + cf[1] * 7), 1 - Math.exp(-dt * 12));
+      const desired = new T.Vector3(p.x - cf[0] * (4.6 + feel.ratio * 0.6) - l[0] * (g.x - lateralFollow), 2.5 + g.floor + (g.y - g.floor) * 0.35, p.z - cf[1] * (4.6 + feel.ratio * 0.6) - l[1] * (g.x - lateralFollow));
+      this.cameraPos.lerp(desired, 1 - Math.exp(-dt * 10));this.look.lerp(new T.Vector3(p.x + cf[0] * 7, 1.1 + g.floor + (g.y - g.floor) * 0.4, p.z + cf[1] * 7), 1 - Math.exp(-dt * 12));
     }
     const shake = feel.offset(this.time);this.camera.position.set(this.cameraPos.x + shake.x, this.cameraPos.y + shake.y, this.cameraPos.z + shake.z);this.camera.lookAt(this.look);
     this.camera.fov = feel.fov(62);this.camera.aspect = aspect;this.camera.updateProjectionMatrix();
     this.sun.position.set(p.x - 15, 40, p.z + 10);this.sun.target.position.set(p.x, 0, p.z);this.below.position.x = p.x;this.below.position.z = p.z;
     // The lantern pool sits a little ahead of the runner, on the floor.
-    if (this.lantern) { this.lantern.position.set(p.x + cf[0] * 2.5, 0.03, p.z + cf[1] * 2.5);this.lantern.rotation.y = this.yaw;this.lantern.visible = g.y > -0.5; }
+    if (this.lantern) { this.lantern.position.set(p.x + cf[0] * 2.5, g.floor + 0.03, p.z + cf[1] * 2.5);this.lantern.rotation.y = this.yaw;this.lantern.visible = g.y > -0.5; }
     this.weather?.update(this.time, this.camera.position);this.dome.update(this.camera, Math.min(0, this.kit.below.y * 0.25));for (const flow of this.flows) flow(this.time);
   }
   reset() { this.phase = 0;this.wonAge = 0;this.turn.age = 9;this.snapCamera(); }
