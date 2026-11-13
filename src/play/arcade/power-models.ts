@@ -1,6 +1,6 @@
 /**
  * Power-up pickups as small models of what they do: a horseshoe magnet, a knight's shield, a lightning bolt, a green
- * ×2 badge and a spring boot. Each is one painted geometry centred on its middle and facing +Z, about 0.8 m tall.
+ * ×2 badge, a spring boot, a hoverboard and a stack of coins. Each is one painted geometry centred on its middle and facing +Z, about 0.8 m tall.
  */
 import * as T from 'three';
 import type { RunnerPowerUp } from './modes';
@@ -36,11 +36,12 @@ function bolt() {
 function multiplier() {
   const white = '#ffffff', z = 0.06, w = 0.05;
   const two: Part[] = [[box(0.16, w, 0.04, 0.12, 0.16, z), white], [box(w, 0.14, 0.04, 0.18, 0.09, z), white], [box(0.16, w, 0.04, 0.12, 0.0, z), white], [box(w, 0.14, 0.04, 0.06, -0.08, z), white], [box(0.16, w, 0.04, 0.12, -0.16, z), white]];
+  const face = (): Part[] => [[box(0.2, w, 0.04).rotateZ(Math.PI / 4).translate(-0.13, 0, z), white], [box(0.2, w, 0.04).rotateZ(-Math.PI / 4).translate(-0.13, 0, z), white], ...two.map(([g, c]) => [g.clone(), c] as Part)];
+  // The ×2 is on both faces, each reading the right way round from its own side.
   return painted([
     [cyl(0.4, 0.4, 0.08, 28).rotateX(Math.PI / 2), '#e8f6ea'],
     [cyl(0.34, 0.34, 0.1, 28).rotateX(Math.PI / 2), '#2f9e55'],
-    [box(0.2, w, 0.04).rotateZ(Math.PI / 4).translate(-0.13, 0, z), white], [box(0.2, w, 0.04).rotateZ(-Math.PI / 4).translate(-0.13, 0, z), white],
-    ...two,
+    ...face(), ...face().map(([g, c]) => [g.rotateY(Math.PI), c] as Part),
   ]);
 }
 
@@ -56,4 +57,37 @@ function springBoot() {
   ]).rotateY(Math.PI / 2).translate(0, 0.08, 0);
 }
 
-export const POWER_MODELS: Record<RunnerPowerUp, () => T.BufferGeometry> = { magnet, shield, boost: bolt, multiplier, springs: springBoot };
+/**
+ * A self-balancing hoverboard, its length along X: a blue body with a foot pad either side of the middle seam, and a
+ * big wheel at each end under a cover with a strip of lights. The wheels touch y = 0; the pads' tops are at 0.18 m.
+ */
+export function hoverboardBody() {
+  const blue = '#2442c8', dark = '#1a1d24', tyre = '#23262c', hub = '#c4cad2', light = '#dff6ff', R = 0.115, end = 0.34;
+  return painted([
+    // Body halves either side of the seam, a little narrower in the middle.
+    ...[-1, 1].map((x) => [box(0.27, 0.09, 0.2, x * 0.14, 0.125, 0), blue] as Part), [box(0.03, 0.08, 0.17, 0, 0.125, 0), dark],
+    ...[-1, 1].map((x) => [box(0.2, 0.012, 0.17, x * 0.15, 0.176, 0), dark] as Part),
+    ...[-1, 1].map((x) => [cyl(0.018, 0.018, 0.012, 10).rotateX(Math.PI / 2).translate(x * 0.06, 0.125, 0.104), light] as Part),
+    ...[-1, 1].flatMap((x) => [
+      // Wheel and hub, rolling forward on an axle along the board.
+      [cyl(R, R, 0.075, 22).rotateZ(Math.PI / 2).translate(x * end, R, 0), tyre] as Part,
+      [cyl(R * 0.62, R * 0.62, 0.08, 16).rotateZ(Math.PI / 2).translate(x * end, R, 0), hub] as Part,
+      // The cover arching over the top of the wheel, with its light strip at the front.
+      ...[0.4, 1.2, 1.94, 2.74].map((k) => [box(0.1, 0.035, 0.07, x * end, R + Math.sin(k) * (R + 0.04), Math.cos(k) * (R + 0.04)).rotateX(0), blue] as Part),
+      [box(0.08, 0.02, 0.012, x * end, R + Math.sin(0.4) * (R + 0.04), Math.cos(0.4) * (R + 0.04) + 0.036), light] as Part,
+    ]),
+  ]);
+}
+/** Side-on, as the player sees it from behind the runner. */
+const hoverboard = () => hoverboardBody().translate(0, -0.13, 0).scale(1.2, 1.2, 1.2);
+
+/** A leaning stack of gold coins. */
+function coinStack() {
+  const gold = '#f2c23c', rim = '#c9961e';
+  return painted([
+    ...Array.from({ length: 6 }, (_, i) => [cyl(0.22, 0.22, 0.06, 20, Math.sin(i * 1.7) * 0.03, -0.3 + i * 0.07, Math.cos(i * 1.3) * 0.03), i % 2 ? gold : rim] as Part),
+    [cyl(0.24, 0.24, 0.05, 22).rotateX(Math.PI / 2).rotateZ(0.25).translate(0.04, 0.2, 0.05), gold], [cyl(0.15, 0.15, 0.055, 18).rotateX(Math.PI / 2).rotateZ(0.25).translate(0.04, 0.2, 0.06), '#ffe27a'],
+  ]);
+}
+
+export const POWER_MODELS: Record<RunnerPowerUp, () => T.BufferGeometry> = { magnet, shield, boost: bolt, multiplier, springs: springBoot, hoverboard, 'coin-rush': coinStack };

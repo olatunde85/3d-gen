@@ -14,13 +14,17 @@ import { UMBRELLA_COLORS } from './market';
 import { objectMarker, objectMaterials, objectModel } from './runner-objects';
 import type { RunnerObjectType } from './objects';
 import { RUNNER_KITS, umbrellaGeometry, type Decor, type RunnerKit } from './runner-kits';
-import { POWER_MODELS } from './power-models';
+import { hoverboardBody, POWER_MODELS } from './power-models';
 import type { RunnerPowerUp } from './modes';
 import { canvasTexture, cyl, lavaMaterial, painted, Sky, waterMaterial, type Part } from './scenery';
 import { applyLook, glowMaterial, poolTexture, Precipitation, skyLook, type ArcadeAtmosphere, type SkyLook } from './weather';
 
 const PATH = LANE * 3 + 1.2;
-const POWER_COLORS = { magnet: '#d8473d', shield: '#3d8ad8', boost: '#f0a02d', multiplier: '#3fae63', springs: '#b45cff' } as const;
+/** The hoverboard stance: standing tall on the pads. */
+const HOVER_CLIP = 'idle', HOVER_AT = 0;
+/** Height of the hoverboard's foot pads above its wheels' contact. */
+const BOARD_TOP = 0.18;
+const POWER_COLORS = { magnet: '#d8473d', shield: '#3d8ad8', boost: '#f0a02d', multiplier: '#3fae63', springs: '#b45cff', hoverboard: '#20c4d8', 'coin-rush': '#f2c23c' } as const;
 /** A repeatable 0..1 value from a segment's decor seed and a position. */
 const hashed = (seed: number, k: number) => { const v = Math.sin(seed * 0.000123 + k * 12.9898) * 43758.5453;return v - Math.floor(v); };
 
@@ -40,6 +44,9 @@ export class RunnerView {
   private finds = new Map<RunnerObjectType, T.Object3D>(); private findMarker?: ReturnType<typeof objectMarker>; private findGroup = new T.Group();
   private kit: RunnerKit;
   /** Spring boots: a coil under each foot while the power-up lasts. */
+  private board: T.Mesh; private hover = 0; private lastX = 0; private sway = 0;
+  /** Arms posed on top of the clip while riding, held out for balance. */
+  private limbs = new Map<string, T.Bone>(); private qa = new T.Quaternion(); private qb = new T.Quaternion(); private axis = new T.Vector3();
   private springs: T.Mesh[] = []; private feet: T.Bone[] = []; private foot = new T.Vector3();
   constructor(readonly game: RunnerGame, readonly runner: GameActor, readonly chaser?: GameActor, atmosphere?: ArcadeAtmosphere) {
     const kit = this.kit = RUNNER_KITS[game.settings.theme], mat = (color: string, rough = 0.9, extra: T.MeshStandardMaterialParameters = {}) => { const m = new T.MeshStandardMaterial({ color, roughness: rough, ...extra });this.disposables.push(m);return m; };
@@ -70,7 +77,7 @@ export class RunnerView {
     this.floor = batch(new T.BoxGeometry(1, 1, 1).translate(0, -0.5, 0), mat(this.sky.wet ? '#9a9ea3' : '#ffffff', this.sky.wet ? 0.4 : kit.floorRough ?? 0.95, { map, envMapIntensity: this.sky.wet ? 0.4 : 1, ...(emissiveMap ? { emissiveMap, emissive: '#ffffff', emissiveIntensity: kit.below.kind === 'lava' ? 0.75 : 1.2 } : {}) }), 260, false);
     const glowK = kit.nightGlow ?? 1, paint = (k = 0.12) => mat('#ffffff', 0.8, { vertexColors: true, ...glowAtNight('#ffffff', k * glowK) }), props = paint(), obstacles = paint(kit.nightGlow === undefined ? 0.3 : 0.06);
     this.edges = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(kit.edge, 0.9, glowAtNight(kit.edge, 0.12)), 520);
-    this.walls = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(kit.edge, 0.9), 24);
+    this.walls = batch(new T.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), mat(kit.wall ?? kit.edge, 0.9), 24);
     this.low = batch(kit.low(), obstacles, 60);this.bars = batch(kit.bar(PATH), obstacles, 60);this.blocks = batch(kit.blocker(), obstacles, 60);this.carts = batch(kit.cart(), obstacles, 48);
     if (kit.wheels) this.wheels = batch(new T.CylinderGeometry(0.3, 0.3, 0.16, 12).rotateZ(Math.PI / 2), mat('#2c2c2e', 0.5, { metalness: 0.6 }), 80);
     if (kit.side) this.side = batch(new T.BoxGeometry(1, 1, 1).translate(0, -0.5, 0), mat(kit.side.color, 0.95, glowAtNight(kit.side.color, 0.08)), 520, false);
@@ -116,8 +123,12 @@ export class RunnerView {
     }
     const coil = painted([[cyl(0.11, 0.12, 0.04, 14, 0, 0.02, 0), '#3a2a52'], ...[0.07, 0.12, 0.17].map((y) => [new T.TorusGeometry(0.075, 0.018, 6, 16).rotateX(Math.PI / 2).translate(0, y, 0), '#d9dde3'] as Part), [cyl(0.1, 0.1, 0.04, 14, 0, 0.22, 0), '#b45cff']]);
     const coilMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.5, emissive: '#3c1466', emissiveIntensity: 0.6 });this.disposables.push(coil, coilMat);
+    for (const b of runner.render.mesh.skeleton.bones) if (/^(Left|Right)(Arm|ForeArm)$/.test(b.name)) this.limbs.set(b.name, b);
     this.feet = runner.render.mesh.skeleton.bones.filter((b) => /^(Left|Right)Foot$|^foot\.[LR]$/.test(b.name)).slice(0, 2);
     for (const _ of this.feet) { const m = new T.Mesh(coil, coilMat);m.castShadow = true;m.visible = false;this.springs.push(m);this.scene.add(m); }
+    // The hoverboard rides under the runner, who stands on it a little above the floor.
+    const deck = hoverboardBody(), deckMat = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.35 });this.disposables.push(deck, deckMat);
+    this.board = new T.Mesh(deck, deckMat);this.board.castShadow = true;this.board.visible = false;this.scene.add(this.board);
     this.hero.add(runner.render.group, this.shield);this.scene.add(this.hero);runner.render.mesh.castShadow = true;
     if (chaser) { this.chaserGroup.add(chaser.render.group);this.scene.add(this.chaserGroup);chaser.render.mesh.castShadow = true; }
     this.snapCamera();
@@ -134,9 +145,9 @@ export class RunnerView {
       if (e.type === 'stumble') feel.shake(0.55);
       if (e.type === 'crash' || e.type === 'caught') feel.shake(1);
       if (e.type === 'find') feel.flash(0.3, '255,215,120');
-      if (e.type === 'power' || e.type === 'revive') feel.flash(0.25, e.type === 'power' && e.kind === 'boost' ? '255,190,110' : '255,255,255');
+      if (e.type === 'power' || e.type === 'revive') feel.flash(e.type === 'power' && e.kind === 'coin-rush' ? 0.45 : 0.25, e.type === 'power' && e.kind === 'boost' ? '255,190,110' : e.type === 'power' && e.kind === 'coin-rush' ? '255,215,90' : '255,255,255');
       if (e.type === 'near-miss') feel.slowMotion(0.4);
-      if (e.type === 'smash' || e.type === 'shield-break') feel.shake(0.4);
+      if (e.type === 'smash' || e.type === 'shield-break' || e.type === 'board-break') feel.shake(0.4);
     }
   }
   private put(mesh: T.InstancedMesh, s: RunnerSegment, d: number, lateral: number, y: number, sx: number, sy: number, sz: number, color?: T.Color, spin = 0) {
@@ -152,6 +163,8 @@ export class RunnerView {
     for (const m of batches) m.count = 0;
     this.findGroup.visible = false;
     const visible = [...g.behind, ...g.segments, ...g.branches];
+    // Props beside the path stand on the side platform when they are on it.
+    const side = kit.side, standOn = (spec: Decor) => side && !spec.centre && Math.abs(spec.offset - side.offset) < side.width / 2 ? Math.max(0, side.top) : 0;
     visible.forEach((s) => {
       // The straight covers its corner square; the next straight starts beyond it.
       const from = s.start === 0 ? -6 : PATH / 2, to = s.length + PATH / 2, cuts = [...s.gaps].sort((a, b) => a[0] - b[0]);
@@ -170,8 +183,8 @@ export class RunnerView {
             if (inGap(e, spec.centre ? 2 : 1)) continue;
             const h = hashed(s.decor, e * 7 + n * 131 + (side > 0 ? 3 : 0)), k = spec.scale ? spec.scale[0] + (spec.scale[1] - spec.scale[0]) * h : 1, tall = spec.height ? spec.height[0] + (spec.height[1] - spec.height[0]) * hashed(s.decor, e * 3 + n) : k;
             const spin = spec.spin === 'face' ? (side > 0 ? -Math.PI / 2 : Math.PI / 2) : spec.spin === 'random' ? h * Math.PI * 2 : 0;
-            this.put(mesh, s, e, spec.centre ? 0 : side * (PATH / 2 + spec.offset), 0, k, tall, k, colors?.[Math.floor(h * colors.length) % colors.length], spin);
-            if (this.glows && spec.lamp && Math.round(e / spec.every) % 2 === 0) this.put(this.glows, s, e, spec.centre ? 0 : side * (PATH / 2 + spec.offset), spec.lamp * (spec.height ? tall : k), 1, 1, 1);
+            this.put(mesh, s, e, spec.centre ? 0 : side * (PATH / 2 + spec.offset), standOn(spec), k, tall, k, colors?.[Math.floor(h * colors.length) % colors.length], spin);
+            if (this.glows && spec.lamp && Math.round(e / spec.every) % 2 === 0) this.put(this.glows, s, e, spec.centre ? 0 : side * (PATH / 2 + spec.offset), standOn(spec) + spec.lamp * (spec.height ? tall : k), 1, 1, 1);
             // Market stalls carry an umbrella in one of the market colours.
             if (this.umbrellas && n === 0) this.put(this.umbrellas, s, e, side * (PATH / 2 + spec.offset), 0, 1, 1, 1, this.umbrellaColors[Math.floor(h * this.umbrellaColors.length) % this.umbrellaColors.length], e * 0.7);
           }
@@ -196,7 +209,7 @@ export class RunnerView {
         for (const [t, model] of this.finds) { model.visible = t === type;if (t === type) { model.rotation.y = this.time * 1.6;model.position.y = f.y + 0.15 + Math.sin(this.time * 2.4) * 0.08; } }
         if (this.findMarker) this.findMarker.ring.scale.setScalar(1 + 0.12 * Math.sin(this.time * 4));
       }
-      for (const p of s.pickups) if (!p.taken) { const mesh = this.powers.get(p.kind);if (!mesh) continue;this.put(mesh, s, p.d, p.lane * LANE, 1.05 + Math.sin(this.time * 3 + p.id) * 0.12, 1.45, 1.45, 1.45, undefined, this.time * 1.8);this.put(this.halos, s, p.d, p.lane * LANE, 0.04, 1, 1, 1, this.color.set(POWER_COLORS[p.kind])); }
+      for (const p of s.pickups) if (!p.taken) { const mesh = this.powers.get(p.kind);if (!mesh) continue;this.put(mesh, s, p.d, p.lane * LANE, 1.05 + Math.sin(this.time * 3 + p.id) * 0.12, 1.45, 1.45, 1.45, undefined, p.kind === 'hoverboard' ? Math.sin(this.time * 1.5 + p.id) * 0.3 : this.time * 1.8);this.put(this.halos, s, p.d, p.lane * LANE, 0.04, 1, 1, 1, this.color.set(POWER_COLORS[p.kind])); }
     });
     for (const m of batches) { m.instanceMatrix.needsUpdate = true;if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
@@ -210,6 +223,7 @@ export class RunnerView {
       if (g.status === 'ready') { clip = clipById.get(this.moments.lookAround ? 'look_around' : 'idle')!;t = this.time % clip.duration; }
       else if (g.status === 'won') { clip = clipById.get(this.moments.dance ? 'dance_groove' : 'idle')!;t = this.wonAge % clip.duration; }
       else if (g.status === 'down' || g.status === 'over') { clip = clipById.get('fall')!;t = Math.min(clip.duration - 0.01, g.downTime ?? 0); }
+      else if (g.hovering && g.sliding <= 0) { clip = clipById.get(HOVER_CLIP)!;t = (HOVER_AT + this.time * 0.6) % clip.duration; }
       else if (!g.grounded) { clip = clipById.get('jump_air')!;t = (this.phase * 0.6) % clip.duration; }
       else if (g.sliding > 0) { clip = clipById.get('run_slide')!;t = ((RUN.slide - g.sliding) / RUN.slide) * clip.duration * 0.85; }
       else if (g.recover > 0) { clip = clipById.get('stumble_recover')!;t = (1 - g.recover / 1.1) * clip.duration; }
@@ -232,7 +246,19 @@ export class RunnerView {
     this.animate(this.runner, g.status === 'running' ? dt : dt * 0.3, g.speed);
     // The whole body banks into the turn from the feet, so the run cycle never changes clip mid-stride.
     const bank = k < 1 ? -turn.dir * 0.24 * Math.sin(Math.PI * k) : 0;
-    this.hero.position.set(p.x, g.y, p.z);this.hero.rotation.set(0, this.yaw, bank, 'YXZ');
+    // On the board the runner stands on the foot pads; the wheels roll on the floor.
+    this.hover += ((g.hovering && g.status !== 'won' ? 1 : 0) - this.hover) * (1 - Math.exp(-dt * 10));
+    // Riding is never still: the rider leans into lane changes and turns, tips forward with speed, carves gently from
+    // side to side, and the board tilts with them.
+    const lateral = dt > 0 ? (g.x - this.lastX) / dt : 0;this.lastX = g.x;
+    this.sway += (Math.max(-1, Math.min(1, lateral / 9)) - this.sway) * (1 - Math.exp(-dt * 8));
+    const h = this.hover, carve = Math.sin(this.time * 1.7) * 0.07 * h;
+    const roll = bank * (1 + h * 0.6) - this.sway * 0.32 * h + carve * 0.5, pitch = h * (0.06 + 0.1 * Math.min(1, g.speed / Math.max(1, g.settings.maxSpeed)) + Math.sin(this.time * 3.1) * 0.025);
+    const lift = h * BOARD_TOP;
+    this.hero.position.set(p.x, g.y + lift, p.z);
+    this.board.visible = h > 0.05;if (this.board.visible) { this.board.position.set(p.x, g.y + lift - BOARD_TOP, p.z);this.board.rotation.set(pitch * 0.25, this.yaw + carve, roll * 0.8, 'YXZ'); }
+    this.hero.rotation.set(pitch, this.yaw + carve, roll, 'YXZ');
+    if (h > 0.05) this.balance(h, carve);
     this.shield.visible = g.power.shield > 0;this.shield.position.y = 0.95;
     this.shadow.position.set(p.x, g.floor + 0.02, p.z);this.shadow.scale.setScalar(Math.max(0.4, 1 - (g.y - g.floor) * 0.25));this.shadow.visible = g.grounded || g.y > g.floor - 0.2;
     // Coils sit under the feet, following each foot through the stride.
@@ -243,7 +269,7 @@ export class RunnerView {
       const c = Math.max(0.6, g.chaser), show = g.settings.chaser !== 'none' && c < 13 && g.status !== 'won';this.chaserGroup.visible = show;
       if (show) { this.animate(this.chaser, g.status === 'running' ? dt : 0, g.speed, true);this.chaserGroup.position.set(p.x - f[0] * c, 0, p.z - f[1] * c);this.chaserGroup.rotation.set(0, this.yaw, 0); }
     }
-    feel.ratio = Math.min(1.2, g.speed / Math.max(1, g.settings.maxSpeed));feel.boosting = g.power.boost > 0;
+    feel.ratio = Math.min(1.2, g.speed / Math.max(1, g.settings.maxSpeed));feel.boosting = g.power.boost > 0 || g.hovering;
     const cf = [Math.sin(this.yaw), Math.cos(this.yaw)], lateralFollow = g.x * 0.45, l = leftOf(g.heading);
     if (g.status === 'won') {
       // The camera swings round to face the runner as they celebrate.
@@ -259,6 +285,21 @@ export class RunnerView {
     // The lantern pool sits a little ahead of the runner, on the floor.
     if (this.lantern) { this.lantern.position.set(p.x + cf[0] * 2.5, g.floor + 0.03, p.z + cf[1] * 2.5);this.lantern.rotation.y = this.yaw;this.lantern.visible = g.y > -0.5; }
     this.weather?.update(this.time, this.camera.position);this.dome.update(this.camera, Math.min(0, this.kit.below.y * 0.25));for (const flow of this.flows) flow(this.time);
+  }
+  /** Turn a bone about a world axis, keeping the rest of its pose. */
+  private turnBone(name: string, axis: T.Vector3, angle: number) {
+    const bone = this.limbs.get(name);if (!bone?.parent) return;
+    bone.parent.getWorldQuaternion(this.qa);this.qb.setFromAxisAngle(axis, angle);
+    bone.quaternion.premultiply(this.qa.clone().invert().multiply(this.qb).multiply(this.qa));bone.updateMatrixWorld(true);
+  }
+  /** Riding pose: arms held out and swinging against the lean; the legs stay straight under the body. */
+  private balance(h: number, carve: number) {
+    this.hero.updateMatrixWorld(true);
+    const forward = this.axis.set(Math.sin(this.yaw + carve), 0, Math.cos(this.yaw + carve)), right = new T.Vector3(-forward.z, 0, forward.x);
+    for (const [side, s] of [['Left', 1], ['Right', -1]] as const) {
+      this.turnBone(`${side}Arm`, forward, s * h * (0.75 + this.sway * s * 0.35 + Math.sin(this.time * 2.3 + s) * 0.1));
+      this.turnBone(`${side}ForeArm`, right, -h * 0.35);
+    }
   }
   reset() { this.phase = 0;this.wonAge = 0;this.turn.age = 9;this.snapCamera(); }
   dispose() {

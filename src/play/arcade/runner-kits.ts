@@ -33,6 +33,8 @@ export interface RunnerKit {
   particles?: Particles; umbrellas?: boolean;
   /** How much props glow in their own colour at night; dark themes keep their shadows. */
   nightGlow?: number;
+  /** The dead-end wall across the path at each corner, when it should not match the edges. */
+  wall?: string;
   /** Extra light on the course for themes that are always dark. */
   fill?: number;
 }
@@ -116,7 +118,7 @@ export const RUNNER_KITS: Record<RunnerTheme, RunnerKit> = {
   'train-yard': {
     sky: '#c4ccd2', zenith: '#6a90c0', fog: [45, 200], silhouette: 'skyline', tint: '#59616a', floor: ['#ffffff', '#efefef'], paintFloor: rails, cartLength: 6.5,
     edge: '#d8b23a', below: { color: '#3d3833', y: -1.6, kind: 'ground' }, low: P.bufferStop, bar: P.signalBar, blocker: () => painted([[box(LANE_W * 0.96, 2.5, 1.4, 0, 1.25, 0), '#3d6fa3'], [box(LANE_W * 0.98, 0.2, 1.42, 0, 2.4, 0), '#2a4f78'], [box(0.9, 1.2, 0.05, 0, 1.3, 0.71), '#d8b23a']]), cart: () => P.carriage(6.4),
-    side: { color: '#8f8a82', width: 3.2, offset: 2.0, top: 0.9 }, arch: { geo: P.tunnelArch, every: 64 },
+    side: { color: '#8f8a82', width: 3.2, offset: 2.0, top: 0.4 }, wall: '#646a72', arch: { geo: P.tunnelArch, every: 64 },
     decor: [{ geo: () => P.gantry(9.4), every: 18, offset: 0, centre: true }, { geo: P.platformBench, every: 9, offset: 2.4, spin: 'face' }, { geo: P.streetLamp, every: 16, offset: 3.4, start: 8, spin: 'face', lamp: 5.94 }],
   },
   volcano: {

@@ -226,6 +226,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
         hud.showFound(o, e.all ? 'EVERYTHING FOUND' : o.count > 1 ? `FOUND ${n} OF ${o.count}` : 'FOUND');
       }
       if (e.type === 'power') { sfx.play('power');hud.say(RUNNER_POWER_NAMES[e.kind].toUpperCase(), 1, 'good'); }
+      if (e.type === 'board-break') { sfx.play('crash', 0.4);hud.say('BOARD BROKE · YOU ARE SAFE', 1.2, 'good'); }
       if (e.type === 'shield-break') { sfx.play('shield');hud.say('SHIELD SAVED YOU', 1, 'good'); }
       if (e.type === 'smash') sfx.play('bump', 0.7);
       if (e.type === 'near-miss') { sfx.play('whoosh');hud.say('CLOSE CALL', 0.8, 'good'); }

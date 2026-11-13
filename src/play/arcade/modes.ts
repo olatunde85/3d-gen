@@ -34,9 +34,9 @@ export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-roof
 export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon', 'market-street': 'Market street', 'snowy-peaks': 'Snowy peaks', 'beach-boardwalk': 'Beach boardwalk', 'neon-city': 'Neon city', 'jungle-ruins': 'Jungle ruins', 'train-yard': 'Train yard', volcano: 'Volcano', 'haunted-forest': 'Haunted forest' };
 export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart';
 export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'];
-export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier' | 'springs';
-export const RUNNER_POWER_UPS: readonly RunnerPowerUp[] = ['magnet', 'shield', 'boost', 'multiplier', 'springs'];
-export const RUNNER_POWER_NAMES: Record<RunnerPowerUp, string> = { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score', springs: 'Spring boots' };
+export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier' | 'springs' | 'hoverboard' | 'coin-rush';
+export const RUNNER_POWER_UPS: readonly RunnerPowerUp[] = ['magnet', 'shield', 'boost', 'multiplier', 'springs', 'hoverboard', 'coin-rush'];
+export const RUNNER_POWER_NAMES: Record<RunnerPowerUp, string> = { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score', springs: 'Spring boots', hoverboard: 'Hoverboard', 'coin-rush': 'Coin rush' };
 /** Objects is complete when every listed object has been found in one run. */
 export type RunnerGoal = { type: 'endless' } | { type: 'objects' } | { type: 'distance' | 'coins' | 'score'; target: number };
 export interface RunnerSettings {
@@ -48,7 +48,7 @@ export interface RunnerSettings {
   medals?: RunnerMedals | false;
 }
 export const runnerMedalTargets = (r: Pick<RunnerSettings, 'medals'>) => (r.medals === false ? undefined : r.medals ?? DEFAULT_RUNNER_MEDALS);
-export const defaultRunner = (): RunnerSettings => ({ theme: 'temple-ruins', lanes: 3, startSpeed: 10, maxSpeed: 26, speedRamp: 'steady', obstacles: ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'], powerUps: ['magnet', 'shield', 'boost', 'multiplier', 'springs'], chaser: 'enemy-1', goal: { type: 'endless' }, revive: true });
+export const defaultRunner = (): RunnerSettings => ({ theme: 'temple-ruins', lanes: 3, startSpeed: 10, maxSpeed: 26, speedRamp: 'steady', obstacles: ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'], powerUps: ['magnet', 'shield', 'boost', 'multiplier', 'springs', 'hoverboard', 'coin-rush'], chaser: 'enemy-1', goal: { type: 'endless' }, revive: true });
 
 /** The goal in a few words, e.g. "Run 2000 m" or "Find 3 objects". */
 export function runnerGoalLabel(r: Pick<RunnerSettings, 'goal' | 'objects'>) {
