@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {nodeLibrary} from './node-assets';
 import {campaignExample,parsePlayInput,generatePlayGuide} from '../src/play/assist';
 import {parseProject,gameProjects,chapterProject,chapterSettings,heroWeapon,MAX_CHAPTERS} from '../src/play/project';
+import {defaultHowToPlay,gameNameOf} from '../src/play/customize';
 import {campaignRecipe,campaignKey,readCampaign,type CampaignProgress} from '../src/play/campaign';
 const lib=await nodeLibrary();let checks=0;function check(name:string,fn:()=>void){fn();checks++;console.log('OK',name);}
 check('connected games normalize independent missions while preserving one hero and life budget',()=>{const p=parsePlayInput(JSON.stringify(campaignExample()),lib.catalog),games=gameProjects(p);assert.equal(games.length,2);assert.equal(games[0].mission.story,'escape');assert.equal(games[0].mission.cargo,'briefcase');assert.equal(games[1].mission.story,'rescue');assert.equal(games[1].mission.driveDifficulty,'standard');assert.equal(games[1].mission.extraction,'pickup');assert.equal(games[0].character, games[1].character);assert.equal(heroWeapon(p),'pistol');assert.deepEqual(parseProject(JSON.stringify(p),lib.catalog),p);assert.equal(campaignRecipe(parseProject(JSON.stringify(p),lib.catalog)),campaignRecipe(p));assert.equal(chapterProject(p,1).chapters,undefined);assert.throws(()=>chapterProject(p,9));});
@@ -21,5 +22,13 @@ check('shared hero moments stay top-level when a chapter is edited and saved aga
  const p=parsePlayInput(JSON.stringify({...campaignExample(),poses:{lookAround:false,dance:true}}),lib.catalog),edited=chapterSettings(chapterProject(p,1),p.chapters![0].id);
  assert.equal('poses'in edited,false);const saved=parseProject(JSON.stringify({...p,chapters:[edited]}),lib.catalog);assert.deepEqual(saved.poses,{lookAround:false,dance:true});
  const copied=parseProject(JSON.stringify({...p,chapters:[{...edited,poses:{lookAround:true,dance:false}}]}),lib.catalog);assert.equal('poses'in copied.chapters![0],false);assert.deepEqual(chapterProject(copied,1).poses,{lookAround:false,dance:true});
+});
+check('the game name, How to play and colours are game-wide, with defaults made from the game',()=>{
+ const p=parsePlayInput(JSON.stringify(campaignExample()),lib.catalog);assert.equal(gameNameOf(p),p.identity.title);assert.match(defaultHowToPlay(p),/Missions:.*Esc to pause\. Your progress through the chapters/s);
+ const named=parsePlayInput(JSON.stringify({...campaignExample(),gameName:'  Night City  ',howToPlay:'Run fast.\n\nShoot straight.',theme:{accent:'#ff3d9a',background:'#110c1f',text:'#f4ecff'}}),lib.catalog);
+ assert.equal(gameNameOf(named),'Night City');assert.equal(named.howToPlay,'Run fast.\n\nShoot straight.');
+ const edited=chapterSettings(chapterProject(named,1),named.chapters![0].id);for(const key of ['gameName','howToPlay','theme'])assert.equal(key in edited,false,key);
+ const copied=parseProject(JSON.stringify({...named,chapters:[{...edited,gameName:'Other',howToPlay:'x',theme:{accent:'#000000'}}]}),lib.catalog);assert.equal('gameName' in copied.chapters![0],false);assert.equal(gameNameOf(chapterProject(copied,1)),'Night City');
+ assert.throws(()=>parsePlayInput(JSON.stringify({...campaignExample(),gameName:'x'.repeat(61)}),lib.catalog),/gameName/);assert.throws(()=>parsePlayInput(JSON.stringify({...campaignExample(),howToPlay:' '}),lib.catalog),/howToPlay/);
 });
 console.log(`${checks} campaign contracts passed.`);

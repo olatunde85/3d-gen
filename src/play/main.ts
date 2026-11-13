@@ -34,6 +34,10 @@ import {PLANS,defaultMission,missionTimeLimit,usesPickup,missionGoal,extractionM
 import type {Health,Ammunition} from './combat';
 import {mountPlayer,actorRadius,type Player} from './player';
 import {setupGameDownload} from './download-ui';
+import {setupPublishing} from './publish-ui';
+import {setupCustomize} from './customize-ui';
+import {applyHowToPlay} from './customize';
+import {applyTheme} from './theme';
 import {modeEditor} from './arcade/editor';
 import {retitle,arcadeTitle,RUNNER_THEMES} from './arcade/modes';
 import {TRACK_IDS} from './arcade/track';
@@ -79,7 +83,7 @@ setup.addEventListener('input',()=>{wholeDraft();paintSetupSummary(setup,draft);
 let radioCountriesLoaded=false;
 async function loadRadioCountries(){if(radioCountriesLoaded)return;radioCountriesLoaded=true;const countries=await availableRadioCountries(),field=select('city-radio-country'),selected=(draftRoot.city??defaultCity()).radioCountry;field.replaceChildren(...countries.map(country=>new Option(country.name,country.code)));if(!countries.some(country=>country.code===selected))field.add(new Option(selected,selected));field.value=selected;}
 function showSetup(){resetDraft(project);castRole='player';enemyIndex=0;individualEnemies=false;showSetupPage('mission');paintDraft();player.openSettings();void loadRadioCountries();}
-button('settings').onclick=showSetup;setup.addEventListener('close',()=>{stopMusicPreview();
+button('settings').onclick=showSetup;setup.addEventListener('close',()=>{stopMusicPreview();applyTheme(project.theme);applyHowToPlay(project.howToPlay);
  // Start after the native dialog finishes closing, so its cleanup cannot clear
  // the first movement/interaction input or reclaim focus from the canvas.
  if(restartAfterSetup&&pendingCast){restartAfterSetup=false;player.replace(project,pendingCast);gameCast=pendingCast;pendingCast=undefined;}else player.closeSettings();
@@ -88,6 +92,8 @@ const setupPages=['mission','cast','challenge','presentation']as const;
 function showSetupPage(page:typeof setupPages[number]){$('editing-section').textContent=page==='presentation'?'Atmosphere':page[0].toUpperCase()+page.slice(1);setup.querySelector<HTMLElement>('.setup-content')!.scrollTop=0;for(const name of setupPages){const on=name===page;button('setup-'+name).setAttribute('aria-selected',String(on));button('setup-'+name).tabIndex=on?0:-1;$(name+'-settings').hidden=!on;}if(page!=='presentation')stopMusicPreview();}
 for(const page of setupPages){button('setup-'+page).onclick=()=>showSetupPage(page);button('setup-'+page).addEventListener('keydown',e=>{const index=setupPages.indexOf(page);if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key))return;e.preventDefault();const next=setupPages[e.key==='Home'?0:e.key==='End'?setupPages.length-1:(index+(['ArrowRight','ArrowDown'].includes(e.key)?1:setupPages.length-1))%setupPages.length];showSetupPage(next);button('setup-'+next).focus();});}
 select('mission-location').replaceChildren(...LOCATIONS.map(l=>new Option(l.name,l.id)));
+/** Customize edits the whole game; colours preview live, and closing setup shows the applied game's look again. */
+const themeUi=setupCustomize(()=>{wholeDraft();return draftRoot;},(key,value)=>{for(const p of [draftRoot,draft]){if(value===undefined)delete p[key];else (p as unknown as Record<string,unknown>)[key]=value;}});
 function paintMoments(){const m=posesOf(draftRoot);$<HTMLInputElement>('pose-look-around').checked=m.lookAround;$<HTMLInputElement>('pose-dance').checked=m.dance;}
 function paintMission(){$<HTMLInputElement>('stealth-senses').checked=!!draft.mission.stealth;for(const key of ['pursuit','overwatch']as const)$<HTMLInputElement>('support-'+key).checked=!!draft.mission[key];
  const city={...defaultCity(),...draftRoot.city};select('city-size').value=city.size;select('city-pedestrians').value=String(city.pedestrians);select('city-traffic').value=String(city.traffic);select('city-moving-traffic').value=String(city.movingTraffic);select('city-hostility').value=city.pedestrianHostility;for(const [id,key]of [['city-police','police'],['city-repair','repairShop'],['city-gun-shop','gunShop'],['city-fights','pedestrianFights'],['city-weapon-switch','weaponSwitch'],['city-radio','radio']]as const)$<HTMLInputElement>(id).checked=city[key];select('city-radio-country').value=city.radioCountry;
@@ -149,7 +155,7 @@ function paintEnemies(){
 const storyUi=storyEditor($('story-editor'),()=>draft,()=>engine,()=>lib);
 const chainEditor=objectiveEditor($('objective-editor'),()=>draft,()=>paintMission());
 const modeUi=modeEditor({mission:$('arcade-mission'),cast:$('arcade-cast'),challenge:$('arcade-challenge')},()=>draft,()=>editingChapter,()=>{if(castRole==='companion'&&!castsCompanion(draft))showCast('player');wholeDraft();spreadArcadeChapters(draftRoot);retitleAll(draftRoot);if(!draftRoot.mode)automaticTitle();$<HTMLInputElement>('game-title').value=draft.identity.title;paintChapters();paintSetupSummary(setup,draft);});
-function paintDraft(){storyUi.paint();chainEditor.paint();modeUi.paint();paintPicker('hero',draft.character);$('cast-player-name').textContent=draft.character.name||'Custom character';paintEnemies();paintMission();paintLoadout();paintPresentation();paintMoments();paintPicker('companion',draft.companion.character);select('companion-health-setting').value=String(draft.companion.health);$('cast-companion-name').textContent=draft.companion.character.name;$('setup-note').textContent='';showCast(castRole);}
+function paintDraft(){themeUi.paint();storyUi.paint();chainEditor.paint();modeUi.paint();paintPicker('hero',draft.character);$('cast-player-name').textContent=draft.character.name||'Custom character';paintEnemies();paintMission();paintLoadout();paintPresentation();paintMoments();paintPicker('companion',draft.companion.character);select('companion-health-setting').value=String(draft.companion.health);$('cast-companion-name').textContent=draft.companion.character.name;$('setup-note').textContent='';showCast(castRole);}
 function paintProgression(){select('completion-reward').value=draft.progression.reward??'none';
  select('supplies').value=draft.progression.supplies;select('scoring').value=draft.progression.scoring;
  const count={scarce:2,balanced:4,plentiful:6}[draft.progression.supplies];
@@ -243,6 +249,7 @@ async function init(){
   scene=new GameScene(canvas);
   const assets=new URL(`${import.meta.env.BASE_URL}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);
   try{const saved=localStorage.getItem(storage);if(saved)project=parseProject(saved,lib.catalog);}catch{/* invalid/stale local drafts do not block play */}
+  applyTheme(project.theme);applyHowToPlay(project.howToPlay);
   const linked=new URLSearchParams(location.hash.slice(1)).get('c');if(linked){const character=decodeCharacter(linked,'medium');if(character)project.character=playable(character);}
   const cast=await prepareGameCast(project,engine,f=>lib.textureUrl(f),text=>{$('load-note').textContent=text;});gameCast=cast;loading=false;
   player=mountPlayer(scene,project,cast,{stopPreview:stopMusicPreview,renderMusicStatus,unlockPreview:()=>musicPreview.unlock(),audioChanged:enabled=>{musicPreview.setMuted(!enabled);renderMusicStatus();}});
@@ -250,11 +257,11 @@ async function init(){
   if(import.meta.env.DEV||new URLSearchParams(location.hash.slice(1)).has('demo'))Object.defineProperty(window,'araPlay',{get:()=>({...player.state,musicPreview})});
  }catch(error){$('load-label').textContent='Try loading again';$('load-note').textContent=(error as Error).message;button('start').disabled=false;button('start').onclick=()=>location.reload();}
 }
-setupGameDownload({project:()=>parseProject(JSON.stringify(wholeDraft()),lib.catalog),library:()=>lib,prepare:async(p,progress)=>{
+const gameHost={project:()=>parseProject(JSON.stringify(wholeDraft()),lib.catalog),library:()=>lib,prepare:async(p:PlayProject,progress:(text:string)=>void)=>{
  const next=await prepareGame(p,progress);
  const existing=castActors(gameCast);
  return {cast:next,dispose:()=>{for(const actor of castActors(next))if(!existing.has(actor))actor.dispose();}};
-},busy:value=>{applying=value;},stopPreview:stopMusicPreview});
+},busy:(value:boolean)=>{applying=value;},stopPreview:stopMusicPreview};setupGameDownload(gameHost);setupPublishing(gameHost);
 button('cycle-view').disabled=true;button('settings').disabled=true;button('help').disabled=true;button('sound').disabled=true;paintLoading(savedGame(storage));void init().finally(()=>{button('settings').disabled=loading;});
 
 for(const key of ['time','weather','ambient','effects','flashlight','volume']as const){const el=$<HTMLInputElement>('environment-'+key);el.addEventListener('change',()=>{const e=draft.mission.environment??defaultEnvironment();(e as unknown as Record<string,unknown>)[key]=key==='effects'||key==='flashlight'?el.checked:key==='volume'?Number(el.value)/100:el.value;draft.mission.environment=e as EnvironmentSettings;if(key==='time'&&e.time==='night'){draft.mission.stealth=true;$<HTMLInputElement>('stealth-senses').checked=true;}});}

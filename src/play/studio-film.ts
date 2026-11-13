@@ -8,12 +8,15 @@ import {StudioActor} from '../studio/actor';
 import {exportMovie} from '../studio/export';
 import {StudioScene} from '../studio/scene';
 import {importFilm} from './media';
+import {adultReason} from './publish-guard';
 
 export async function importStudioFilm(file:File,engine:Engine,library:AssetLibrary,progress:(message:string)=>void){
  if(file.size>128*1024*1024)throw Error('Choose a Studio project smaller than 128 MiB.');
  const bundle=/\.zip$/i.test(file.name)||file.type==='application/zip';
  if(!bundle&&file.size>100_000)throw Error('Choose Studio JSON smaller than 100 KB.');
  const parsed=bundle?await openAudioBundle(file,library.catalog):parseStudioInput(await file.text(),library.catalog);
+ // Games are made to be shared: films with 18+ characters stay in Studio.
+ for(const track of parsed.actors){const adult=adultReason(decodeCharacter(track.character,track.detail)??undefined);if(adult)throw Error(`${adult}. Films with 18+ characters can't be attached to games.`);}
  // Scripted lines without recorded audio are voiced on this device first, as Studio does before an export.
  const {hasScriptedSpeech,prepareDialogue}=await import('../studio/audio/prepare');
  const project=hasScriptedSpeech(parsed)?await prepareDialogue(parsed,{signal:new AbortController().signal,progress:message=>progress(`Generating dialogue · ${message}`)}):parsed;

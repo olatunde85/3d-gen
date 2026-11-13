@@ -22,6 +22,7 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 **Playing games**
 
 - [Ara Play](play.md): missions, campaigns, arcade races and endless runs, with downloadable games
+- [Publishing service](publishing.md): the Cloudflare Worker behind Publish online, its guardrails and how to deploy it
 
 **Under the hood**
 
