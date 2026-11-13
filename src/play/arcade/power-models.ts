@@ -57,20 +57,29 @@ function springBoot() {
   ]).rotateY(Math.PI / 2).translate(0, 0.08, 0);
 }
 
-/** A hoverboard: a rounded deck with a glowing strip underneath, tilted so its top shows. */
-export function hoverDeck() {
-  const s = new T.Shape(), w = 0.22, l = 0.62;
-  s.moveTo(-w, -l + w);s.quadraticCurveTo(-w, -l, 0, -l);s.quadraticCurveTo(w, -l, w, -l + w);s.lineTo(w, l - w);s.quadraticCurveTo(w, l, 0, l);s.quadraticCurveTo(-w, l, -w, l - w);s.closePath();
-  const deck = extrude(s, 0.05, 0.015).rotateX(-Math.PI / 2);
+/**
+ * A self-balancing hoverboard, its length along X: a blue body with a foot pad either side of the middle seam, and a
+ * big wheel at each end under a cover with a strip of lights. The wheels touch y = 0; the pads' tops are at 0.18 m.
+ */
+export function hoverboardBody() {
+  const blue = '#2442c8', dark = '#1a1d24', tyre = '#23262c', hub = '#c4cad2', light = '#dff6ff', R = 0.115, end = 0.34;
   return painted([
-    [deck, '#20c4d8'], [box(0.3, 0.015, 0.9, 0, 0.045, 0), '#1b2430'], [box(0.06, 0.016, 0.9, 0, 0.052, 0), '#ffd23f'],
-    [box(0.3, 0.03, 0.5, 0, -0.04, 0), '#7ff8ff'],
-    // A truck under each end with a wheel either side of the deck.
-    ...[-0.4, 0.4].flatMap((z) => [[box(0.36, 0.05, 0.08, 0, -0.06, z), '#9aa3ad'] as Part, ...[-1, 1].map((x) => [cyl(0.075, 0.075, 0.07, 16).rotateZ(Math.PI / 2).translate(x * 0.23, -0.1, z), '#2b2f36'] as Part), ...[-1, 1].map((x) => [cyl(0.035, 0.035, 0.072, 10).rotateZ(Math.PI / 2).translate(x * 0.23, -0.1, z), '#20c4d8'] as Part)]),
-  ]).translate(0, 0.175, 0);
+    // Body halves either side of the seam, a little narrower in the middle.
+    ...[-1, 1].map((x) => [box(0.27, 0.09, 0.2, x * 0.14, 0.125, 0), blue] as Part), [box(0.03, 0.08, 0.17, 0, 0.125, 0), dark],
+    ...[-1, 1].map((x) => [box(0.2, 0.012, 0.17, x * 0.15, 0.176, 0), dark] as Part),
+    ...[-1, 1].map((x) => [cyl(0.018, 0.018, 0.012, 10).rotateX(Math.PI / 2).translate(x * 0.06, 0.125, 0.104), light] as Part),
+    ...[-1, 1].flatMap((x) => [
+      // Wheel and hub, rolling forward on an axle along the board.
+      [cyl(R, R, 0.075, 22).rotateZ(Math.PI / 2).translate(x * end, R, 0), tyre] as Part,
+      [cyl(R * 0.62, R * 0.62, 0.08, 16).rotateZ(Math.PI / 2).translate(x * end, R, 0), hub] as Part,
+      // The cover arching over the top of the wheel, with its light strip at the front.
+      ...[0.4, 1.2, 1.94, 2.74].map((k) => [box(0.1, 0.035, 0.07, x * end, R + Math.sin(k) * (R + 0.04), Math.cos(k) * (R + 0.04)).rotateX(0), blue] as Part),
+      [box(0.08, 0.02, 0.012, x * end, R + Math.sin(0.4) * (R + 0.04), Math.cos(0.4) * (R + 0.04) + 0.036), light] as Part,
+    ]),
+  ]);
 }
-/** Flat and side-on, nose to the right, wheels down. */
-const hoverboard = () => hoverDeck().rotateY(Math.PI / 2).translate(0, -0.1, 0);
+/** Side-on, as the player sees it from behind the runner. */
+const hoverboard = () => hoverboardBody().translate(0, -0.13, 0).scale(1.2, 1.2, 1.2);
 
 /** A leaning stack of gold coins. */
 function coinStack() {

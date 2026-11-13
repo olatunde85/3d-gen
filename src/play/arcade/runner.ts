@@ -21,6 +21,8 @@ const TOPS: Partial<Record<RunnerSettings['theme'], { blocker?: number; cart?: n
 };
 /** Clearance over an overhead bar, and the height a bounce needs over obstacles that cannot be stood on. */
 const BAR_TOP = 1.75, OVER = 2.2;
+/** A hoverboard carries the runner this much faster than running. */
+export const HOVER_SPEED = 1.35;
 const DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]] as const;
 export const forwardOf = (h: number) => DIRS[((h % 4) + 4) % 4];
 /** Left is a quarter turn anticlockwise from forward, matching Ara's characters (+X is a character's left). */
@@ -113,9 +115,9 @@ export class RunnerGame {
     // A hoverboard never runs out over a gap: it carries the runner to the far side first.
     if (this.power.hoverboard > 0 && this.power.hoverboard < 0.05 && this.overGap()) this.power.hoverboard = 0.05;
     this.recover = Math.max(0, this.recover - dt);this.turnLean *= Math.exp(-dt * 5);
-    const target = this.baseSpeed() * (this.power.boost > 0 ? 1.55 : 1) * (this.recover > 0 ? 0.72 : 1), before = Math.floor(this.speed / 2);
+    const target = this.baseSpeed() * (this.power.boost > 0 ? 1.55 : 1) * (this.hovering ? HOVER_SPEED : 1) * (this.recover > 0 ? 0.72 : 1), before = Math.floor(this.speed / 2);
     this.speed += (target - this.speed) * (1 - Math.exp(-dt * 2.5));
-    if (Math.floor(this.speed / 2) > before && this.power.boost <= 0 && this.speed > this.settings.startSpeed + 2) this.events.push({ type: 'speed-up', speed: this.speed });
+    if (Math.floor(this.speed / 2) > before && this.power.boost <= 0 && !this.hovering && this.speed > this.settings.startSpeed + 2) this.events.push({ type: 'speed-up', speed: this.speed });
     this.controls(input);
     // Vertical motion: jumps arc over low obstacles and gaps; sliding while airborne pulls the runner down.
     // Roofs carry the runner; stepping off the end of one drops them back down.
