@@ -3,7 +3,7 @@
  * bounces, laps with sector splits, wrong-way detection, quick respawn, a field of AI racers following a racing line
  * with optional rubber-banding, pickups and best-lap ghost recording. Deterministic for a given seed and input.
  */
-import { locate, resolveTrack, trackPoint, type Track, type TrackPosition } from './track';
+import { locate, resolveTrack, roadHeight, trackPoint, type Track, type TrackPosition } from './track';
 import type { AiSkill, RaceCar, RaceSettings } from './modes';
 
 export const RACE_STEP = 1 / 120;
@@ -36,7 +36,7 @@ export interface RaceCarState {
   x: number; z: number; y: number; vy: number; yaw: number; vx: number; vz: number; speed: number; steer: number;
   hint: number; s: number; progress: number; best: number; lap: number; lapStart: number; lapTimes: number[]; sectors: number[]; nextSector: number;
   drift: number; driftCharge: number; boost: number; nitro: number; nitroOn: boolean; spin: number; item?: RaceItem;
-  wrongWay: number; stuck: number; respawning: number; slickImmune: number; finished?: number; lateralBias: number; distance: number; airborne: boolean; lastShortcut?: { x: number; z: number };
+  wrongWay: number; stuck: number; respawning: number; slickImmune: number; ice: number; mud: number; finished?: number; lateralBias: number; distance: number; airborne: boolean; lastShortcut?: { x: number; z: number };
 }
 export type RaceEvent =
   | { type: 'beep'; count: number } | { type: 'go'; launch: boolean } | { type: 'wall' | 'bump' | 'land'; car: string; strength: number }
@@ -72,6 +72,8 @@ export class RaceGame {
     this.reset();
   }
   get player() { return this.cars[0]; }
+  /** Icy roads loosen every car's grip; the setting falls back to the theme's ground. */
+  get icy() { return (this.settings.traction ?? this.track.ground.traction) === 'icy'; }
   /** Grid of two columns behind the start line; the player starts mid-pack. */
   reset() {
     const s = this.settings, total = s.opponents + 1, gridSlot = Math.min(total - 1, Math.floor(total / 2));
@@ -86,7 +88,7 @@ export class RaceGame {
       this.cars[who] = {
         id: ai ? `ai-${who}` : 'player', driver: ai ? this.names.drivers[(who - 1) % Math.max(1, this.names.drivers.length)] ?? `Racer ${who}` : this.names.player, model, color: ai ? colors[(who - 1) % colors.length] : s.car.color, ai, stats: CAR_STATS[model],
         x: p.x, z: p.z, y: 0, vy: 0, yaw: p.yaw, vx: 0, vz: 0, speed: 0, steer: 0, hint: p.index, s: (back + this.track.length) % this.track.length, progress: back, best: back, lap: 0, lapStart: 0, lapTimes: [], sectors: [], nextSector: 1,
-        drift: 0, driftCharge: 0, boost: 0, nitro: s.nitro ? 0.5 : 0, nitroOn: false, spin: 0, wrongWay: 0, stuck: 0, respawning: 0, slickImmune: 0, lateralBias: ai ? (this.random() - 0.5) * this.track.width * 0.25 : 0, distance: 0, airborne: false,
+        drift: 0, driftCharge: 0, boost: 0, nitro: s.nitro ? 0.5 : 0, nitroOn: false, spin: 0, wrongWay: 0, stuck: 0, respawning: 0, slickImmune: 0, ice: 0, mud: 0, lateralBias: ai ? (this.random() - 0.5) * this.track.width * 0.25 : 0, distance: 0, airborne: false,
       };
     });
   }
@@ -137,7 +139,7 @@ export class RaceGame {
   private drive(car: RaceCarState, dt: number, input: RaceInput) {
     const st = car.stats, fx = Math.sin(car.yaw), fz = Math.cos(car.yaw), lx = Math.cos(car.yaw), lz = -Math.sin(car.yaw);
     if (input.respawn && car.respawning <= 0) { this.respawn(car); return; }
-    car.respawning = Math.max(0, car.respawning - dt);car.slickImmune = Math.max(0, car.slickImmune - dt);
+    car.respawning = Math.max(0, car.respawning - dt);car.slickImmune = Math.max(0, car.slickImmune - dt);car.ice = Math.max(0, car.ice - dt);car.mud = Math.max(0, car.mud - dt);
     let vF = car.vx * fx + car.vz * fz, vL = car.vx * lx + car.vz * lz;
     const spinning = car.spin > 0;car.spin = Math.max(0, car.spin - dt);
     const throttle = spinning || car.airborne ? 0 : clamp(input.throttle, -1, 1), steerInput = spinning ? 0 : clamp(input.steer, -1, 1) * (car.airborne ? 0.3 : 1);
@@ -161,9 +163,12 @@ export class RaceGame {
     else if (throttle > 0) vF += (vF < top * throttle ? st.accel * surge * throttle * (1 - Math.max(0, vF) / (top * 1.08)) + (car.boost > 0 ? 6 : 0) : -9) * dt;
     else if (throttle < 0) vF = vF > 0.5 ? Math.max(0, vF - 30 * dt) : Math.max(-14, vF + st.accel * throttle * dt);
     vF -= (0.02 * vF + Math.sign(vF) * 0.6) * dt;if (Math.abs(vF) < 0.05 && !throttle) vF = 0;
+    // Climbs pull cars back and descents speed them up; soft verges and mud drag.
+    if (!car.airborne) { const slope = roadHeight(this.track, car.s), along = Math.sign(fx * this.track.samples[car.hint].tx + fz * this.track.samples[car.hint].tz);vF -= 9.8 * slope.grade * along * 0.55 * dt; }
+    if (car.mud > 0 && vF > 12) vF -= vF * 1.5 * dt;
     if (car.drift) vF *= 1 - dt * 0.035;
     // Turning: strongest at middle speeds, softened at top speed; drifting turns tighter.
-    const grip = car.drift ? 1.7 : spinning ? 0.6 : st.grip, ratio = Math.abs(vF) / st.top;
+    const grip = (car.drift ? 1.7 : spinning ? 0.6 : st.grip) * (this.icy ? 0.42 : 1) * (car.ice > 0 ? 0.25 : 1), ratio = Math.abs(vF) / st.top;
     let yawRate = -car.steer * st.turn * 1.55 * Math.min(1, Math.abs(vF) / 10) * (1 - 0.3 * Math.min(1, ratio)) * Math.sign(vF || 1);
     if (car.drift) yawRate = yawRate * 1.3 - car.drift * 0.35;
     if (spinning) yawRate = 7 * (car.id.length % 2 ? 1 : -1);
@@ -182,8 +187,9 @@ export class RaceGame {
   }
   /** Walls bounce cars back without wrecking them; shortcuts are part of the road. */
   private contain(car: RaceCarState) {
-    const t = this.track, pos = locate(t, car.x, car.z, car.hint), limit = t.width / 2 - car.stats.radius * 0.8;
+    const t = this.track, pos = locate(t, car.x, car.z, car.hint), limit = t.width / 2 + t.ground.verge - car.stats.radius * 0.8;
     car.hint = pos.index;
+    if (t.ground.verge && Math.abs(pos.lateral) > t.width / 2 + 0.4 && !pos.onShortcut) car.mud = Math.max(car.mud, 0.1);
     if (pos.onShortcut) { car.lastShortcut = { x: car.x, z: car.z };return pos; }
     if (car.lastShortcut && Math.abs(pos.lateral) > limit) {
       const back = car.lastShortcut, d = Math.hypot(car.x - back.x, car.z - back.z);
@@ -265,6 +271,7 @@ export class RaceGame {
       else { this.slicks.push({ x: car.x - Math.sin(car.yaw) * 3.5, z: car.z - Math.cos(car.yaw) * 3.5, age: 0, owner: car.id });this.events.push({ type: 'oil', car: car.id }); }
       car.item = undefined;
     }
+    for (const p of t.patches) if (!car.airborne && near(p.s, p.lateral, p.r)) { if (p.kind === 'ice') car.ice = 0.45;else car.mud = 0.35; }
     // One spin per slick crossing: the car slides clear before it can catch the oil again.
     for (const slick of this.slicks) if (car.slickImmune <= 0 && car.respawning <= 0 && slick.owner !== car.id && Math.hypot(slick.x - car.x, slick.z - car.z) < 1.9 && !car.airborne) {
       car.spin = 0.75;car.slickImmune = 2.5;car.vx *= 0.7;car.vz *= 0.7;car.drift = 0;car.driftCharge = 0;this.events.push({ type: 'spin', car: car.id });if (slick.age >= 0) slick.age = 20;
@@ -295,7 +302,7 @@ export class RaceGame {
   /** Corner speed limits along the racing line, braking back from each corner. */
   private limitsFor(skill: AiSkill) {
     let limit = this.limits.get(skill);if (limit) return limit;
-    const t = this.track, n = t.samples.length, lateral = SKILL[skill].lateral;limit = new Float32Array(n);
+    const t = this.track, n = t.samples.length, lateral = SKILL[skill].lateral * (this.icy ? 0.6 : 1);limit = new Float32Array(n);
     for (let i = 0; i < n; i++) { let k = 0;for (let j = -3; j <= 3; j++) k += Math.abs(t.samples[(i + j + n) % n].curvature);limit[i] = Math.sqrt(lateral / Math.max(1e-4, k / 7)); }
     for (let pass = 0; pass < 2; pass++) for (let i = n - 1; i >= 0; i--) limit[i] = Math.min(limit[i], Math.sqrt(limit[(i + 1) % n] ** 2 + 2 * 24 * t.spacing));
     this.limits.set(skill, limit);return limit;

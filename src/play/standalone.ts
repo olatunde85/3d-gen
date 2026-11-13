@@ -4,7 +4,7 @@ import './style.css';
 import {GameScene} from './scene';
 import {loadGameCast,type GameManifest} from './game-bundle';
 import {mountPlayer} from './player';
-import {parseIdentity,chapterSettings,arcadeSettings,MAX_CHAPTERS,type PlayProject} from './project';
+import {parseIdentity,chapterSettings,chapterBase,arcadeSettings,MAX_CHAPTERS,type PlayProject} from './project';
 import {parseMission,validateMissionEquipment} from './mission';
 import {parseCamera,parseMusic} from './presentation';
 import {parseProgression} from './progression';
@@ -21,7 +21,7 @@ async function init(){
   const readSettings=(p:PlayProject)=>{const next={...p,...arcadeSettings(p,p.enemies.map(e=>e.id)),...(p.story?{story:parseStory(p.story,p.enemies.map(e=>e.id))}:{}),identity:parseIdentity(p.identity),mission:parseMission(p.mission),camera:parseCamera(p.camera),music:parseMusic(p.music),progression:parseProgression(p.progression),loadout:parseLoadout(p.loadout),vehicle:parseDriving(p.vehicle)};validateMissionEquipment(next.mission,next.loadout,next.progression);if(!Array.isArray(next.enemies)||next.enemies.length<1||next.enemies.length>5)throw Error('Choose a supported chapter cast.');return next;};
   paintLoading(raw);
   const project=readSettings(raw);
-  if(raw.chapters!==undefined){if(!Array.isArray(raw.chapters)||raw.chapters.length<1||raw.chapters.length>=MAX_CHAPTERS)throw Error('Choose a supported campaign.');const ids=new Set(['chapter-1']);project.chapters=raw.chapters.map(c=>{if(!c||typeof c.id!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(c.id)||ids.has(c.id))throw Error('Use unique chapter IDs.');ids.add(c.id);if(c.mission.lives!==project.mission.lives)throw Error('Campaign lives must be shared across chapters.');return chapterSettings(readSettings({...raw,chapters:undefined,...c,character:raw.character}),c.id);});}
+  if(raw.chapters!==undefined){if(!Array.isArray(raw.chapters)||raw.chapters.length<1||raw.chapters.length>=MAX_CHAPTERS)throw Error('Choose a supported campaign.');const ids=new Set(['chapter-1']);project.chapters=raw.chapters.map(c=>{if(!c||typeof c.id!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(c.id)||ids.has(c.id))throw Error('Use unique chapter IDs.');ids.add(c.id);if(c.mission.lives!==project.mission.lives)throw Error('Campaign lives must be shared across chapters.');return chapterSettings(readSettings({...chapterBase(raw,c),...c,character:raw.character}),c.id);});}
   document.title=project.identity.title;document.getElementById('game-name')!.textContent=project.identity.title;document.getElementById('brief-title')!.textContent=project.identity.title;if(project.identity.briefing)document.getElementById('brief-story')!.textContent=project.identity.briefing;
   const scene=new GameScene(document.getElementById('game')as HTMLCanvasElement),cast=await loadGameCast(manifest,project,base,text=>note.textContent=text),player=mountPlayer(scene,project,cast);finishLoading();
   document.getElementById('game-name')!.textContent=project.identity.title;

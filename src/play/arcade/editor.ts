@@ -5,7 +5,7 @@
  * same strict parsers as imported JSON.
  */
 import type { PlayProject } from '../project';
-import { TRACK_TEMPLATES, buildTrack, type CustomTrack, type TrackTemplate } from './track';
+import { TRACK_GROUNDS, TRACK_TEMPLATES, TRACK_THEME_NAMES, buildTrack, type CustomTrack, type TrackTemplate } from './track';
 import { CAR_STATS } from './race';
 import { ICONS, iconSvg } from './icons';
 import { MAX_RUNNER_OBJECTS, RUNNER_GENERIC_ICONS, RUNNER_ICON_NAMES, RUNNER_OBJECT_NAMES, RUNNER_OBJECT_TYPES, runnerObject, type RunnerObject, type RunnerObjectIcon, type RunnerObjectType } from './objects';
@@ -21,9 +21,16 @@ const THEMES: Record<string, { name: string; note: string; ground: string; path:
   'temple-ruins': { name: RUNNER_THEME_NAMES['temple-ruins'], note: 'Stone paths & jungle pillars', ground: '#cfdcc0', path: '#b3a98e', side: '#8f876f' },
   'city-rooftops': { name: RUNNER_THEME_NAMES['city-rooftops'], note: 'Concrete roofs above the streets', ground: '#cfd8de', path: '#8c9096', side: '#b9b6ad' },
   'desert-canyon': { name: RUNNER_THEME_NAMES['desert-canyon'], note: 'Sand trails between rock walls', ground: '#ead8b8', path: '#cfa36b', side: '#a8683f' },
-  'market-street': { name: RUNNER_THEME_NAMES['market-street'], note: 'Stalls, minibuses and tricycles', ground: '#e4d6c3', path: '#7a756e', side: '#e0a03a' },
+  'market-street': { name: RUNNER_THEME_NAMES['market-street'], note: 'Stalls, awnings, minibuses and tricycles', ground: '#e4d6c3', path: '#7a756e', side: '#e0a03a' },
+  'snowy-peaks': { name: RUNNER_THEME_NAMES['snowy-peaks'], note: 'Icicles, ice blocks and ice caves', ground: '#e6eef5', path: '#f4f8fb', side: '#9fc9dd' },
+  'beach-boardwalk': { name: RUNNER_THEME_NAMES['beach-boardwalk'], note: 'Piers, palms and gaps over the sea', ground: '#cfe9f2', path: '#c49764', side: '#2a8fb0' },
+  'neon-city': { name: RUNNER_THEME_NAMES['neon-city'], note: 'Night rooftops under neon signs', ground: '#2a1840', path: '#2a2d36', side: '#ff3fa4' },
+  'jungle-ruins': { name: RUNNER_THEME_NAMES['jungle-ruins'], note: 'Vines, idols and broken bridges', ground: '#cfdcc0', path: '#8d8a74', side: '#3f7d36' },
+  'train-yard': { name: RUNNER_THEME_NAMES['train-yard'], note: 'Moving trains, tunnels and platforms', ground: '#d6dade', path: '#6b655c', side: '#d8b23a' },
+  volcano: { name: RUNNER_THEME_NAMES.volcano, note: 'Lava gaps and falling rocks', ground: '#4a2e2a', path: '#2c2624', side: '#ff6a1a' },
+  'haunted-forest': { name: RUNNER_THEME_NAMES['haunted-forest'], note: 'Graves, fog and fireflies at night', ground: '#2a3038', path: '#4a3f33', side: '#8c8f92' },
 };
-const TRACK_GROUND: Record<string, string> = { city: '#dfe5d6', desert: '#ead8b8', harbour: '#d6dfe3', forest: '#cfdcc0' };
+const TRACK_GROUND: Record<string, string> = { city: '#dfe5d6', desert: '#ead8b8', harbour: '#d6dfe3', forest: '#cfdcc0', snow: '#eef3f8', beach: '#f0e2bf', neon: '#2a2240', jungle: '#bfd6b4', lagoon: '#d2dccf', mountain: '#d0dcc4', stadium: '#c8dcbc' };
 const PICKUP_NOTES: Record<string, [string, string]> = {
   'boost-pad': ['Boost pads', 'Orange chevrons on the road give a short burst of speed.'],
   'item-box': ['Item boxes', 'Rows of boxes give a boost, an oil slick to drop behind you or a nitro refill. Use with E or the Item button.'],
@@ -153,12 +160,12 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
     heading('challenge-settings', mode, ['A little pressure.', 'Set the handling, boosts and pickups.'], ['A little pressure.', 'Set the pace, the obstacles and the power-ups.']);
     const enemyTab = document.querySelector('#cast-enemy span');if (enemyTab) enemyTab.textContent = mode === 'race' ? 'RIVALS' : mode === 'runner' ? 'CHASER' : 'ENEMY';
     // Mission
-    const m = roots.mission;m.replaceChildren(group('What kind of game?', grid('goal-choices', 'Game mode', MODES.map((x) => card({ pressed: mode === x.id, title: x.title, note: `${x.lines[0]}<br>${x.lines[1]}`, art: svg(`<path d="${ICONS[x.id]}"/>`), disabled: shared, data: x.id, on: () => setMode(x.id) }))), ...(shared ? ['Every chapter shares the first mission’s game mode; each chapter can choose its own circuit or course.'] : [])));
+    const m = roots.mission;m.replaceChildren(group('What kind of game?', grid('goal-choices', 'Game mode', MODES.map((x) => card({ pressed: mode === x.id, title: x.title, note: `${x.lines[0]}<br>${x.lines[1]}`, art: svg(`<path d="${ICONS[x.id]}"/>`), data: x.id, on: () => setMode(x.id) }))), ...(shared ? ['Each chapter plays its own mode, so a campaign can mix missions, races and runs.'] : [])));
     roots.cast.replaceChildren();roots.challenge.replaceChildren();
     if (mode === 'race' && p.race) {
       const r = p.race, custom = typeof r.track === 'string' ? undefined : r.track;
       m.append(group('Pick a circuit', grid('location-choices', 'Circuit', [
-        ...TRACK_TEMPLATES.map((t) => card({ pressed: r.track === t.id, title: t.name, note: `${(buildTrack(t).length / 1000).toFixed(1)} km · ${t.theme}${t.ramps?.length ? ' · jumps' : ''}${t.shortcuts?.length ? ' · shortcut' : ''}`, art: trackArt(t), location: true, on: () => race((q) => { q.track = t.id; }) })),
+        ...TRACK_TEMPLATES.map((t) => card({ pressed: r.track === t.id, title: t.name, note: `${(buildTrack(t).length / 1000).toFixed(1)} km · ${TRACK_THEME_NAMES[t.theme]}${TRACK_GROUNDS[t.theme].follow ? ' · hills' : ''}${TRACK_GROUNDS[t.theme].traction === 'icy' ? ' · icy' : ''}${t.ramps?.length ? ' · jumps' : ''}${t.shortcuts?.length ? ' · shortcut' : ''}`, art: trackArt(t), location: true, on: () => race((q) => { q.track = t.id; }) })),
         ...(custom ? [card({ pressed: true, title: custom.name ?? 'Custom circuit', note: `${(buildTrack(custom).length / 1000).toFixed(1)} km · from JSON`, art: trackArt(custom), location: true, on: () => {} })] : []),
       ]), 'Custom circuits come from JSON control points, for example through LLM Assist.'),
       group('Race format', Object.assign(el('div', 'challenge-basics'), {}), 'Each lap splits into three sectors, with live gaps to your best lap.'));
@@ -178,7 +185,8 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
         group('Medals', ...toggle('race-medals', 'Podium medals', r.medals !== false, 'Gold, silver or bronze for finishing first, second or third. The best medal for each race is kept.', (v) => race((q) => { if (v) delete q.medals;else q.medals = false; }))),
         group('Replay', ...toggle('race-ghost', 'Best-lap ghost', r.ghost, 'Records your best lap and races it as a translucent car. Share it as a link from the results.', (v) => race((q) => { q.ghost = v; }))),
       );
-      roots.challenge.firstElementChild!.querySelector('.challenge-basics')!.append(select('race-handling', 'Handling', [['drift', 'Drift · slide and charge a boost'], ['grip', 'Grip · brake and steer']], r.handling, (v) => race((q) => { q.handling = v as RaceSettings['handling']; }), 'Hold Space or Drift while steering at speed. Release for a boost.'));
+      roots.challenge.firstElementChild!.querySelector('.challenge-basics')!.append(select('race-handling', 'Handling', [['drift', 'Drift · slide and charge a boost'], ['grip', 'Grip · brake and steer']], r.handling, (v) => race((q) => { q.handling = v as RaceSettings['handling']; }), 'Hold Space or Drift while steering at speed. Release for a boost.'),
+        select('race-traction', 'Road surface', [['auto', 'As the circuit · icy on snow'], ['normal', 'Normal grip'], ['icy', 'Icy · cars slide wide']], r.traction ?? 'auto', (v) => race((q) => { if (v === 'auto') delete q.traction;else q.traction = v as 'normal' | 'icy'; })));
     }
     if (mode === 'runner' && p.runner) {
       const r = p.runner, goal = r.goal;

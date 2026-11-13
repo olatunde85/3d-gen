@@ -19,7 +19,7 @@ import { ArcadeHud, clock, ordinal, type CardAction, type Standing } from './hud
 import { iconSvg } from './icons';
 import { ArcadeInput } from './input';
 import { SpeedFeel } from './feel';
-import { ArcadeSfx } from './sfx';
+import { bedFor, ArcadeSfx } from './sfx';
 import { TRACK_IDS } from './track';
 import { RACE_CARS, RUNNER_THEME_NAMES, gameTitle, runnerGoalLabel, runnerMedalTargets, type RaceCar, type RaceSettings, type RunnerSettings } from './modes';
 import { cupRecord, dailySeed, decodeGhost, encodeGhost, ghostLink, linkedGhost, raceRecord, runnerRecord, saveCup, saveRace, saveRunner, today, trackKey, type RunnerRecord } from './records';
@@ -36,7 +36,7 @@ function settingsCount(names: string[], opponents: number) {
   return list.map((name, i) => (list.filter((n) => n === name).length > 1 ? `${name} #${i + 2}` : name));
 }
 export type ArcadePlayer = ReturnType<typeof mountArcade>;
-export function mountArcade(scene: GameScene, initialProject: PlayProject, initialCast: PlayCast, hooks: PlayerHooks = {}, play = false) {
+export function mountArcade(scene: GameScene, initialProject: PlayProject, initialCast: PlayCast, hooks: PlayerHooks = {}, play = false, startAt = -1) {
   const canvas = scene.canvas, stage = canvas.parentElement!, renderer = scene.renderer;
   const hud = new ArcadeHud(stage), feel = new SpeedFeel(), input = new ArcadeInput(canvas), sfx = new ArcadeSfx(), engine = new EngineSound();
   const music = new GameMusic(new URL(import.meta.env.BASE_URL, location.href).href);
@@ -45,7 +45,14 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   let phase: 'intro' | 'playing' | 'down' | 'results' = 'intro', chapter = 0, daily = false, settled = 0, reviveTimer = 0, touchHeld = new Set<string>(), stickX = 0, stickY = 0;
   let race: RaceGame | undefined, raceView: RaceView | undefined, runner: RunnerGame | undefined, runnerView: RunnerView | undefined, ghostIndex = 0;
   let project = root;
-  const mode = () => (root.mode === 'runner' ? 'runner' : 'race');
+  /** Each chapter has its own mode; a mixed campaign hands mission chapters back to the mission player. */
+  const modeAt = (i: number) => chapterProject(root, Math.min(i, rounds() - 1)).mode ?? 'mission';
+  const mode = () => (modeAt(chapter) === 'runner' ? 'runner' : 'race');
+  const mixed = () => Array.from({ length: rounds() }, (_, i) => modeAt(i)).some((m) => m !== modeAt(0));
+  const cupGame = () => rounds() > 1 && !mixed();
+  let onChapter: ((index: number) => void) | undefined;
+  /** The next chapter's action: arcade chapters play here, missions go back to the mission player. */
+  const nextChapter = (noun: string): CardAction => ({ label: `Next ${mixed() ? (modeAt(chapter + 1) === 'mission' ? 'mission' : modeAt(chapter + 1) === 'race' ? 'race' : 'stage') : noun}: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { if (modeAt(chapter + 1) === 'mission') { onChapter?.(chapter + 1);return; } chapter++;setup(); } });
   const gameKey = () => `${gameStem(root.identity.title)}-${mode()}`;
   const rounds = () => 1 + (root.chapters?.length ?? 0);
   const castFor = (index: number) => (index === 0 ? cast : cast.chapters?.[index - 1] ?? cast);
@@ -60,7 +67,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   function raceSettings(): RaceSettings {
     const base = project.race!, cup = cupRecord(gameKey());
     if (daily) { const seed = dailySeed(gameKey());return { ...base, track: TRACK_IDS[seed % TRACK_IDS.length], laps: 2 }; }
-    return cup.car && rounds() > 1 ? { ...base, car: { model: cup.car as RaceCar, color: cup.paint ?? base.car.color } } : base;
+    return cup.car && cupGame() ? { ...base, car: { model: cup.car as RaceCar, color: cup.paint ?? base.car.color } } : base;
   }
   function runnerActor(record: RunnerRecord): GameActor {
     const c = castFor(chapter), choice = record.runner;
@@ -114,19 +121,19 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     const steps = (done: number) => rounds() > 1 && !daily ? [hud.progress(Array.from({ length: rounds() }, (_, i) => ({ label: gameTitle(chapterProject(root, i)), state: i === chapter ? 'current' as const : i < done ? 'done' as const : 'next' as const })))] : [];
     if (race) {
       const settings = race.settings, record = raceRecord(gameKey(), trackKey(settings.track)), cup = cupRecord(gameKey());
-      const kicker = daily ? `DAILY CHALLENGE · ${today()}` : rounds() > 1 ? `CUP · RACE ${chapter + 1} OF ${rounds()}` : 'ARCADE RACE';
-      const stats = hud.stats([['BEST LAP', record.bestLap ? clock(record.bestLap) : '—'], ['BEST RACE', record.bestRace ? clock(record.bestRace) : '—'], ...(rounds() > 1 && !daily ? [['CUP POINTS', String(cup.points[project.character.name || 'You'] ?? 0), 'hot'] as [string, string, 'hot'], ['CASH', `$${cup.cash}`] as [string, string]] : [])]);
-      hud.show(kicker, title(), [...steps(cup.complete ? rounds() : cup.round), ...(briefing ? [hud.briefing(briefing)] : []), facts([race.track.name, `${settings.laps} ${settings.laps === 1 ? 'lap' : 'laps'}`, `${settings.opponents + 1} cars`, CAR_STATS[settings.car.model].name]), stats, ...(settings.medals !== false && !daily ? [hud.section('Medals', hud.medals(['3rd place', '2nd place', '1st place'], record.medal ?? 0))] : []), ...(linkedGhost(trackKey(settings.track)) ? [hud.badges(['RACING A SHARED GHOST'])] : []), micro(controls())], [
+      const kicker = daily ? `DAILY CHALLENGE · ${today()}` : mixed() ? `CHAPTER ${chapter + 1} OF ${rounds()} · RACE` : rounds() > 1 ? `CUP · RACE ${chapter + 1} OF ${rounds()}` : 'ARCADE RACE';
+      const stats = hud.stats([['BEST LAP', record.bestLap ? clock(record.bestLap) : '—'], ['BEST RACE', record.bestRace ? clock(record.bestRace) : '—'], ...(cupGame() && !daily ? [['CUP POINTS', String(cup.points[project.character.name || 'You'] ?? 0), 'hot'] as [string, string, 'hot'], ['CASH', `$${cup.cash}`] as [string, string]] : [])]);
+      hud.show(kicker, title(), [...steps(mixed() ? chapter : cup.complete ? rounds() : cup.round), ...(briefing ? [hud.briefing(briefing)] : []), facts([race.track.name, `${settings.laps} ${settings.laps === 1 ? 'lap' : 'laps'}`, `${settings.opponents + 1} cars`, CAR_STATS[settings.car.model].name]), stats, ...(settings.medals !== false && !daily ? [hud.section('Medals', hud.medals(['3rd place', '2nd place', '1st place'], record.medal ?? 0))] : []), ...(linkedGhost(trackKey(settings.track)) ? [hud.badges(['RACING A SHARED GHOST'])] : []), micro(controls())], [
         { label: 'Start race', primary: true, run: start },
         ...(daily ? [{ label: 'Back to the main race', run: () => { daily = false;setup(); } }] : [{ label: 'Daily challenge', run: () => { daily = true;setup(); } }]),
-        ...(rounds() > 1 && !daily ? [{ label: 'Garage', run: garage }] : []),
+        ...(cupGame() && !daily ? [{ label: 'Garage', run: garage }] : []),
       ], 'brief');
     } else if (runner) {
       const record = runnerRecord(gameKey()), settings = runner.settings, objects = settings.objects ?? [];
-      const kicker = daily ? `DAILY RUN · ${today()}` : rounds() > 1 ? `STAGE ${chapter + 1} OF ${rounds()}` : 'ENDLESS RUNNER';
+      const kicker = daily ? `DAILY RUN · ${today()}` : mixed() ? `CHAPTER ${chapter + 1} OF ${rounds()} · RUN` : rounds() > 1 ? `STAGE ${chapter + 1} OF ${rounds()}` : 'ENDLESS RUNNER';
       const target = runnerGoalLabel(settings);
       const stats = hud.stats([['BEST', record.best ? Math.floor(record.best).toLocaleString() : '—'], ['FURTHEST', record.bestDistance ? `${Math.floor(record.bestDistance).toLocaleString()} m` : '—'], ['BANK', `● ${record.bank}`, 'hot'], ...(daily && record.daily[today()] ? [['TODAY', Math.floor(record.daily[today()]).toLocaleString()] as [string, string]] : [])]);
-      hud.show(kicker, title(), [...steps(record.stage ?? 0), ...(briefing ? [hud.briefing(briefing)] : []), facts([RUNNER_THEME_NAMES[settings.theme], target, settings.chaser !== 'none' ? 'Chaser' : 'No chaser']), ...(objects.length ? [hud.section(settings.goal.type === 'objects' ? 'Find them all' : 'Bonus finds', hud.objectList(objects), micro('Objects appear one at a time inside a beam of light. Miss one and it turns up again further on.'))] : []), ...runnerMedalRow(record.medals?.[chapter] ?? 0), stats, micro(controls())], [
+      hud.show(kicker, title(), [...steps(mixed() ? chapter : record.stage ?? 0), ...(briefing ? [hud.briefing(briefing)] : []), facts([RUNNER_THEME_NAMES[settings.theme], target, settings.chaser !== 'none' ? 'Chaser' : 'No chaser']), ...(objects.length ? [hud.section(settings.goal.type === 'objects' ? 'Find them all' : 'Bonus finds', hud.objectList(objects), micro('Objects appear one at a time inside a beam of light. Miss one and it turns up again further on.'))] : []), ...runnerMedalRow(record.medals?.[chapter] ?? 0), stats, micro(controls())], [
         { label: 'Run', primary: true, run: start },
         ...(daily ? [{ label: 'Back to the main run', run: () => { daily = false;setup(); } }] : [{ label: 'Daily run', run: () => { daily = true;setup(); } }]),
         { label: 'Shop', run: shop },
@@ -253,7 +260,8 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     const stats: [string, string, ('good' | 'hot' | '')?][] = [['TIME', clock(r.time), newRace ? 'good' : ''], ['BEST LAP', clock(r.bestLap), newLap ? 'good' : '']];
     const right: HTMLElement[] = [], actions: CardAction[] = [{ label: 'Race again', primary: true, run: start }];
     let cupWin = '';
-    if (rounds() > 1 && !daily) {
+    if (mixed() && !daily && chapter + 1 < rounds()) actions.unshift(nextChapter('race'));
+    if (cupGame() && !daily) {
       const cup = cupRecord(gameKey()), you = project.character.name || 'You';
       if (fresh && cup.round === chapter && !cup.complete) {
         standings.forEach((c, i) => { const name = c.ai ? c.driver : you;cup.points[name] = (cup.points[name] ?? 0) + (POINTS[i] ?? 0); });
@@ -263,7 +271,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       stats.push(['CASH', `$${cup.cash}`, 'hot'], ...(settledNotes.earned ? [['EARNED', `+$${settledNotes.earned}`, 'good'] as [string, string, 'good']] : []));
       right.push(hud.section(cup.complete ? 'Final cup standings' : `Cup after race ${chapter + 1} of ${rounds()}`, hud.bars(order.map(([name, value]) => ({ name, value, you: name === you })))));
       if (cup.complete) cupWin = order[0]?.[0] === you ? 'YOU WIN THE CUP' : `${order[0]?.[0].toUpperCase()} WINS THE CUP`;
-      if (!cup.complete && chapter + 1 < rounds()) actions.unshift({ label: `Next race: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup(); } });
+      if (!cup.complete && chapter + 1 < rounds()) actions.unshift(nextChapter('race'));
       actions.push({ label: 'Garage', run: garage });
       if (cup.complete) actions.push({ label: 'Restart the cup', run: () => { saveCup(gameKey(), { round: 0, points: {}, cash: 0, garage: cup.garage, car: cup.car, paint: cup.paint, complete: false });chapter = 0;setup(); } });
     }
@@ -294,7 +302,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     const objects = g.settings.objects ?? [], finds = objects.length ? [hud.section(`Objects · ${objects.reduce((n, o, i) => n + Math.min(g.found[i] ?? 0, o.count), 0)} of ${objects.reduce((n, o) => n + o.count, 0)}`, hud.objectList(objects, g.found))] : [];
     const missions = hud.section(`Missions · ×${1 + record.missionLevel} multiplier`, hud.checklist(g.missions.map((m, i) => ({ label: m.label, done: !!g.missionsDone[i], progress: g.missionProgress(i) }))), micro('Finish all three to raise your score multiplier.'));
     const actions: CardAction[] = [{ label: 'Run again', primary: true, run: start }, { label: 'Shop', run: shop }];
-    if (rounds() > 1 && (won || g.settings.goal.type === 'endless') && chapter + 1 < rounds()) { actions[0] = { ...actions[0], primary: false };actions.unshift({ label: `Next stage: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { chapter++;setup(); } }); }
+    if (rounds() > 1 && (won || g.settings.goal.type === 'endless') && chapter + 1 < rounds()) { actions[0] = { ...actions[0], primary: false };actions.unshift(nextChapter('stage')); }
     if (!daily) actions.push({ label: 'Daily run', run: () => { daily = true;setup(); } });
     const kicker = daily ? `DAILY RUN · ${today()}` : won ? 'GOAL REACHED' : { crash: 'CRASHED', fall: 'FELL', caught: 'CAUGHT' }[g.downReason ?? 'crash'] ?? 'RUN OVER';
     hud.show(`${kicker} · ${RUNNER_THEME_NAMES[g.settings.theme].toUpperCase()}`, `${score.toLocaleString()} points`, [hud.columns([stats, ...(notes.length ? [hud.badges(notes)] : []), ...runnerMedalRow(record.medals?.[chapter] ?? 0, settledNotes.newMedal ? settledNotes.medal : 0), ...finds], [missions])], actions, 'wide', hud.aside('BANK', `● ${record.bank.toLocaleString()}`));
@@ -358,7 +366,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     if (setupOpen() && phase === 'playing' && !paused) setPause(true);
     if (input.tap('Escape', 'KeyP') || input.gamepad()?.edge[9]) { if (phase === 'playing') setPause(!paused); }
     if ((input.tap('KeyR') || input.gamepad()?.edge[8]) && (phase === 'playing' || phase === 'results')) start();
-    sfx.enabled = audioOn();music.setMuted(!audioOn());{ const w = project.mission.environment?.weather;sfx.weather(w === 'rain' || w === 'sandstorm' ? w : 'none', active && !paused && phase !== 'intro'); }
+    sfx.enabled = audioOn();music.setMuted(!audioOn());sfx.weather(bedFor(project.mission.environment?.weather, race?.track.theme ?? runner?.settings.theme ?? ''), active && !paused && phase !== 'intro');
     const dt = real * feel.timeScale, running = phase === 'playing' && !paused;
     if (race && raceView) {
       if (running) { race.update(real, raceInput(), feel.timeScale);raceEvents(); }
@@ -381,9 +389,10 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     active = on;input.active = on;hud.root.hidden = !on;document.body.classList.toggle('arcade-active', on);
     if (!on) { music.setPlaying(false);engine.update(false, 0, false);sfx.weather('none', false);paused = false; }
   }
-  function replace(nextProject: PlayProject, nextCast: PlayCast, playNow = true) {
-    root = nextProject;cast = nextCast;daily = false;
-    const cup = cupRecord(gameKey()), stage = runnerRecord(gameKey()).stage ?? 0;chapter = Math.min(rounds() - 1, mode() === 'race' ? (cup.complete ? 0 : cup.round) : stage);
+  /** Open a chapter's briefing; without one, carry on from the saved cup round or run stage. */
+  function replace(nextProject: PlayProject, nextCast: PlayCast, playNow = true, at = -1) {
+    root = nextProject;cast = nextCast;daily = false;chapter = Math.max(0, at);
+    if (at < 0) { const cup = cupRecord(gameKey()), stage = runnerRecord(gameKey()).stage ?? 0;chapter = Math.min(rounds() - 1, mode() === 'race' ? (cup.complete ? 0 : cup.round) : stage);if (modeAt(chapter) === 'mission') chapter = 0; }
     setup();if (playNow && active) start();
   }
   // A hidden page stops drawing frames, so the game pauses and its loops fall silent at once instead of on the next frame.
@@ -391,10 +400,10 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   document.getElementById('pause')?.addEventListener('click', () => { if (active && phase === 'playing') setPause(!paused); });
   // How to play shows this mode's controls instead of the mission briefing.
   document.getElementById('help')?.addEventListener('click', (e) => { if (!active) return;e.stopImmediatePropagation();if (phase === 'playing') setPause(true);else if (phase === 'intro') intro(); }, true);
-  replace(initialProject, initialCast, false);activate(true);if (play) start();
+  replace(initialProject, initialCast, false, startAt);activate(true);if (play) start();
   requestAnimationFrame(frame);
   return {
     get state() { return { mode: mode(), phase, paused, chapter, daily, race, runner, raceView, runnerView, project: root, chapterProject: project, feel, music }; },
-    replace, start, suspend: () => activate(false), resume: () => activate(true),
+    replace, start, suspend: () => activate(false), resume: () => activate(true), set onChapter(f: ((index: number) => void) | undefined) { onChapter = f; },
   };
 }

@@ -4,8 +4,13 @@
  * Silent until a user gesture unlocks audio; respects the game's mute.
  */
 import { soundEffectById } from '../../studio/audio/effects-catalog';
-const WEATHER_EFFECT = { rain: 'heavy-rain', sandstorm: 'sandstorm' } as const;
-const WEATHER_LEVEL = { rain: { noise: 0.16, recorded: 0.7 }, sandstorm: { noise: 0.22, recorded: 0.45 } } as const;
+/** Weather beds and the ambience of each terrain: rainforest birdsong, waves on the coast, wind on snow and peaks. */
+export type Bed = 'rain' | 'sandstorm' | 'birds' | 'ocean' | 'wind';
+const WEATHER_EFFECT = { rain: 'heavy-rain', sandstorm: 'sandstorm', birds: 'forest-birds', ocean: 'ocean', wind: 'wind' } as const;
+const WEATHER_LEVEL = { rain: { noise: 0.16, recorded: 0.7 }, sandstorm: { noise: 0.22, recorded: 0.45 }, birds: { noise: 0, recorded: 0.35 }, ocean: { noise: 0.05, recorded: 0.4 }, wind: { noise: 0.08, recorded: 0.32 } } as const;
+const AMBIENCE: Record<string, Bed> = { jungle: 'birds', forest: 'birds', 'jungle-ruins': 'birds', 'temple-ruins': 'birds', beach: 'ocean', 'beach-boardwalk': 'ocean', harbour: 'ocean', lagoon: 'ocean', snow: 'wind', mountain: 'wind', 'snowy-peaks': 'wind', 'haunted-forest': 'wind', desert: 'wind', 'desert-canyon': 'wind' };
+/** The bed for a race or run: its weather, otherwise its terrain's ambience. */
+export const bedFor = (weather: string | undefined, theme: string): Bed | 'none' => (weather === 'rain' || weather === 'sandstorm' ? weather : AMBIENCE[theme] ?? 'none');
 /** A loop of the recording whose end crossfades into its start, so the seam is not heard. */
 function seamless(c: BaseAudioContext, b: AudioBuffer) {
   const fade = Math.min(Math.floor(b.sampleRate * 0.4), Math.floor(b.length / 3)), length = b.length - fade, out = c.createBuffer(b.numberOfChannels, length, b.sampleRate);
@@ -44,10 +49,10 @@ export class ArcadeSfx {
     s.connect(f).connect(g).connect(this.master!);s.start(t, Math.random() * 0.5);s.stop(t + length + 0.02);
   }
   private bed?: { source: AudioBufferSourceNode; gain: GainNode; kind: string; level: number; recorded: boolean };
-  private recordings = new Map<'rain' | 'sandstorm', AudioBuffer | null>();
+  private recordings = new Map<Bed, AudioBuffer | null>();
   private loading = new Set<string>();
   /** Fetch and decode a weather recording once; a failure leaves the noise bed in place. */
-  private loadWeather(kind: 'rain' | 'sandstorm') {
+  private loadWeather(kind: Bed) {
     const c = this.context, effect = soundEffectById(WEATHER_EFFECT[kind]);if (!c || !effect || this.recordings.has(kind) || this.loading.has(kind)) return;
     this.loading.add(kind);
     const base = new URL(import.meta.env?.BASE_URL ?? '/', location.href);
@@ -56,18 +61,18 @@ export class ArcadeSfx {
       .finally(() => { this.loading.delete(kind);if (this.bed?.kind === kind && !this.bed.recorded && this.recordings.get(kind)) { const { level } = this.bed;this.bed.gain.gain.setTargetAtTime(0, c.currentTime, 0.3);const old = this.bed.source;setTimeout(() => { try { old.stop(); } catch { /* Ended. */ } }, 1200);this.bed = undefined;this.weather(kind, level > 0); } });
   }
   /** A looping rain or sandstorm bed; it follows the play state and the game's mute. */
-  weather(kind: 'rain' | 'sandstorm' | 'none', on: boolean) {
+  weather(kind: Bed | 'none', on: boolean) {
     const c = this.context;if (!c || !this.noise || !this.master) return;
     if (this.bed && this.bed.kind !== kind) { this.bed.source.stop();this.bed = undefined; }
     if (!this.bed && kind !== 'none') {
       this.loadWeather(kind);
       const recording = this.recordings.get(kind), source = c.createBufferSource(), gain = c.createGain();source.loop = true;gain.gain.value = 0;
       if (recording) { source.buffer = recording;source.connect(gain); }
-      else { const filter = c.createBiquadFilter();source.buffer = this.noise;filter.type = kind === 'rain' ? 'highpass' : 'lowpass';filter.frequency.value = kind === 'rain' ? 1400 : 650;source.connect(filter).connect(gain); }
+      else { const filter = c.createBiquadFilter();source.buffer = this.noise;filter.type = kind === 'rain' ? 'highpass' : 'lowpass';filter.frequency.value = kind === 'rain' ? 1400 : kind === 'ocean' ? 420 : 650;source.connect(filter).connect(gain); }
       gain.connect(this.master);source.start();this.bed = { source, gain, kind, level: 0, recorded: !!recording };
     }
     if (!this.bed) return;
-    const levels = WEATHER_LEVEL[this.bed.kind as 'rain' | 'sandstorm'], level = on && this.enabled ? (this.bed.recorded ? levels.recorded : levels.noise) : 0;
+    const levels = WEATHER_LEVEL[this.bed.kind as Bed], level = on && this.enabled ? (this.bed.recorded ? levels.recorded : levels.noise) : 0;
     if (this.bed.level !== level) { this.bed.level = level;this.bed.gain.gain.setTargetAtTime(level, c.currentTime, level ? 0.4 : 0.12); }
   }
   /** `strength` 0..1 scales impacts; repeated sounds are rate-limited so a long scrape cannot stack. */

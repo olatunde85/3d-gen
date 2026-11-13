@@ -12,7 +12,7 @@ import {EscapeGame} from './runtime';
 import {defaultDriving} from './driving';
 import {defaultCity} from './city';
 import {CarRadio} from './radio';
-import {heroWeapon,chapterProject,posesOf,type PlayProject} from './project';
+import {heroWeapon,chapterProject,gameProjects,posesOf,type PlayProject} from './project';
 import {planTraversal} from './motor';
 import {traceShot,type Point3} from './combat';
 import {mountArcade,type ArcadePlayer} from './arcade/player';
@@ -56,7 +56,10 @@ function chapterIntro(){
 }
 function selectChapter(index:number){scene.configureHubPedestrians([]);for(const actor of new Set([hero,...guards.values(),...(companionActor?[companionActor]:[])]))actor.render.group.removeFromParent();chapterIndex=index;selectedBranch=0;cashAwarded=false;project=chapterProject(rootProject,index);activeCast=index===0?rootCast:rootCast.chapters![index-1];hero=activeCast.hero;guards=activeCast.guards;companionActor=activeCast.companion;for(const actor of new Set([hero,...guards.values(),...(companionActor?[companionActor]:[])]))scene.scene.add(actor.render.group);reset();chapterIntro();button('start').focus({preventScroll:true});}
 function freshCampaign(){inHub=false;hubCashCredited=0;try{localStorage.removeItem(campaignKey(campaignRecipe(rootProject)));}catch{/* optional progress */}scores=[];campaignPath=[];campaignFlags=[];campaignComplete=false;campaignWeapon='none';campaignCash=0;campaignArmor=false;campaignGrenades=0;cashAwarded=false;campaignLives=rootProject.mission.lives==='unlimited'?null:rootProject.mission.lives;selectChapter(0);}
-function nextChapter(){if(!moreChapters())return;storedAmmo.clear();pendingChapter=nextTarget();campaignLives=game.remainingLives;if(isGun(game.playerCombat.weapon))campaignWeapon=strongerWeapon(campaignWeapon,game.playerCombat.weapon);scores.push(completedRow());campaignPath.push(chapterIndex);saveProgress(pendingChapter);inHub=true;hubCashCredited=0;const city=rootProject.city??defaultCity();for(const actor of guards.values())actor.render.group.removeFromParent();guards=new Map(project.enemies.slice(0,3).map((enemy,i)=>[enemy.id,rootCast.police?.get(`officer-${i}`)??activeCast.guards.get(enemy.id)!]));for(const actor of guards.values())scene.scene.add(actor.render.group);scene.configureHubPedestrians(rootCast.pedestrians??[]);const hubMission={...project.mission,location:'urban-block' as const,story:'getaway' as const,extraction:'pickup' as const,plan:'breakout' as const,layout:'open' as const,variation:0,driveDifficulty:'easy' as const,steps:undefined,cargo:'none' as const,sideQuests:(chapterProject(rootProject,pendingChapter).mission.sideQuests??[]).filter(id=>id!=='bounty'),pursuit:false,overwatch:city.police},police=project.enemies.slice(0,3).map(e=>({...e,kind:'guard' as const,response:'pistol' as const,aggression:'relentless' as const}));game=new EscapeGame(hubMission,police,{...project.loadout,weapon:strongerWeapon(campaignWeapon,project.loadout.weapon),health:campaignArmor?150:project.loadout.health,grenades:Math.max(campaignGrenades,project.loadout.grenades??0) as 0|2|5},100,{...project.progression,weapon:'loadout',reward:undefined},{...defaultDriving(),...project.vehicle},true,city);game.remainingLives=campaignLives;equipHero();game.player.radius=actorRadius(hero,project.character.weight);game.player.height=hero.render.height;game.player.animationScale=hero.render.scale;game.player.grenadeRelease=hero.grenadeRelease;for(const enemy of game.enemies){const actor=guards.get(enemy.id)!;enemy.radius=actorRadius(actor,actor.render.character.params.weight);enemy.height=actor.render.height;enemy.animationScale=actor.render.scale;}scene.configurePickup(hero,game);if(game.assaultCarEnabled)scene.configurePursuit(guards.get(game.assaultDriver?.id??game.guard.id)!,game);scene.configureRace(guards.get(game.guard.id)!,game);scene.configureHubFleet(hero,game);syncCast();scene.configureCamera(project.camera,game);$('location-label').textContent='CITY DISTRICT / FREE ROAM';$('map-label').textContent='CITY DISTRICT / NORTH ↑';$('map').setAttribute('aria-label','City district map. White is you, green is the next mission, cyan marks side jobs and red marks police.');lastState='';seenEventTime=-1;clearInput();game.start();setPaused(false);renderHud();canvas.focus({preventScroll:true});}
+function nextChapter(){if(!moreChapters())return;storedAmmo.clear();pendingChapter=nextTarget();campaignLives=game.remainingLives;if(isGun(game.playerCombat.weapon))campaignWeapon=strongerWeapon(campaignWeapon,game.playerCombat.weapon);scores.push(completedRow());campaignPath.push(chapterIndex);saveProgress(pendingChapter);if((chapterProject(rootProject,pendingChapter).mode??'mission')!=='mission'){onChapter?.(pendingChapter);return;}inHub=true;hubCashCredited=0;const city=rootProject.city??defaultCity();for(const actor of guards.values())actor.render.group.removeFromParent();guards=new Map(project.enemies.slice(0,3).map((enemy,i)=>[enemy.id,rootCast.police?.get(`officer-${i}`)??activeCast.guards.get(enemy.id)!]));for(const actor of guards.values())scene.scene.add(actor.render.group);scene.configureHubPedestrians(rootCast.pedestrians??[]);const hubMission={...project.mission,location:'urban-block' as const,story:'getaway' as const,extraction:'pickup' as const,plan:'breakout' as const,layout:'open' as const,variation:0,driveDifficulty:'easy' as const,steps:undefined,cargo:'none' as const,sideQuests:(chapterProject(rootProject,pendingChapter).mission.sideQuests??[]).filter(id=>id!=='bounty'),pursuit:false,overwatch:city.police},police=project.enemies.slice(0,3).map(e=>({...e,kind:'guard' as const,response:'pistol' as const,aggression:'relentless' as const}));game=new EscapeGame(hubMission,police,{...project.loadout,weapon:strongerWeapon(campaignWeapon,project.loadout.weapon),health:campaignArmor?150:project.loadout.health,grenades:Math.max(campaignGrenades,project.loadout.grenades??0) as 0|2|5},100,{...project.progression,weapon:'loadout',reward:undefined},{...defaultDriving(),...project.vehicle},true,city);game.remainingLives=campaignLives;equipHero();game.player.radius=actorRadius(hero,project.character.weight);game.player.height=hero.render.height;game.player.animationScale=hero.render.scale;game.player.grenadeRelease=hero.grenadeRelease;for(const enemy of game.enemies){const actor=guards.get(enemy.id)!;enemy.radius=actorRadius(actor,actor.render.character.params.weight);enemy.height=actor.render.height;enemy.animationScale=actor.render.scale;}scene.configurePickup(hero,game);if(game.assaultCarEnabled)scene.configurePursuit(guards.get(game.assaultDriver?.id??game.guard.id)!,game);scene.configureRace(guards.get(game.guard.id)!,game);scene.configureHubFleet(hero,game);syncCast();scene.configureCamera(project.camera,game);$('location-label').textContent='CITY DISTRICT / FREE ROAM';$('map-label').textContent='CITY DISTRICT / NORTH ↑';$('map').setAttribute('aria-label','City district map. White is you, green is the next mission, cyan marks side jobs and red marks police.');lastState='';seenEventTime=-1;clearInput();game.start();setPaused(false);renderHud();canvas.focus({preventScroll:true});}
+/** Open a mission chapter after an arcade chapter in a mixed campaign: lives, cash and weapons carry over. */
+function playChapter(index:number){inHub=false;selectChapter(index);saveProgress();}
+let onChapter:((index:number)=>void)|undefined;
 function launchHubChapter(){if(!inHub)return;campaignLives=game.remainingLives;inHub=false;selectChapter(pendingChapter);saveProgress();start();}
 const storyView=new StoryView(scene,!document.getElementById('settings'));let openingPlayed=false,endingPlayed=false;
 const loading=false,keys=new Set<string>();let interact=false,jump=false,touchRun=false,joystick={x:0,z:0},stickPointer:number|undefined,look:{id:number;x:number;y:number}|undefined,last=performance.now(),seenEventTime=-1,noticeUntil=0,lastState='',returnToPlay=false,reportedMusicError='';
@@ -251,22 +254,35 @@ for(const actor of [hero,...guards.values(),...(companionActor?[companionActor]:
 reset();chapterIntro();$('actor-name').textContent=project.character.name;button('start').disabled=false;button('help').disabled=false;button('sound').disabled=false;requestAnimationFrame(frame);
 function suspend(){if(suspended)return;setPaused(false);suspended=true;music.setPlaying(false);engineSound.stop();pursuitSound.stop();radio.stop();clearInput();}
 function resume(){suspended=false;}
-return {get state(){return {game,scene,hero,guard:guards.get(game.guard.id),guards,companionActor,project:rootProject,chapterProject:project,chapter:chapterIndex,paused,loading,music};},replace,openSettings:()=>{if(setup)openModal(setup);},closeSettings:closeModal,suspend,resume};
+return {get state(){return {game,scene,hero,guard:guards.get(game.guard.id),guards,companionActor,project:rootProject,chapterProject:project,chapter:chapterIndex,paused,loading,music};},get project(){return rootProject;},replace,playChapter,set onChapter(f:((index:number)=>void)|undefined){onChapter=f;},openSettings:()=>{if(setup)openModal(setup);},closeSettings:closeModal,suspend,resume};
 }
-const arcadeMode=(p:PlayProject)=>p.mode==='race'||p.mode==='runner';
+const modeAt=(p:PlayProject,index:number)=>chapterProject(p,index).mode??'mission';
 /**
- * The game player: staged missions use the mission player; race and runner modes hand the canvas to the arcade
- * player. Switching modes suspends one and resumes the other without reloading the page.
+ * The game player: staged missions use the mission player; race and runner chapters hand the canvas to the arcade
+ * player. A campaign can mix modes, so finishing a chapter hands over to whichever player runs the next one, without
+ * reloading the page.
  */
 export function mountPlayer(scene:GameScene,initialProject:PlayProject,initialCast:PlayCast,hooks:PlayerHooks={}){
- const mission=mountMissionPlayer(scene,initialProject,initialCast,hooks);let arcade:ArcadePlayer|undefined,current=initialProject;
- if(arcadeMode(initialProject)){mission.suspend();arcade=mountArcade(scene,initialProject,initialCast,hooks);}
- function replace(next:PlayProject,cast:PlayCast,play=true){
-  current=next;
-  // An applied arcade game opens on its briefing card, so the player starts the race or run when ready.
-  if(arcadeMode(next)){mission.suspend();if(arcade){arcade.resume();arcade.replace(next,cast,false);}else arcade=mountArcade(scene,next,cast,hooks);}
-  else{arcade?.suspend();mission.resume();mission.replace(next,cast,play);}
+ const mission=mountMissionPlayer(scene,initialProject,initialCast,hooks);let arcade:ArcadePlayer|undefined,current=initialProject,currentCast=initialCast,onArcade=false;
+ /** Hand the canvas to the arcade player at a chapter; it opens on that chapter's briefing card. */
+ function toArcade(index:number,play=false){
+  mission.suspend();onArcade=true;
+  if(arcade){arcade.resume();arcade.replace(current,currentCast,play,index);}else{arcade=mountArcade(scene,current,currentCast,hooks,play,index);arcade.onChapter=toMission;}
  }
- return {get state(){return arcadeMode(current)&&arcade?arcade.state:mission.state;},replace,openSettings:mission.openSettings,closeSettings:mission.closeSettings};
+ function toMission(index:number){
+  arcade?.suspend();onArcade=false;mission.resume();
+  if(mission.project!==current)mission.replace(current,currentCast,false);
+  mission.playChapter(index);
+ }
+ mission.onChapter=index=>toArcade(index);
+ // A saved campaign may resume on an arcade chapter.
+ const opening=Math.min(mission.state.chapter,current.chapters?.length??0);if(modeAt(current,opening)!=='mission')toArcade(opening);
+ function replace(next:PlayProject,cast:PlayCast,play=true){
+  current=next;currentCast=cast;
+  // An applied arcade game opens on its briefing card, so the player starts the race or run when ready.
+  if(modeAt(next,0)!=='mission'){const mixed=gameProjects(next).some(p=>(p.mode??'mission')==='mission');toArcade(mixed?0:-1);}
+  else{arcade?.suspend();onArcade=false;mission.resume();mission.replace(next,cast,play);}
+ }
+ return {get state(){return onArcade&&arcade?arcade.state:mission.state;},replace,openSettings:mission.openSettings,closeSettings:mission.closeSettings};
 }
 export type Player=ReturnType<typeof mountPlayer>;

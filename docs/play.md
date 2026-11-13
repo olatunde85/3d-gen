@@ -6,11 +6,24 @@ Five measured locations, objective chains, enemy roles, ground and helicopter ex
 
 ## Game modes
 
-**Game setup → Mission → What kind of game?** chooses the rules: **Mission** (the staged maps described below), **Arcade race** or **Endless runner**. Race and runner games keep the same four sections: **Mission** picks the circuit or course and the format (laps, or the runner's goal); **Cast** picks your car and the field of rivals, or the chaser, beside the usual character tabs; **Challenge** sets handling, boosts and pickups, or pace, obstacles and power-ups; **Atmosphere** keeps the music. Mission-only controls are set aside while an arcade mode is chosen. Every mode uses the same hero, cast, music, chapters, saved setups and independent game ZIP. Enemy characters drive the rival cars or play the runner's chaser. In JSON, `"mode": "race"` or `"mode": "runner"` sits at the top level with a matching `race` or `runner` object; chapters share the mode and can each set their own race or runner settings. In race and runner modes the sequence above the sections lists cup races or run stages, and **Make it yours** sets the title and briefing. Each race or stage opens on a briefing card with its briefing, if one is set, and the cup or stage list with finished chapters ticked; **Next race** or **Next stage** opens that briefing. Until the creator names it, an arcade game or chapter takes the name of its circuit or course; a chapter added in an arcade mode takes the next unused circuit or course.
+**Game setup → Mission → What kind of game?** chooses the rules: **Mission** (the staged maps described below), **Arcade race** or **Endless runner**. Race and runner games keep the same four sections: **Mission** picks the circuit or course and the format (laps, or the runner's goal); **Cast** picks your car and the field of rivals, or the chaser, beside the usual character tabs; **Challenge** sets handling, boosts and pickups, or pace, obstacles and power-ups; **Atmosphere** keeps the music. Mission-only controls are set aside while an arcade mode is chosen. Every mode uses the same hero, cast, music, chapters, saved setups and independent game ZIP. Enemy characters drive the rival cars or play the runner's chaser. In JSON, `"mode": "race"` or `"mode": "runner"` sits at the top level with a matching `race` or `runner` object. Each chapter plays its own mode, chosen under **What kind of game?** while that chapter is selected, so one campaign can run a mission, then a street race, then a rooftop escape. A chapter without a `mode` plays the first chapter's mode and, within that mode, inherits its race or runner settings unless it sets its own. In race and runner games the sequence above the sections lists cup races or run stages, or campaign chapters when modes are mixed, and **Make it yours** sets the title and briefing. Each race or stage opens on a briefing card with its briefing, if one is set, and the cup or stage list with finished chapters ticked; **Next race** or **Next stage** opens that briefing. Until the creator names it, an arcade game or chapter takes the name of its circuit or course; a chapter added in an arcade mode takes the next unused circuit or course.
 
 ### Arcade race
 
-Choose one of four circuits (City Loop, Desert Run, Harbour Sprint and Forest Ring), or supply a custom circuit as 6–64 `[x, z]` control points in metres with a width of 10–24 m. Custom loops are 400–6000 m long, cannot cross or touch themselves, and need corners no tighter than the road allows. Built-in circuits add ramps, and City Loop has a shortcut.
+Choose one of eleven circuits, or supply a custom circuit as 6–64 `[x, z]` control points in metres with a width of 10–24 m and any circuit theme. Custom loops are 400–6000 m long, cannot cross or touch themselves, and need corners no tighter than the road allows. Built-in circuits add ramps, and City Loop and Neon District have shortcuts.
+
+| Circuit | Theme | Ground |
+| --- | --- | --- |
+| City Loop, Desert Run, Harbour Sprint, Forest Ring | City, desert, harbour, forest | Level road with hills, mesas or skyline in the distance |
+| Glacier Loop | Snow and ice | Snowy pines and peaks; the road rolls with the hills; soft snow verges, ice patches and icy traction; rain falls as snow |
+| Palm Coast | Tropical coast | Palms, beach huts and the sea beside the road; sand verges slow cars that run wide |
+| Neon District | Neon night city | Towers with lit windows, neon signs spilling colour on a wet road, lit barrier strips; always at night |
+| Jungle Falls | Jungle | A dirt road through rainforest past waterfalls; mud verges and mud patches; fireflies at night |
+| Lagoon Bridges | Lagoon city | City islands joined by bridges over a lagoon, with parked minibuses and tricycles and roadside stalls |
+| Mountain Pass | Mountain pass | Switchbacks that climb and fall up to 11% past cliffs and cuttings behind guard rails |
+| Kart Arena | Kart arena | A short, tight circuit inside tyre walls and grandstands full of spectators |
+
+Climbs slow cars and descents speed them up; cars tilt with the road and the camera follows them up and down. Soft verges beside the road are drivable but slow, mud patches drag and ice patches take away grip for a moment. Each circuit stands on its own land, which meets the road and rises or falls away from it, under a sky with a distant horizon of peaks, palms, canopy, skyline or mesas.
 
 | Setting | Effect |
 | --- | --- |
@@ -22,6 +35,7 @@ Choose one of four circuits (City Loop, Desert Run, Harbour Sprint and Forest Ri
 | `nitro` | A meter that refills slowly and from drift boosts; hold Nitro on straights |
 | `pickups` | Boost pads; item boxes giving a boost, an oil slick to drop behind or a nitro refill; oil-slick hazards |
 | `ghost` | Records the best lap and replays it as a translucent car |
+| `traction` | `icy` makes every car slide wide; `normal` keeps full grip. Without it, snow circuits are icy and the others normal |
 | `car` | Sports car, muscle car, saloon, go-kart, SUV, pickup, danfo, van, box truck, motorcycle, scooter, quad bike or keke, each with its own top speed, acceleration and grip, plus a paint colour |
 
 A countdown starts each race; throttle pressed just before GO gives a launch boost. Walls bounce cars back instead of wrecking them, and a car that is stuck or driving the wrong way returns to the road. **F** returns the player to the road at any time. The HUD shows position, laps, lap and best times, the ghost delta, speed, nitro, drift charge, the held item and a minimap. The results show a podium, the finishing order with car colours and gaps to the winner, the race and best-lap times with any new records, and in a cup the cash earned and the points table.
@@ -30,7 +44,7 @@ Best laps, best race times and the best-lap ghost are kept per circuit in the br
 
 ### Endless runner
 
-The course is generated from straights, corners and T-junctions in the chosen theme (temple ruins, city rooftops, desert canyon or market street) and gets harder with distance: shorter straights, tighter spacing and more combined obstacles. Every obstacle leaves a way through.
+The course is generated from straights, corners and T-junctions in the chosen theme and gets harder with distance: shorter straights, tighter spacing and more combined obstacles. Every obstacle leaves a way through.
 
 | Obstacle | Way through |
 | --- | --- |
@@ -44,7 +58,21 @@ Clipping a low barrier or a bar is a **stumble**: the runner slows and the chase
 
 Coins sit in lines and arcs over jumps. Power-ups are the coin magnet, shield, speed boost and ×2 score. Score is distance plus coins, times the multiplier. Three missions at a time (for example collect coins, run a distance or jump a number of times) raise the multiplier when all three are done. Coins are banked once per run, and the run's result shows distance, coins, multiplier, best score and mission progress. The **Shop** spends banked coins on five levels of each power-up and on extra runners: the enemies. A `goal` of distance, coins or score completes a stage; with chapters, each stage opens the next. `seed` gives every player the same course, and the **daily run** uses a course chosen by the date.
 
-**Market street** runs between rows of stalls under coloured umbrellas on raised pavements, so gaps are trenches cut into the road. Moving carts are yellow minibuses driving toward the runner, and lane blockers are parked tricycles.
+Each theme draws its own obstacles, props, floor, sky and what lies below the gaps:
+
+| Theme | Jump | Slide under | Lane blockers | Moving carts | Below the gaps and around |
+| --- | --- | --- | --- | --- | --- |
+| Temple ruins | Fallen slabs | Stone lintels | Broken walls | Mine carts | Jungle far below; pillars and ferns |
+| City rooftops | Barriers | Pipes | Rooftop blocks | Carts | The street far below; skyline |
+| Desert canyon | Rock ledges | Timber beams | Rock blocks | Carts | Canyon floor between rock walls |
+| Market street | Produce crates | Striped awnings | Parked tricycles | Yellow minibuses | Trenches in the road; stalls under umbrellas on raised pavements |
+| Snowy peaks | Snowdrifts | Icicle beams | Ice blocks | Giant snowballs | Snowfields; ice-cave arches and falling snow |
+| Beach boardwalk | Cool boxes | Volleyball nets | Surfboard racks | Ice-cream carts | The sea under the planks; palms, umbrellas and beach huts |
+| Neon city | Lit kerbs | Neon beams | Sign blocks | Night cars | The lit city far below; always at night |
+| Jungle ruins | Mossy logs | Hanging vines | Stone idols | Rolling boulders | A river under broken bridges; stone gateways |
+| Train yard | Buffer stops | Signal barriers | Parked wagons | Carriages, 6.5 m long | Rails in every lane, platforms, gantries and tunnels |
+| Volcano | Magma vents | Charred beams | Basalt columns | Fire boulders | Lava; drifting embers |
+| Haunted forest | Grave rows | Low branches | Broken fences | A runaway hearse | Fog, dead trees and fireflies; always at night |
 
 #### Medals
 
@@ -173,7 +201,7 @@ Story media is content-addressed and stored in browser-owned IndexedDB so reload
 
 Automatic checkpoints save completed goals, defeated targets, collected supplies, ammunition, grenades, cargo and rewards together. Chain checkpoints retain completed steps. Pickup road checkpoints restore safe parked positions and ordered route progress. Retries consume a life, preserve the run’s accumulated time, and provide three seconds of protection. Active ordnance and partial actions are cleared. Checkpoints Off restarts the mission’s objectives.
 
-Campaigns contain the first mission plus up to four additional chapters. The hero, remaining life budget and strongest unlocked firearm carry forward; chapters can independently choose locations, objectives, casts, atmosphere, music and story. Beginning a chapter restores its configured health/ammunition. Reloading resumes the latest unlocked chapter, with prior chapter scores and weapon unlocks. Restart campaign clears campaign progress.
+Campaigns contain the first chapter plus up to nine more, and each chapter can be a mission, a race or a run. When a chapter finishes, **Next** opens the following one in its own mode. The hero, remaining life budget and strongest unlocked firearm carry forward between missions; chapters can independently choose locations, objectives, casts, atmosphere, music and story. Beginning a chapter restores its configured health/ammunition. Reloading resumes the latest unlocked chapter, with prior chapter scores and weapon unlocks. Restart campaign clears campaign progress.
 
 Completed runs award **No alarms**, **No damage** and **Under par** medals. Default par time is 180 seconds and can be changed. Retry history cannot erase damage or alarms. Medal records persist locally and chapter results carry their awarded medals. Scoring can be Off, Objectives or Action; action scoring additionally rewards defeated enemies.
 

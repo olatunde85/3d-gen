@@ -14,15 +14,15 @@ const plural = (n: number, one: string, many = one + 'S') => `${n} ${n === 1 ? o
 /** Read what the loading card needs from a saved or exported game; anything unreadable falls back to the defaults. */
 export function loadingGame(input: unknown): LoadingGame {
   const raw = (input && typeof input === 'object' ? input : {}) as Raw, mode: PlayMode = raw.mode === 'race' || raw.mode === 'runner' ? raw.mode : 'mission';
-  const chapters = 1 + (Array.isArray(raw.chapters) ? raw.chapters.length : 0), briefing = typeof raw.identity?.briefing === 'string' ? raw.identity.briefing.trim() : '';
+  const chapters = 1 + (Array.isArray(raw.chapters) ? raw.chapters.length : 0), mixed = Array.isArray(raw.chapters) && raw.chapters.some((c) => c && typeof c === 'object' && 'mode' in c && ((c as { mode?: string }).mode ?? mode) !== mode), briefing = typeof raw.identity?.briefing === 'string' ? raw.identity.briefing.trim() : '';
   const title = (() => { try { return gameTitle({ mode, race: raw.race, runner: raw.runner, identity: { title: raw.identity?.title ?? '' } }) || 'Ara Play'; } catch { return 'Ara Play'; } })();
   if (mode === 'race') {
     const race = raw.race, place = (() => { try { return arcadeTitle({ mode, race }); } catch { return 'Circuit'; } })(), laps = Number(race?.laps) || 3, cars = 1 + (Number(race?.opponents) || 0);
-    return { mode, title, place, story: briefing || `Line up on ${place} and race for the podium.`, facts: [plural(laps, 'LAP'), plural(cars, 'CAR'), ...(chapters > 1 ? [plural(chapters, 'RACE')] : [])], label: 'Warming up the grid…', note: 'Building your racers, cars and circuit.' };
+    return { mode, title, place, story: briefing || `Line up on ${place} and race for the podium.`, facts: [plural(laps, 'LAP'), plural(cars, 'CAR'), ...(chapters > 1 ? [plural(chapters, mixed ? 'CHAPTER' : 'RACE')] : [])], label: 'Warming up the grid…', note: 'Building your racers, cars and circuit.' };
   }
   if (mode === 'runner') {
     const theme = raw.runner?.theme, place = theme && theme in RUNNER_THEME_NAMES ? RUNNER_THEME_NAMES[theme as RunnerTheme] : 'The course';
-    return { mode, title, place, story: briefing || `Run ${place.toLowerCase()} as far as you can. Dodge, jump, slide and grab every coin.`, facts: ['ENDLESS RUN', ...(Array.isArray(raw.runner?.objects) && raw.runner.objects.length ? [plural(raw.runner.objects.reduce((n, o) => n + (Number(o?.count) || 1), 0), 'OBJECT')] : []), ...(raw.runner?.chaser && raw.runner.chaser !== 'none' ? ['1 CHASER'] : []), ...(chapters > 1 ? [plural(chapters, 'STAGE')] : [])], label: 'Laying out the course…', note: 'Building your runner and the course ahead.' };
+    return { mode, title, place, story: briefing || `Run ${place.toLowerCase()} as far as you can. Dodge, jump, slide and grab every coin.`, facts: ['ENDLESS RUN', ...(Array.isArray(raw.runner?.objects) && raw.runner.objects.length ? [plural(raw.runner.objects.reduce((n, o) => n + (Number(o?.count) || 1), 0), 'OBJECT')] : []), ...(raw.runner?.chaser && raw.runner.chaser !== 'none' ? ['1 CHASER'] : []), ...(chapters > 1 ? [plural(chapters, mixed ? 'CHAPTER' : 'STAGE')] : [])], label: 'Laying out the course…', note: 'Building your runner and the course ahead.' };
   }
   const location = LOCATIONS.find((l) => l.id === raw.mission?.location) ?? LOCATIONS[0], enemies = Array.isArray(raw.enemies) ? raw.enemies.length : 1, lives = Number(raw.mission?.lives) || 3;
   return { mode, title, place: location.name, story: briefing || location.description, facts: [plural(enemies, 'ENEMY', 'ENEMIES'), plural(lives, 'LIFE', 'LIVES'), ...(chapters > 1 ? [plural(chapters, 'CHAPTER')] : [])], label: `Preparing ${location.name.toLowerCase()}…`, note: 'Building your Ara characters.' };

@@ -24,12 +24,14 @@ export interface RaceSettings {
   handling: 'grip' | 'drift'; nitro: boolean; pickups: RacePickup[]; ghost: boolean; car: { model: RaceCar; color: string };
   /** False turns off podium medals; they are on by default. */
   medals?: false;
+  /** Road grip: icy loosens every car. Omitted means the circuit's own ground (snow is icy). */
+  traction?: 'normal' | 'icy';
 }
 export const defaultRace = (): RaceSettings => ({ track: 'city-loop', laps: 3, opponents: 5, aiSkill: 'medium', rubberBand: true, handling: 'drift', nitro: true, pickups: ['boost-pad'], ghost: true, car: { model: 'sports_car', color: '#c8372d' } });
 
-export type RunnerTheme = 'temple-ruins' | 'city-rooftops' | 'desert-canyon' | 'market-street';
-export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-rooftops', 'desert-canyon', 'market-street'];
-export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon', 'market-street': 'Market street' };
+export type RunnerTheme = 'temple-ruins' | 'city-rooftops' | 'desert-canyon' | 'market-street' | 'snowy-peaks' | 'beach-boardwalk' | 'neon-city' | 'jungle-ruins' | 'train-yard' | 'volcano' | 'haunted-forest';
+export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-rooftops', 'desert-canyon', 'market-street', 'snowy-peaks', 'beach-boardwalk', 'neon-city', 'jungle-ruins', 'train-yard', 'volcano', 'haunted-forest'];
+export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon', 'market-street': 'Market street', 'snowy-peaks': 'Snowy peaks', 'beach-boardwalk': 'Beach boardwalk', 'neon-city': 'Neon city', 'jungle-ruins': 'Jungle ruins', 'train-yard': 'Train yard', volcano: 'Volcano', 'haunted-forest': 'Haunted forest' };
 export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart';
 export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'];
 export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier';
@@ -70,7 +72,7 @@ const number = (value: unknown, min: number, max: number, label: string) => { if
 
 export function parseRace(raw: unknown): RaceSettings {
   if (raw === undefined) return defaultRace();
-  const p = record(raw, 'race', ['track', 'laps', 'opponents', 'aiSkill', 'rubberBand', 'handling', 'nitro', 'pickups', 'ghost', 'car', 'medals']), d = defaultRace();
+  const p = record(raw, 'race', ['track', 'laps', 'opponents', 'aiSkill', 'rubberBand', 'handling', 'nitro', 'pickups', 'ghost', 'car', 'medals', 'traction']), d = defaultRace();
   if (p.medals !== undefined && p.medals !== false && p.medals !== true) throw Error('race.medals must be true or false.');
   const car = p.car === undefined ? d.car : (() => {
     const c = record(p.car, 'race car', ['model', 'color']), model = c.model === undefined ? d.car.model : choice(c.model, RACE_CARS, `Choose a race car: ${RACE_CARS.join(', ')}.`), color = c.color ?? d.car.color;
@@ -86,7 +88,7 @@ export function parseRace(raw: unknown): RaceSettings {
     handling: p.handling === undefined ? d.handling : choice(p.handling, ['grip', 'drift'] as const, 'Choose grip or drift handling.'),
     nitro: p.nitro === undefined ? d.nitro : flag(p.nitro, 'race.nitro'),
     pickups: p.pickups === undefined ? d.pickups : subset(p.pickups, RACE_PICKUPS, 'race.pickups'),
-    ghost: p.ghost === undefined ? d.ghost : flag(p.ghost, 'race.ghost'), ...(p.medals === false ? { medals: false as const } : {}),
+    ghost: p.ghost === undefined ? d.ghost : flag(p.ghost, 'race.ghost'), ...(p.traction === undefined ? {} : { traction: choice(p.traction, ['normal', 'icy'] as const, 'Choose normal or icy race traction.') }), ...(p.medals === false ? { medals: false as const } : {}),
     car,
   };
 }

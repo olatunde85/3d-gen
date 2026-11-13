@@ -301,7 +301,7 @@ export class RunnerGame {
   private place(s: RunnerSegment, kind: RunnerObstacle, d: number, difficulty: number) {
     const r = this.random, t = this.thingPool.get(), all = 0b111, oneLane = () => 1 << Math.floor(r() * 3), twoLanes = () => all & ~oneLane();
     const lanes = kind === 'bar-high' || kind === 'gap' ? all : kind === 'barrier-low' ? (r() < 0.4 + difficulty * 0.4 ? all : twoLanes()) : kind === 'cart' ? oneLane() : r() < 0.35 + difficulty * 0.35 ? twoLanes() : oneLane();
-    Object.assign(t, { id: this.nextId++, kind, d, lanes, length: kind === 'gap' ? 2.6 + r() * difficulty * 1.4 : kind === 'cart' ? 2.2 : kind === 'blocker' ? 1.4 : 0.5, moving: kind === 'cart' ? 5 + difficulty * 4 : 0, hit: false, passed: false });
+    Object.assign(t, { id: this.nextId++, kind, d, lanes, length: kind === 'gap' ? 2.6 + r() * difficulty * 1.4 : kind === 'cart' ? (this.settings.theme === 'train-yard' ? 6.5 : 2.2) : kind === 'blocker' ? 1.4 : 0.5, moving: kind === 'cart' ? 5 + difficulty * 4 : 0, hit: false, passed: false });
     if (kind === 'cart') { const v = this.settings.startSpeed + (this.settings.maxSpeed - this.settings.startSpeed) * difficulty;t.d += (t.moving * 45) / (v + t.moving); }
     if (kind === 'gap') s.gaps.push([t.d, t.d + t.length]);
     s.things.push(t);
