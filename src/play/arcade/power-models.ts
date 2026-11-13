@@ -36,11 +36,12 @@ function bolt() {
 function multiplier() {
   const white = '#ffffff', z = 0.06, w = 0.05;
   const two: Part[] = [[box(0.16, w, 0.04, 0.12, 0.16, z), white], [box(w, 0.14, 0.04, 0.18, 0.09, z), white], [box(0.16, w, 0.04, 0.12, 0.0, z), white], [box(w, 0.14, 0.04, 0.06, -0.08, z), white], [box(0.16, w, 0.04, 0.12, -0.16, z), white]];
+  const face = (): Part[] => [[box(0.2, w, 0.04).rotateZ(Math.PI / 4).translate(-0.13, 0, z), white], [box(0.2, w, 0.04).rotateZ(-Math.PI / 4).translate(-0.13, 0, z), white], ...two.map(([g, c]) => [g.clone(), c] as Part)];
+  // The ×2 is on both faces, each reading the right way round from its own side.
   return painted([
     [cyl(0.4, 0.4, 0.08, 28).rotateX(Math.PI / 2), '#e8f6ea'],
     [cyl(0.34, 0.34, 0.1, 28).rotateX(Math.PI / 2), '#2f9e55'],
-    [box(0.2, w, 0.04).rotateZ(Math.PI / 4).translate(-0.13, 0, z), white], [box(0.2, w, 0.04).rotateZ(-Math.PI / 4).translate(-0.13, 0, z), white],
-    ...two,
+    ...face(), ...face().map(([g, c]) => [g.rotateY(Math.PI), c] as Part),
   ]);
 }
 
@@ -68,8 +69,8 @@ export function hoverDeck() {
     ...[-0.4, 0.4].flatMap((z) => [[box(0.36, 0.05, 0.08, 0, -0.06, z), '#9aa3ad'] as Part, ...[-1, 1].map((x) => [cyl(0.075, 0.075, 0.07, 16).rotateZ(Math.PI / 2).translate(x * 0.23, -0.1, z), '#2b2f36'] as Part), ...[-1, 1].map((x) => [cyl(0.035, 0.035, 0.072, 10).rotateZ(Math.PI / 2).translate(x * 0.23, -0.1, z), '#20c4d8'] as Part)]),
   ]).translate(0, 0.175, 0);
 }
-/** Flat, as it rides, raised so its wheels sit at the pickup's middle. */
-const hoverboard = () => hoverDeck().translate(0, -0.1, 0);
+/** Flat and side-on, nose to the right, wheels down. */
+const hoverboard = () => hoverDeck().rotateY(Math.PI / 2).translate(0, -0.1, 0);
 
 /** A leaning stack of gold coins. */
 function coinStack() {

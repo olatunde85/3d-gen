@@ -202,7 +202,7 @@ export class RunnerView {
         for (const [t, model] of this.finds) { model.visible = t === type;if (t === type) { model.rotation.y = this.time * 1.6;model.position.y = f.y + 0.15 + Math.sin(this.time * 2.4) * 0.08; } }
         if (this.findMarker) this.findMarker.ring.scale.setScalar(1 + 0.12 * Math.sin(this.time * 4));
       }
-      for (const p of s.pickups) if (!p.taken) { const mesh = this.powers.get(p.kind);if (!mesh) continue;this.put(mesh, s, p.d, p.lane * LANE, 1.05 + Math.sin(this.time * 3 + p.id) * 0.12, 1.45, 1.45, 1.45, undefined, this.time * 1.8);this.put(this.halos, s, p.d, p.lane * LANE, 0.04, 1, 1, 1, this.color.set(POWER_COLORS[p.kind])); }
+      for (const p of s.pickups) if (!p.taken) { const mesh = this.powers.get(p.kind);if (!mesh) continue;this.put(mesh, s, p.d, p.lane * LANE, 1.05 + Math.sin(this.time * 3 + p.id) * 0.12, 1.45, 1.45, 1.45, undefined, p.kind === 'hoverboard' ? Math.sin(this.time * 1.5 + p.id) * 0.3 : this.time * 1.8);this.put(this.halos, s, p.d, p.lane * LANE, 0.04, 1, 1, 1, this.color.set(POWER_COLORS[p.kind])); }
     });
     for (const m of batches) { m.instanceMatrix.needsUpdate = true;if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
