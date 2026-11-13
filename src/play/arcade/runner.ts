@@ -209,7 +209,7 @@ export class RunnerGame {
   /** Whether this run has enemies to shoot. */
   get armed() { return this.settings.obstacles.includes('gunman'); }
   /**
-   * Enemies stand in one lane. The runner shoots straight down their own lane: the nearest standing enemy within
+   * Enemies walk slowly down one lane toward the runner. The runner shoots straight down their own lane: the nearest standing enemy within
    * 38 m drops. An enemy left standing in the runner's lane fires once at 14 m; a shield or hoverboard takes it, otherwise the runner stumbles.
    */
   private gunfight(dt: number, input: RunnerInput) {
@@ -383,8 +383,9 @@ export class RunnerGame {
     const lanes = kind === 'bar-high' || kind === 'gap' ? all : kind === 'barrier-low' ? (r() < 0.4 + difficulty * 0.4 ? all : twoLanes()) : kind === 'cart' || kind === 'gunman' ? oneLane() : r() < 0.35 + difficulty * 0.35 ? twoLanes() : oneLane();
     // In the train yard half the trains stand still, one to three carriages long; moving trains are one carriage.
     const train = kind === 'cart' && this.settings.theme === 'train-yard', parked = train && r() < 0.5;
-    Object.assign(t, { shot: false, fired: false, id: this.nextId++, kind, d, lanes, length: kind === 'gap' ? 2.6 + r() * difficulty * 1.4 : train ? TRAIN_CAR * (parked ? 1 + Math.floor(r() * 3) : 1) : kind === 'cart' ? 2.2 : kind === 'blocker' ? 1.4 : kind === 'gunman' ? 0.8 : 0.5, moving: kind === 'cart' && !parked ? 5 + difficulty * 4 : 0, hit: false, passed: false });
-    if (kind === 'cart' && t.moving) { const v = this.settings.startSpeed + (this.settings.maxSpeed - this.settings.startSpeed) * difficulty;t.d += (t.moving * 45) / (v + t.moving); }
+    Object.assign(t, { shot: false, fired: false, id: this.nextId++, kind, d, lanes, length: kind === 'gap' ? 2.6 + r() * difficulty * 1.4 : train ? TRAIN_CAR * (parked ? 1 + Math.floor(r() * 3) : 1) : kind === 'cart' ? 2.2 : kind === 'blocker' ? 1.4 : kind === 'gunman' ? 0.8 : 0.5, moving: kind === 'cart' && !parked ? 5 + difficulty * 4 : kind === 'gunman' ? 1.3 : 0, hit: false, passed: false });
+    // Moving carts and walking enemies start further out, so they meet the runner where the course placed them.
+    if ((kind === 'cart' || kind === 'gunman') && t.moving) { const v = this.settings.startSpeed + (this.settings.maxSpeed - this.settings.startSpeed) * difficulty;t.d += (t.moving * 45) / (v + t.moving); }
     if (kind === 'gap') s.gaps.push([t.d, t.d + t.length]);
     s.things.push(t);
   }

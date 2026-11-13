@@ -235,7 +235,8 @@ try{
    // The shooting hook goes under the reading bot, so the bot's own inputs carry the shot.
    await evaluate(`(()=>{const g=araPlay.runner,run=g.update.bind(g);g.update=(dt,inp,sc)=>{const s=g.current,lane=Math.round(g.x/1.8);const ahead=s.things.find(t=>t.kind==='gunman'&&!t.hit&&t.lanes&(1<<(lane+1))&&t.d>g.d&&t.d-g.d<20);return run(dt,{...inp,shoot:!!ahead&&window.__fire!==false},sc);};return 1})()`);await evaluate(autoRun);
    await evaluate('window.__fire=false');await wait('araPlay.runner.current.things.some(t=>t.kind==="gunman"&&!t.hit&&t.d-araPlay.runner.d>9&&t.d-araPlay.runner.d<16)','an enemy stands close ahead',60000);await photo('runner-enemy-ahead');
-   await evaluate('window.__fire=true');await wait('araPlay.runner.stats.enemies>=1','first enemy shot',60000);await sleep(250);await photo('runner-enemy-shot');
+   const walked=await evaluate<number>('(()=>{const t=araPlay.runner.current.things.find(t=>t.kind==="gunman"&&!t.hit&&t.d>araPlay.runner.d);window.__foe=t;return t?t.d:0})()');await sleep(400);assert.ok(await evaluate<number>('window.__foe?window.__foe.d:0')<walked,'enemies walk toward the runner');
+   await evaluate('window.__fire=true');await wait('araPlay.runner.stats.enemies>=1&&araPlay.runnerView.shotAge<0.15','first enemy shot',60000);await photo('runner-enemy-shot');
    await wait('araPlay.runner.stats.enemies>=4||araPlay.phase!=="playing"','several enemies shot',120000);assert.ok(await evaluate('araPlay.runner.stats.enemies>=4'),'the runner shoots through several enemies');
   });
   await check('arcade mixed campaigns drive through the city between a mission and a run, both ways',async()=>{

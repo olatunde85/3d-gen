@@ -8,6 +8,8 @@
 import * as T from 'three';
 import { clipById } from '../../core/anim/clips';
 import type { GameActor } from '../actor';
+import { combatClip } from '../combat-animation';
+import type { Combatant } from '../combat';
 import { forwardOf, leftOf, LANE, RUN, TRAIN_CAR, type RunnerEvent, type RunnerGame, type RunnerSegment } from './runner';
 import type { SpeedFeel } from './feel';
 import { UMBRELLA_COLORS } from './market';
@@ -49,7 +51,7 @@ export class RunnerView {
   private limbs = new Map<string, T.Bone>(); private qa = new T.Quaternion(); private qb = new T.Quaternion(); private axis = new T.Vector3();
   private springs: T.Mesh[] = []; private feet: T.Bone[] = []; private foot = new T.Vector3();
   /** Armed enemies standing in the lanes: a few clones of one figure, each following the nearest enemy ahead. */
-  private foes: { actor: GameActor; group: T.Group; id?: number; shotAt?: number }[] = []; private tracer: T.Mesh; private flash: T.Mesh; private tracerAge = 9; private flashAge = 9;
+  private foes: { actor: GameActor; group: T.Group; id?: number; shotAt?: number }[] = []; private tracer: T.Mesh; private flash: T.Mesh; private tracerAge = 9; private flashAge = 9; private shotAge = 9; private foeFired = new Map<number, number>();
   constructor(readonly game: RunnerGame, readonly runner: GameActor, readonly chaser?: GameActor, atmosphere?: ArcadeAtmosphere, gunman?: GameActor) {
     const kit = this.kit = RUNNER_KITS[game.settings.theme], mat = (color: string, rough = 0.9, extra: T.MeshStandardMaterialParameters = {}) => { const m = new T.MeshStandardMaterial({ color, roughness: rough, ...extra });this.disposables.push(m);return m; };
     const batch = (geometry: T.BufferGeometry, material: T.Material, count: number, shadow = true) => { const m = new T.InstancedMesh(geometry, material, count);m.count = 0;m.castShadow = shadow;m.receiveShadow = true;m.frustumCulled = false;this.scene.add(m);this.disposables.push(geometry);return m; };
@@ -155,8 +157,8 @@ export class RunnerView {
       if (e.type === 'find') feel.flash(0.3, '255,215,120');
       if (e.type === 'power' || e.type === 'revive') feel.flash(e.type === 'power' && e.kind === 'coin-rush' ? 0.45 : 0.25, e.type === 'power' && e.kind === 'boost' ? '255,190,110' : e.type === 'power' && e.kind === 'coin-rush' ? '255,215,90' : '255,255,255');
       if (e.type === 'near-miss') feel.slowMotion(0.4);
-      if (e.type === 'shoot') this.shot(e.target);
-      if (e.type === 'enemy-fire') { feel.shake(e.blocked ? 0.25 : 0.5);const foe = this.foes.find((f) => f.id === e.target);if (foe) { foe.group.getWorldPosition(this.foot);this.muzzle(this.foot.x, 1.35, this.foot.z); } }
+      if (e.type === 'shoot') { this.shot(e.target);this.shotAge = 0; }
+      if (e.type === 'enemy-fire') { this.foeFired.set(e.target, this.time);feel.shake(e.blocked ? 0.25 : 0.5);const foe = this.foes.find((f) => f.id === e.target);if (foe) { foe.group.getWorldPosition(this.foot);this.muzzle(this.foot.x, 1.35, this.foot.z); } }
       if (e.type === 'smash' || e.type === 'shield-break' || e.type === 'board-break') feel.shake(0.4);
     }
   }
@@ -238,11 +240,16 @@ export class RunnerView {
       else if (g.sliding > 0) { clip = clipById.get('run_slide')!;t = ((RUN.slide - g.sliding) / RUN.slide) * clip.duration * 0.85; }
       else if (g.recover > 0) { clip = clipById.get('stumble_recover')!;t = (1 - g.recover / 1.1) * clip.duration; }
     }
+    // In an armed run the runner raises the gun and aims down the lane for each shot, legs still running.
+    const weapon = actor.render.character.params.weapon;
+    if (!chaser && g.armed && this.shotAge < 0.55 && (weapon === 'pistol' || weapon === 'rifle') && (clip.id === 'run' || clip.id === 'jump_air')) clip = combatClip(clip, this.gun(weapon, true, this.shotAge));
     const frame = actor.render.animator.frame(clip, t, { rootMotion: false });
     actor.applyFrame(frame, { x: 0, y: 0, z: 0 }, 0);
   }
+  /** Just enough of a combatant for the gun layer: which gun, whether it is raised, and time since the last shot. */
+  private gun(weapon: 'pistol' | 'rifle', aiming: boolean, fireAge: number) { return { weapon, aiming, fireAge, reload: 0 } as unknown as Combatant; }
   update(dt: number, feel: SpeedFeel, aspect: number) {
-    this.time += dt;const g = this.game, sim = g.position, f = forwardOf(g.heading), target = g.heading * Math.PI / 2, turn = this.turn;
+    this.time += dt;this.shotAge += dt;const g = this.game, sim = g.position, f = forwardOf(g.heading), target = g.heading * Math.PI / 2, turn = this.turn;
     // Turns ease the heading, position and bank together; the simulation has already turned.
     if (g.status === 'running') { turn.age += dt;turn.run += g.speed * dt; }
     this.wonAge = g.status === 'won' ? this.wonAge + dt : 0;
@@ -322,10 +329,10 @@ export class RunnerView {
     }
     return spots.sort((a, b) => a.ahead - b.ahead).slice(0, this.foes.length);
   }
-  /** Enemies rise into view about 32 m ahead, aim down the lane, and fall when shot. */
+  /** Enemies rise into view about 32 m ahead, walk toward the runner with the gun ready, aim when close, and fall when shot. */
   private updateFoes(dt: number) {
     if (!this.foes.length) return;
-    const spots = this.foeSpots(), aim = clipById.get('pistol_aim')!, death = clipById.get('death_backward')!;
+    const spots = this.foeSpots(), walk = clipById.get('walk')!, death = clipById.get('death_backward')!;
     for (const foe of this.foes) if (foe.id !== undefined && !spots.some((s) => s.id === foe.id)) { foe.id = undefined;foe.shotAt = undefined;foe.group.visible = false; }
     for (const spot of spots) {
       const foe = this.foes.find((f) => f.id === spot.id) ?? this.foes.find((f) => f.id === undefined);if (!foe) continue;
@@ -334,7 +341,10 @@ export class RunnerView {
       const fallen = foe.shotAt !== undefined ? this.time - foe.shotAt : -1, rise = Math.max(0, Math.min(1, (32 - spot.ahead) / 4));
       group.visible = rise > 0 && fallen < death.duration + 0.6;if (!group.visible) continue;
       group.position.set(spot.x, -1.9 * (1 - rise) * (1 - rise), spot.z);group.rotation.set(0, spot.yaw, 0);
-      const frame = fallen >= 0 ? foe.actor.render.animator.frame(death, Math.min(death.duration - 0.01, fallen), { rootMotion: false }) : foe.actor.render.animator.frame(aim, (this.time + spot.id * 0.37) % aim.duration, { rootMotion: false });
+      // Walking in with the gun at the ready, raising it within 18 m; the walk slows to a stop for the shot.
+      const gunType = foe.actor.render.character.params.weapon === 'rifle' ? 'rifle' : 'pistol', fired = this.foeFired.get(spot.id), close = spot.ahead < 18;
+      const walking = combatClip(walk, this.gun(gunType, close, fired === undefined ? 9 : this.time - fired));
+      const frame = fallen >= 0 ? foe.actor.render.animator.frame(death, Math.min(death.duration - 0.01, fallen), { rootMotion: false }) : foe.actor.render.animator.frame(walking, (this.time * 0.8 + spot.id * 0.37) % walk.duration, { rootMotion: false });
       foe.actor.applyFrame(frame, { x: 0, y: 0, z: 0 }, 0);
     }
     this.tracerAge += dt;this.flashAge += dt;this.tracer.visible = this.tracerAge < 0.09;this.flash.visible = this.flashAge < 0.05;
@@ -347,7 +357,7 @@ export class RunnerView {
     this.tracer.position.copy(from);this.tracer.lookAt(to);this.tracer.scale.set(1, 1, from.distanceTo(to));this.tracerAge = 0;this.muzzle(from.x, from.y, from.z);
   }
   private muzzle(x: number, y: number, z: number) { this.flash.position.set(x, y, z);this.flashAge = 0; }
-  reset() { for (const foe of this.foes) { foe.id = undefined;foe.shotAt = undefined;foe.group.visible = false; } this.phase = 0;this.wonAge = 0;this.turn.age = 9;this.snapCamera(); }
+  reset() { this.foeFired.clear();this.shotAge = 9;for (const foe of this.foes) { foe.id = undefined;foe.shotAt = undefined;foe.group.visible = false; } this.phase = 0;this.wonAge = 0;this.turn.age = 9;this.snapCamera(); }
   dispose() {
     for (const actor of [this.runner, this.chaser, ...this.foes.map((f) => f.actor)]) if (actor) { actor.render.group.removeFromParent();actor.dispose(); }
     for (const d of this.disposables) d.dispose();this.weather?.dispose();this.dome.dispose();this.scene.clear();
