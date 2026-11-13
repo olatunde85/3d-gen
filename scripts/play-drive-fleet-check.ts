@@ -17,12 +17,18 @@ for(let i=0;i<300;i++)driveStep(car,1/60,1,0,false,settings,[],road);
 assert.ok(car.speed>=26.9&&car.z>100,'standard pickup reaches the higher forward speed on an open road');
 for(let i=0;i<240;i++)driveStep(car,1/60,-1,0,false,settings,[],road);
 assert.ok(car.speed<=-DRIVE.reverse+.1&&car.z<120,'pickup reaches the higher reverse speed and actually moves backward');
-console.log('OK pickup accelerates to 29 m/s forward and 14 m/s in reverse');
+console.log('OK pickup accelerates to 27 m/s forward and 14 m/s in reverse');
 const fleet:{model:DriveVehicle;color:string;fit:CarFit}[]=[];
 for(const model of DRIVE_VEHICLES.filter(m=>m!=='pickup')){
  const base=driveBase(model),vehicle=new Vehicle(base,human.rig!,anim,clipById.get(VEHICLE_CLIP[base])!,DEFAULT_VEHICLE_STYLE,{body:base===model?undefined:model as never}),fit=measureDriveVehicle(vehicle,human.rig!,.36,model);
  assert.equal(fit.model,model);assert.ok(topSpeed({color:'#294c60',pace:'standard',model})>0);
  for(const location of model==='bus'?[]:['depot','military-base','desert-compound','market-street','urban-block']as const){const game=new EscapeGame({...defaultMission(),story:'getaway',extraction:'pickup',location},undefined,undefined,100,undefined,parseDriving({model})!);try{game.configureCar(fit);}catch(error){throw Error(`${model} / ${location}: ${(error as Error).message}`);}}
+ // A parked vehicle is solid only within its own outline: wherever boarding is offered around it, the walk-up and boarding succeed.
+ if(model!=='bus'){let offered=0;for(let k=0;k<16;k++){const game=new EscapeGame({...defaultMission(),story:'getaway',extraction:'pickup',location:'depot'},undefined,undefined,100,undefined,parseDriving({model})!);game.configureCar(fit);game.start();game.protection=Infinity;game.enemies.forEach(e=>e.combat.health=0);game.hasKey=true;
+  const car=game.car!,b=fit.box,angle=k/16*Math.PI*2,dir={x:Math.sin(angle),z:Math.cos(angle)},edge=Math.min(Math.abs((dir.x>0?b.maxX:-b.minX)/(dir.x||1e-9)),Math.abs((dir.z>0?b.maxZ:-b.minZ)/(dir.z||1e-9)))+.6;Object.assign(game.player,carPoint(car,{x:dir.x*edge,z:dir.z*edge}));
+  const idle={x:0,z:0,sprint:false,interact:false};game.update(1/60,idle);if(!game.canInteract)continue;offered++;game.update(1/60,{...idle,interact:true});for(let i=0;i<300&&car.phase!=='driving';i++)game.update(1/60,idle);
+  assert.equal(car.phase,'driving',`${model} boards when approached from ${Math.round(angle*180/Math.PI)}° in vehicle space: ${game.prompt}`);}
+  assert.ok(offered>=4,`${model} offers boarding from several sides: ${offered}`);}
  fleet.push({model,color:'#777777',fit});
  vehicle.dispose();console.log('OK',model,model==='bus'?'joins the city fleet (too long for mission routes)':'fits all five direct extraction maps');
 }
