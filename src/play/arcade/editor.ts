@@ -10,7 +10,7 @@ import { CAR_STATS } from './race';
 import { ICONS, iconSvg } from './icons';
 import { MAX_RUNNER_OBJECTS, RUNNER_GENERIC_ICONS, RUNNER_ICON_NAMES, RUNNER_OBJECT_NAMES, RUNNER_OBJECT_TYPES, runnerObject, type RunnerObject, type RunnerObjectIcon, type RunnerObjectType } from './objects';
 import { DEFAULT_RUNNER_MEDALS } from './medals';
-import { defaultRace, defaultRunner, parseRace, parseRunner, RACE_CARS, RUNNER_THEMES, RUNNER_THEME_NAMES, retitle, runnerMedalTargets, type PlayMode, type RaceSettings, type RunnerSettings } from './modes';
+import { defaultRace, defaultRunner, parseRace, parseRunner, RACE_CARS, RUNNER_THEMES, RUNNER_THEME_NAMES, retitle, runnerMedalTargets, runnerGunman, runnerWeapon, type PlayMode, type RaceSettings, type RunnerSettings } from './modes';
 
 const MODES: { id: PlayMode; title: string; lines: [string, string] }[] = [
   { id: 'mission', title: 'Mission', lines: ['Staged goals.', 'Sneak, fight, escape.'] },
@@ -42,6 +42,7 @@ const OBSTACLE_NOTES: Record<string, [string, string]> = {
   gap: ['Gaps', 'Jump across; falling in ends the run.'],
   blocker: ['Lane blockers', 'Change lane around them; hitting one ends the run.'],
   cart: ['Moving carts', 'Roll toward you in one lane; change lane in time.'],
+  gunman: ['Armed enemies', 'Pop up in one lane: shoot them with F or the Shoot button, or change lane. One left standing in your lane fires once and makes you stumble; running into one ends the run. Uses an armed enemy from this chapter.'],
 };
 const POWER_NOTES: Record<string, [string, string]> = {
   magnet: ['Coin magnet', 'Pulls in coins from every lane.'],
@@ -204,6 +205,15 @@ export function modeEditor(roots: { mission: HTMLElement; cast: HTMLElement; cha
       m.append(objectsGroup(r));
       roots.cast.append(group('Who’s chasing?', Object.assign(el('div', 'challenge-basics'), {}), 'The chaser closes in after each stumble; two stumbles close together and you are caught. Dress the chaser under Chaser below.'));
       roots.cast.firstElementChild!.querySelector('.challenge-basics')!.append(select('runner-chaser', 'Chaser', [['none', 'Nobody · run free'], ...p.enemies.map((e) => [e.id, e.character.name || e.id] as [string, string])], r.chaser, (v) => runner((q) => { q.chaser = v; })));
+      if (r.obstacles.includes('gunman')) {
+        // The armed enemy and the runner's gun; left on automatic, they follow the cast and the chapter's loadout.
+        const auto = runnerGunman({ ...r, gunman: undefined }, p.enemies), loadoutGun = runnerWeapon({}, p.loadout.weapon), basics = Object.assign(el('div', 'challenge-basics'), {});
+        roots.cast.append(group('Armed enemies', basics, 'Who stands in the lanes with a gun, and what the runner shoots back with. An unarmed enemy is given a pistol.'));
+        basics.append(
+          select('runner-gunman', 'Armed enemy', [['auto', `Automatic · ${auto?.character.name || auto?.id || 'none'}`], ...p.enemies.map((e) => [e.id, e.character.name || e.id] as [string, string])], r.gunman ?? 'auto', (v) => runner((q) => { if (v === 'auto') delete q.gunman;else q.gunman = v; })),
+          select('runner-weapon', 'Runner’s gun', [['auto', `From loadout · ${loadoutGun}`], ['pistol', 'Pistol'], ['rifle', 'Rifle']], r.weapon ?? 'auto', (v) => runner((q) => { if (v === 'auto') delete q.weapon;else q.weapon = v as 'pistol' | 'rifle'; })),
+        );
+      }
       roots.challenge.append(
         group('Pace', Object.assign(el('div', 'challenge-basics'), {}), 'Speed rises from the start pace to the top pace as the run goes on.'),
         group('Obstacles', ...checks('runner-obstacle', OBSTACLE_NOTES, r.obstacles, (v) => runner((q) => { q.obstacles = v as RunnerSettings['obstacles']; }))),

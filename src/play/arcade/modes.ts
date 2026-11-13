@@ -32,8 +32,8 @@ export const defaultRace = (): RaceSettings => ({ track: 'city-loop', laps: 3, o
 export type RunnerTheme = 'temple-ruins' | 'city-rooftops' | 'desert-canyon' | 'market-street' | 'snowy-peaks' | 'beach-boardwalk' | 'neon-city' | 'jungle-ruins' | 'train-yard' | 'volcano' | 'haunted-forest';
 export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-rooftops', 'desert-canyon', 'market-street', 'snowy-peaks', 'beach-boardwalk', 'neon-city', 'jungle-ruins', 'train-yard', 'volcano', 'haunted-forest'];
 export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon', 'market-street': 'Market street', 'snowy-peaks': 'Snowy peaks', 'beach-boardwalk': 'Beach boardwalk', 'neon-city': 'Neon city', 'jungle-ruins': 'Jungle ruins', 'train-yard': 'Train yard', volcano: 'Volcano', 'haunted-forest': 'Haunted forest' };
-export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart';
-export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'];
+export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart' | 'gunman';
+export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart', 'gunman'];
 export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier' | 'springs' | 'hoverboard' | 'coin-rush';
 export const RUNNER_POWER_UPS: readonly RunnerPowerUp[] = ['magnet', 'shield', 'boost', 'multiplier', 'springs', 'hoverboard', 'coin-rush'];
 export const RUNNER_POWER_NAMES: Record<RunnerPowerUp, string> = { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score', springs: 'Spring boots', hoverboard: 'Hoverboard', 'coin-rush': 'Coin rush' };
@@ -46,7 +46,18 @@ export interface RunnerSettings {
   objects?: RunnerObject[];
   /** Score targets for bronze, silver and gold, or false for no medals; omitted means the default targets. */
   medals?: RunnerMedals | false;
+  /** The enemy that stands armed in the lanes when the run has armed enemies; omitted picks an armed enemy other than the chaser. */
+  gunman?: string;
+  /** The runner's gun for armed enemies; omitted uses the chapter's loadout gun, or a pistol. */
+  weapon?: 'pistol' | 'rifle';
 }
+/** Which enemy appears armed in a run: the configured one, else an armed enemy other than the chaser, else any other enemy. */
+export function runnerGunman<E extends { id: string; response: string }>(r: Pick<RunnerSettings, 'gunman' | 'chaser'>, enemies: readonly E[]): E | undefined {
+  const others = enemies.filter((e) => e.id !== r.chaser), armed = (e: { response: string }) => e.response === 'pistol' || e.response === 'rifle';
+  return enemies.find((e) => e.id === r.gunman) ?? others.find(armed) ?? others[0] ?? enemies.find(armed) ?? enemies[0];
+}
+/** The gun the runner carries: the run's own choice, else the chapter's loadout gun, else a pistol. */
+export const runnerWeapon = (r: Pick<RunnerSettings, 'weapon'>, loadout: string): 'pistol' | 'rifle' => r.weapon ?? (loadout === 'pistol' || loadout === 'rifle' ? loadout : 'pistol');
 export const runnerMedalTargets = (r: Pick<RunnerSettings, 'medals'>) => (r.medals === false ? undefined : r.medals ?? DEFAULT_RUNNER_MEDALS);
 export const defaultRunner = (): RunnerSettings => ({ theme: 'temple-ruins', lanes: 3, startSpeed: 10, maxSpeed: 26, speedRamp: 'steady', obstacles: ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'], powerUps: ['magnet', 'shield', 'boost', 'multiplier', 'springs', 'hoverboard', 'coin-rush'], chaser: 'enemy-1', goal: { type: 'endless' }, revive: true });
 
@@ -98,7 +109,7 @@ export function parseRace(raw: unknown): RaceSettings {
 export function parseRunner(raw: unknown, enemyIds: readonly string[]): RunnerSettings {
   const d = defaultRunner();
   if (raw === undefined) return { ...d, chaser: enemyIds[0] ?? 'none' };
-  const p = record(raw, 'runner', ['theme', 'lanes', 'startSpeed', 'maxSpeed', 'speedRamp', 'obstacles', 'powerUps', 'chaser', 'goal', 'revive', 'seed', 'objects', 'medals']);
+  const p = record(raw, 'runner', ['theme', 'lanes', 'startSpeed', 'maxSpeed', 'speedRamp', 'obstacles', 'powerUps', 'chaser', 'goal', 'revive', 'seed', 'objects', 'medals', 'gunman', 'weapon']);
   if (p.lanes !== undefined && p.lanes !== 3) throw Error('Runner courses use 3 lanes.');
   const startSpeed = p.startSpeed === undefined ? d.startSpeed : number(p.startSpeed, 6, 20, 'a runner start speed (m/s)');
   const maxSpeed = p.maxSpeed === undefined ? Math.max(d.maxSpeed, startSpeed) : number(p.maxSpeed, startSpeed, 40, 'a runner maximum speed (m/s, at least the start speed)');
@@ -113,13 +124,15 @@ export function parseRunner(raw: unknown, enemyIds: readonly string[]): RunnerSe
     else goal = { type, target: whole(g.target, type === 'coins' ? 10 : 100, type === 'score' ? 1_000_000 : 100_000, `a ${type} goal target`) };
   }
   const seed = p.seed === undefined ? undefined : whole(p.seed, 0, 2_147_483_647, 'a runner seed');
+  if (p.gunman !== undefined && (typeof p.gunman !== 'string' || !enemyIds.includes(p.gunman))) throw Error(`runner.gunman must be one of the enemy IDs (${enemyIds.join(', ')}).`);
+  const weapon = p.weapon === undefined ? undefined : choice(p.weapon, ['pistol', 'rifle'] as const, 'runner.weapon must be pistol or rifle.');
   const objects = p.objects === undefined ? [] : parseRunnerObjects(p.objects);
   if (goal.type === 'objects' && !objects.length) throw Error('An objects runner goal needs at least one entry in runner.objects.');
   return {
     theme: p.theme === undefined ? d.theme : choice(p.theme, RUNNER_THEMES, `Choose a runner theme: ${RUNNER_THEMES.join(', ')}.`), lanes: 3, startSpeed, maxSpeed,
     speedRamp: p.speedRamp === undefined ? d.speedRamp : choice(p.speedRamp, ['gentle', 'steady', 'steep'] as const, 'Choose a gentle, steady or steep speed ramp.'),
     obstacles, powerUps: p.powerUps === undefined ? d.powerUps : subset(p.powerUps, RUNNER_POWER_UPS, 'runner.powerUps'), chaser, goal,
-    revive: p.revive === undefined ? d.revive : flag(p.revive, 'runner.revive'), ...(seed === undefined ? {} : { seed }), ...(objects.length ? { objects } : {}), ...(p.medals === undefined ? {} : { medals: parseRunnerMedals(p.medals) }),
+    revive: p.revive === undefined ? d.revive : flag(p.revive, 'runner.revive'), ...(seed === undefined ? {} : { seed }), ...(objects.length ? { objects } : {}), ...(p.medals === undefined ? {} : { medals: parseRunnerMedals(p.medals) }), ...(p.gunman === undefined ? {} : { gunman: p.gunman as string }), ...(weapon ? { weapon } : {}),
   };
 }
 

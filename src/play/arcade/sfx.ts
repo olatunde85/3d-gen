@@ -20,7 +20,7 @@ function seamless(c: BaseAudioContext, b: AudioBuffer) {
   }
   return out;
 }
-export type ArcadeSound = 'beep' | 'go' | 'coin' | 'boost' | 'crash' | 'bump' | 'whoosh' | 'power' | 'jump' | 'spring' | 'slide' | 'land' | 'lap' | 'best' | 'stumble' | 'shield' | 'spin' | 'item' | 'win' | 'lose';
+export type ArcadeSound = 'beep' | 'go' | 'coin' | 'boost' | 'crash' | 'bump' | 'whoosh' | 'power' | 'jump' | 'spring' | 'slide' | 'land' | 'lap' | 'best' | 'stumble' | 'shield' | 'spin' | 'item' | 'win' | 'lose' | 'shot' | 'enemy-shot';
 export class ArcadeSfx {
   private context?: AudioContext; private master?: GainNode; private noise?: AudioBuffer; private last = new Map<ArcadeSound, number>();
   enabled = true;
@@ -98,6 +98,9 @@ export class ArcadeSfx {
       case 'best': [880, 1109, 1319, 1760].forEach((f, i) => this.tone(f, 0.18, 'triangle', 0.2, undefined, i * 0.08));break;
       case 'stumble': this.tone(220, 0.25, 'sawtooth', 0.15, 110);this.hiss(0.2, 700, 200, 0.35, 'lowpass');break;
       case 'shield': this.tone(1046, 0.4, 'sine', 0.25, 523);break;
+      // A sharp crack with a short tail; the enemy's shot is lower and further away.
+      case 'shot': this.hiss(0.16, 4200, 600, 0.55 * v, 'lowpass');this.tone(160, 0.08, 'square', 0.18, 70);break;
+      case 'enemy-shot': this.hiss(0.22, 2400, 300, 0.35, 'lowpass');this.tone(110, 0.1, 'square', 0.12, 50);break;
       case 'spin': this.tone(600, 0.6, 'sawtooth', 0.1, 150);break;
       case 'item': this.tone(1046, 0.08, 'square', 0.12);this.tone(1318, 0.08, 'square', 0.12, undefined, 0.07);break;
       case 'win': [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.3, 'triangle', 0.22, undefined, i * 0.12));break;

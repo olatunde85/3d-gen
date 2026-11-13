@@ -8,6 +8,8 @@
 import * as T from 'three';
 import { clipById } from '../../core/anim/clips';
 import type { GameActor } from '../actor';
+import { combatClip } from '../combat-animation';
+import type { Combatant } from '../combat';
 import { forwardOf, leftOf, LANE, RUN, TRAIN_CAR, type RunnerEvent, type RunnerGame, type RunnerSegment } from './runner';
 import type { SpeedFeel } from './feel';
 import { UMBRELLA_COLORS } from './market';
@@ -48,7 +50,9 @@ export class RunnerView {
   /** Arms posed on top of the clip while riding, held out for balance. */
   private limbs = new Map<string, T.Bone>(); private qa = new T.Quaternion(); private qb = new T.Quaternion(); private axis = new T.Vector3();
   private springs: T.Mesh[] = []; private feet: T.Bone[] = []; private foot = new T.Vector3();
-  constructor(readonly game: RunnerGame, readonly runner: GameActor, readonly chaser?: GameActor, atmosphere?: ArcadeAtmosphere) {
+  /** Armed enemies standing in the lanes: a few clones of one figure, each following the nearest enemy ahead. */
+  private foes: { actor: GameActor; group: T.Group; id?: number; shotAt?: number }[] = []; private tracer: T.Mesh; private flash: T.Mesh; private tracerAge = 9; private flashAge = 9; private shotAge = 9; private foeFired = new Map<number, number>();
+  constructor(readonly game: RunnerGame, readonly runner: GameActor, readonly chaser?: GameActor, atmosphere?: ArcadeAtmosphere, gunman?: GameActor) {
     const kit = this.kit = RUNNER_KITS[game.settings.theme], mat = (color: string, rough = 0.9, extra: T.MeshStandardMaterialParameters = {}) => { const m = new T.MeshStandardMaterial({ color, roughness: rough, ...extra });this.disposables.push(m);return m; };
     const batch = (geometry: T.BufferGeometry, material: T.Material, count: number, shadow = true) => { const m = new T.InstancedMesh(geometry, material, count);m.count = 0;m.castShadow = shadow;m.receiveShadow = true;m.frustumCulled = false;this.scene.add(m);this.disposables.push(geometry);return m; };
     // Night themes are always seen at night.
@@ -131,6 +135,12 @@ export class RunnerView {
     this.board = new T.Mesh(deck, deckMat);this.board.castShadow = true;this.board.visible = false;this.scene.add(this.board);
     this.hero.add(runner.render.group, this.shield);this.scene.add(this.hero);runner.render.mesh.castShadow = true;
     if (chaser) { this.chaserGroup.add(chaser.render.group);this.scene.add(this.chaserGroup);chaser.render.mesh.castShadow = true; }
+    if (gunman && game.armed) for (const actor of [gunman, gunman.clone(), gunman.clone()]) { const group = new T.Group();group.add(actor.render.group);group.visible = false;actor.render.mesh.castShadow = true;this.scene.add(group);this.foes.push({ actor, group }); }
+    // A shot is a bright streak down the lane and a flash at the muzzle, both gone within a few frames.
+    const streak = new T.BoxGeometry(0.05, 0.05, 1).translate(0, 0, 0.5), streakMat = new T.MeshBasicMaterial({ color: '#ffe7a0', transparent: true, opacity: 0.85, blending: T.AdditiveBlending, depthWrite: false });
+    this.tracer = new T.Mesh(streak, streakMat);this.tracer.visible = false;this.tracer.frustumCulled = false;this.scene.add(this.tracer);
+    const flashGeo = new T.SphereGeometry(0.16, 10, 8), flashMat = new T.MeshBasicMaterial({ color: '#fff1b8', transparent: true, opacity: 0.95, blending: T.AdditiveBlending, depthWrite: false });
+    this.flash = new T.Mesh(flashGeo, flashMat);this.flash.visible = false;this.scene.add(this.flash);this.disposables.push(streak, streakMat, flashGeo, flashMat);
     this.snapCamera();
   }
   private snapCamera() { const p = this.game.position, f = forwardOf(this.game.heading);this.yaw = this.game.heading * Math.PI / 2;this.cameraPos.set(p.x - f[0] * 5, 2.8, p.z - f[1] * 5);this.look.set(p.x + f[0] * 6, 1.1, p.z + f[1] * 6); }
@@ -147,6 +157,8 @@ export class RunnerView {
       if (e.type === 'find') feel.flash(0.3, '255,215,120');
       if (e.type === 'power' || e.type === 'revive') feel.flash(e.type === 'power' && e.kind === 'coin-rush' ? 0.45 : 0.25, e.type === 'power' && e.kind === 'boost' ? '255,190,110' : e.type === 'power' && e.kind === 'coin-rush' ? '255,215,90' : '255,255,255');
       if (e.type === 'near-miss') feel.slowMotion(0.4);
+      if (e.type === 'shoot') { this.shot(e.target);this.shotAge = 0; }
+      if (e.type === 'enemy-fire') { this.foeFired.set(e.target, this.time);feel.shake(e.blocked ? 0.25 : 0.5);const foe = this.foes.find((f) => f.id === e.target);if (foe) { foe.group.getWorldPosition(this.foot);this.muzzle(this.foot.x, 1.35, this.foot.z); } }
       if (e.type === 'smash' || e.type === 'shield-break' || e.type === 'board-break') feel.shake(0.4);
     }
   }
@@ -228,11 +240,16 @@ export class RunnerView {
       else if (g.sliding > 0) { clip = clipById.get('run_slide')!;t = ((RUN.slide - g.sliding) / RUN.slide) * clip.duration * 0.85; }
       else if (g.recover > 0) { clip = clipById.get('stumble_recover')!;t = (1 - g.recover / 1.1) * clip.duration; }
     }
+    // In an armed run the runner raises the gun and aims down the lane for each shot, legs still running.
+    const weapon = actor.render.character.params.weapon;
+    if (!chaser && g.armed && this.shotAge < 0.55 && (weapon === 'pistol' || weapon === 'rifle') && (clip.id === 'run' || clip.id === 'jump_air')) clip = combatClip(clip, this.gun(weapon, true, this.shotAge));
     const frame = actor.render.animator.frame(clip, t, { rootMotion: false });
     actor.applyFrame(frame, { x: 0, y: 0, z: 0 }, 0);
   }
+  /** Just enough of a combatant for the gun layer: which gun, whether it is raised, and time since the last shot. */
+  private gun(weapon: 'pistol' | 'rifle', aiming: boolean, fireAge: number) { return { weapon, aiming, fireAge, reload: 0 } as unknown as Combatant; }
   update(dt: number, feel: SpeedFeel, aspect: number) {
-    this.time += dt;const g = this.game, sim = g.position, f = forwardOf(g.heading), target = g.heading * Math.PI / 2, turn = this.turn;
+    this.time += dt;this.shotAge += dt;const g = this.game, sim = g.position, f = forwardOf(g.heading), target = g.heading * Math.PI / 2, turn = this.turn;
     // Turns ease the heading, position and bank together; the simulation has already turned.
     if (g.status === 'running') { turn.age += dt;turn.run += g.speed * dt; }
     this.wonAge = g.status === 'won' ? this.wonAge + dt : 0;
@@ -242,7 +259,7 @@ export class RunnerView {
     const p = k < 1 ? { x: ahead.x + (sim.x - ahead.x) * ease, z: ahead.z + (sim.z - ahead.z) * ease } : sim;
     if (k < 1) this.yaw = turn.from + Math.atan2(Math.sin(target - turn.from), Math.cos(target - turn.from)) * ease;
     else this.yaw += Math.atan2(Math.sin(target - this.yaw), Math.cos(target - this.yaw)) * (1 - Math.exp(-dt * 9));
-    this.course();
+    this.course();this.updateFoes(dt);
     this.animate(this.runner, g.status === 'running' ? dt : dt * 0.3, g.speed);
     // The whole body banks into the turn from the feet, so the run cycle never changes clip mid-stride.
     const bank = k < 1 ? -turn.dir * 0.24 * Math.sin(Math.PI * k) : 0;
@@ -301,9 +318,48 @@ export class RunnerView {
       this.turnBone(`${side}ForeArm`, right, -h * 0.35);
     }
   }
-  reset() { this.phase = 0;this.wonAge = 0;this.turn.age = 9;this.snapCamera(); }
+  /** Where an enemy thing stands, and how far ahead of the runner along the course. */
+  private foeSpots() {
+    const g = this.game, here = g.current.start + g.d, spots: { id: number; x: number; z: number; yaw: number; ahead: number; shot: boolean }[] = [];
+    for (const s of [...g.segments, ...g.branches]) for (const t of s.things) {
+      if (t.kind !== 'gunman' || t.hit && !t.shot) continue;
+      const ahead = s.start + t.d - here;if (ahead < -4 || ahead > 60) continue;
+      const lane = [-1, 0, 1].find((_, i) => t.lanes & (1 << i)) ?? 0, w = g.worldAt(s, t.d + t.length / 2, lane * LANE);
+      spots.push({ id: t.id, x: w.x, z: w.z, yaw: s.heading * Math.PI / 2 + Math.PI, ahead, shot: !!t.shot });
+    }
+    return spots.sort((a, b) => a.ahead - b.ahead).slice(0, this.foes.length);
+  }
+  /** Enemies rise into view about 32 m ahead, walk toward the runner with the gun ready, aim when close, and fall when shot. */
+  private updateFoes(dt: number) {
+    if (!this.foes.length) return;
+    const spots = this.foeSpots(), walk = clipById.get('walk')!, death = clipById.get('death_backward')!;
+    for (const foe of this.foes) if (foe.id !== undefined && !spots.some((s) => s.id === foe.id)) { foe.id = undefined;foe.shotAt = undefined;foe.group.visible = false; }
+    for (const spot of spots) {
+      const foe = this.foes.find((f) => f.id === spot.id) ?? this.foes.find((f) => f.id === undefined);if (!foe) continue;
+      foe.id = spot.id;const group = foe.group;
+      if (spot.shot && foe.shotAt === undefined) foe.shotAt = this.time;
+      const fallen = foe.shotAt !== undefined ? this.time - foe.shotAt : -1, rise = Math.max(0, Math.min(1, (32 - spot.ahead) / 4));
+      group.visible = rise > 0 && fallen < death.duration + 0.6;if (!group.visible) continue;
+      group.position.set(spot.x, -1.9 * (1 - rise) * (1 - rise), spot.z);group.rotation.set(0, spot.yaw, 0);
+      // Walking in with the gun at the ready, raising it within 18 m; the walk slows to a stop for the shot.
+      const gunType = foe.actor.render.character.params.weapon === 'rifle' ? 'rifle' : 'pistol', fired = this.foeFired.get(spot.id), close = spot.ahead < 18;
+      const walking = combatClip(walk, this.gun(gunType, close, fired === undefined ? 9 : this.time - fired));
+      const frame = fallen >= 0 ? foe.actor.render.animator.frame(death, Math.min(death.duration - 0.01, fallen), { rootMotion: false }) : foe.actor.render.animator.frame(walking, (this.time * 0.8 + spot.id * 0.37) % walk.duration, { rootMotion: false });
+      foe.actor.applyFrame(frame, { x: 0, y: 0, z: 0 }, 0);
+    }
+    this.tracerAge += dt;this.flashAge += dt;this.tracer.visible = this.tracerAge < 0.09;this.flash.visible = this.flashAge < 0.05;
+  }
+  /** A shot from the runner's hand down their lane, to the enemy hit or 30 m out. */
+  private shot(target?: number) {
+    const g = this.game, f = forwardOf(g.heading), from = new T.Vector3(this.hero.position.x + f[0] * 0.5, this.hero.position.y + 1.3, this.hero.position.z + f[1] * 0.5);
+    const foe = this.foes.find((x) => x.id === target), to = new T.Vector3();
+    if (foe && target !== undefined) { foe.group.getWorldPosition(to);to.y = 1.2; } else to.set(from.x + f[0] * 30, 1.3, from.z + f[1] * 30);
+    this.tracer.position.copy(from);this.tracer.lookAt(to);this.tracer.scale.set(1, 1, from.distanceTo(to));this.tracerAge = 0;this.muzzle(from.x, from.y, from.z);
+  }
+  private muzzle(x: number, y: number, z: number) { this.flash.position.set(x, y, z);this.flashAge = 0; }
+  reset() { this.foeFired.clear();this.shotAge = 9;for (const foe of this.foes) { foe.id = undefined;foe.shotAt = undefined;foe.group.visible = false; } this.phase = 0;this.wonAge = 0;this.turn.age = 9;this.snapCamera(); }
   dispose() {
-    for (const actor of [this.runner, this.chaser]) if (actor) { actor.render.group.removeFromParent();actor.dispose(); }
+    for (const actor of [this.runner, this.chaser, ...this.foes.map((f) => f.actor)]) if (actor) { actor.render.group.removeFromParent();actor.dispose(); }
     for (const d of this.disposables) d.dispose();this.weather?.dispose();this.dome.dispose();this.scene.clear();
   }
 }
