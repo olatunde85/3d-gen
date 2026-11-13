@@ -15,7 +15,9 @@ export function fallbackPickupSurfaces(car:CarState):VehicleSurface[]{
 }
 export function vehicleVolumes(car:CarState):Volume[]{
  if(car.phase!=='parked')return [{...carObstacle(car),h:car.fit.height,id:'pickup',climbable:false}];
- return (car.fit.surfaces??fallbackPickupSurfaces(car)).map(s=>{
+ // Only the pickup has measured surfaces; any other parked vehicle is a single solid of its own measured outline.
+ const surfaces=car.fit.surfaces??(car.fit.model&&car.fit.model!=='pickup'?[{id:'body',box:car.fit.box,h:car.fit.height,climbable:false}]:fallbackPickupSurfaces(car));
+ return surfaces.map(s=>{
   const corners=[{x:s.box.minX,z:s.box.minZ},{x:s.box.maxX,z:s.box.minZ},{x:s.box.minX,z:s.box.maxZ},{x:s.box.maxX,z:s.box.maxZ}].map(p=>carPoint(car,p));
   return {minX:Math.min(...corners.map(p=>p.x)),maxX:Math.max(...corners.map(p=>p.x)),minZ:Math.min(...corners.map(p=>p.z)),maxZ:Math.max(...corners.map(p=>p.z)),obb:{x:car.x,z:car.z,yaw:car.yaw,box:s.box},h:s.h,id:'pickup-'+s.id,climbable:s.climbable};
  });
