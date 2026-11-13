@@ -29,3 +29,12 @@ export function stageSteps(m:MissionSettings,w:MissionWorld):StagedStep[]{
  return staged;
 }
 export const stepLabel=(s:MissionStep)=>s.label??({reach:'Reach the rally point',download:'Download the intel',defend:'Defend the area',eliminate:`Eliminate ${s.target}`,survive:'Survive the ambush',escort:'Escort your companion',chase:'Catch the courier vehicle',convoy:'Escort the convoy to extraction'}[s.type]);
+/** Stages the chain, and when a step has nowhere to go, names layouts and variations of the same map where the whole chain fits. */
+export function stageStepsOrSuggest(m:MissionSettings,w:MissionWorld,build:(m:MissionSettings)=>MissionWorld):StagedStep[]{
+ try{return stageSteps(m,w);}catch(error){
+  const fixes:string[]=[];
+  for(const layout of [m.layout,'open','balanced','dense']as MissionSettings['layout'][])for(let variation=0;variation<12&&fixes.length<3;variation++){const fix=`layout "${layout}", variation ${variation}`;if(layout===m.layout&&variation===m.variation||fixes.includes(fix))continue;try{const alt={...m,layout,variation};stageSteps(alt,build(alt));fixes.push(fix);}catch{/* The alternative must place every step. */}}
+  throw Error(`${(error as Error).message}${fixes.length?` Try ${fixes.join(' or ')}.`:''}`);
+ }
+}
+

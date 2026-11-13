@@ -45,7 +45,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   /** Each chapter's opening film plays before its first start, and its ending film once the race is finished or the run goal reached. */
   const story = new StoryView(scene, !document.getElementById('settings'));let openingShown = false, endingShown = false, filmChapter = -1, filmRoot: PlayProject | undefined;
   let root = initialProject, cast = initialCast, active = false, paused = false, last = performance.now(), size = { w: 0, h: 0 };
-  let phase: 'intro' | 'playing' | 'down' | 'results' = 'intro', chapter = 0, daily = false, settled = 0, reviveTimer = 0, touchHeld = new Set<string>(), stickX = 0, stickY = 0;
+  let phase: 'intro' | 'playing' | 'down' | 'results' = 'intro', chapter = 0, daily = false, settled = 0, reviveTimer = 0, touchHeld = new Set<string>(), stickX = 0, stickY = 0, shootTap = false;
   let race: RaceGame | undefined, raceView: RaceView | undefined, runner: RunnerGame | undefined, runnerView: RunnerView | undefined, ghostIndex = 0;
   let project = root;
   /** Each chapter has its own mode; a mixed campaign hands mission chapters back to the mission player. */
@@ -53,9 +53,9 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   const mode = () => (modeAt(chapter) === 'runner' ? 'runner' : 'race');
   const mixed = () => Array.from({ length: rounds() }, (_, i) => modeAt(i)).some((m) => m !== modeAt(0));
   const cupGame = () => rounds() > 1 && !mixed();
-  let onChapter: ((index: number) => void) | undefined;
+  let onChapter: ((index: number) => void) | undefined, onHub: ((index: number) => void) | undefined;
   /** The next chapter's action: arcade chapters play here, missions go back to the mission player. */
-  const nextChapter = (noun: string): CardAction => ({ label: `Next ${mixed() ? (modeAt(chapter + 1) === 'mission' ? 'mission' : modeAt(chapter + 1) === 'race' ? 'race' : 'stage') : noun}: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { if (modeAt(chapter + 1) === 'mission') { onChapter?.(chapter + 1);return; } chapter++;setup(); } });
+  const nextChapter = (noun: string): CardAction => ({ label: `Next ${mixed() ? (modeAt(chapter + 1) === 'mission' ? 'mission' : modeAt(chapter + 1) === 'race' ? 'race' : 'stage') : noun}: ${gameTitle(chapterProject(root, chapter + 1))}`, primary: true, run: () => { if (onHub && Array.from({ length: rounds() }, (_, i) => modeAt(i)).includes('mission')) { onHub(chapter + 1);return; } if (modeAt(chapter + 1) === 'mission') { onChapter?.(chapter + 1);return; } chapter++;setup(); } });
   const gameKey = () => `${gameStem(root.identity.title)}-${mode()}`;
   const rounds = () => 1 + (root.chapters?.length ?? 0);
   const castFor = (index: number) => (index === 0 ? cast : cast.chapters?.[index - 1] ?? cast);
@@ -95,14 +95,14 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       const settings: RunnerSettings = project.runner!, record = runnerRecord(gameKey());
       runner = new RunnerGame(settings, { upgrades: record.upgrades, missionLevel: record.missionLevel, missions: record.missions, bank: record.bank }, daily ? dailySeed(gameKey()) : settings.seed ?? Date.now() % 100000);
       const chaser = settings.chaser !== 'none' ? castFor(chapter).guards.get(settings.chaser)?.clone() : undefined;
-      runnerView = new RunnerView(runner, runnerActor(record), chaser, project.mission.environment);runnerView.moments = posesOf(root);hud.reset(`${settings.theme.replace('-', ' ').toUpperCase()} / ENDLESS RUN`);
+      runnerView = new RunnerView(runner, runnerActor(record), chaser, project.mission.environment, castFor(chapter).gunman?.clone());runnerView.moments = posesOf(root);hud.reset(`${settings.theme.replace('-', ' ').toUpperCase()} / ENDLESS RUN`);
     }
     music.configure(project.music, true);music.setPlaying(false);
     phase = 'intro';intro();
   }
   const controls = () => mode() === 'race'
     ? matchMedia('(pointer:coarse)').matches ? 'Drag your thumb to steer: the car accelerates by itself. Hold Drift through corners for a boost; tap Nitro on straights.' : 'W/↑ accelerate · A D / ← → steer · S/↓ brake · Space drift · Shift nitro · E item · F back to track · R restart · Esc pause'
-    : matchMedia('(pointer:coarse)').matches ? 'Swipe left or right to change lane and to turn at corners, up to jump and down to slide.' : 'A D / ← → change lane and turn at corners · W/↑/Space jump · S/↓ slide · R restart · Esc pause';
+    : matchMedia('(pointer:coarse)').matches ? `Swipe left or right to change lane and to turn at corners, up to jump and down to slide.${runner?.armed ? ' Tap Shoot to fire down your lane.' : ''}` : `A D / ← → change lane and turn at corners · W/↑/Space jump · S/↓ slide${runner?.armed ? ' · F shoot' : ''} · R restart · Esc pause`;
   function help() {
     if (mode() === 'race') hud.setHelp([['W / S', 'accelerate / brake'], ['A / D', 'steer'], ['Space', 'drift'], ['Shift', 'nitro'], ['E', 'item'], ['F', 'back to track'], ['R', 'restart']], 'Drag to steer · buttons to brake, drift and boost');
     else hud.setHelp([['A / D', 'lane and turn'], ['W / Space', 'jump'], ['S', 'slide'], ['R', 'restart']], 'Swipe to change lane, turn, jump and slide');
@@ -160,7 +160,7 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   }
   function touchButtons() {
     if (race) hud.touchButtons([{ id: 'brake', label: 'BRAKE' }, ...(race.settings.handling === 'drift' ? [{ id: 'drift', label: 'DRIFT' }] : []), ...(race.settings.nitro ? [{ id: 'nitro', label: 'NITRO' }] : []), ...(race.settings.pickups.includes('item-box') ? [{ id: 'item', label: 'ITEM' }] : [])], (id, down) => { if (down) touchHeld.add(id);else touchHeld.delete(id); });
-    else hud.touchButtons([], () => {});
+    else hud.touchButtons(runner?.armed ? [{ id: 'shoot', label: 'SHOOT' }] : [], (id, down) => { if (down && id === 'shoot') shootTap = true; });
   }
   function setPause(next: boolean) {
     if (phase !== 'playing' || paused === next) return;paused = next;music.setPlaying(!next);
@@ -196,7 +196,8 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
     stickX = pad?.stick ?? 0;stickY = pad?.stickY ?? 0;
     // Tilt moves between the three lanes; sideways swipes still turn at corners. Tilting right means the right lane (-1).
     const tiltLane = input.tilt ? (input.tiltValue > 0.35 ? -1 : input.tiltValue < -0.35 ? 1 : 0) : undefined;
-    return { left, right, jump, slide, tiltLane };
+    const shoot = input.tap('KeyF', 'KeyK', 'Enter') || shootTap || !!pad?.edge[2];shootTap = false;
+    return { left, right, jump, slide, tiltLane, shoot };
   }
   // ---- Events ----
   function raceEvents() {
@@ -237,6 +238,8 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
       if (e.type === 'board-break') { sfx.play('crash', 0.4);hud.say('BOARD BROKE · YOU ARE SAFE', 1.2, 'good'); }
       if (e.type === 'shield-break') { sfx.play('shield');hud.say('SHIELD SAVED YOU', 1, 'good'); }
       if (e.type === 'smash') sfx.play('bump', 0.7);
+      if (e.type === 'shoot') { sfx.play('shot', 1);if (e.target !== undefined) hud.say('ENEMY DOWN · +150', 0.8, 'good'); }
+      if (e.type === 'enemy-fire') { sfx.play('enemy-shot');if (!e.blocked) hud.say('HIT · SHOOT THEM FIRST', 1, 'bad'); }
       if (e.type === 'near-miss') { sfx.play('whoosh');hud.say('CLOSE CALL', 0.8, 'good'); }
       if (e.type === 'mission') { sfx.play('best');hud.say('MISSION COMPLETE', 1.4, 'good'); }
       if (e.type === 'goal') {
@@ -417,6 +420,6 @@ export function mountArcade(scene: GameScene, initialProject: PlayProject, initi
   requestAnimationFrame(frame);
   return {
     get state() { return { mode: mode(), phase, paused, chapter, daily, race, runner, raceView, runnerView, project: root, chapterProject: project, feel, music }; },
-    replace, start, suspend: () => activate(false), resume: () => activate(true), set onChapter(f: ((index: number) => void) | undefined) { onChapter = f; },
+    replace, start, suspend: () => activate(false), resume: () => activate(true), set onChapter(f: ((index: number) => void) | undefined) { onChapter = f; }, set onHub(f: ((index: number) => void) | undefined) { onHub = f; },
   };
 }

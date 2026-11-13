@@ -32,8 +32,8 @@ export const defaultRace = (): RaceSettings => ({ track: 'city-loop', laps: 3, o
 export type RunnerTheme = 'temple-ruins' | 'city-rooftops' | 'desert-canyon' | 'market-street' | 'snowy-peaks' | 'beach-boardwalk' | 'neon-city' | 'jungle-ruins' | 'train-yard' | 'volcano' | 'haunted-forest';
 export const RUNNER_THEMES: readonly RunnerTheme[] = ['temple-ruins', 'city-rooftops', 'desert-canyon', 'market-street', 'snowy-peaks', 'beach-boardwalk', 'neon-city', 'jungle-ruins', 'train-yard', 'volcano', 'haunted-forest'];
 export const RUNNER_THEME_NAMES: Record<RunnerTheme, string> = { 'temple-ruins': 'Temple ruins', 'city-rooftops': 'City rooftops', 'desert-canyon': 'Desert canyon', 'market-street': 'Market street', 'snowy-peaks': 'Snowy peaks', 'beach-boardwalk': 'Beach boardwalk', 'neon-city': 'Neon city', 'jungle-ruins': 'Jungle ruins', 'train-yard': 'Train yard', volcano: 'Volcano', 'haunted-forest': 'Haunted forest' };
-export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart';
-export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart'];
+export type RunnerObstacle = 'barrier-low' | 'bar-high' | 'gap' | 'blocker' | 'cart' | 'gunman';
+export const RUNNER_OBSTACLES: readonly RunnerObstacle[] = ['barrier-low', 'bar-high', 'gap', 'blocker', 'cart', 'gunman'];
 export type RunnerPowerUp = 'magnet' | 'shield' | 'boost' | 'multiplier' | 'springs' | 'hoverboard' | 'coin-rush';
 export const RUNNER_POWER_UPS: readonly RunnerPowerUp[] = ['magnet', 'shield', 'boost', 'multiplier', 'springs', 'hoverboard', 'coin-rush'];
 export const RUNNER_POWER_NAMES: Record<RunnerPowerUp, string> = { magnet: 'Magnet', shield: 'Shield', boost: 'Boost', multiplier: '×2 Score', springs: 'Spring boots', hoverboard: 'Hoverboard', 'coin-rush': 'Coin rush' };

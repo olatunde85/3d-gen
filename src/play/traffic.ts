@@ -5,7 +5,7 @@
  * vehicles and people, with no physics.
  */
 import {blocked,type Point,type Rect} from './world';
-import {carObstacle,type CarFit,type CarPose,type CarState,type DriveVehicle} from './driving';
+import {carObstacle,carTouches,type CarFit,type CarPose,type CarState,type DriveVehicle} from './driving';
 
 export interface TrafficLoop {points:Point[];/** Cumulative length at each point. */ at:number[];length:number;/** Comfortable speed at each point, lower before corners. */ limit:number[];/** The street crossings at the loop's corners. */ crossings:Point[]}
 export interface TrafficCar extends CarPose {id:string;model:DriveVehicle;color:string;livery?:'taxi';loop:number;s:number;speed:number;steer:number;distance:number;/** Sideways offset from the lane, used to pass stopped vehicles. */ shift:number;/** Metres left in the other lane while passing. */ pass:number;wait:number;fit:CarFit;braking:boolean}
@@ -98,10 +98,13 @@ export function trafficStep(cars:TrafficCar[],loops:readonly TrafficLoop[],dt:nu
   const wanted=car.pass>0?-2*LANE:0;car.shift+=(wanted-car.shift)*Math.min(1,dt*1.6);if(Math.abs(car.shift-wanted)<.02)car.shift=wanted;
   // Pulling out from a standstill creeps forward while the car swings into the other lane.
   if(car.pass>0){if(car.speed<2.5&&gap>.8)car.speed=Math.min(2.5,car.speed+ACCEL*dt);if(Math.abs(car.shift-wanted)<.4)car.pass-=car.speed*dt;}
+  // Never swing or roll into a player's vehicle beside the lane: hold position until it moves.
+  const before={x:car.x,z:car.z,yaw:car.yaw,s:car.s,shift:car.shift,distance:car.distance},touching=(c:CarPose)=>vehicles.some(v=>carTouches(c,car.fit,carObstacle(v))),wasTouching=touching(car);
   car.s=(car.s+car.speed*dt)%loop.length;car.distance+=car.speed*dt;
   // The body, not the rider, is centred in the lane.
   const p=sample(loop,car.s),c=Math.cos(p.yaw),sn=Math.sin(p.yaw),lx=p.x-c*car.shift,lz=p.z+sn*car.shift;car.x=lx-c*me.x;car.z=lz+sn*me.x;
   const turn=Math.atan2(Math.sin(ahead.yaw-p.yaw),Math.cos(ahead.yaw-p.yaw));car.steer+=(Math.max(-.5,Math.min(.5,-turn))-car.steer)*Math.min(1,dt*5);car.yaw=p.yaw;
+  if(!wasTouching&&touching(car)){Object.assign(car,before);car.speed=0;car.wait+=dt;}
  }
  return horns;
 }

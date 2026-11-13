@@ -4,7 +4,7 @@ import { nodeLibrary } from './node-assets';
 import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject, posesOf } from '../src/play/project';
 import { skyLook } from '../src/play/arcade/weather';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
-import { RUNNER_THEMES, RUNNER_THEME_NAMES, defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel, runnerMedalTargets } from '../src/play/arcade/modes';
+import { type RunnerSettings, RUNNER_THEMES, RUNNER_THEME_NAMES, defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel, runnerMedalTargets } from '../src/play/arcade/modes';
 import { DEFAULT_RUNNER_MEDALS, raceMedal, runnerMedal } from '../src/play/arcade/medals';
 import { RUNNER_GENERIC_ICONS, RUNNER_OBJECT_TYPES } from '../src/play/arcade/objects';
 import { ICONS } from '../src/play/arcade/icons';
@@ -63,6 +63,27 @@ check('race and runner games round-trip through portable JSON, chapters and LLM 
   const mixed = parsePlayInput(JSON.stringify(chapter), cat);assert.equal(chapterProject(mixed, 1).mode, 'runner');assert.ok(chapterProject(mixed, 1).runner);assert.equal(chapterProject(mixed, 1).race, undefined);assert.equal(chapterProject(mixed, 2).mode, 'race');
   chapter.chapters[0].mode = 'mission';const withMission = parsePlayInput(JSON.stringify(chapter), cat);assert.equal(chapterProject(withMission, 1).mode, undefined);assert.equal(chapterProject(withMission, 1).race, undefined);assert.deepEqual(parseProject(JSON.stringify(withMission), cat), withMission);
   chapter.chapters[0].race = {};assert.throws(() => parsePlayInput(JSON.stringify(chapter), cat), /need mode/);
+});
+check('race and runner chapters never stage mission cargo inherited from the first chapter', () => {
+  // A depot package fits the first mission by day; the chapter's night lighting props block it, which only matters if the race is staged as a mission.
+  const race = raceExample() as unknown as Record<string, any>, riders = Array.from({ length: 5 }, (_, i) => ({ ...race.enemies[0], id: `rider-${i + 1}` }));
+  const game = { ...race, mode: 'mission', race: undefined, mission: { story: 'escape', extraction: 'pickup', location: 'depot', layout: 'balanced', variation: 0, cargo: 'package' }, chapters: [{ id: 'night-ride', mode: 'race', identity: { title: 'Night Ride', briefing: '' }, enemies: riders, race: race.race, mission: { environment: { time: 'night', weather: 'clear' } } }] };
+  const p = parsePlayInput(JSON.stringify(game), cat);assert.equal(chapterProject(p, 1).mode, 'race');
+  const asMission = { ...game, chapters: [{ ...game.chapters[0], mode: 'mission', race: undefined }] };
+  assert.throws(() => parsePlayInput(JSON.stringify(asMission), cat), /night-ride › cargo \(package\).*inherited from chapter-1 › mission\.cargo/);
+});
+check('runner enemies stand in one lane, fall to a shot down that lane, and fire once if left standing', () => {
+  const settings = { ...defaultRunner(), obstacles: ['gunman'] as RunnerSettings['obstacles'], powerUps: [] as RunnerSettings['powerUps'], chaser: 'none' };
+  // Shooting whenever an enemy stands in the runner's lane clears them all without a stumble.
+  const shooter = new RunnerGame(settings, profile(), 11);shooter.start();assert.equal(shooter.armed, true);
+  for (let i = 0; i < 60 * 40 && shooter.status === 'running'; i++) { const ahead = shooter.current.things.some((t) => t.kind === 'gunman' && !t.hit && t.lanes & (1 << (shooter.lane + 1)) && t.d > shooter.d && t.d - shooter.d < 30);shooter.update(1 / 60, { ...botInput(shooter), shoot: ahead && i % 4 === 0 }); }
+  const shooterEvents = shooter.drain().map((e) => e.type);
+  assert.ok(shooter.stats.enemies >= 5, `enemies shot: ${shooter.stats.enemies}`);assert.equal(shooterEvents.includes('enemy-fire'), false, 'no enemy got a shot off');assert.equal(shooter.status, 'running');
+  // Never shooting and staying in lane: the enemy fires first, then the runner runs into it.
+  const idle = new RunnerGame(settings, profile(), 11);idle.start();const events: string[] = [];
+  for (let i = 0; i < 60 * 40 && idle.status === 'running'; i++) { idle.update(1 / 60, { left: false, right: false, jump: false, slide: false });events.push(...idle.drain().map((e) => e.type)); }
+  assert.ok(events.includes('enemy-fire') && events.includes('stumble'), events.join(','));assert.equal(idle.downReason, 'crash');
+  assert.equal(new RunnerGame({ ...settings, obstacles: ['blocker'] }, profile(), 11).armed, false, 'runs without enemies have no gun');
 });
 check('built-in circuits satisfy the custom circuit rules and custom loops are validated', () => {
   for (const t of TRACK_TEMPLATES) { parseTrack({ points: t.points, width: t.width });const track = buildTrack(t);assert.ok(track.length > 600 && track.length < 1600, t.id);const p = trackPoint(track, 200, 2.5), at = locate(track, p.x, p.z);assert.ok(Math.abs(at.s - 200) < 2.5 && Math.abs(at.lateral - 2.5) < 0.2, t.id); }

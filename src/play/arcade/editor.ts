@@ -42,6 +42,7 @@ const OBSTACLE_NOTES: Record<string, [string, string]> = {
   gap: ['Gaps', 'Jump across; falling in ends the run.'],
   blocker: ['Lane blockers', 'Change lane around them; hitting one ends the run.'],
   cart: ['Moving carts', 'Roll toward you in one lane; change lane in time.'],
+  gunman: ['Armed enemies', 'Pop up in one lane: shoot them with F or the Shoot button, or change lane. One left standing in your lane fires once and makes you stumble; running into one ends the run. Uses an armed enemy from this chapter.'],
 };
 const POWER_NOTES: Record<string, [string, string]> = {
   magnet: ['Coin magnet', 'Pulls in coins from every lane.'],

@@ -6,7 +6,7 @@ import type {Engine} from '../app/engine';
 import {GameActor} from './actor';
 import {castsCompanion,heroWeapon,heroGuns,chapterProject,gameProjects,preset,type PlayProject} from './project';
 import {defaultCity} from './city';
-export interface PlayCast {hero:GameActor;heroWeapons?:Map<Gun,GameActor>;heroDelivery?:Map<Equipment,GameActor>;pedestrians?:GameActor[];police?:Map<string,GameActor>;guards:Map<string,GameActor>;companion?:GameActor;chapters?:PlayCast[]}
+export interface PlayCast {hero:GameActor;heroWeapons?:Map<Gun,GameActor>;heroDelivery?:Map<Equipment,GameActor>;pedestrians?:GameActor[];police?:Map<string,GameActor>;guards:Map<string,GameActor>;companion?:GameActor;/** The armed enemy that stands in a runner's lanes, when the run has enemies. */gunman?:GameActor;chapters?:PlayCast[]}
 export async function prepareCast(project:PlayProject,engine:Engine,texture:(file:string)=>string,progress:(text:string)=>void,previous?:PlayCast&{project:PlayProject},sharedHero?:GameActor):Promise<PlayCast>{
  const pool=new Map<string,Character>(),created:GameActor[]=[],recipe=(p:HumanParams)=>JSON.stringify(p);
  const equipped=(params:HumanParams,weapon:Equipment):HumanParams=>({...params,weapon});
@@ -21,11 +21,13 @@ export async function prepareCast(project:PlayProject,engine:Engine,texture:(fil
   const hero=sharedHero??await build(equipped(project.character,heroWeapon(project)),previous?equipped(previous.project.character,heroWeapon(previous.project)):undefined,previous?.hero),guards=new Map<string,GameActor>();
   for(const enemy of project.enemies){const old=previous?.project.enemies.find(e=>e.id===enemy.id);guards.set(enemy.id,await build(equipped(enemy.character,isGun(enemy.response)?enemy.response:'none'),old?equipped(old.character,isGun(old.response)?old.response:'none'):undefined,previous?.guards.get(enemy.id)));}
   const companion=castsCompanion(project)?await build(equipped(project.companion.character,'none'),previous?.companion?equipped(previous.project.companion.character,'none'):undefined,previous?.companion):undefined;
-  return {hero,guards,companion};
+  // A run with enemies needs one armed figure: an armed enemy of the chapter, or its first enemy given a pistol.
+  let gunman:GameActor|undefined;if(project.mode==='runner'&&project.runner?.obstacles.includes('gunman')&&project.enemies.length){const armed=project.enemies.find(e=>isGun(e.response));gunman=armed?guards.get(armed.id):await build(equipped(project.enemies[0].character,'pistol'),previous?.gunman?previous.gunman.render.character.params:undefined,previous?.gunman);}
+  return {hero,guards,companion,...(gunman?{gunman}:{})};
  }catch(error){created.forEach(actor=>actor.dispose());throw error;}
 }
 
-export const castActors=(cast:PlayCast):Set<GameActor>=>new Set([cast.hero,...(cast.heroWeapons?.values()??[]),...(cast.heroDelivery?.values()??[]),...(cast.pedestrians??[]),...(cast.police?.values()??[]),...cast.guards.values(),...(cast.companion?[cast.companion]:[]),...(cast.chapters??[]).flatMap(c=>[...castActors(c)])]);
+export const castActors=(cast:PlayCast):Set<GameActor>=>new Set([cast.hero,...(cast.heroWeapons?.values()??[]),...(cast.heroDelivery?.values()??[]),...(cast.pedestrians??[]),...(cast.police?.values()??[]),...cast.guards.values(),...(cast.companion?[cast.companion]:[]),...(cast.gunman?[cast.gunman]:[]),...(cast.chapters??[]).flatMap(c=>[...castActors(c)])]);
 export async function prepareGameCast(project:PlayProject,engine:Engine,texture:(file:string)=>string,progress:(text:string)=>void,previous?:PlayCast&{project:PlayProject}){
  const old=previous?castActors(previous):new Set<GameActor>();let root:PlayCast|undefined;const built:PlayCast[]=[];
  try{root=await prepareCast(project,engine,texture,progress,previous);built.push(root);const heroWeapons=new Map<Gun,GameActor>(),primary=heroWeapon(project);if(isGun(primary))heroWeapons.set(primary,root.hero);

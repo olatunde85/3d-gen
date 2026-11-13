@@ -28,7 +28,8 @@ export const forwardOf = (h: number) => DIRS[((h % 4) + 4) % 4];
 /** Left is a quarter turn anticlockwise from forward, matching Ara's characters (+X is a character's left). */
 export const leftOf = (h: number) => DIRS[(((h + 1) % 4) + 4) % 4];
 
-export interface RunnerThing { id: number; kind: RunnerObstacle; d: number; lanes: number; length: number; moving: number; hit: boolean; passed: boolean }
+/** `shot` marks an enemy brought down by the runner; `fired` an enemy that has already fired its one shot. */
+export interface RunnerThing { id: number; kind: RunnerObstacle; d: number; lanes: number; length: number; moving: number; hit: boolean; passed: boolean; shot?: boolean; fired?: boolean }
 export interface RunnerCoin { id: number; d: number; lane: number; y: number; taken: boolean }
 export interface RunnerPickup { id: number; kind: RunnerPowerUp; d: number; lane: number; taken: boolean }
 /** One piece of a creator's object (index into settings.objects) waiting on the course. */
@@ -39,8 +40,8 @@ export interface RunnerSegment {
 }
 export type RunnerEvent =
   | { type: 'jump' | 'spring' | 'bounce' | 'drop' | 'board-break' | 'slide' | 'lane' | 'turn' | 'coin' | 'stumble' | 'shield-break' | 'smash' | 'land' | 'mission' | 'goal' | 'revive' | 'caught' | 'fall' | 'crash' }
-  | { type: 'power'; kind: RunnerPowerUp } | { type: 'find'; item: number; done: boolean; all: boolean } | { type: 'near-miss' } | { type: 'rebase'; dx: number; dz: number } | { type: 'speed-up'; speed: number };
-export interface RunnerInput { left: boolean; right: boolean; jump: boolean; slide: boolean; tiltLane?: number }
+  | { type: 'power'; kind: RunnerPowerUp } | { type: 'find'; item: number; done: boolean; all: boolean } | { type: 'near-miss' } | { type: 'shoot'; target?: number } | { type: 'enemy-fire'; target: number; blocked: boolean } | { type: 'rebase'; dx: number; dz: number } | { type: 'speed-up'; speed: number };
+export interface RunnerInput { left: boolean; right: boolean; jump: boolean; slide: boolean; tiltLane?: number; shoot?: boolean }
 export const MISSION_KINDS = ['coins', 'distance', 'jumps', 'slides', 'powers', 'score'] as const;
 export type MissionKind = (typeof MISSION_KINDS)[number];
 export interface Mission { kind: MissionKind; target: number; label: string }
@@ -70,12 +71,12 @@ export class RunnerGame {
   /** Distance into the current segment, lateral lane position, height, and the height of what is underfoot. */
   floor = 0; d = 0; lane = 0; x = 0; y = 0; vy = 0; sliding = 0; grounded = true; heading = 0; speed = 0; distance = 0; time = 0;
   coins = 0; score = 0; multiplier = 1; chaser = 14; stumbles = 0; lastStumble = -100; revives = 0; queuedTurn?: 'left' | 'right'; airborne = 0;
-  power: Record<RunnerPowerUp, number> = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0, hoverboard: 0, 'coin-rush': 0 }; stats = { jumps: 0, slides: 0, powers: 0 }; missionsDone: boolean[] = [false, false, false];
+  power: Record<RunnerPowerUp, number> = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0, hoverboard: 0, 'coin-rush': 0 }; stats = { jumps: 0, slides: 0, powers: 0, enemies: 0 }; missionsDone: boolean[] = [false, false, false];
   events: RunnerEvent[] = []; downReason?: 'crash' | 'fall' | 'caught'; downTime = 0; goalReached = false; recover = 0; turnLean = 0;
   private random: () => number; private nextId = 1; private accumulator = 0; private recycle = new Pool<RunnerSegment>(() => ({ id: 0, x: 0, z: 0, heading: 0, length: 0, start: 0, end: 'left', things: [], coins: [], pickups: [], finds: [], gaps: [], decor: 0 }));
   private thingPool = new Pool<RunnerThing>(() => ({ id: 0, kind: 'barrier-low', d: 0, lanes: 0, length: 0, moving: 0, hit: false, passed: false }));
   private coinPool = new Pool<RunnerCoin>(() => ({ id: 0, d: 0, lane: 0, y: 0, taken: false }));
-  private lastNearMiss = -10; private coyote = 0;
+  private lastNearMiss = -10; private coyote = 0; private gunCooldown = 0;
   /** Pieces found of each object, the piece on the course now, and where along the course the next may appear. */
   found: number[] = []; liveFind?: RunnerFind; private findSegment?: RunnerSegment; private nextFindAt = 0; private findRandom: () => number;
   constructor(readonly settings: RunnerSettings, readonly profile: RunnerProfile, readonly seed = settings.seed ?? 1) { this.random = seeded(seed);this.findRandom = seeded(seed + 7919);this.reset(); }
@@ -89,7 +90,7 @@ export class RunnerGame {
     for (const s of [...this.segments, ...this.branches, ...this.behind]) this.releaseSegment(s);
     this.segments = [];this.branches = [];this.behind = [];
     Object.assign(this, { status: 'ready', floor: 0, d: 4, lane: 0, x: 0, y: 0, vy: 0, sliding: 0, grounded: true, heading: 0, speed: this.settings.startSpeed, distance: 0, time: 0, coins: 0, score: 0, chaser: 6, stumbles: 0, lastStumble: -100, revives: 0, queuedTurn: undefined, airborne: 0, downReason: undefined, goalReached: false, recover: 0, turnLean: 0, accumulator: 0, events: [], lastNearMiss: -10 });
-    this.power = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0, hoverboard: 0, 'coin-rush': 0 };this.rushUntil = 0;this.stats = { jumps: 0, slides: 0, powers: 0 };this.missionsDone = this.profile.missions.map(Boolean);this.multiplier = 1 + this.profile.missionLevel;
+    this.power = { magnet: 0, shield: 0, boost: 0, multiplier: 0, springs: 0, hoverboard: 0, 'coin-rush': 0 };this.rushUntil = 0;this.stats = { jumps: 0, slides: 0, powers: 0, enemies: 0 };this.gunCooldown = 0;this.missionsDone = this.profile.missions.map(Boolean);this.multiplier = 1 + this.profile.missionLevel;
     this.found = (this.settings.objects ?? []).map(() => 0);this.liveFind = undefined;this.findSegment = undefined;this.nextFindAt = 0;
     this.segments.push(this.makeSegment(0, 0, 0, 0, true));this.fill();
   }
@@ -97,7 +98,7 @@ export class RunnerGame {
   update(dt: number, input: RunnerInput, scale = 1) {
     if (this.status === 'down' || this.status === 'over') this.downTime += dt;
     this.accumulator = Math.min(0.25, this.accumulator + dt * scale);
-    while (this.accumulator >= RUNNER_STEP) { this.step(RUNNER_STEP, input);this.accumulator -= RUNNER_STEP;input = { left: false, right: false, jump: false, slide: input.slide && this.sliding > 0, tiltLane: input.tiltLane }; }
+    while (this.accumulator >= RUNNER_STEP) { this.step(RUNNER_STEP, input);this.accumulator -= RUNNER_STEP;input = { left: false, right: false, jump: false, slide: input.slide && this.sliding > 0, tiltLane: input.tiltLane, shoot: false }; }
   }
   /** Base speed rises with distance; a boost adds a burst on top. */
   baseSpeed() {
@@ -118,7 +119,7 @@ export class RunnerGame {
     const target = this.baseSpeed() * (this.power.boost > 0 ? 1.55 : 1) * (this.hovering ? HOVER_SPEED : 1) * (this.recover > 0 ? 0.72 : 1), before = Math.floor(this.speed / 2);
     this.speed += (target - this.speed) * (1 - Math.exp(-dt * 2.5));
     if (Math.floor(this.speed / 2) > before && this.power.boost <= 0 && !this.hovering && this.speed > this.settings.startSpeed + 2) this.events.push({ type: 'speed-up', speed: this.speed });
-    this.controls(input);
+    this.controls(input);this.gunfight(dt, input);
     // Vertical motion: jumps arc over low obstacles and gaps; sliding while airborne pulls the runner down.
     // Roofs carry the runner; stepping off the end of one drops them back down.
     this.floor = this.support();
@@ -203,6 +204,28 @@ export class RunnerGame {
       if (t.kind === 'barrier-low' || t.kind === 'bar-high') { this.stumble();continue; }
       if (this.power.shield > 0) { this.power.shield = 0;this.events.push({ type: 'shield-break' });continue; }
       this.down('crash');return;
+    }
+  }
+  /** Whether this run has enemies to shoot. */
+  get armed() { return this.settings.obstacles.includes('gunman'); }
+  /**
+   * Enemies stand in one lane. The runner shoots straight down their own lane: the nearest standing enemy within
+   * 38 m drops. An enemy left standing in the runner's lane fires once at 14 m; a shield or hoverboard takes it, otherwise the runner stumbles.
+   */
+  private gunfight(dt: number, input: RunnerInput) {
+    if (!this.armed) return;
+    this.gunCooldown = Math.max(0, this.gunCooldown - dt);
+    const lane = Math.round(this.x / LANE), mine = (t: RunnerThing) => !!(t.lanes & (1 << (lane + 1)));
+    if (input.shoot && this.gunCooldown === 0) {
+      this.gunCooldown = 0.28;
+      const target = this.current.things.filter((t) => t.kind === 'gunman' && !t.hit && mine(t) && t.d > this.d && t.d - this.d < 38).sort((a, b) => a.d - b.d)[0];
+      if (target) { target.hit = true;target.shot = true;this.stats.enemies++;this.score += 150 * this.multiplier;this.coins += 2; }
+      this.events.push({ type: 'shoot', target: target?.id });
+    }
+    for (const t of this.current.things) if (t.kind === 'gunman' && !t.hit && !t.fired && mine(t) && t.d - this.d < 14 && t.d > this.d) {
+      t.fired = true;const blocked = this.power.shield > 0 || this.hovering || this.power.boost > 0;
+      this.events.push({ type: 'enemy-fire', target: t.id, blocked });
+      if (this.power.shield > 0) { this.power.shield = 0;this.events.push({ type: 'shield-break' }); } else if (!blocked) this.stumble();
     }
   }
   private nearMiss(t: RunnerThing, height: number) {
@@ -357,10 +380,10 @@ export class RunnerGame {
   /** Every obstacle leaves a way through: a free lane, a jump or a slide. */
   private place(s: RunnerSegment, kind: RunnerObstacle, d: number, difficulty: number) {
     const r = this.random, t = this.thingPool.get(), all = 0b111, oneLane = () => 1 << Math.floor(r() * 3), twoLanes = () => all & ~oneLane();
-    const lanes = kind === 'bar-high' || kind === 'gap' ? all : kind === 'barrier-low' ? (r() < 0.4 + difficulty * 0.4 ? all : twoLanes()) : kind === 'cart' ? oneLane() : r() < 0.35 + difficulty * 0.35 ? twoLanes() : oneLane();
+    const lanes = kind === 'bar-high' || kind === 'gap' ? all : kind === 'barrier-low' ? (r() < 0.4 + difficulty * 0.4 ? all : twoLanes()) : kind === 'cart' || kind === 'gunman' ? oneLane() : r() < 0.35 + difficulty * 0.35 ? twoLanes() : oneLane();
     // In the train yard half the trains stand still, one to three carriages long; moving trains are one carriage.
     const train = kind === 'cart' && this.settings.theme === 'train-yard', parked = train && r() < 0.5;
-    Object.assign(t, { id: this.nextId++, kind, d, lanes, length: kind === 'gap' ? 2.6 + r() * difficulty * 1.4 : train ? TRAIN_CAR * (parked ? 1 + Math.floor(r() * 3) : 1) : kind === 'cart' ? 2.2 : kind === 'blocker' ? 1.4 : 0.5, moving: kind === 'cart' && !parked ? 5 + difficulty * 4 : 0, hit: false, passed: false });
+    Object.assign(t, { shot: false, fired: false, id: this.nextId++, kind, d, lanes, length: kind === 'gap' ? 2.6 + r() * difficulty * 1.4 : train ? TRAIN_CAR * (parked ? 1 + Math.floor(r() * 3) : 1) : kind === 'cart' ? 2.2 : kind === 'blocker' ? 1.4 : kind === 'gunman' ? 0.8 : 0.5, moving: kind === 'cart' && !parked ? 5 + difficulty * 4 : 0, hit: false, passed: false });
     if (kind === 'cart' && t.moving) { const v = this.settings.startSpeed + (this.settings.maxSpeed - this.settings.startSpeed) * difficulty;t.d += (t.moving * 45) / (v + t.moving); }
     if (kind === 'gap') s.gaps.push([t.d, t.d + t.length]);
     s.things.push(t);

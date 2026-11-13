@@ -11,9 +11,11 @@ export function parseCity(raw:unknown):CitySettings {
  if(raw===undefined)return defaultCity();if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Use valid city district settings.');
  const p=raw as Record<string,unknown>;if(Object.keys(p).some(key=>!['size','pedestrians','traffic','movingTraffic','police','repairShop','gunShop','pedestrianFights','pedestrianHostility','weaponSwitch','radio','radioCountry'].includes(key)))throw Error('Unsupported city district setting.');
  const result={...defaultCity(),...p};if(!['local','district','vast'].includes(String(result.size)))throw Error('City size must be Local, District or Vast.');
- if(![0,2,4,8].includes(Number(result.pedestrians)))throw Error('City pedestrians must be Off, Few, Normal or Crowded.');
- if(![0,4,8,12].includes(Number(result.traffic)))throw Error('City parked vehicles must be Off, Few, Normal or Many.');
- if(![0,4,8,12].includes(Number(result.movingTraffic)))throw Error('City moving traffic must be Off, Light, Normal or Busy.');
+ // The densest settings are retired for performance; older setups that chose them get the next level down.
+ if(Number(result.pedestrians)===8)result.pedestrians=4;if(Number(result.traffic)===12)result.traffic=8;if(Number(result.movingTraffic)===12)result.movingTraffic=8;
+ if(![0,2,4].includes(Number(result.pedestrians)))throw Error('City pedestrians must be Off, Few or Normal.');
+ if(![0,4,8].includes(Number(result.traffic)))throw Error('City parked vehicles must be Off, Few or Normal.');
+ if(![0,4,8].includes(Number(result.movingTraffic)))throw Error('City moving traffic must be Off, Light or Normal.');
  if(!['peaceful','retaliate','mixed','hostile'].includes(String(result.pedestrianHostility)))throw Error('Pedestrian hostility must be Peaceful, Retaliate, Mixed or Hostile.');
  for(const key of ['police','repairShop','gunShop','pedestrianFights','weaponSwitch','radio'] as const)if(typeof result[key]!=='boolean')throw Error(`City ${key} must be on or off.`);
  if(typeof result.radioCountry!=='string'||!/^[A-Z]{2}$/.test(result.radioCountry))throw Error('Radio country must be a two-letter country code.');return result as CitySettings;

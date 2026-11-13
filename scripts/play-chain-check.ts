@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict';
 import {EscapeGame,type Input} from '../src/play/runtime';
-import {defaultMission,parseMission,missionObstacles} from '../src/play/mission';
+import {createMission,defaultMission,parseMission,missionObstacles} from '../src/play/mission';
 import {defaultLoadout} from '../src/play/combat';
 import {defaultProgression} from '../src/play/progression';
-import {parseSteps,stepDuration} from '../src/play/objectives';
+import {parseSteps,stepDuration,stageStepsOrSuggest} from '../src/play/objectives';
 import {defaultCarFit} from '../src/play/driving';
 import {blocked,distance,route} from '../src/play/world';
 const idle:Input={x:0,z:0,sprint:false,interact:false};let checks=0;function check(name:string,fn:()=>void){fn();checks++;console.log('OK',name);}function tick(g:EscapeGame,n:number,input=idle){for(let i=0;i<n*60;i++)g.update(1/60,input);}
 function game(steps:NonNullable<ReturnType<typeof defaultMission>['steps']>){return new EscapeGame({...defaultMission(),location:'desert-compound',steps},[{id:'target',aggression:'cautious',response:'rifle'}],{...defaultLoadout(),weapon:'rifle',ammunition:'unlimited'});}
 check('steps are bounded, typed and validate named targets before play',()=>{for(const steps of [[],Array(9).fill({type:'reach'}),[{type:'invented'}],[{type:'download',duration:-1}],[{type:'defend',duration:1000}],[{type:'eliminate'}],[{type:'survive',waves:4}],[{type:'reach',duration:20}],[{type:'reach',code:'x'}]])assert.throws(()=>parseSteps(steps));assert.throws(()=>parseSteps([{type:'reach'},{type:'defend',duration:999}]),/objective 2:/);assert.throws(()=>game([{type:'eliminate',target:'absent'}]),/objective 1 .*target \"absent\"/);assert.throws(()=>parseMission({difficulty:'crazy'}));assert.throws(()=>parseMission({parTime:0}));});
 check('download holds cap at 15 seconds and defend zones launch bounded armed assaults',()=>{assert.equal(stepDuration(parseSteps([{type:'download',duration:25}])[0]),15);const g=game([{type:'defend',duration:12,waves:2}]);assert.equal(g.stagedSteps[0].radius,8);assert.equal(g.assaultCarEnabled,true);const original={x:g.guard.x,z:g.guard.z};g.configurePursuit(defaultCarFit());assert.notEqual(g.guard.vehicle,true,'backup stays in its patrol until the assault');assert.equal(g.guard.x,original.x);assert.equal(g.guard.z,original.z);g.start();g.protection=Infinity;g.guard.combat.health=0;Object.assign(g.player,g.currentStep!.position);tick(g,4.2);assert.equal(g.assaultActive,true);assert.equal(g.guard.vehicle,true);assert.equal(g.guard.combat.health,100);assert.equal(g.events.filter(e=>e.type==='defend-assault').length,1);tick(g,4.1);assert.equal(g.events.filter(e=>e.type==='defend-assault').length,2);tick(g,4);assert.equal(g.stepIndex,1);assert.equal(g.events.filter(e=>e.type==='defend-assault').length,2);});
+check('an objective with nowhere to go names layouts where the whole chain fits',()=>{const m={...defaultMission(),location:'desert-compound' as const,steps:[{type:'download' as const},{type:'defend' as const}]},full=createMission(m,false);
+ assert.throws(()=>stageStepsOrSuggest(m,{...full,supplyRows:[]},x=>createMission(x,false)),/objective 1 \(download\): no reachable staging area.* Try layout "[a-z]+", variation \d+/);});
 check('a hold counts only in sight of its marker, and attackers keep probing the defender',()=>{
  // Somewhere on the maps a wall cuts through the ring: standing behind it is another block and does not hold.
  let walled=false;for(const location of ['depot','military-base','desert-compound','market-street','urban-block']as const)for(let variation=0;variation<6&&!walled;variation++){
