@@ -13,7 +13,10 @@ export async function importStudioFilm(file:File,engine:Engine,library:AssetLibr
  if(file.size>128*1024*1024)throw Error('Choose a Studio project smaller than 128 MiB.');
  const bundle=/\.zip$/i.test(file.name)||file.type==='application/zip';
  if(!bundle&&file.size>100_000)throw Error('Choose Studio JSON smaller than 100 KB.');
- const project=bundle?await openAudioBundle(file,library.catalog):parseStudioInput(await file.text(),library.catalog);
+ const parsed=bundle?await openAudioBundle(file,library.catalog):parseStudioInput(await file.text(),library.catalog);
+ // Scripted lines without recorded audio are voiced on this device first, as Studio does before an export.
+ const {hasScriptedSpeech,prepareDialogue}=await import('../studio/audio/prepare');
+ const project=hasScriptedSpeech(parsed)?await prepareDialogue(parsed,{signal:new AbortController().signal,progress:message=>progress(`Generating dialogue · ${message}`)}):parsed;
  const scene=new StudioScene(document.createElement('canvas')),actors=new Map<string,StudioActor>();
  try{
   for(const [index,track]of project.actors.entries()){

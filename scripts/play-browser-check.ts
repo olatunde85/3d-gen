@@ -35,7 +35,7 @@ const progressionOnly=process.argv.includes('--progression');
 const mobileOnly=process.argv.includes('--mobile'),traversalOnly=process.argv.includes('--traversal'),recoveryOnly=process.argv.includes('--recovery'),combatOnly=process.argv.includes('--combat'),combatFeedbackOnly=process.argv.includes('--combat-feedback'),rescueOnly=process.argv.includes('--rescue'),rescueLayoutOnly=process.argv.includes('--rescue-layout');
 const chromePath=process.env.CHROME??'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 await build({logLevel:'error'});const dist=join(import.meta.dirname,'../dist'),profile=mkdtempSync(join(tmpdir(),'ara-play-'));
-const types:Record<string,string>={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.wasm':'application/wasm','.mp3':'audio/mpeg','.wav':'audio/wav','.mp4':'video/mp4','.webm':'video/webm'};
+const types:Record<string,string>={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.wasm':'application/wasm','.mp3':'audio/mpeg','.wav':'audio/wav','.mp4':'video/mp4','.webm':'video/webm'};
 const server=createServer((req,res)=>{let p=join(dist,decodeURIComponent((req.url??'/').split('?')[0]));if(existsSync(p)&&statSync(p).isDirectory())p=join(p,'index.html');if(!p.startsWith(dist)||!existsSync(p)){res.statusCode=404;res.end();return;}res.setHeader('Content-Type',types[extname(p)]??'application/octet-stream');res.end(readFileSync(p));});await new Promise<void>(r=>server.listen(4407,'127.0.0.1',r));
 const chrome=spawn(chromePath,['--headless=new','--use-angle='+(process.env.ARA_TEST_NATIVE_GPU==='1'?'metal':'swiftshader'),'--enable-unsafe-swiftshader','--no-first-run',`--user-data-dir=${profile}`,'--remote-debugging-pipe','--window-size=1280,900','about:blank'],{stdio:['ignore','ignore','ignore','pipe','pipe']});
 const input=chrome.stdio[3]as Writable,output=chrome.stdio[4]as Readable,pending=new Map<number,{resolve:(v:unknown)=>void;reject:(e:Error)=>void}>();let seq=0,session='',buffer='';const errors:string[]=[];
@@ -81,13 +81,16 @@ try{
 
 
  await check('Studio JSON film renders into a portable opening',async()=>{
-  const project=blankProject(),file=join(profile,'studio-opening.json');writeFileSync(file,JSON.stringify(project));
+  // A scripted line with no recorded audio is voiced on the device before the film renders. STUDIO_FILM checks a real film file instead.
+  const project=blankProject();project.audio.speech=[{source:'tts',id:'line',name:'Narrator: Hello there.',actor:'narrator',text:'Hello there.',voice:'F1',start:.5,duration:1.5,offset:0,speed:1,volume:1,pan:0,effect:'natural'}];
+  const file=process.env.STUDIO_FILM??join(profile,'studio-opening.json');if(!process.env.STUDIO_FILM)writeFileSync(file,JSON.stringify(project));
   await click('#settings');await click('#setup-presentation');await send('Page.setInterceptFileChooserDialog',{enabled:true});
   await evaluate('Array.from(document.querySelectorAll("#story-editor button")).find(b=>b.textContent==="Use Studio project").click()');
   await wait('!!document.querySelector("input[data-story-attachment]")','Studio project input');
   const dom=await send<{root:{nodeId:number}}>('DOM.getDocument'),input=await send<{nodeId:number}>('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'input[data-story-attachment]'});
   await send('DOM.setFileInputFiles',{nodeId:input.nodeId,files:[file]});
-  await wait('document.getElementById("story-editor").textContent.includes("Studio film ready")||document.getElementById("story-editor").textContent.includes("could not")||document.getElementById("story-editor").textContent.includes("unavailable")','Studio film render result',180000);
+  const report=setInterval(()=>{void evaluate<string>('document.querySelector("#story-editor [role=status]")?.textContent??""').then(t=>console.log('  …',t)).catch(()=>{});},20000);
+  try{await wait('document.getElementById("story-editor").textContent.includes("Studio film ready")||document.getElementById("story-editor").textContent.includes("could not")||document.getElementById("story-editor").textContent.includes("unavailable")','Studio film render result',1200000);}finally{clearInterval(report);}
   const status=await evaluate<string>('document.getElementById("story-editor").textContent');assert.ok(status.includes('Studio film ready'),status.slice(-500));
   await send('Page.setInterceptFileChooserDialog',{enabled:false});
  });

@@ -24,7 +24,7 @@ export function stageSteps(m:MissionSettings,w:MissionWorld):StagedStep[]{
   for(const candidate of candidates){if(step.type==='download')w.blocks.push({id:'objective-terminal-'+index,x:candidate.x,z:candidate.z-.95,w:.65,d:.45,h:1,kind:'crate',color:'#4f7075'});
    if(routesClear(candidate)){desired=candidate;break;}if(step.type==='download')w.blocks.pop();}
   if(!desired)throw Error(`objective ${index+1} (${step.type}): no reachable staging area in ${w.location}, layout "${m.layout}", variation ${m.variation}; a terminal or solid blocks the route.`);
-  staged.push({step,position:{...desired},radius:step.type==='download'?1.5:step.type==='defend'?10:2.5});
+  staged.push({step,position:{...desired},radius:step.type==='download'?1.5:step.type==='defend'?8:2.5});
  }
  return staged;
 }
