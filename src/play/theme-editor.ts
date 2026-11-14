@@ -1,4 +1,4 @@
-/** Game setup → Atmosphere → Game colours: presets, three custom colours and a live preview of the game screens. */
+/** Customize → Colours: presets, three custom colours and a live preview of a game screen. */
 import { applyTheme, contrast, DEFAULT_THEME, THEME_PRESETS, type GameTheme } from './theme';
 
 export function themeEditor(get: () => GameTheme | undefined, set: (theme: GameTheme | undefined) => void) {
@@ -7,7 +7,7 @@ export function themeEditor(get: () => GameTheme | undefined, set: (theme: GameT
   const same = (a: GameTheme, b: GameTheme) => a.accent === b.accent && a.background === b.background && a.text === b.text;
   function paint() {
     const theme = get() ?? DEFAULT_THEME;
-    for (const key of ['accent', 'background', 'text'] as const) inputs[key].value = theme[key];
+    for (const key of ['accent', 'background', 'text'] as const) { inputs[key].value = theme[key];const hex = document.querySelector(`[data-hex=${key}]`);if (hex) hex.textContent = theme[key]; }
     for (const b of presets.querySelectorAll<HTMLButtonElement>('button')) b.setAttribute('aria-checked', String(same(THEME_PRESETS.find((p) => p.id === b.dataset.preset)!.theme, theme)));
     preview.style.setProperty('--p-bg', theme.background);preview.style.setProperty('--p-ink', theme.text);preview.style.setProperty('--p-accent', theme.accent);
     preview.style.setProperty('--p-on', contrast('#ffffff', theme.accent) >= contrast('#111111', theme.accent) ? '#faf9ee' : '#141414');

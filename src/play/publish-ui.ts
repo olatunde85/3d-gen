@@ -7,6 +7,7 @@ import type { PlayProject } from './project';
 import type { PlayCast } from './cast';
 import { publishBlock } from './publish-guard';
 import { gameNameOf } from './customize';
+import { DEFAULT_THEME } from './theme';
 import { publishEndpoint, publishGame, type PublishStep } from './publish';
 
 interface PublishHost { project: () => PlayProject; library: () => AssetLibrary; prepare: (project: PlayProject, progress: (text: string) => void) => Promise<{ cast: PlayCast; dispose: () => void }>; busy: (value: boolean) => void; stopPreview: () => void }
@@ -45,6 +46,12 @@ export function setupPublishing(host: PublishHost) {
   function intro() {
     const project = host.project(), title = gameNameOf(project), endpoint = publishEndpoint(), blocked = publishBlock(JSON.stringify(project, null, 2));
     dialog.dataset.stage = 'intro';dialog.replaceChildren(...head('PUBLISH ONLINE', `Put ${title} on the web`, 'Free hosting on Cloudflare, with a link anyone can play. You keep it by claiming it into your own free Cloudflare account.'));
+    // The game as it will go out, with a way back to Customize to change its name or colours first.
+    const card = el('div', 'publish-identity'), theme = project.theme ?? DEFAULT_THEME, swatch = el('i'), words = el('div');
+    swatch.style.setProperty('--p-bg', theme.background);swatch.style.setProperty('--p-accent', theme.accent);swatch.style.setProperty('--p-ink', theme.text);
+    words.append(el('strong', '', title), el('small', '', 'Name, How to play and colours from Customize'));
+    const edit = action('Edit', 'quiet', () => { close();document.getElementById('customize-game')?.click(); });
+    card.append(swatch, words, edit);dialog.append(card);
     const points = el('ul', 'publish-points');
     for (const [icon, strong, rest] of [['bolt', 'Live in about a minute.', ' No sign-up to start.'], ['key', 'Claim within 60 minutes', ' to keep it; unclaimed games are deleted.'], ['globe', 'Plays anywhere', ' on phones and computers, independently of Ara.']] as const) { const li = el('li');li.innerHTML = ICONS[icon];const p = el('p');p.append(el('strong', '', strong), rest);li.append(p);points.append(li); }
     dialog.append(points);

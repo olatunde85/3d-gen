@@ -79,6 +79,8 @@ p { margin: 0; }
 .grad { background: linear-gradient(90deg, var(--accent) 10%, #a7c2ff 55%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .lede { color: var(--muted); font-size: clamp(17px, 2vw, 21px); max-width: 720px; margin: 24px auto 0; }
 .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+.cta-icon { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.cta-icon circle[r=".6"] { fill: currentColor; }
 .facts { list-style: none; padding: 0; margin: 34px auto 0; display: flex; gap: 10px 28px; justify-content: center; flex-wrap: wrap; color: var(--muted); font-size: 15px; }
 .facts b { color: var(--text); }
 
@@ -186,9 +188,6 @@ p { margin: 0; }
 .uses > div { padding: 22px; border-radius: 16px; border: 1px solid var(--line); background: var(--bg-2); }
 .uses p { color: var(--muted); font-size: 15px; margin-top: 8px; }
 
-.showcase { display: grid; grid-template-columns: 1.4fr 1fr; gap: 44px; align-items: center; }
-.showcase-img img { border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45); }
-.showcase-copy p:last-child { color: var(--muted); margin-top: 16px; }
 
 .engines { text-align: center; }
 .chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
@@ -221,7 +220,7 @@ p { margin: 0; }
   .capabilities { grid-template-columns: 1fr; }
   .reel-sound { right: 10px; bottom: 10px; padding: 7px 12px 7px 8px; font-size: 13px; }
   .gallery { grid-auto-columns: 44vw; }
-  .showcase, .start { grid-template-columns: 1fr; gap: 28px; }
+  .start { grid-template-columns: 1fr; gap: 28px; }
   .compare .row { grid-template-columns: 1fr 1fr; }
   .compare .row > span:first-child { grid-column: 1 / -1; padding-bottom: 4px; border-top: 1px solid var(--line); }
   .compare .row > span:not(:first-child) { border-top: 0; padding-top: 4px; }
@@ -230,6 +229,19 @@ p { margin: 0; }
 }
 @media (min-width: 861px) and (max-width: 1100px) {
   .capabilities { grid-template-columns: repeat(2, 1fr); }
+}
+/* On phones the three ways in become a row of tiles: icon, a small verb and the thing you make. */
+@media (max-width: 560px) {
+  .cta-doors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 28px; }
+  .cta-doors .btn { position: relative; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 18px; min-height: 112px; padding: 14px 12px 13px; border-radius: 16px; text-align: left; }
+  .cta-doors .btn-ghost { background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)); }
+  .cta-doors .btn-primary { background: linear-gradient(160deg, #6f9bff, var(--accent) 60%, #4a76e6); }
+  .cta-doors .cta-icon { width: 34px; height: 34px; padding: 7px; border-radius: 10px; background: rgba(255, 255, 255, 0.1); }
+  .cta-doors .btn-primary .cta-icon { background: rgba(255, 255, 255, 0.2); }
+  .cta-words { display: grid; gap: 3px; }
+  .cta-verb { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.7; }
+  .cta-noun { font-size: 17px; font-weight: 700; text-transform: capitalize; letter-spacing: -0.01em; }
+  .cta-arrow { position: absolute; top: 14px; right: 12px; font-size: 18px; }
 }
 @media (max-width: 420px) {
   .nav-studio { display: none; }
