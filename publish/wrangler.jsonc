@@ -1,0 +1,17 @@
+// Ara Play publishing service: deploy once to your own Cloudflare account (the free plan is enough).
+//   npx wrangler@4 deploy -c publish/wrangler.jsonc
+//   npx wrangler@4 secret put SESSION_SECRET -c publish/wrangler.jsonc   (any random text of 32+ characters)
+// Then build Ara Play with VITE_PUBLISH_URL set to the address wrangler prints.
+{
+  "name": "ara-publish",
+  "main": "../src/publish-service/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "vars": {
+    // Pages allowed to publish, comma-separated.
+    "ALLOWED_ORIGINS": "https://ara3dgen.com,https://www.ara3dgen.com,http://localhost:*"
+  },
+  // Each visitor can start up to three games a minute.
+  "ratelimits": [{ "name": "PUBLISH_LIMIT", "namespace_id": "1801", "simple": { "limit": 3, "period": 60 } }],
+  "observability": { "enabled": true }
+}

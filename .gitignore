@@ -11,3 +11,9 @@ music-for-ara/
 sound-for-ara/
 new-sound-effects/
 newer-sound-effects/
+
+# Publishing service secrets and build output
+publish/vercel/.env.deploy
+publish/vercel/api/
+publish/vercel/.vercel/
+publish/.wrangler/

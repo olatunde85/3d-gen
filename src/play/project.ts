@@ -7,6 +7,8 @@ import type {Catalog} from '../core/assets';
 import {readCharacterSettings} from '../app/character-file';
 import {parseDriving,type DrivingSettings} from './driving';
 import {defaultCity,parseCity,type CitySettings} from './city';
+import {parseTheme,type GameTheme} from './theme';
+import {parseGameName,parseHowToPlay} from './customize';
 import {defaultMission,parseMission,validateMissionEquipment,type MissionSettings} from './mission';
 import {AGGRESSION,MAX_ENEMIES,type EnemyRole} from './enemies';
 import {defaultLoadout,parseLoadout,type Loadout,type EnemyResponse,type Health} from './combat';
@@ -36,8 +38,8 @@ export function parseBranch(raw:unknown):PlayBranch|undefined{if(raw===undefined
 export interface PlayPoses {lookAround:boolean;dance:boolean}
 export const posesOf=(p:{poses?:Partial<PlayPoses>}):PlayPoses=>({lookAround:p.poses?.lookAround!==false,dance:p.poses?.dance!==false});
 function parsePoses(raw:unknown):PlayPoses{if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('poses must be an object with lookAround and dance.');const r=raw as Record<string,unknown>;for(const key of Object.keys(r))if(key!=='lookAround'&&key!=='dance')throw Error(`Unsupported poses setting: ${key}.`);for(const key of ['lookAround','dance'])if(r[key]!==undefined&&typeof r[key]!=='boolean')throw Error(`poses.${key} must be true or false.`);return posesOf({poses:r as Partial<PlayPoses>});}
-export interface PlayProject {poses?:PlayPoses;story?:StorySettings;branch?:PlayBranch;kind:'ara-play';version:2;template:'escape-depot';mode?:PlayMode;race?:RaceSettings;runner?:RunnerSettings;identity:GameIdentity;character:HumanParams;loadout:Loadout;enemies:EnemySettings[];companion:CompanionSettings;mission:MissionSettings;vehicle?:DrivingSettings;city?:CitySettings;progression:ProgressionSettings;camera:CameraSettings;music:MusicSettings;chapters?:PlayChapter[]}
-export type PlayChapter=Omit<PlayProject,'kind'|'version'|'template'|'character'|'chapters'|'city'|'poses'>&{id:string};
+export interface PlayProject {poses?:PlayPoses;/** The game's colours, name and How to play text, shared by every chapter. */theme?:GameTheme;gameName?:string;howToPlay?:string;story?:StorySettings;branch?:PlayBranch;kind:'ara-play';version:2;template:'escape-depot';mode?:PlayMode;race?:RaceSettings;runner?:RunnerSettings;identity:GameIdentity;character:HumanParams;loadout:Loadout;enemies:EnemySettings[];companion:CompanionSettings;mission:MissionSettings;vehicle?:DrivingSettings;city?:CitySettings;progression:ProgressionSettings;camera:CameraSettings;music:MusicSettings;chapters?:PlayChapter[]}
+export type PlayChapter=Omit<PlayProject,'kind'|'version'|'template'|'character'|'chapters'|'city'|'poses'|'theme'|'gameName'|'howToPlay'>&{id:string};
 export const MAX_CHAPTERS=10;
 /** A chapter plays its own mode, or the first chapter's mode when it names none. */
 export const chapterMode=(root:{mode?:unknown},row:{mode?:unknown}):PlayMode=>parseMode(row.mode===undefined?root.mode:row.mode);
@@ -49,7 +51,7 @@ export function heroGuns(p:PlayProject):Gun[]{const result=new Set<Gun>();for(co
 export const heroWeapon=(p:PlayProject):Equipment=>heroGuns(p).reduce<Equipment>((a,b)=>strongerWeapon(a,b),'none');
 export function chapterProject(p:PlayProject,index:number):PlayProject{const {chapters,...base}=p;if(index===0)return base;const c=chapters?.[index-1];if(!c)throw Error('Choose an available chapter.');const {id,...settings}=c;return modeOnly({...chapterBase(base,c),...settings,mode:chapterMode(base,c)==='mission'?undefined:chapterMode(base,c),branch:c.branch,character:p.character});}
 /** Chapters always record their mode, so a mission chapter stays a mission inside a race or runner game. */
-export function chapterSettings(p:PlayProject,id:string):PlayChapter{const {kind,version,template,mode,character,chapters,city,poses,...settings}=p;return {id,mode:mode??'mission',...settings};}
+export function chapterSettings(p:PlayProject,id:string):PlayChapter{const {kind,version,template,mode,character,chapters,city,poses,theme,gameName,howToPlay,...settings}=p;return {id,mode:mode??'mission',...settings};}
 /** Race and runner games have no companion, whatever the stored mission settings say. */
 export const castsCompanion=(p:PlayProject)=>(p.mode??'mission')==='mission'&&needsCompanion(p.mission);
 export const gameProjects=(p:PlayProject)=>Array.from({length:1+(p.chapters?.length??0)},(_,i)=>chapterProject(p,i));
@@ -72,7 +74,7 @@ export function arcadeSettings(p:{mode?:unknown;race?:unknown;runner?:unknown},e
 export function parseProject(text:string,catalog:Catalog,validateCampaignLinks=true):PlayProject {
  if(text.length>512_000)throw Error('Choose a setup smaller than 512 KB.');const p=JSON.parse(text);
  if(!p||p.kind!=='ara-play'||![1,2].includes(p.version)||p.template!=='escape-depot')throw Error('Choose an Ara Play game setup (version 1 or 2).');
- const allowed=p.version===1?['kind','version','template','story','identity','difficulty','character','enemy','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch']:['kind','version','template','mode','race','runner','story','identity','difficulty','character','enemies','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch','poses'];
+ const allowed=p.version===1?['kind','version','template','story','identity','difficulty','character','enemy','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch']:['kind','version','template','mode','race','runner','story','identity','difficulty','character','enemies','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch','poses','theme','gameName','howToPlay'];
  for(const key of Object.keys(p))if(!allowed.includes(key))throw Error(`Unsupported game setting: ${key}.`);
  // Older recipes split pursuit speed from aggression. Keep imports compatible,
  // but use one explicit aggression profile for new setups and live gameplay.
@@ -94,13 +96,13 @@ export function parseProject(text:string,catalog:Catalog,validateCampaignLinks=t
  let companion=defaultCompanion();if(p.companion!==undefined){const c=p.companion;if(!c||typeof c!=='object'||Array.isArray(c))throw Error('Use valid companion settings.');for(const key of Object.keys(c))if(!['character','health'].includes(key))throw Error(`Unsupported companion setting: ${key}.`);const health=c.health===undefined?100:c.health;if(![50,100,150].includes(health))throw Error('Choose 50, 100 or 150 companion health.');companion={character:read(c.character),health};}
  const loadout=parseLoadout(p.loadout),progression=parseProgression(p.progression),mission=parseMission(p.mission);validateMissionEquipment(mission,loadout,progression);if(mission.pursuit&&!enemies.some(e=>e.kind!=='sniper'))throw Error('Pursuit needs at least one ground enemy to drive the pickup.');if(p.vehicle?.model&&p.vehicle.model!=='pickup'&&(p.mode===undefined||p.mode==='mission')&&needsCompanion(mission))throw Error('Companion boarding currently needs the pickup vehicle.');
  if(progression.weapon!=='loadout'&&loadout.weapon!=='none')throw Error('Find / unlock pistol missions must start unarmed.');
- const result:PlayProject={kind:'ara-play',version:2,template:'escape-depot',...(p.story===undefined?{}:{story:parseStory(p.story,enemies.map(e=>e.id))}),...(p.branch===undefined?{}:{branch:parseBranch(p.branch)}),identity:parseIdentity(p.identity),...arcadeSettings(p,enemies.map(e=>e.id)),character,loadout,enemies,companion,mission,...(p.vehicle===undefined?{}:{vehicle:parseDriving(p.vehicle)}),city:parseCity(p.city),progression,camera:parseCamera(p.camera),music:parseMusic(p.music),...(p.poses===undefined?{}:{poses:parsePoses(p.poses)})};
+ const result:PlayProject={kind:'ara-play',version:2,template:'escape-depot',...(p.story===undefined?{}:{story:parseStory(p.story,enemies.map(e=>e.id))}),...(p.branch===undefined?{}:{branch:parseBranch(p.branch)}),identity:parseIdentity(p.identity),...arcadeSettings(p,enemies.map(e=>e.id)),character,loadout,enemies,companion,mission,...(p.vehicle===undefined?{}:{vehicle:parseDriving(p.vehicle)}),city:parseCity(p.city),progression,camera:parseCamera(p.camera),music:parseMusic(p.music),...(p.poses===undefined?{}:{poses:parsePoses(p.poses)}),...(p.theme===undefined?{}:{theme:parseTheme(p.theme)}),...(p.gameName===undefined?{}:{gameName:parseGameName(p.gameName)}),...(p.howToPlay===undefined?{}:{howToPlay:parseHowToPlay(p.howToPlay)})};
  if(p.chapters!==undefined){
   if(!Array.isArray(p.chapters)||p.chapters.length<1||p.chapters.length>=MAX_CHAPTERS)throw Error(`A game supports one to ${MAX_CHAPTERS} chapters, including the first mission.`);
   const ids=new Set(['chapter-1']);result.chapters=p.chapters.map((c:unknown)=>{
    if(!c||typeof c!=='object'||Array.isArray(c))throw Error('Use a valid chapter.');const row={...c as Record<string,unknown>};
-   // Hero moments are shared: a chapter copy of them is ignored and the top-level setting applies.
-   delete row.poses;
+   // Hero moments, colours, the game name and How to play are shared: a chapter copy of them is ignored and the top-level setting applies.
+   delete row.poses;delete row.theme;delete row.gameName;delete row.howToPlay;
    for(const field of Object.keys(row))if(!['id','story','identity','mission','enemies','companion','loadout','progression','vehicle','camera','music','branch','race','runner','mode'].includes(field))throw Error(`Unsupported chapter setting: ${field}. The player is shared by all chapters.`);
    if(typeof row.id!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(row.id)||ids.has(row.id))throw Error('Use unique chapter IDs; chapter-1 is reserved for the first mission.');ids.add(row.id);
    const suppliedLives=row.mission&&typeof row.mission==='object'?(row.mission as Record<string,unknown>).lives:undefined;if(suppliedLives!==undefined&&suppliedLives!==mission.lives)throw Error(`${row.id} › lives: shared across chapters. Set the life budget on the first mission.`);
