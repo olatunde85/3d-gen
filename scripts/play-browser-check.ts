@@ -198,14 +198,15 @@ try{
   // The race bot drives at real speed for the promo; the tests run it five times faster.
   const promoRace=`(()=>{const g=araPlay.race,run=g.update.bind(g);g.update=(dt,inp,sc)=>run(dt,g.status==='racing'?{...g.aiInput(g.player),nitro:g.player.speed>40,item:true}:inp,sc);return 1})()`;
   const promoRun=`(()=>{const g=araPlay.runner,run=g.update.bind(g);window.__bot=true;g.update=(dt,inp,sc)=>{if(!window.__bot||g.status!=='running')return run(dt,inp,sc);const s=g.current,i={left:false,right:false,jump:false,slide:false},v=g.speed;for(const t of s.things.filter(t=>!t.hit&&t.d+t.length>g.d-.3).sort((a,b)=>a.d-b.d).slice(0,2)){const d=t.d-g.d,mine=t.lanes&(1<<(g.lane+1));if((t.kind==='blocker'||t.kind==='cart')&&mine&&d<v*.9+3){const f=[-1,0,1].filter(l=>!(t.lanes&(1<<(l+1)))).sort((a,b)=>Math.abs(a-g.lane)-Math.abs(b-g.lane))[0];if(f>g.lane)i.left=true;else if(f<g.lane)i.right=true;break;}if((t.kind==='barrier-low'&&mine||t.kind==='gap')&&d<v*.2+.8&&d>0&&g.grounded){i.jump=true;break;}if(t.kind==='bar-high'&&d<v*.25+.6&&d>0&&g.sliding<=.1&&g.grounded){i.slide=true;break;}}if(s.length-g.d<6&&!g.queuedTurn&&!i.left&&!i.right){if(s.end==='right')i.right=true;else i.left=true;}return run(Math.min(.12,dt*2.5),i,sc);};return 1})()`;
-  // Each run theme is a short stretch of the Rail Yard stage in that setting, with armed enemies on the train yard.
-  for(const [theme,armed] of [['train-yard',true],['city-rooftops',false],['neon-city',false],['desert-canyon',false],['snowy-peaks',false]] as const)await shot('run-'+theme,async()=>{
-   await openGame(chapter('rail-yard',g=>{g.mission.environment={...g.mission.environment,...({'train-yard':{time:'night',weather:'clear'},'city-rooftops':{time:'dawn',weather:'clear'},'neon-city':{time:'night',weather:'rain'},'desert-canyon':{time:'day',weather:'sandstorm'},'snowy-peaks':{time:'day',weather:'clear'}} as Record<string,object>)[theme]};g.runner={...g.runner,theme,chaser:armed?'none':g.runner.chaser,obstacles:armed?['gunman','barrier-low','blocker']:g.runner.obstacles,goal:{type:'endless'},objects:undefined,startSpeed:12};}),'promo-run-'+theme);await cinema();
+  // Each run theme is a short stretch of the Rail Yard stage in that setting, with armed enemies on the train yard; a
+  // power-up dropped just ahead in the runner's lane is collected on camera and shown working.
+  for(const [theme,armed,power] of [['train-yard',true,'boost'],['city-rooftops',false,'magnet'],['neon-city',false,'hoverboard'],['desert-canyon',false,'springs'],['snowy-peaks',false,'coin-rush']] as const)await shot('run-'+theme,async()=>{
+   await openGame(chapter('rail-yard',g=>{g.mission.environment={...g.mission.environment,...({'train-yard':{time:'night',weather:'clear'},'city-rooftops':{time:'dawn',weather:'clear'},'neon-city':{time:'night',weather:'rain'},'desert-canyon':{time:'day',weather:'sandstorm'},'snowy-peaks':{time:'day',weather:'clear'}} as Record<string,object>)[theme]};g.runner={...g.runner,theme,chaser:armed?'none':g.runner.chaser,obstacles:armed?['gunman','barrier-low','blocker']:g.runner.obstacles,goal:{type:'endless'},objects:undefined,startSpeed:12,powerUps:[...new Set([...(g.runner.powerUps??[]),power])]};}),'promo-run-'+theme);await cinema();
    await wait('araPlay.mode==="runner"&&araPlay.phase==="intro"','run card',120000);await click('.arcade-card button.primary');await wait('araPlay.phase==="playing"','run starts');
    if(armed)await evaluate(`(()=>{const g=araPlay.runner,run=g.update.bind(g);g.update=(dt,inp,sc)=>{const s=g.current,lane=Math.round(g.x/1.8);const ahead=s.things.find(t=>t.kind==='gunman'&&!t.hit&&t.lanes&(1<<(lane+1))&&t.d>g.d&&t.d-g.d<16);return run(dt,{...inp,shoot:!!ahead},sc);};return 1})()`);
    await evaluate(promoRun);await evaluate('(()=>{const r=araPlay.runner;r.down=()=>{};return 1})()');
    await sleep(armed?3500:2500);
-   await rec('run-'+theme,async()=>{await sleep(armed?4200:2600);});
+   await rec('run-'+theme,async()=>{await evaluate(`(()=>{const g=araPlay.runner,s=g.current,ahead=g.d+g.speed*0.9;if(ahead<s.length-1)s.pickups.push({id:9e6,kind:'${power}',d:ahead,lane:g.lane,taken:false});else{const n=g.segments[g.segments.indexOf(s)+1];n.pickups.push({id:9e6,kind:'${power}',d:Math.max(1,ahead-s.length),lane:0,taken:false});}return 1})()`);await sleep(armed?4200:3600);});
   });
   for(const [id,track] of [['night-ride','neon-district'],['race-to-hq','mountain-pass']] as const)await shot('race-'+track,async()=>{
    await openGame(chapter(id,g=>{g.race={...g.race,track,laps:1,opponents:5};g.mission.environment={...g.mission.environment,...(track==='neon-district'?{time:'night',weather:'rain'}:{time:'dusk',weather:'fog'})};}),'promo-race-'+track);await cinema();
@@ -220,7 +221,7 @@ try{
    // The whole ten-chapter game in Game setup: chapters, tabs, then Customize, then publishing.
    await openGame(full(),'promo-builder');await evaluate('document.getElementById("promo-style")?.remove()');await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
    await click('#settings');await wait('document.getElementById("setup").open','setup');await sleep(800);
-   await rec('builder',async()=>{for(const [sel,ms] of [['[data-chapter="4"]',650],['#setup-cast',650],['[data-chapter="1"]',650],['#setup-challenge',650],['[data-chapter="2"]',650],['#setup-presentation',700],['[data-chapter="0"]',600]] as const){await evaluate(`document.querySelector('${sel}')?.click()`);await sleep(ms);}});
+   await rec('builder',async()=>{for(const [sel,ms] of [['[data-chapter="4"]',1300],['#setup-cast',1300],['[data-chapter="1"]',1300],['#setup-challenge',1300],['[data-chapter="2"]',1300],['#setup-presentation',1400]] as const){await evaluate(`document.querySelector('${sel}')?.click()`);await sleep(ms);}});
    await rec('customize',async()=>{await evaluate('document.getElementById("customize-game").click()');await sleep(900);for(const preset of ['midnight','sunset','ocean','neon']){await evaluate(`document.querySelector('#theme-presets [data-preset=${preset}]').click()`);await sleep(750);}await sleep(400);await evaluate('document.getElementById("customize-done").click()');await sleep(300);});
   });
   await shot('publish',async()=>{
@@ -311,8 +312,14 @@ try{
    await press('KeyE');await wait('araPlay.game.car?.phase==="driving"','driving in the city',30000);
    // The car joins a traffic lane and follows it like the city's own drivers, a few metres behind another car.
    await evaluate(`(()=>{const g=araPlay.game,loop=g.trafficPaths[0],c=g.car,i=Math.floor(loop.points.length*0.15),a=loop.points[i],b=loop.points[(i+1)%loop.points.length];Object.assign(c,{x:a.x,z:a.z,yaw:Math.atan2(b.x-a.x,b.z-a.z),speed:0});window.__lane=loop;g.protection=Infinity;g.raiseHeat(2);araPlay.scene.azimuth=c.yaw+0.35;araPlay.scene.zoom=12;return 1})()`);
-   const steer=`(()=>{const c=araPlay.game.car,l=window.__lane;let best=0,bd=1e9;l.points.forEach((p,i)=>{const d=(p.x-c.x)**2+(p.z-c.z)**2;if(d<bd){bd=d;best=i;}});const t=l.points[(best+2)%l.points.length],a=Math.atan2(t.x-c.x,t.z-c.z)-c.yaw,e=Math.atan2(Math.sin(a),Math.cos(a));araPlay.scene.azimuth+=(c.yaw+0.35-araPlay.scene.azimuth)*0.12;return [e,c.speed]})()`;
-   await rec('city',async()=>{for(let i=0;i<60;i++){const [e,v]=await evaluate<[number,number]>(steer);await key('KeyW',v<13);if(e>0.08){await key('KeyD',false);await key('KeyA');}else if(e<-0.08){await key('KeyA',false);await key('KeyD');}else{await key('KeyA',false);await key('KeyD',false);}await sleep(90);}for(const k of ['KeyW','KeyA','KeyD'])await key(k,false);});
+   // The drive runs inside the page, every frame: steady throttle, gentle steering along the lane, and a camera held at a
+   // front-quarter angle that turns with the car (the driving camera would otherwise swing behind it).
+   await evaluate(`(()=>{const l=window.__lane,held=new Set(),set=(code,on)=>{if(on===held.has(code))return;on?held.add(code):held.delete(code);document.body.dispatchEvent(new KeyboardEvent(on?'keydown':'keyup',{code,bubbles:true}));};
+    window.__drive=true;const tick=()=>{const {game:g,scene:sc}=araPlay,c=g.car;if(!window.__drive||!c){for(const k of [...held])set(k,false);return;}
+    let best=0,bd=1e9;l.points.forEach((p,i)=>{const d=(p.x-c.x)**2+(p.z-c.z)**2;if(d<bd){bd=d;best=i;}});const t=l.points[(best+3)%l.points.length],a=Math.atan2(t.x-c.x,t.z-c.z)-c.yaw,e=Math.atan2(Math.sin(a),Math.cos(a));
+    set('KeyW',c.speed<12.5||c.speed<13.5&&held.has('KeyW'));set('KeyA',e>0.12);set('KeyD',e<-0.12);
+    sc.views.orbitHold=1;sc.views.azimuth=c.yaw+0.35;requestAnimationFrame(tick);};requestAnimationFrame(tick);return 1})()`);
+   await rec('city',async()=>{await sleep(6000);});await evaluate('window.__drive=false;1');
   });
  }
  if(publishOnly){
