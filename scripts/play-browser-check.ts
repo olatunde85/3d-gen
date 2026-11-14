@@ -200,7 +200,7 @@ try{
   const promoRun=`(()=>{const g=araPlay.runner,run=g.update.bind(g);window.__bot=true;g.update=(dt,inp,sc)=>{if(!window.__bot||g.status!=='running')return run(dt,inp,sc);const s=g.current,i={left:false,right:false,jump:false,slide:false},v=g.speed;for(const t of s.things.filter(t=>!t.hit&&t.d+t.length>g.d-.3).sort((a,b)=>a.d-b.d).slice(0,2)){const d=t.d-g.d,mine=t.lanes&(1<<(g.lane+1));if((t.kind==='blocker'||t.kind==='cart')&&mine&&d<v*.9+3){const f=[-1,0,1].filter(l=>!(t.lanes&(1<<(l+1)))).sort((a,b)=>Math.abs(a-g.lane)-Math.abs(b-g.lane))[0];if(f>g.lane)i.left=true;else if(f<g.lane)i.right=true;break;}if((t.kind==='barrier-low'&&mine||t.kind==='gap')&&d<v*.2+.8&&d>0&&g.grounded){i.jump=true;break;}if(t.kind==='bar-high'&&d<v*.25+.6&&d>0&&g.sliding<=.1&&g.grounded){i.slide=true;break;}}if(s.length-g.d<6&&!g.queuedTurn&&!i.left&&!i.right){if(s.end==='right')i.right=true;else i.left=true;}return run(Math.min(.12,dt*2.5),i,sc);};return 1})()`;
   // Each run theme is a short stretch of the Rail Yard stage in that setting, with armed enemies on the train yard.
   for(const [theme,armed] of [['train-yard',true],['city-rooftops',false],['neon-city',false],['desert-canyon',false],['snowy-peaks',false]] as const)await shot('run-'+theme,async()=>{
-   await openGame(chapter('rail-yard',g=>{g.mission.environment={...g.mission.environment,time:theme==='neon-city'?'night':'day'};g.runner={...g.runner,theme,chaser:armed?'none':g.runner.chaser,obstacles:armed?['gunman','barrier-low','blocker']:g.runner.obstacles,goal:{type:'endless'},objects:undefined,startSpeed:12};}),'promo-run-'+theme);await cinema();
+   await openGame(chapter('rail-yard',g=>{g.mission.environment={...g.mission.environment,...({'train-yard':{time:'night',weather:'clear'},'city-rooftops':{time:'dawn',weather:'clear'},'neon-city':{time:'night',weather:'rain'},'desert-canyon':{time:'day',weather:'sandstorm'},'snowy-peaks':{time:'day',weather:'clear'}} as Record<string,object>)[theme]};g.runner={...g.runner,theme,chaser:armed?'none':g.runner.chaser,obstacles:armed?['gunman','barrier-low','blocker']:g.runner.obstacles,goal:{type:'endless'},objects:undefined,startSpeed:12};}),'promo-run-'+theme);await cinema();
    await wait('araPlay.mode==="runner"&&araPlay.phase==="intro"','run card',120000);await click('.arcade-card button.primary');await wait('araPlay.phase==="playing"','run starts');
    if(armed)await evaluate(`(()=>{const g=araPlay.runner,run=g.update.bind(g);g.update=(dt,inp,sc)=>{const s=g.current,lane=Math.round(g.x/1.8);const ahead=s.things.find(t=>t.kind==='gunman'&&!t.hit&&t.lanes&(1<<(lane+1))&&t.d>g.d&&t.d-g.d<16);return run(dt,{...inp,shoot:!!ahead},sc);};return 1})()`);
    await evaluate(promoRun);await evaluate('(()=>{const r=araPlay.runner;r.down=()=>{};return 1})()');
@@ -208,7 +208,7 @@ try{
    await rec('run-'+theme,async()=>{await sleep(armed?4200:2600);});
   });
   for(const [id,track] of [['night-ride','neon-district'],['race-to-hq','mountain-pass']] as const)await shot('race-'+track,async()=>{
-   await openGame(chapter(id,g=>{g.race={...g.race,track,laps:1,opponents:5};}),'promo-race-'+track);await cinema();
+   await openGame(chapter(id,g=>{g.race={...g.race,track,laps:1,opponents:5};g.mission.environment={...g.mission.environment,...(track==='neon-district'?{time:'night',weather:'rain'}:{time:'dusk',weather:'fog'})};}),'promo-race-'+track);await cinema();
    await wait('araPlay.mode==="race"&&araPlay.phase==="intro"','race card',120000);await click('.arcade-card button.primary');await wait('araPlay.phase==="playing"','race starts');await evaluate(promoRace);
    await wait('araPlay.race.status==="racing"&&araPlay.race.player.speed>22','racing speed',90000);await sleep(1500);
    await rec('race-'+track,async()=>{await sleep(3000);});
@@ -221,7 +221,7 @@ try{
    await openGame(full(),'promo-builder');await evaluate('document.getElementById("promo-style")?.remove()');await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
    await click('#settings');await wait('document.getElementById("setup").open','setup');await sleep(800);
    await rec('builder',async()=>{for(const [sel,ms] of [['[data-chapter="4"]',650],['#setup-cast',650],['[data-chapter="1"]',650],['#setup-challenge',650],['[data-chapter="2"]',650],['#setup-presentation',700],['[data-chapter="0"]',600]] as const){await evaluate(`document.querySelector('${sel}')?.click()`);await sleep(ms);}});
-   await rec('customize',async()=>{await evaluate('document.getElementById("customize-game").click()');await sleep(900);for(const preset of ['midnight','sunset','ocean','neon']){await evaluate(`document.querySelector('#theme-presets [data-preset=${preset}]').click()`);await sleep(520);}await sleep(400);await evaluate('document.getElementById("customize-done").click()');await sleep(300);});
+   await rec('customize',async()=>{await evaluate('document.getElementById("customize-game").click()');await sleep(900);for(const preset of ['midnight','sunset','ocean','neon']){await evaluate(`document.querySelector('#theme-presets [data-preset=${preset}]').click()`);await sleep(750);}await sleep(400);await evaluate('document.getElementById("customize-done").click()');await sleep(300);});
   });
   await shot('publish',async()=>{
    const {default:service}=await import('../src/publish-service/index');const realFetch=globalThis.fetch;
@@ -263,6 +263,8 @@ try{
    await evaluate('araPlay.game.protection=Infinity;araPlay.game.enemies.forEach(e=>{e.combat.health=0;Object.assign(e,{x:900,z:900})})');
    const approach=await evaluate<any>('araPlay.game.world.rescue.approach');await keyboardRoute(approach,'captive');await camera(-0.9,5.2);await sleep(400);
    await rec('rescue-free',async()=>{await press('KeyE');await wait('araPlay.game.companion.rescued&&!araPlay.game.action','companion freed',20000);await sleep(500);});
+   // Close-ups of the companion from the front and from behind, to check her face and hair.
+   for(const [name,turn] of [['hale-front',0],['hale-back',Math.PI]] as const){await evaluate(`(()=>{const g=araPlay.game,c=g.companion,r={x:Math.cos(c.yaw),z:-Math.sin(c.yaw)};Object.assign(g.player,{x:c.x+r.x*1.6,z:c.z+r.z*1.6});araPlay.scene.azimuth=c.yaw+${turn};araPlay.scene.zoom=3.6;return 1})()`);await sleep(700);await photo('promo-'+name);}
    // From the side of the walk, so the freed companion is seen following.
    await evaluate(`(()=>{const g=araPlay.game,c=g.car,s=c.fit.stand,cs=Math.cos(c.yaw),sn=Math.sin(c.yaw),tx=c.x+cs*s.x+sn*s.z,tz=c.z-sn*s.x+cs*s.z;araPlay.scene.azimuth=Math.atan2(tx-g.player.x,tz-g.player.z)+Math.PI+1.15;araPlay.scene.zoom=9;return 1})()`);
    await rec('rescue-follow',async()=>{await keyboardRoute(driverStand(await evaluate<any>('araPlay.game.car')),'pickup driver door');});
@@ -276,7 +278,7 @@ try{
   });
 
   await shot('shootout',async()=>{
-   await openGame(chapter('market-trap',g=>{g.mission.environment={...g.mission.environment,time:'day',flashlight:false};}),'promo-shootout');await cinema();if(await evaluate('araPlay.game.status==="ready"'))await click('#start');await wait('araPlay.game.status==="playing"','shootout starts');
+   await openGame(chapter('market-trap',g=>{g.mission.environment={...g.mission.environment,time:'dusk',weather:'rain',flashlight:false};}),'promo-shootout');await cinema();if(await evaluate('araPlay.game.status==="ready"'))await click('#start');await wait('araPlay.game.status==="playing"','shootout starts');
    // Three gunmen fanned out ahead in the market lane, already alerted; the hero can't be hurt mid-take.
    await evaluate(`(()=>{const g=araPlay.game,p=g.player,f={x:Math.sin(p.yaw),z:Math.cos(p.yaw)},r={x:f.z,z:-f.x};g.protection=0;clearInterval(window.__heal);window.__heal=setInterval(()=>{if(araPlay.game.playerCombat)araPlay.game.playerCombat.health=150;},100);
     g.enemies.forEach((e,i)=>{if(i>2||e.kind==='sniper'){e.combat.health=0;Object.assign(e,{x:900,z:900});return;}const side=[-0.9,1.3,0][i],ahead=[6.5,9,12][i];Object.assign(e,{x:p.x+f.x*ahead+r.x*side,z:p.z+f.z*ahead+r.z*side,mode:'chase',awareness:1,repath:Infinity,path:[],yaw:p.yaw+Math.PI});});
@@ -334,7 +336,10 @@ try{
     assert.equal(await evaluate('document.getElementById("customize-name").value'),await evaluate('araPlay.project.identity.title'),'the name starts as the first chapter title');
     assert.match(await evaluate<string>('document.getElementById("customize-how").value'),/^Missions: move with/,'How to play starts as the default guide');
     await evaluate(`(()=>{const set=(id,v)=>{const e=document.getElementById(id);e.value=v;e.dispatchEvent(new Event('input'));};set('customize-name','Depot Breakout');set('customize-how','Find the key, open the gate and run.\\n\\nPress E near anything that glows.');document.querySelector("#theme-presets [data-preset=midnight]").click();return 1})()`);
-    assert.equal(await evaluate('getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()'),'#11151d');await photo('customize-dialog');await click('#customize-done');
+    assert.equal(await evaluate('getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()'),'#11151d');await photo('customize-dialog');
+    // Customize leads on to Publish online, and Publish online's Edit leads back.
+    await click('#customize-publish');await wait('document.querySelector("dialog.publish[open]")?.dataset.stage==="intro"&&!document.getElementById("customize").open&&/Depot Breakout/.test(document.querySelector(".publish-identity").textContent)','customize leads to publish');
+    await evaluate('document.querySelector(".publish-identity button").click()');await wait('document.getElementById("customize").open&&!document.querySelector("dialog.publish").open','publish leads back to customize');await click('#customize-done');
     await click('#publish-game');await wait('document.querySelector("dialog.publish[open]")?.dataset.stage==="intro"&&/Depot Breakout/.test(document.querySelector("dialog.publish h2").textContent)','publish intro uses the game name');await evaluate('document.querySelector(".publish-limits summary").click()');assert.match(await evaluate<string>('document.querySelector(".publish-limits").textContent'),/60 minutes.*100,000 requests.*new address/s);assert.equal(await evaluate('document.querySelector(".publish-limits .publish-guide").href'),'https://ara3dgen.com/docs/hosting-games/');await photo('publish-intro');
     assert.equal(await evaluate('[...document.querySelectorAll("dialog.publish button")].find(b=>/Publish game/.test(b.textContent)).disabled'),true,'terms first');
     await evaluate('document.querySelector("dialog.publish .publish-consent input").click()');await evaluate('[...document.querySelectorAll("dialog.publish button")].find(b=>/Publish game/.test(b.textContent)).click()');

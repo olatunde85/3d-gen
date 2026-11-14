@@ -1,70 +1,60 @@
 /**
- * Cut the recorded Ara Play shots into the promo for the landing page: about 28 seconds of the Dead Drop demo game.
+ * Cut the recorded Ara Play shots into the promo for the landing page: about 44 seconds of the Dead Drop demo game.
  * Record first: ARA_TEST_NATIVE_GPU=1 npx tsx scripts/play-browser-check.ts --promo (shots land in out/promo).
  * Then: npm run build:play-promo. Writes public/media/ara-play-promo.mp4 and its poster.
  *
- * Missions (a rescue, the companion following to the truck, boarding, driving, getting out, a shootout, police and city
- * traffic), then the runner across five settings and two races, then the builder: Game setup, Customize, Publish online
- * (sped up) and the game live at its own address. Captions and white flashes mark the beats; the voiceover clips from
- * demo-assets sit over a music bed that ducks under them and ends on the end card.
+ * Missions (the rescued companion running alongside, the two driving away, a shootout, police and city traffic), then
+ * the runner across five settings and two races, then the builder: Game setup, Customize, Publish online (sped up) and
+ * the game live at its own address. Captions and white flashes mark the beats over a music bed that ends on the end card.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import sharp from 'sharp';
 
-const root = resolve(import.meta.dirname, '..'), shots = join(root, 'out/promo'), assets = join(root, 'demo-assets');
+const root = resolve(import.meta.dirname, '..'), shots = join(root, 'out/promo');
 const output = join(root, 'public/media/ara-play-promo.mp4'), poster = join(root, 'public/media/ara-play-promo-poster.jpg');
 const music = join(root, 'public/media/music/adventure-trailer-600429.mp3'), MUSIC_END = 74.2, ACCENT = '#ff3d9a';
 const W = 1920, H = 1080, FPS = 30;
 
 /** A piece of a recorded shot: where it starts, how long it plays, how fast, and what part of the frame fills the screen. */
 interface Cut { shot: string; from: number; length: number; speed?: number; crop?: [number, number, number, number]; dim?: number }
-const DIALOG: [number, number, number, number] = [380, 150, 1160, 653], COLOURS: [number, number, number, number] = [560, 420, 800, 450], PUBLISH: [number, number, number, number] = [480, 190, 960, 540];
+const DIALOG: [number, number, number, number] = [380, 150, 1160, 653], CUSTOMIZE: [number, number, number, number] = [250, 140, 1420, 799], PUBLISH: [number, number, number, number] = [480, 190, 960, 540];
 const publishLength = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', join(shots, 'publish.mp4')], { encoding: 'utf8' }));
 const CUTS: Cut[] = [
-  { shot: 'race-neon-district', from: 0.2, length: 1.3, dim: 0.42 },
+  { shot: 'race-neon-district', from: 0.3, length: 2.0, dim: 0.42 },
   // Missions
-  { shot: 'rescue-free', from: 0.5, length: 1.4 },
-  { shot: 'rescue-follow', from: 2.6, length: 1.3 },
-  { shot: 'rescue-board', from: 1.5, length: 1.5 },
-  { shot: 'rescue-drive', from: 0.5, length: 1.2 },
-  { shot: 'rescue-alight', from: 0.4, length: 1.0 },
-  { shot: 'shootout', from: 0.3, length: 2.1 },
-  { shot: 'police', from: 1.2, length: 1.3 },
-  { shot: 'city', from: 0.6, length: 1.3 },
+  { shot: 'rescue-follow', from: 0.2, length: 2.7 },
+  { shot: 'rescue-drive', from: 0.2, length: 3.1 },
+  { shot: 'shootout', from: 0.2, length: 3.2 },
+  { shot: 'police', from: 0.8, length: 2.0 },
+  { shot: 'city', from: 0.5, length: 2.8 },
   // Arcade
-  { shot: 'run-train-yard', from: 0.1, length: 1.4 },
-  { shot: 'run-city-rooftops', from: 1.0, length: 0.75 },
-  { shot: 'run-neon-city', from: 1.0, length: 0.75 },
-  { shot: 'run-desert-canyon', from: 1.0, length: 0.75 },
-  { shot: 'run-snowy-peaks', from: 1.0, length: 0.75 },
-  { shot: 'race-neon-district', from: 0.6, length: 1.2 },
-  { shot: 'race-mountain-pass', from: 0.25, length: 1.2 },
+  { shot: 'run-train-yard', from: 0.2, length: 2.6 },
+  { shot: 'run-city-rooftops', from: 0.6, length: 1.5 },
+  { shot: 'run-neon-city', from: 0.6, length: 1.5 },
+  { shot: 'run-desert-canyon', from: 0.6, length: 1.5 },
+  { shot: 'run-snowy-peaks', from: 0.6, length: 1.5 },
+  { shot: 'race-neon-district', from: 0.8, length: 1.8 },
+  { shot: 'race-mountain-pass', from: 0.25, length: 2.2 },
   // The builder
-  { shot: 'builder', from: 0.4, length: 1.7, crop: DIALOG },
-  { shot: 'customize', from: 0.9, length: 1.6, crop: COLOURS },
-  { shot: 'publish', from: 0.3, length: 0.9, crop: PUBLISH },
-  { shot: 'publish', from: 1.2, length: publishLength - 4.2, speed: (publishLength - 4.2) / 1.2, crop: PUBLISH },
-  { shot: 'publish', from: publishLength - 2.4, length: 1.2, crop: PUBLISH },
-  { shot: 'live', from: 0.5, length: 2.0 },
+  { shot: 'builder', from: 0.3, length: 3.2, crop: DIALOG },
+  { shot: 'customize', from: 0.6, length: 2.8, crop: CUSTOMIZE },
+  { shot: 'publish', from: 0.3, length: 1.2, crop: PUBLISH },
+  { shot: 'publish', from: 1.5, length: publishLength - 4.5, speed: (publishLength - 4.5) / 1.6, crop: PUBLISH },
+  { shot: 'publish', from: publishLength - 3.0, length: 1.6, crop: PUBLISH },
+  { shot: 'live', from: 0.4, length: 2.8 },
 ];
-const END = 2.0;
+const END = 2.4;
 const times: number[] = [];let clock = 0;
 for (const c of CUTS) { times.push(clock);clock += Math.round((c.length / (c.speed ?? 1)) * FPS) / FPS; }
 const endAt = clock, total = clock + END;
 const at = (index: number) => times[index];
 /** Captions over the shots: text, which cut it starts on, and for how long. */
-const CAPTIONS: [string, number, number][] = [['RESCUE', 1, 1.3], ['RIDE TOGETHER', 3, 1.4], ['FIGHT', 6, 1.4], ['FREE ROAM', 7, 1.2], ['RUN', 9, 1.2], ['ANY WORLD', 11, 1.4], ['RACE', 14, 1.1], ['BUILD IT', 16, 1.5], ['MAKE IT YOURS', 17, 1.4], ['PUBLISH', 18, 2.2], ['PLAY ANYWHERE', 21, 2.0]];
+const CAPTIONS: [string, number, number][] = [['ESCAPE TOGETHER', 1, 2.6], ['FIGHT', 3, 2.0], ['FREE ROAM', 4, 2.4], ['RUN', 6, 2.0], ['ANY WORLD', 7, 2.4], ['RACE', 11, 2.0], ['BUILD IT', 13, 2.4], ['MAKE IT YOURS', 14, 2.4], ['PUBLISH', 15, 2.8], ['PLAY ANYWHERE', 18, 2.4]];
 /** Section starts, marked with a two-frame white flash. */
-const FLASHES = [1, 9, 16, 21].map(at).concat(endAt);
-
-const clip = (name: string) => readdirSync(assets).find((f) => f.includes(name))!;
-const VO: [string, number, number][] = [
-  [clip('20_26_35_Jamie'), 0.25, 1], [clip('20_13_34_Emmaline'), at(3) + 0.1, 0.9], [clip('20_03_13_Ostap'), at(6) + 0.15, 1],
-  [clip('20_27_01_Jamie'), at(9) + 0.1, 1], [clip('20_27_26_Jamie'), at(16) + 0.05, 1], [clip('20_28_00_Jamie'), at(18) + 0.4, 1], [clip('20_28_28_Jamie'), endAt + 0.35, 1],
-];
+const FLASHES = [1, 6, 13, 18].map(at).concat(endAt);
 
 for (const c of new Set(CUTS.map((x) => x.shot))) if (!existsSync(join(shots, `${c}.mp4`))) throw Error(`Record the promo shots first: ${c}.mp4 is missing in out/promo.`);
 const work = mkdtempSync(join(tmpdir(), 'ara-play-promo-'));
@@ -103,7 +93,6 @@ try {
   args.push('-loop', '1', '-t', String(total), '-i', join(work, 'title.png'), '-loop', '1', '-t', String(END), '-i', join(work, 'end.png'));
   for (let i = 0; i < CAPTIONS.length; i++) args.push('-loop', '1', '-t', String(total), '-i', join(work, `cap${i}.png`));
   const musicIn = capIn + CAPTIONS.length;args.push('-ss', String(Math.max(0, MUSIC_END - total)), '-i', music);
-  const voIn = musicIn + 1;for (const [file] of VO) args.push('-i', join(assets, file));
   const g: string[] = [];
   CUTS.forEach((_, i) => g.push(`[${i}:v]setpts=PTS-STARTPTS[c${i}]`));
   g.push(`[${endIn}:v]fps=${FPS},scale=${W}:${H},setsar=1,format=yuv420p[endcard]`);
@@ -115,15 +104,10 @@ try {
   g.push(`color=c=white:s=${W}x${H}:r=${FPS}:d=${total}[white]`);
   for (const t of FLASHES) { g.push(`[${last}][white]overlay=enable='between(t,${t},${t + 2 / FPS})'[f${Math.round(t * 100)}]`);last = `f${Math.round(t * 100)}`; }
   g.push(`[${last}]fade=t=out:st=${total - 0.4}:d=0.4[video]`);
-  // Voices over a music bed that ducks under them and fades out on the end card.
-  VO.forEach(([, start, gain], i) => g.push(`[${voIn + i}:a]aresample=48000,volume=${gain * 1.6},adelay=${Math.round(start * 1000)}|${Math.round(start * 1000)}[v${i}]`));
-  g.push(`${VO.map((_, i) => `[v${i}]`).join('')}amix=inputs=${VO.length}:normalize=0,apad=whole_dur=${total}[voices]`);
-  g.push('[voices]asplit=2[vo][key]');
-  g.push(`[${musicIn}:a]aresample=48000,volume=0.9,afade=t=in:d=0.3,afade=t=out:st=${total - 0.6}:d=0.6[bed]`);
-  g.push('[bed][key]sidechaincompress=threshold=0.03:ratio=8:attack=15:release=350[ducked]');
-  g.push(`[ducked][vo]amix=inputs=2:normalize=0,atrim=0:${total},alimiter=limit=0.95[audio]`);
+  // Music only, faded in and out on the end card.
+  g.push(`[${musicIn}:a]aresample=48000,volume=0.9,afade=t=in:d=0.3,afade=t=out:st=${total - 0.8}:d=0.8,atrim=0:${total},alimiter=limit=0.95[audio]`);
   args.push('-filter_complex', g.join(';'), '-map', '[video]', '-map', '[audio]', '-t', String(total), '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', output);
   execFileSync('ffmpeg', args, { stdio: 'inherit' });
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(at(6) + 1.2), '-i', output, '-frames:v', '1', '-q:v', '3', poster]);
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(at(3) + 1.2), '-i', output, '-frames:v', '1', '-q:v', '3', poster]);
   console.log(`Ara Play promo: ${total.toFixed(1)} s → ${output}`);
 } finally { rmSync(work, { recursive: true, force: true }); }
