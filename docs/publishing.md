@@ -1,6 +1,6 @@
 # Publishing service
 
-Ara Play's **Publish online** button needs a small publishing service in two parts, both on free plans: a Cloudflare Worker that does almost all the work, and one account step on Deno Deploy. Cloudflare refuses to create temporary accounts for requests coming from any Worker (`worker_subrequest_blocked`), and its API doesn't accept requests from web pages, so that single request runs on a server outside Cloudflare.
+Ara Play's **Publish online** button needs a small publishing service in two parts, both on free plans: a Cloudflare Worker that does almost all the work, and one account step as a Vercel function. Cloudflare refuses to create temporary accounts for requests coming from any Worker (`worker_subrequest_blocked`), and its API doesn't accept requests from web pages, so that single request runs on a server outside Cloudflare.
 
 Players' games don't go into your account. Each one goes into a temporary Cloudflare account created for that player, which they can claim within 60 minutes. Cloudflare deletes unclaimed accounts. See Cloudflare's [claim deployments](https://developers.cloudflare.com/workers/platform/claim-deployments/) for the platform side.
 
@@ -11,7 +11,7 @@ Cloudflare's provisioning and upload API can't be called from a web page, and ea
 | Step | What the service does |
 | --- | --- |
 | `POST /v1/challenge` | Fetches Cloudflare's proof-of-work challenge. The player's browser solves it in a background thread: about 16 million SHA-256 hashes, a few seconds. |
-| `POST /v1/account` | Runs on Deno Deploy. Checks the game's `project.json`, then creates the temporary account and returns the sealed session and the claim link. |
+| `POST /v1/account` | Runs on Vercel. Checks the game's `project.json`, then creates the temporary account and returns the sealed session and the claim link. |
 | `POST /v1/manifest` | Checks the file list and opens Cloudflare's asset upload session. |
 | `POST /v1/upload` | Streams one batch of files to Cloudflare. |
 | `POST /v1/finish` | Uploads the fixed game server script, attaches the files and turns on the game's `workers.dev` address. |
@@ -35,29 +35,32 @@ Cloudflare's provisioning and upload API can't be called from a web page, and ea
 
    Wrangler prints its address, for example `https://ara-publish.<your-subdomain>.workers.dev`.
 
-2. Create the shared settings in `publish/account/.env.deploy` (kept out of git): a `SESSION_SECRET` of 32 or more random characters, and `ALLOWED_ORIGINS` listing the pages that host Ara Play, comma-separated.
+2. Create the shared settings in `publish/vercel/.env.deploy` (kept out of git): a `SESSION_SECRET` of 32 or more random characters, and `ALLOWED_ORIGINS` listing the pages that host Ara Play, comma-separated.
 
 3. Give the Worker the same secret:
 
    ```sh
-   grep '^SESSION_SECRET=' publish/account/.env.deploy | cut -d= -f2- | tr -d '\n' | npx wrangler@4 secret put SESSION_SECRET -c publish/wrangler.jsonc
+   grep '^SESSION_SECRET=' publish/vercel/.env.deploy | cut -d= -f2- | tr -d '\n' | npx wrangler@4 secret put SESSION_SECRET -c publish/wrangler.jsonc
    ```
 
-4. Build the account step and deploy it to Deno Deploy. The first `deploy` signs you in and creates the app (choose the local folder and `main.js` as the entry); then load the settings and deploy again so they take effect:
+4. Build the account step and deploy it to Vercel. The first `deploy` signs you in and creates the project (accept the folder as it is); then add both settings for Production, using the values from `.env.deploy`, and deploy again so they take effect:
 
    ```sh
    npm run publish:build-account
-   cd publish/account
-   npx deno@2 deploy
-   npx deno@2 deploy env load .env.deploy
-   npx deno@2 deploy --prod
+   cd publish/vercel
+   npx vercel@latest deploy --prod
+   npx vercel@latest env add SESSION_SECRET production
+   npx vercel@latest env add ALLOWED_ORIGINS production
+   npx vercel@latest deploy --prod
    ```
+
+   It runs as an ordinary Node function, not on Vercel's edge network.
 
 5. Put both addresses in `.env` at the repository root, which every build reads:
 
    ```sh
    VITE_PUBLISH_URL=https://ara-publish.<your-subdomain>.workers.dev
-   VITE_PUBLISH_ACCOUNT_URL=https://<your-deno-app>.deno.net
+   VITE_PUBLISH_ACCOUNT_URL=https://<your-vercel-project>.vercel.app
    ```
 
    Without `VITE_PUBLISH_URL`, the button explains that publishing isn't set up and points players to **Download game ZIP**. Local development at `http://localhost:5173` can publish too; it's in `ALLOWED_ORIGINS`.

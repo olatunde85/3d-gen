@@ -13,5 +13,7 @@ new-sound-effects/
 newer-sound-effects/
 
 # Publishing service secrets and build output
-publish/account/.env.deploy
-publish/account/main.js
+publish/vercel/.env.deploy
+publish/vercel/api/
+publish/vercel/.vercel/
+publish/.wrangler/

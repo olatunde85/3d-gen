@@ -1,7 +1,7 @@
 /**
  * The one publishing step that cannot run inside a Cloudflare Worker: Cloudflare refuses to create temporary accounts
  * for requests coming from Workers ("worker_subrequest_blocked"). This entry serves only POST /v1/account, from any
- * platform with standard Request and Response (Deno Deploy here), using the same service code: the same 18+ check
+ * platform with standard Request and Response (a Vercel function here), using the same service code: the same 18+ check
  * and the same sealed session, so the Worker can carry on with the upload once the account exists. Both hosts must
  * share SESSION_SECRET.
  */
