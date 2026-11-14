@@ -114,7 +114,7 @@ ARA_TEST_NATIVE_GPU=1 npx tsx scripts/play-browser-check.ts --promo
 npm run build:play-promo
 ```
 
-The first command plays each shot in the real game in Chrome, with bots driving the hero, and records it to `out/promo/`; `PROMO_SHOTS=rescue,city` records only those shots. The second cuts them to the timeline in `scripts/build-play-promo.ts`, with captions, transitions, the game's own music and an end card, and writes the video and its poster to `public/media/`.
+The first command plays each shot in the real game in Chrome, with bots driving the hero, and records it at 4K to `out/promo/`; `PROMO_SHOTS=rescue,city` records only those shots. The second cuts them to the timeline in `scripts/build-play-promo.ts`, with captions, transitions, the game's own music and an end card, and writes a 1080p video and its poster to `public/media/`, plus a 1440p master for uploading to video sites at `out/play/ara-play-promo-master.mp4`.
 
 Vehicle validation: `npm run test:vehicles` checks fitting across body shapes, rigs and bind poses and loads animated GLB/FBX props through real importers. `npm run test:studio -- --vehicles` exercises vehicle controls, recovery, deterministic scrubbing and GPU disposal, and writes visual reviews under `out/vehicles/`. Vehicles use local procedural geometry; they require no external downloads.
 

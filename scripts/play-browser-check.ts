@@ -190,9 +190,10 @@ try{
    // The promo adds its own recorded voices, so captured games stay silent and skip speech generation.
    const quiet=(st:any)=>st&&{...st,briefingVoice:false,cues:(st.cues??[]).map((q:any)=>({...q,voice:false}))};g.story=quiet(g.story);tweak(g);return g;};
   const openGame=async(game:any,name:string)=>{const file=join(profile,name+'.json');writeFileSync(file,JSON.stringify(game));await evaluate('document.getElementById("promo-style")?.remove()');await sleep(300);await click('#settings');await click('#open-project');const dom=await send<{root:{nodeId:number}}>('DOM.getDocument');const {nodeId}=await send<{nodeId:number}>('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'#file'});await send('DOM.setFileInputFiles',{nodeId,files:[file]});await wait(`document.getElementById("game-title").value===${JSON.stringify(game.identity.title)}`,name+' opens');await click('#apply');await wait('!document.getElementById("setup").open','applied',240000);await sleep(1500);};
-  const cinema=async()=>{await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:1,mobile:false});await evaluate(`(()=>{let s=document.getElementById('promo-style');if(!s){s=document.createElement('style');s.id='promo-style';document.head.append(s);}s.textContent='body{grid-template-rows:0 1fr 0!important}.topbar,body>footer,.controls-bar,.play-story{visibility:hidden!important}';return 1})()`);await sleep(600);};
+  const cinema=async()=>{await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:SHARP,mobile:false});await evaluate(`(()=>{window.araPixelRatioCap=${SHARP};let s=document.getElementById('promo-style');if(!s){s=document.createElement('style');s.id='promo-style';document.head.append(s);}s.textContent='body{grid-template-rows:0 1fr 0!important}.topbar,body>footer,.controls-bar,.play-story{visibility:hidden!important}';return 1})()`);await sleep(600);};
   const shot=(name:string,fn:()=>Promise<void>)=>(!only||only.includes(name))?check('promo '+name,fn):Promise.resolve();
-  const rec=(name:string,until:()=>Promise<unknown>)=>record(cdp,folder,name,until);
+  // Shots are recorded at 4K (the 1080p layout at twice the pixels) so the edit stays sharp on big screens.
+  const SHARP=2,rec=(name:string,until:()=>Promise<unknown>)=>record(cdp,folder,name,until,{width:1920*SHARP,height:1080*SHARP});
   const camera=(azimuth:number,zoom:number)=>evaluate(`(()=>{araPlay.scene.azimuth=${azimuth};araPlay.scene.zoom=${zoom};return 1})()`);
   await cinema();
   // The race bot drives at real speed for the promo; the tests run it five times faster.
@@ -219,7 +220,7 @@ try{
   const full=()=>{const g=structuredClone(dead);const quiet=(st:any)=>st&&{...st,briefingVoice:false,cues:(st.cues??[]).map((q:any)=>({...q,voice:false}))};g.story=quiet(g.story);for(const c of g.chapters)c.story=quiet(c.story);g.theme={accent:'#ff3d9a',background:'#110c1f',text:'#f4ecff'};return g;};
   await shot('builder',async()=>{
    // The whole ten-chapter game in Game setup: chapters, tabs, then Customize, then publishing.
-   await openGame(full(),'promo-builder');await evaluate('document.getElementById("promo-style")?.remove()');await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:1,mobile:false});
+   await openGame(full(),'promo-builder');await evaluate('document.getElementById("promo-style")?.remove()');await send('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:SHARP,mobile:false});
    await click('#settings');await wait('document.getElementById("setup").open','setup');await sleep(800);
    await rec('builder',async()=>{for(const [sel,ms] of [['[data-chapter="4"]',1300],['#setup-cast',1300],['[data-chapter="1"]',1300],['#setup-challenge',1300],['[data-chapter="2"]',1300],['#setup-presentation',1400]] as const){await evaluate(`document.querySelector('${sel}')?.click()`);await sleep(ms);}});
    await rec('customize',async()=>{await evaluate('document.getElementById("customize-game").click()');await sleep(900);for(const preset of ['midnight','sunset','ocean','neon']){await evaluate(`document.querySelector('#theme-presets [data-preset=${preset}]').click()`);await sleep(750);}await sleep(400);await evaluate('document.getElementById("customize-done").click()');await sleep(300);});
