@@ -9,7 +9,7 @@
   "workers_dev": true,
   "vars": {
     // Pages allowed to publish, comma-separated.
-    "ALLOWED_ORIGINS": "https://ara3dgen.com,https://www.ara3dgen.com,http://localhost:5173"
+    "ALLOWED_ORIGINS": "https://ara3dgen.com,https://www.ara3dgen.com,http://localhost:*"
   },
   // Each visitor can start up to three games a minute.
   "ratelimits": [{ "name": "PUBLISH_LIMIT", "namespace_id": "1801", "simple": { "limit": 3, "period": 60 } }],

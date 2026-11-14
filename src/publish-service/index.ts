@@ -124,8 +124,10 @@ async function finish(request: Request, env: Env) {
 }
 
 function cors(request: Request, env: Env) {
-  const origin = request.headers.get('origin') ?? '', allowed = (env.ALLOWED_ORIGINS ?? 'https://ara3dgen.com,http://localhost:5173').split(',').map((o) => o.trim());
-  return { ok: allowed.includes(origin), headers: { 'access-control-allow-origin': allowed.includes(origin) ? origin : allowed[0], 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type, x-ara-session, x-ara-upload', 'access-control-max-age': '86400', vary: 'origin' } };
+  const origin = request.headers.get('origin') ?? '', allowed = (env.ALLOWED_ORIGINS ?? 'https://ara3dgen.com,http://localhost:*').split(',').map((o) => o.trim());
+  // An entry ending in ":*" allows that host on any port, for local development servers.
+  const ok = allowed.some((a) => a === origin || a.endsWith(':*') && new RegExp(`^${a.slice(0, -2).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:\\d{1,5}$`).test(origin));
+  return { ok, headers: { 'access-control-allow-origin': ok ? origin : allowed[0], 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type, x-ara-session, x-ara-upload', 'access-control-max-age': '86400', vary: 'origin' } };
 }
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

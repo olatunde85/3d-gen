@@ -63,7 +63,7 @@ Cloudflare's provisioning and upload API can't be called from a web page, and ea
    VITE_PUBLISH_ACCOUNT_URL=https://<your-vercel-project>.vercel.app
    ```
 
-   Without `VITE_PUBLISH_URL`, the button explains that publishing isn't set up and points players to **Download game ZIP**. Local development at `http://localhost:5173` can publish too; it's in `ALLOWED_ORIGINS`.
+   Without `VITE_PUBLISH_URL`, the button explains that publishing isn't set up and points players to **Download game ZIP**. Local development can publish too: `http://localhost:*` in `ALLOWED_ORIGINS` allows any localhost port.
 
 Changing `SESSION_SECRET` means setting it on both hosts; publishes already in progress then fail and the player starts again.
 

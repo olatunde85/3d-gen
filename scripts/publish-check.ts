@@ -111,6 +111,12 @@ await check('the service refuses 18+ games, swapped project files, other website
   failUpload = true;const form = new FormData();form.append('x', new File(['x'], 'x'));
   const failed = await post('/v1/upload', form, { 'x-ara-session': account.session, 'x-ara-upload': 'upload-jwt' });assert.equal(failed.status, 502);assert.match(failed.data.error, /bad file/);failUpload = false;
 });
+await check('local development may publish from any localhost port, and look-alike addresses may not', async () => {
+  const dev: Env = { ...env, ALLOWED_ORIGINS: 'https://ara3dgen.com,http://localhost:*' };
+  const status = async (origin: string) => (await service.fetch(new Request('https://publish.example/v1/challenge', { method: 'OPTIONS', headers: { origin } }), dev)).status;
+  for (const ok of ['http://localhost:5173', 'http://localhost:5174', 'https://ara3dgen.com']) assert.equal(await status(ok), 204, ok);
+  for (const bad of ['http://localhost.evil.com:5173', 'http://localhost:5173.evil.com', 'https://localhost:5173', 'http://evil.com', 'http://localhost']) assert.equal(await status(bad), 403, bad);
+});
 await check('the account host serves only the account step, with the same guard and a per-visitor limit', async () => {
   const host = accountHost(env), req = (path: string, body = '{}') => new Request('https://acct.example' + path, { method: 'POST', headers: { origin: 'https://ara3dgen.com', 'content-type': 'application/json' }, body });
   assert.equal((await host(req('/v1/manifest'), 'v')).status, 404, 'uploads stay on the Worker');
