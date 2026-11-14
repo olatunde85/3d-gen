@@ -107,7 +107,7 @@ npm run build:studio-reel
 
 The first command renders each film with Studio's MP4 export, plus a screenshot of the editor, to `out/studio-expansion/`; `REEL_SCENES=2,5` renders only those films. The second keeps the part of each film listed in `REEL`, speeds it up slightly, joins the films with short crossfades and the music, and ends by zooming out into the editor. It writes the MP4 and its poster to `public/media/`, and a silent GIF of it for the README to `docs/media/ara-studio-reel.gif`.
 
-The Ara Play section plays `media/ara-play-promo.mp4`, just under a minute of Dead Drop, a demo campaign kept in `demo-assets/` (not part of the repository). To regenerate it:
+The Ara Play section plays `media/ara-play-promo.mp4`, just under a minute of Dead Drop, a demo campaign kept in `scripts/promo/dead-drop.json`. To regenerate it:
 
 ```sh
 ARA_TEST_NATIVE_GPU=1 npx tsx scripts/play-browser-check.ts --promo
