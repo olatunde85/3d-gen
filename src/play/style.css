@@ -459,3 +459,11 @@ dialog.publish h2{margin:0;font-size:27px;line-height:1.15;letter-spacing:-.6px;
 .customize-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;bottom:-22px;margin:0 -28px -22px;padding:14px 28px 18px;background:linear-gradient(transparent,var(--paper) 30%)}
 .customize-actions .primary{width:auto;min-width:140px;justify-content:center}
 @media(max-width:560px){#customize{padding:20px 18px 18px}.customize-actions{margin:0 -18px -18px;padding:12px 18px 16px}}
+
+.publish-limits{border:1px solid var(--line);border-radius:12px;background:#fbfaf3;font-size:12.5px}
+.publish-limits summary{cursor:pointer;padding:10px 14px;font-weight:600;color:var(--ink);list-style:none;display:flex;justify-content:space-between;align-items:center}
+.publish-limits summary::-webkit-details-marker{display:none}.publish-limits summary::after{content:'+';font-size:16px;color:var(--muted)}.publish-limits[open] summary::after{content:'–'}
+.publish-limits ul{margin:0;padding:0 14px 0 30px;display:grid;gap:4px;color:var(--muted)}
+.publish-limits .publish-guide{display:inline-block;margin:8px 14px 12px}
+.publish-guide{color:var(--green);font-weight:600;text-decoration:underline;text-underline-offset:2px}.publish-guide::after{content:' ↗'}
+.publish-footnote{margin:0;font-size:12px;color:var(--muted)}

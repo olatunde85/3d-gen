@@ -28,6 +28,10 @@ const ICONS = {
   copy: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>',
 };
 
+/** The guide to Publish online's limits and other hosts, on the Ara website. */
+const HOSTING_GUIDE = 'https://ara3dgen.com/docs/hosting-games/';
+const hostingLink = (text: string) => { const a = el('a', 'publish-guide', text);a.href = HOSTING_GUIDE;a.target = '_blank';a.rel = 'noopener';return a; };
+
 export function setupPublishing(host: PublishHost) {
   const button = document.getElementById('publish-game') as HTMLButtonElement | null;if (!button) return;
   const dialog = el('dialog', 'publish');dialog.setAttribute('aria-labelledby', 'publish-heading');document.body.append(dialog);
@@ -48,6 +52,9 @@ export function setupPublishing(host: PublishHost) {
       const note = el('div', 'publish-note');note.innerHTML = ICONS.shield;note.append(el('p', '', blocked ?? 'Publishing online is not set up for this copy of Ara Play. You can still download the game ZIP and host it yourself.'));
       dialog.append(note, actions(action('Close', 'quiet', close)));return;
     }
+    const limits = el('details', 'publish-limits'), summary = el('summary', '', 'Limits of this free hosting'), list = el('ul');
+    for (const item of ['Deleted after 60 minutes unless you claim it.', 'Once claimed, Cloudflare’s free plan allows about 100,000 requests a day: roughly a couple of thousand plays.', 'Each publish makes a new game at a new address; to change the game, publish again.', 'Up to 200 MB. Visitors may briefly see a Cloudflare check before the game.']) list.append(el('li', '', item));
+    limits.append(summary, list, hostingLink('Other ways to host your game'));dialog.append(limits);
     const consent = el('label', 'publish-consent'), box = el('input');box.type = 'checkbox';
     const terms = el('a', '', 'Terms of Service'), privacy = el('a', '', 'Privacy Policy');terms.href = 'https://www.cloudflare.com/website-terms/';privacy.href = 'https://www.cloudflare.com/privacypolicy/';for (const a of [terms, privacy]) { a.target = '_blank';a.rel = 'noopener'; }
     consent.append(box, el('span', '', 'I agree to Cloudflare’s '), terms, el('span', '', ' and '), privacy, el('span', '', ', and I have the rights to everything in this game.'));
@@ -92,7 +99,8 @@ export function setupPublishing(host: PublishHost) {
     const tick = () => { const left = Date.parse(expiresAt) - Date.now();if (!(left > 0)) { clock.textContent = '0:00';claim.dataset.expired = 'true';claimButton.removeAttribute('href');copyText.textContent = 'The claim window has ended. Unclaimed games are deleted shortly; publish again to get a new link.';clearInterval(timer);return; } const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);clock.textContent = `${m}:${String(s).padStart(2, '0')}`;claim.dataset.urgent = String(left < 10 * 60000); };
     tick();clearInterval(timer);timer = window.setInterval(tick, 1000);
     const open = el('a', 'secondary', 'Open game');open.href = url;open.target = '_blank';open.rel = 'noopener';
-    dialog.append(field, claim, actions(action('Done', 'quiet', close), open));
+    const note = el('p', 'publish-footnote', 'To change the game later, publish again: it makes a new game at a new address. For a permanent home, ');note.append(hostingLink('see other ways to host it'), '.');
+    dialog.append(field, claim, note, actions(action('Done', 'quiet', close), open));
   }
 
   function failed(message: string, step?: PublishStep) {
