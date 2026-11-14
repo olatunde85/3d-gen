@@ -61,6 +61,7 @@
     <header class="nav">
       <a class="brand" href="./"><span class="brand-mark">Ara</span> 3D Gen</a>
       <nav>
+        <a href="#play">Play</a>
         <a href="#studio">Studio</a>
         <a href="#features">Features</a>
         <a href="#why">Why self-host</a>
@@ -80,11 +81,12 @@
           <h1>Realistic 3D characters.<br /><span class="grad">Rigged, animated, directed.</span></h1>
           <p class="lede">
             Shape a body, dress it, give it hair, tattoos and a weapon, pick from 216 animations and export to any engine,
-            or cast it in a short film in Ara 3D Studio. It runs in your browser: no accounts, no credits, no limits.
+            cast it in a short film in Ara 3D Studio, or make it the hero of a game in Ara Play. It runs in your browser: no accounts, no credits, no limits.
           </p>
           <div class="cta">
             <a class="btn btn-primary" href="app/">Build a character <span aria-hidden="true">→</span></a>
             <a class="btn btn-ghost" href="studio/">Make a film</a>
+            <a class="btn btn-ghost" href="play/">Make a game</a>
           </div>
           <ul class="facts">
             <li><b>32</b> presets</li>
@@ -97,7 +99,7 @@
         <figure class="product reveal">
           <div class="window">
             <div class="window-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="window-title">Ara 3D Studio</span></div>
-            <video class="reel-video" muted loop playsinline preload="none" poster="/media/ara-studio-reel-poster.jpg" aria-label="Ara 3D Studio reel: a tank and a helicopter, a jet takeoff, a parachute jump, a shootout, a highway race, a street café, a rooftop chase and a beach party, ending in the Studio editor"></video>
+            <video class="reel-video" data-reel="studio" muted loop playsinline preload="none" poster="/media/ara-studio-reel-poster.jpg" aria-label="Ara 3D Studio reel: a tank and a helicopter, a jet takeoff, a parachute jump, a shootout, a highway race, a street café, a rooftop chase and a beach party, ending in the Studio editor"></video>
             <button class="reel-sound" type="button" data-video="studio"><span class="btn-video-icon" aria-hidden="true"><span class="play"></span></span> Watch with sound</button>
           </div>
           <figcaption>Every shot in this reel was made and exported in Ara 3D Studio.</figcaption>
@@ -126,6 +128,34 @@
       </section>
 
       <!-- Studio -->
+      <section id="play" class="section">
+        <div class="reveal">
+          <p class="eyebrow">Ara Play</p>
+          <h2>Make a game. Publish it in a minute.</h2>
+          <p class="section-lede">Cast your characters in missions, races and endless runs, string up to ten chapters into a campaign with a city to explore between them, then put it on the web with one click. No code, no engine, no install.</p>
+          <p class="links"><a href="play/">Open Ara Play →</a><a href="docs/play/">Read the Ara Play guide →</a><a href="docs/hosting-games/">Hosting your game →</a></p>
+        </div>
+        <figure class="product reveal">
+          <div class="window">
+            <div class="window-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="window-title">Dead Drop · made with Ara Play</span></div>
+            <video class="reel-video" data-reel="play" muted loop playsinline preload="none" poster="/media/ara-play-promo-poster.jpg" aria-label="Ara Play promo: Dead Drop, a demo game. A rescue, a companion boarding a pickup, a shootout, police in a city district, endless runs across five settings, two races, then the game builder, publishing and the game live in a browser"></video>
+            <button class="reel-sound" type="button" data-video="play"><span class="btn-video-icon" aria-hidden="true"><span class="play"></span></span> Watch with sound</button>
+          </div>
+          <figcaption>Every shot is Dead Drop, a ten-chapter game made in Ara Play, played live.</figcaption>
+        </figure>
+        <div class="capabilities stagger">
+          <div><h3>Missions</h3><p>Escape, rescue and clear across five locations, with objectives to reach, download, defend, eliminate, survive, escort, chase and convoy.</p></div>
+          <div><h3>Companions and vehicles</h3><p>Free a companion who follows you to the truck and rides along. 14 drivable vehicles, from a keke to a muscle car.</p></div>
+          <div><h3>Combat</h3><p>Pistols, rifles and grenades, cover, stealth takedowns, snipers, heavies and squad leaders.</p></div>
+          <div><h3>A city between chapters</h3><p>Free roam with traffic, pedestrians, police and a wanted level, side jobs and a car radio.</p></div>
+          <div><h3>Arcade races</h3><p>11 circuits, 13 cars, drifting, nitro, items, ghosts, cups and expert rivals.</p></div>
+          <div><h3>Endless runs</h3><p>11 settings, 7 power-ups including spring boots and a hoverboard, objects to find and armed enemies to shoot.</p></div>
+          <div><h3>Campaigns and story</h3><p>Up to ten chapters in any mix of modes, with branching choices, dialogue, voices and opening and ending films.</p></div>
+          <div><h3>Assist and Customize</h3><p>Describe a game to any AI assistant and paste back a playable campaign. Set its name, How to play and colours.</p></div>
+          <div><h3>Publish online</h3><p>Live on Cloudflare in about a minute with no sign-up, ready to claim into your own free account. Or download it and host it anywhere.</p></div>
+        </div>
+      </section>
+
       <section id="studio" class="section">
         <div class="reveal">
           <p class="eyebrow">Ara 3D Studio</p>
@@ -275,7 +305,7 @@ npm run dev</code></pre>
       <div><a href="mailto:josholatunde@gmail.com">Hire me for a private project</a></div>
     </footer>
 
-    <dialog class="video-modal" aria-label="Ara 3D Studio reel">
+    <dialog class="video-modal" aria-label="Video">
       <button class="close" type="button" aria-label="Close video">✕</button>
       <video controls playsinline preload="none" poster="/media/ara-studio-reel-poster.jpg"></video>
     </dialog>

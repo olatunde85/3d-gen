@@ -107,6 +107,15 @@ npm run build:studio-reel
 
 The first command renders each film with Studio's MP4 export, plus a screenshot of the editor, to `out/studio-expansion/`; `REEL_SCENES=2,5` renders only those films. The second keeps the part of each film listed in `REEL`, speeds it up slightly, joins the films with short crossfades and the music, and ends by zooming out into the editor. It writes the MP4 and its poster to `public/media/`, and a silent GIF of it for the README to `docs/media/ara-studio-reel.gif`.
 
+The Ara Play section plays `media/ara-play-promo.mp4`, about 30 seconds of Dead Drop, a demo campaign kept with its voice clips in `demo-assets/` (not part of the repository). To regenerate it:
+
+```sh
+ARA_TEST_NATIVE_GPU=1 npx tsx scripts/play-browser-check.ts --promo
+npm run build:play-promo
+```
+
+The first command plays each shot in the real game in Chrome, with bots driving the hero, and records it to `out/promo/`; `PROMO_SHOTS=rescue,city` records only those shots. The second cuts them to the timeline in `scripts/build-play-promo.ts`, with captions, the voice clips, ducked music and an end card, and writes the video and its poster to `public/media/`.
+
 Vehicle validation: `npm run test:vehicles` checks fitting across body shapes, rigs and bind poses and loads animated GLB/FBX props through real importers. `npm run test:studio -- --vehicles` exercises vehicle controls, recovery, deterministic scrubbing and GPU disposal, and writes visual reviews under `out/vehicles/`. Vehicles use local procedural geometry; they require no external downloads.
 
 Additional sound-effect originals can be kept in `new-sound-effects/` and `newer-sound-effects/`. Run `npm run build:studio-effects` to create the optimized MP3 assets declared in `src/studio/audio/effects-catalog.ts`. Existing shipped effects are retained when their original WAVs are absent. Only the optimized files under `public/media/effects` are deployed.

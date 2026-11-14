@@ -48,6 +48,7 @@
     "test:helicopter": "tsx scripts/helicopter-check.ts && tsx scripts/studio-check.ts --helicopter",
     "test:studio:scenes": "tsx scripts/studio-check.ts --scenes",
     "test:studio:editing": "tsx scripts/studio-timing-check.ts && tsx scripts/studio-check.ts --editing",
+    "build:play-promo": "tsx scripts/build-play-promo.ts",
     "build:studio-thumbnails": "tsx scripts/studio-check.ts --location-thumbnails",
     "build:studio-maps": "tsx scripts/build-studio-maps.ts",
     "test:studio:spatial": "tsx scripts/build-studio-maps.ts --check && tsx scripts/studio-spatial-check.ts",
