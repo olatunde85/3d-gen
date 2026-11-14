@@ -12,6 +12,8 @@ export interface PublishResult { url: string; claimUrl: string; claimExpiresAt: 
 export interface PublishProgress { step: PublishStep; fraction?: number; detail?: string }
 /** The publishing service for this build of Ara Play, or undefined when publishing is not set up. */
 export const publishEndpoint = (): string | undefined => (import.meta.env.VITE_PUBLISH_URL as string | undefined)?.replace(/\/+$/, '') || undefined;
+/** Where the account step runs: Cloudflare refuses to create accounts from Workers, so it can live on another host. */
+const accountEndpoint = (): string | undefined => (import.meta.env.VITE_PUBLISH_ACCOUNT_URL as string | undefined)?.replace(/\/+$/, '') || publishEndpoint();
 /** Files larger than this are stored as numbered parts that the game server joins again. */
 const PART_BYTES = 4_718_592;
 const TYPES: Record<string, string> = { html: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', css: 'text/css; charset=utf-8', json: 'application/json', txt: 'text/plain; charset=utf-8', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', mp4: 'video/mp4', webm: 'video/webm', pack: 'application/octet-stream', bin: 'application/octet-stream', glb: 'model/gltf-binary', ktx2: 'image/ktx2' };
@@ -90,7 +92,7 @@ export async function publishGame(projectText: string, build: () => Promise<Zipp
   const checkpoints = await solve(challenge, signal, (fraction) => report({ step: 'puzzle', fraction }));
 
   report({ step: 'account' });
-  const account = await call<{ session: string; claimUrl: string; claimExpiresAt: string }>(endpoint, '/v1/account', JSON.stringify({ challengeToken: challenge.challengeToken, checkpoints, acceptTermsOfService: 'yes', project: projectText }), signal);
+  const account = await call<{ session: string; claimUrl: string; claimExpiresAt: string }>(accountEndpoint()!, '/v1/account', JSON.stringify({ challengeToken: challenge.challengeToken, checkpoints, acceptTermsOfService: 'yes', project: projectText }), signal);
 
   report({ step: 'upload', fraction: 0 });
   const manifest = Object.fromEntries([...encoded].map(([path, f]) => [path, { hash: f.hash, size: f.size }]));

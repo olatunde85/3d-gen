@@ -111,7 +111,7 @@ async function finish(request: Request, env: Env) {
   const body = await json(request), session = await open(env, body.session);
   if (typeof body.completion !== 'string') throw new Refusal('Missing the finished upload token.');
   const form = new FormData(), base = `/accounts/${session.account}/workers`;
-  form.append('metadata', new Blob([JSON.stringify({ main_module: 'index.js', compatibility_date: '2026-10-01', bindings: [{ type: 'assets', name: 'ASSETS' }], assets: { jwt: body.completion, config: { html_handling: 'auto-trailing-slash', not_found_handling: 'none' } } })], { type: 'application/json' }));
+  form.append('metadata', new Blob([JSON.stringify({ main_module: 'index.js', compatibility_date: '2026-10-01', bindings: [{ type: 'assets', name: 'ASSETS' }], assets: { jwt: body.completion, config: { html_handling: 'auto-trailing-slash', not_found_handling: 'none', run_worker_first: true } } })], { type: 'application/json' }));
   form.append('index.js', new Blob([GAME_SERVER], { type: 'application/javascript+module' }), 'index.js');
   await cloudflare(`${base}/scripts/${session.script}`, { method: 'PUT', token: session.token, body: form });
   // A fresh account may not have a workers.dev name yet; give it one, then serve this game there.

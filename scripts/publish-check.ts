@@ -5,6 +5,7 @@ import { adultReason, allowedPath, publishBlock } from '../src/play/publish-guar
 import { publishFiles } from '../src/play/publish';
 import { GAME_SERVER } from '../src/publish-service/game-server';
 import service, { assetHash, base64, type Env } from '../src/publish-service/index';
+import { accountHost } from '../src/publish-service/account-host';
 import { contrast, parseTheme, themeVariables, THEME_PRESETS } from '../src/play/theme';
 import { solveChallenge } from '../src/play/publish-pow';
 
@@ -62,7 +63,7 @@ globalThis.fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => 
   if (url.endsWith('/provisioning/previews')) { const b = JSON.parse(body!);assert.equal(b.acceptTermsOfService, 'yes');assert.ok(b.solution.checkpoints);return ok({ account: { id: 'acc1', name: 'Temp', apiToken: 'SECRET-TOKEN', expiresAt: new Date(Date.now() + 3600e3).toISOString() }, claim: { url: 'https://dash.cloudflare.com/claim-preview?claimToken=claim1', expiresAt: new Date(Date.now() + 3600e3).toISOString() } }); }
   if (url.endsWith('/assets-upload-session')) { assert.equal(auth, 'Bearer SECRET-TOKEN');return ok({ jwt: 'upload-jwt', buckets: [Object.values(JSON.parse(body!).manifest).map((f) => (f as { hash: string }).hash)] }); }
   if (url.includes('/workers/assets/upload')) { assert.equal(auth, 'Bearer upload-jwt');return failUpload ? new Response(JSON.stringify({ success: false, errors: [{ message: 'bad file' }] }), { status: 400 }) : ok({ jwt: 'completion-jwt' }); }
-  if (url.endsWith('/workers/scripts/the-depot') && method === 'PUT') { const form = init.body as FormData, meta = JSON.parse(await (form.get('metadata') as Blob).text());assert.equal(meta.assets.jwt, 'completion-jwt');assert.equal(await (form.get('index.js') as Blob).text(), GAME_SERVER, 'only the fixed game server is uploaded');return ok({}); }
+  if (url.endsWith('/workers/scripts/the-depot') && method === 'PUT') { const form = init.body as FormData, meta = JSON.parse(await (form.get('metadata') as Blob).text());assert.equal(meta.assets.jwt, 'completion-jwt');assert.equal(meta.assets.config.run_worker_first, true, 'the game server handles every request');assert.equal(await (form.get('index.js') as Blob).text(), GAME_SERVER, 'only the fixed game server is uploaded');return ok({}); }
   if (url.endsWith('/workers/subdomain') && method === 'GET') return new Response(JSON.stringify({ success: false, errors: [{ message: 'no subdomain' }] }), { status: 404 });
   if (url.endsWith('/workers/subdomain') && method === 'PUT') return ok({ subdomain: JSON.parse(body!).subdomain });
   if (url.endsWith('/workers/scripts/the-depot/subdomain')) return ok({ enabled: true });
@@ -109,6 +110,15 @@ await check('the service refuses 18+ games, swapped project files, other website
   assert.equal((await service.fetch(new Request('https://publish.example/v1/challenge', { method: 'POST', headers: { origin: 'https://ara3dgen.com' } }), { ...env, SESSION_SECRET: 'short' })).status === 503 || true, true);
   failUpload = true;const form = new FormData();form.append('x', new File(['x'], 'x'));
   const failed = await post('/v1/upload', form, { 'x-ara-session': account.session, 'x-ara-upload': 'upload-jwt' });assert.equal(failed.status, 502);assert.match(failed.data.error, /bad file/);failUpload = false;
+});
+await check('the account host serves only the account step, with the same guard and a per-visitor limit', async () => {
+  const host = accountHost(env), req = (path: string, body = '{}') => new Request('https://acct.example' + path, { method: 'POST', headers: { origin: 'https://ara3dgen.com', 'content-type': 'application/json' }, body });
+  assert.equal((await host(req('/v1/manifest'), 'v')).status, 404, 'uploads stay on the Worker');
+  const adult = JSON.stringify({ acceptTermsOfService: 'yes', challengeToken: 'ct', checkpoints: 'c', project: JSON.stringify({ kind: 'ara-play', character: { ...dressed, underwear: false }, enemies: [] }) });
+  const refused = await host(req('/v1/account', adult), 'visitor-1');assert.equal(refused.status, 422);
+  for (let i = 0; i < 2; i++) await host(req('/v1/account', adult), 'visitor-1');
+  assert.equal((await host(req('/v1/account', adult), 'visitor-1')).status, 429, 'a fourth try in a minute waits');
+  assert.equal((await host(req('/v1/account', adult), 'visitor-2')).status, 422, 'other visitors are unaffected');
 });
 globalThis.fetch = realFetch;
 
