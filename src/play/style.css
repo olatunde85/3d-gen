@@ -385,7 +385,7 @@ body[data-grenade=true] #interaction{display:none}
 /* Publish online */
 .setup-primary-actions{grid-template-columns:repeat(3,1fr)}.setup-primary-actions #apply{grid-column:1/-1}
 @media(max-width:560px){.setup-primary-actions{grid-template-columns:1fr 1fr}.setup-primary-actions #download-game{grid-column:1/-1}}
-dialog.publish{width:500px;padding:30px 30px 24px;gap:14px}dialog.publish[open]{display:grid}
+dialog.publish{width:500px;padding:30px 30px 24px;gap:14px;grid-template-columns:minmax(0,1fr)}dialog.publish[open]{display:grid}
 dialog.publish[open]{animation:publish-in .28s cubic-bezier(.2,.8,.2,1)}
 @keyframes publish-in{from{opacity:0;transform:translateY(10px) scale(.985)}}
 dialog.publish::backdrop{background:#16232340;backdrop-filter:blur(3px)}
@@ -417,8 +417,8 @@ dialog.publish h2{margin:0;font-size:27px;line-height:1.15;letter-spacing:-.6px;
 .publish-badge svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:24;stroke-dashoffset:24;animation:publish-tick .45s .25s forwards}
 @keyframes publish-pop{from{transform:scale(.4);opacity:0}}@keyframes publish-tick{to{stroke-dashoffset:0}}
 .publish-link{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
-.publish-link a{flex:1;min-width:0;font:600 14px ui-monospace,monospace;color:var(--green);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.publish-copy{display:flex;gap:6px;align-items:center;padding:9px 12px;border-radius:8px;background:var(--accent-soft);color:var(--green);font-weight:600;font-size:13px}
+.publish-link a{flex:1;min-width:0;font:600 14px/1.4 ui-monospace,monospace;color:var(--green);overflow-wrap:anywhere}
+.publish-copy{flex:none;display:flex;gap:6px;align-items:center;padding:9px 12px;border-radius:8px;background:var(--accent-soft);color:var(--green);font-weight:600;font-size:13px}
 .publish-copy svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}.publish-copy[data-copied]{background:var(--green);color:#fff}
 .publish-claim{display:grid;gap:10px;padding:16px;border-radius:14px;background:#1f3b34;color:#eef3ea}
 .publish-claim .primary{background:#f2c94c;color:#1f2a24;justify-content:center}
