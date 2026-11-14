@@ -56,6 +56,8 @@ export function parseCharacterInput(source:string,cat:Catalog,initial:HumanParam
     if(raw.params===undefined&&!('preset'in raw))throw Error('Provide a preset or params.');
     if(raw.params!==undefined&&!object(raw.params))throw Error('params must be an object.');patch=(raw.params??{})as Record<string,unknown>;
   }else patch=raw; // Also accepts the builder's existing .params.json exports.
+  // A preset turned female keeps none of its facial hair unless the recipe asks for it: a man's stubble never carries over.
+  if(typeof patch.gender==='number'&&patch.gender<0.5&&!('facialHair'in patch)&&base.facialHair!=='none')base={...base,facialHair:'none'};
   const rules=characterRules(cat);
   for(const [key,value]of Object.entries(patch)){if(!Object.hasOwn(rules,key))throw Error(`Unknown character parameter: ${key}.`);check(value,rules[key],key);}
   if('age'in patch&&'ageYears'in patch)throw Error('Use either ageYears or age, not both.');

@@ -33,3 +33,6 @@ assert.equal(parseCharacterInput(JSON.stringify({vehicle:'suv'}),cat,{...DEFAULT
 
 for(const preset of Object.keys(PRESETS)){const p=parseCharacterInput(JSON.stringify({kind:'ara-character',version:1,preset}),cat);assert.deepEqual(readCharacterSettings(characterSettings(p),cat),p);}
 console.log('Saved character settings: all presets round-trip with complete editable body, appearance and equipment settings.');
+{const fem=(params:object)=>parseCharacterInput(JSON.stringify({kind:'ara-character',version:1,preset:'Detective',params}),cat).facialHair;
+ assert.equal(fem({gender:0}),'none','a male preset turned female drops its facial hair');assert.equal(fem({gender:0,facialHair:'stubble'}),'stubble','an explicit choice is kept');assert.equal(fem({}),PRESETS.Detective.facialHair,'male presets keep theirs');
+ console.log('Female characters made from male presets lose the preset facial hair unless asked for.');}
