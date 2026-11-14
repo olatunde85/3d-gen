@@ -28,10 +28,12 @@ Re-run `setup-assets` after every update. New versions can add or change generat
 ## Build and deploy
 
 ```bash
-npm run build          # -> dist/: landing page at /, the app at /app/, Studio at /studio/, these docs at /docs/, videos at /media/
+npm run build          # -> dist/: landing page at /, the app at /app/, Studio at /studio/, Play at /play/, Terms at /terms/, Privacy at /privacy/, these docs at /docs/, videos at /media/
 ```
 
 Set `BASE_PATH=/sub/path/` when hosting under a sub-path, such as GitHub Pages.
+
+The Terms (`terms/index.html`) and Privacy Policy (`privacy/index.html`) name the operator of ara3dgen.com and its contact address. If you host your own copy, put your own details in them.
 
 The whole site is static files, and all the character work runs in each visitor's browser, so free static hosting scales with traffic. On Cloudflare Pages, static bandwidth is unmetered: upload `dist/` (Workers & Pages → Create → Pages → Upload assets) or use any static host. Cache headers come with the build (`_headers`). A first visit downloads about 13 MB, and the browser caches it after that.
 

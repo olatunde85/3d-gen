@@ -63,8 +63,8 @@ export function setupPublishing(host: PublishHost) {
     for (const item of ['Deleted after 60 minutes unless you claim it.', 'Once claimed, Cloudflare’s free plan allows about 100,000 requests a day: roughly a couple of thousand plays.', 'Each publish makes a new game at a new address; to change the game, publish again.', 'Up to 200 MB. Visitors may briefly see a Cloudflare check before the game.']) list.append(el('li', '', item));
     limits.append(summary, list, hostingLink('Other ways to host your game'));dialog.append(limits);
     const consent = el('label', 'publish-consent'), box = el('input');box.type = 'checkbox';
-    const terms = el('a', '', 'Terms of Service'), privacy = el('a', '', 'Privacy Policy');terms.href = 'https://www.cloudflare.com/website-terms/';privacy.href = 'https://www.cloudflare.com/privacypolicy/';for (const a of [terms, privacy]) { a.target = '_blank';a.rel = 'noopener'; }
-    consent.append(box, el('span', '', 'I agree to Cloudflare’s '), terms, el('span', '', ' and '), privacy, el('span', '', ', and I have the rights to everything in this game.'));
+    const link = (text: string, href: string) => { const a = el('a', '', text);a.href = href;a.target = '_blank';a.rel = 'noopener';return a; };
+    consent.append(box, el('span', '', 'I agree to Ara’s '), link('Terms', '../terms/'), el('span', '', ' and Cloudflare’s '), link('Terms of Service', 'https://www.cloudflare.com/website-terms/'), el('span', '', ' and '), link('Privacy Policy', 'https://www.cloudflare.com/privacypolicy/'), el('span', '', ', and I have the rights to everything in this game.'));
     const go = action('Publish game', 'primary', () => void run());go.disabled = true;box.onchange = () => { go.disabled = !box.checked; };
     dialog.append(consent, actions(action('Cancel', 'quiet', close), go));
   }
