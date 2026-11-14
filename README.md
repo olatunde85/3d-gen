@@ -1,21 +1,26 @@
 # Ara 3D Gen
 
-**Open-source, self-hosted generator for realistic 3D human characters: rigged, animated and ready for your engine.**
+**Build it. Film it. Play it.**
 
-*Ara* is Yoruba for "body". Easy to run, free to use, no limits.
+Create realistic 3D characters, direct them in films, and build games with missions, races and runs to share online. Free, in your browser.
+
+*Ara* is Yoruba for "body". Open source, MIT-licensed, with no accounts, credits or limits.
 
 **▶ Try it online: [ara3dgen.com](https://ara3dgen.com)**, or self-host it (below).
 
-Shape a body, dress it, give it hair, a beard, tattoos and a weapon, pick from 216 animations, and export **GLB, FBX, OBJ or a ZIP bundle**. It runs entirely on your machine, in the browser or headless from the command line, with no accounts, credits or limits.
+Ara has three apps that share the same characters:
+
+- **The character builder:** shape a body, dress it, give it hair, tattoos and a weapon, pick from 216 animations and export **GLB, FBX, OBJ or a ZIP bundle** for any engine.
+- **Ara 3D Studio:** direct up to five characters on 66 sets, with dialogue, sound and music, and export an MP4.
+- **Ara Play:** build games from missions, arcade races and endless runs, string them into a campaign, and publish it online in about a minute.
 
 ![Presets: Female Executive, Miami Dealer, Gangster, Priest, Corporate High-Flier, Prison Escapee, Arabian Oil Tycoon, Adventurer](docs/media/presets.jpg)
 
 <p align="center"><img src="docs/media/demo.gif" alt="A motion-captured walk, a face with expressions that talks, and riding a bicycle in Ara 3D Gen" width="560"></p>
 
+<p align="center"><a href="https://ara3dgen.com/play/"><img src="docs/media/ara-play.gif" alt="Dead Drop, a game made in Ara Play: escaping with a rescued companion, a shootout, driving through the city, runner power-ups, an arcade race, then customizing the game and publishing it online" width="640"></a><br><sub><strong>Made in Ara Play:</strong> Dead Drop, a ten-chapter game, played live · preview without audio · <a href="https://ara3dgen.com/media/ara-play-promo.mp4">Watch with sound</a> · <a href="https://ara3dgen.com/play/">Try Ara Play</a></sub></p>
+
 <p align="center"><a href="https://ara3dgen.com/studio/"><img src="docs/media/ara-studio-reel.gif" alt="The Ara 3D Studio reel: a tank and a helicopter, a jet takeoff, a parachute jump, a shootout, a highway race, a street café, a rooftop chase and a beach scene, ending in the Studio editor" width="640"></a><br><sub><strong>Made in Ara 3D Studio:</strong> every shot was made and exported in Studio · preview without audio · <a href="https://ara3dgen.com/media/ara-studio-reel.mp4">Watch with sound</a> · <a href="https://ara3dgen.com/studio/">Try Studio</a></sub></p>
-
-
-**Ara Play:** turn your characters into games you can play in the browser and download: stealth and combat missions linked into campaigns, arcade races and endless runs. [Play guide](docs/play.md).
 
 ## Why self-hosted?
 
@@ -34,10 +39,12 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 
 ## Features
 
+### Characters
+
 - **Realistic humans:** built on the CC0 MakeHuman dataset: 900+ morph targets, 219 detail sliders, 20 photo-based skins across age, ethnicity and sex, three detail levels (≈5k to 120k triangles).
 - **Quick build:** a guided mode where you tap options (body, heritage, 30 outfit styles, colours, hair, extras, vehicles and an action) and watch the character update. Pick a vehicle to preview its matching animation, then choose its colour, style and finish. Plain-words summary, undo, *Surprise me*, and every unavailable option explains why. *Detailed* has every slider.
 - **32 presets:** including the Female Executive, Miami Dealer, Gangster, Priest, Corporate High-Flier, Prison Escapee, Arabian Oil Tycoon and Adventurer. Plus one-click, reproducible random characters.
-- **Clothing:** MakeHuman outfits, or mix-and-match tops, bottoms, wrappers, uniforms and 30+ accessories. Generated fabrics (kente, aso-oke, ankara, adire, camo, leather…), all recolourable.
+- **Clothing:** MakeHuman outfits, or mix-and-match tops, bottoms, uniforms and 30+ accessories in recolourable generated fabrics, from denim, linen, leather and camo to woven and printed patterns.
 - **Hair and looks:** MakeHuman hairstyles plus buzz cut, punk mohawk, cornrows and box braids. Stubble, mustache, goatee and beards. Tattoos. Earrings.
 - **Faces that come alive:** blinking and glances, 9 expressions with teeth and tongue, a talking clip and lip-sync mouth shapes, exported as blend shapes.
 - **Auto-rigging:** game rig (Mixamo bone names; Unity Humanoid / Unreal / Mixamo compatible), lite or full skeleton, A- or T-pose, optional face bones, a `WeaponR` socket.
@@ -46,7 +53,26 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 - **Vehicles:** fourteen customizable vehicles fitted to the rider: bicycle, classic convertible, modern sports car, SUV, pickup, motorcycle, horse, canoe, kayak, rowing boat, motorboat, helicopter, military tank and jet. Each has boarding and alighting; there are stunt rolls, crash escapes, jet taxi/take-off/landing, parachute bail-outs and a tank machine gunner. Riders can wield guns or blades. Export vehicles separately in GLB, FBX or OBJ. In Studio they travel through sets, share seats between characters and stay parked after use.
 - **Exports you can trust:** an export panel that lists every file before you download it: static, rigged, or rigged + animations; one file or one per clip; Unity `model@clip` and Godot loop naming.
 - **Share:** a branded image of your character, a caption and a link that rebuilds the exact character in the app (no server or account needed).
-- **Ara Studio (early preview):** open your character in `/studio/`, search 66 categorized sets, direct up to five preset or saved custom characters with 216 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with voice effects, timed sound effects and nine recorded music options. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
+
+### Ara 3D Studio
+
+- **Films:** open your character in `/studio/`, search 66 categorized sets, direct up to five preset or saved custom characters with 216 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with voice effects, timed sound effects and nine recorded music options. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
+
+### Ara Play
+
+- **Missions:** escape, rescue and clear across five locations, with objectives to reach, download, defend, eliminate, survive, escort, chase and convoy.
+- **Companions and vehicles:** free a companion who follows you and rides along; 14 drivable vehicles.
+- **Combat:** pistols, rifles and grenades, cover, stealth takedowns, snipers, heavies and squad leaders.
+- **A city between chapters:** free roam with traffic, pedestrians, police and a wanted level, side jobs and a car radio.
+- **Arcade races:** 11 circuits, 13 cars, drifting, nitro, items, ghosts, cups and expert rivals.
+- **Endless runs:** 11 settings, 7 power-ups including spring boots and a hoverboard, objects to find and armed enemies to shoot.
+- **Campaigns and story:** up to ten chapters in any mix of modes, with branching choices, dialogue, voices and opening and ending films.
+- **Customize:** set the game's name, How to play and colours.
+- **Publish online:** live on Cloudflare in about a minute with no sign-up, ready to claim into your own free account; or download the game and host it anywhere. [Hosting your game](docs/hosting-games.md).
+- **No code:** everything is set in the editor. [Play guide](docs/play.md).
+
+### Across the apps
+
 - **LLM Assist and Studio's Assist:** copy a complete guide from the character builder or Studio into your preferred AI assistant, then paste or open its JSON to build a character or an editable film with a custom-designed cast. Studio includes downloadable staging maps for all 66 sets: water boundaries, paths, seats, obstacles, reference routes and a harbour boarding pier. **Check staging** reviews complete paths and exports fitted transition coordinates. It prepares scripted voices while you review the result. No API key needed.
 - **Tested:** `npm test` builds 407 characters and validates every format; `npm run test:gltf` checks every bone of every clip in three.js; `npm run test:ui` drives the app in headless Chrome.
 
