@@ -184,7 +184,7 @@ try{
  }
  if(promoOnly){
   const {record}=await import('./promo/record');const cdp={send,on:onEvent},folder='out/promo',only=process.env.PROMO_SHOTS?.split(',');
-  const dead=JSON.parse(readFileSync('demo-assets/dead-drop.json','utf8'));
+  const dead=JSON.parse(readFileSync('scripts/promo/dead-drop.json','utf8'));
   // One chapter of Dead Drop as a game of its own, so each shot starts where it should.
   const chapter=(id:string,tweak:(g:any)=>void=()=>{})=>{const {chapters,...root}=structuredClone(dead),c=chapters.find((x:any)=>x.id===id),{id:_,...own}=c,g={...root,...own,mission:{...root.mission,...own.mission},story:own.story??{cues:[]}};if(!own.mode)delete g.mode;delete g.branch;
    // The promo adds its own recorded voices, so captured games stay silent and skip speech generation.

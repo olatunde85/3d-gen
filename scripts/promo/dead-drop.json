@@ -1,0 +1,1776 @@
+{
+  "kind": "ara-play",
+  "version": 2,
+  "template": "escape-depot",
+  "mode": "mission",
+  "identity": {
+    "title": "Dead Drop — 1: The Depot",
+    "briefing": "Jess Carter is a bike courier. Last night a stranger gave her a package for Detective Ruth Hale. Inside is proof that businessman Richard Moss ordered a murder. Now Moss's men are at her depot. Find a weapon, grab the package from your locker, then ride out on your motorbike."
+  },
+  "character": {
+    "kind": "ara-character",
+    "version": 1,
+    "preset": "Athletic woman",
+    "params": {
+      "name": "Jess Carter",
+      "ageYears": 26,
+      "african": 0.3,
+      "asian": 0.1,
+      "caucasian": 0.6,
+      "hair": "ponytail01",
+      "hairTint": "#3a2418",
+      "expression": "determined",
+      "outfit": "none",
+      "top": "oversized_tee",
+      "bottom": "cargo_shorts",
+      "shoes": "sneakers",
+      "carry": "backpack",
+      "accessories": [
+        "watch"
+      ],
+      "garmentStyles": {
+        "oversized_tee": {
+          "pattern": "jersey",
+          "color": "#e8641e",
+          "color2": "#1b1d22"
+        },
+        "cargo_shorts": {
+          "pattern": "solid",
+          "color": "#2b2d33"
+        },
+        "backpack": {
+          "pattern": "solid",
+          "color": "#e8641e",
+          "color2": "#1b1d22"
+        }
+      }
+    }
+  },
+  "poses": {
+    "lookAround": true,
+    "dance": true
+  },
+  "loadout": {
+    "weapon": "none",
+    "health": 150,
+    "ammunition": 48,
+    "grenades": 0
+  },
+  "enemies": [
+    {
+      "id": "depot-driver",
+      "character": {
+        "kind": "ara-character",
+        "version": 1,
+        "preset": "The Bodyguard",
+        "params": {
+          "name": "Moss's driver",
+          "seed": 101,
+          "expression": "angry",
+          "garmentStyles": {
+            "set_suit_tie": {
+              "pattern": "suiting",
+              "color": "#1a1b1f",
+              "color2": "#2a2c32"
+            }
+          }
+        }
+      },
+      "aggression": "relentless",
+      "response": "pistol",
+      "health": 100
+    },
+    {
+      "id": "depot-goon-1",
+      "character": {
+        "kind": "ara-character",
+        "version": 1,
+        "preset": "The Bodyguard",
+        "params": {
+          "name": "Moss's man",
+          "seed": 102,
+          "expression": "angry",
+          "garmentStyles": {
+            "set_suit_tie": {
+              "pattern": "suiting",
+              "color": "#1a1b1f",
+              "color2": "#2a2c32"
+            }
+          }
+        }
+      },
+      "aggression": "balanced",
+      "response": "pistol",
+      "health": 100
+    },
+    {
+      "id": "depot-goon-2",
+      "character": {
+        "kind": "ara-character",
+        "version": 1,
+        "preset": "The Bodyguard",
+        "params": {
+          "name": "Moss's man",
+          "seed": 103,
+          "expression": "angry",
+          "garmentStyles": {
+            "set_suit_tie": {
+              "pattern": "suiting",
+              "color": "#1a1b1f",
+              "color2": "#2a2c32"
+            }
+          }
+        }
+      },
+      "aggression": "cautious",
+      "response": "pistol",
+      "health": 100
+    },
+    {
+      "id": "dutch",
+      "character": {
+        "kind": "ara-character",
+        "version": 1,
+        "preset": "The Bodyguard",
+        "params": {
+          "name": "Dutch",
+          "ageYears": 42,
+          "expression": "angry"
+        }
+      },
+      "aggression": "relentless",
+      "response": "pistol",
+      "health": 150
+    }
+  ],
+  "mission": {
+    "story": "escape",
+    "extraction": "pickup",
+    "location": "depot",
+    "plan": "breakout",
+    "layout": "balanced",
+    "variation": 0,
+    "movement": "agile",
+    "lives": 5,
+    "checkpoints": "auto",
+    "cargo": "package",
+    "driveDifficulty": "standard",
+    "difficulty": "normal",
+    "parTime": 300,
+    "stealth": false,
+    "pursuit": true,
+    "overwatch": false,
+    "environment": {
+      "time": "day",
+      "weather": "clear",
+      "ambient": "auto",
+      "effects": true,
+      "flashlight": false,
+      "volume": 0.55
+    },
+    "sideQuests": []
+  },
+  "vehicle": {
+    "model": "motorcycle",
+    "color": "#e8641e",
+    "pace": "fast"
+  },
+  "progression": {
+    "weapon": "pickup",
+    "unlock": "pistol",
+    "supplies": "balanced",
+    "scoring": "action",
+    "reward": "pistol"
+  },
+  "camera": {
+    "allowed": [
+      "orbit",
+      "close",
+      "overhead",
+      "isometric"
+    ],
+    "default": "orbit",
+    "rotate": true,
+    "zoom": true
+  },
+  "music": {
+    "track": "spy-mission",
+    "volume": 0.28
+  },
+  "city": {
+    "size": "vast",
+    "pedestrians": 8,
+    "traffic": 12,
+    "movingTraffic": 12,
+    "police": true,
+    "repairShop": true,
+    "gunShop": true,
+    "pedestrianFights": true,
+    "pedestrianHostility": "mixed",
+    "weaponSwitch": true,
+    "radio": true,
+    "radioCountry": "NG"
+  },
+  "story": {
+    "briefingVoice": true,
+    "cues": [
+      {
+        "id": "d-start",
+        "trigger": "start",
+        "text": "Jess, it's Sam at dispatch. Moss's men are inside the depot. Get the package from your locker and get out.",
+        "duration": 6,
+        "speaker": "radio",
+        "style": "subtitle",
+        "voice": true,
+        "voiceId": "M2"
+      },
+      {
+        "id": "d-spot",
+        "trigger": "spotted",
+        "text": "There she is. Get the package!",
+        "duration": 3,
+        "speaker": "depot-goon-1",
+        "style": "speech",
+        "voice": true,
+        "voiceId": "M1"
+      },
+      {
+        "id": "d-done",
+        "trigger": "objective-complete",
+        "text": "You've got it? Good. Get on your bike and go.",
+        "duration": 4,
+        "speaker": "radio",
+        "style": "subtitle",
+        "voice": true,
+        "voiceId": "M2"
+      },
+      {
+        "id": "d-escape",
+        "trigger": "escape",
+        "text": "You're out. Ride across the city and lie low. Find the green marker when you're ready.",
+        "duration": 5,
+        "speaker": "radio",
+        "style": "subtitle",
+        "voice": true,
+        "voiceId": "M2"
+      }
+    ]
+  },
+  "chapters": [
+    {
+      "id": "rooftop-escape",
+      "mode": "runner",
+      "identity": {
+        "title": "Dead Drop — 2: Rooftop Escape",
+        "briefing": "Dutch has found you and your bike is blocked in. Go up and run across the rooftops. Run 1,500 metres to lose him."
+      },
+      "enemies": [
+        {
+          "id": "dutch",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Dutch",
+              "ageYears": 42,
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "capture",
+          "health": 100
+        }
+      ],
+      "mission": {
+        "cargo": "none",
+        "sideQuests": [],
+        "environment": {
+          "time": "dusk",
+          "weather": "clear",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": false,
+          "volume": 0.55
+        }
+      },
+      "music": {
+        "track": "hip-hop-story",
+        "volume": 0.32
+      },
+      "runner": {
+        "theme": "city-rooftops",
+        "lanes": 3,
+        "startSpeed": 10,
+        "maxSpeed": 24,
+        "speedRamp": "gentle",
+        "obstacles": [
+          "barrier-low",
+          "bar-high",
+          "blocker"
+        ],
+        "powerUps": [
+          "magnet",
+          "shield",
+          "springs"
+        ],
+        "chaser": "dutch",
+        "goal": {
+          "type": "distance",
+          "target": 1500
+        },
+        "revive": true,
+        "medals": {
+          "bronze": 2500,
+          "silver": 6000,
+          "gold": 10000
+        }
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": []
+      }
+    },
+    {
+      "id": "night-ride",
+      "mode": "race",
+      "identity": {
+        "title": "Dead Drop — 3: Night Ride",
+        "briefing": "Sam has set up a meeting with Detective Hale at the night market. Moss's riders know about it too. Race them across the city and get there first."
+      },
+      "enemies": [
+        {
+          "id": "dutch",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Dutch",
+              "ageYears": 42,
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "rider-1",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Athletic man",
+            "params": {
+              "name": "Moss rider",
+              "seed": 31,
+              "expression": "determined"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "rider-2",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Athletic man",
+            "params": {
+              "name": "Moss rider",
+              "seed": 32,
+              "expression": "determined"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "rider-3",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Athletic man",
+            "params": {
+              "name": "Moss rider",
+              "seed": 33,
+              "expression": "determined"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "rider-4",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Athletic man",
+            "params": {
+              "name": "Moss rider",
+              "seed": 34,
+              "expression": "determined"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        }
+      ],
+      "mission": {
+        "cargo": "none",
+        "sideQuests": [],
+        "environment": {
+          "time": "night",
+          "weather": "clear",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": false,
+          "volume": 0.55
+        }
+      },
+      "music": {
+        "track": "spy-mission",
+        "volume": 0.3
+      },
+      "race": {
+        "track": "neon-district",
+        "laps": 2,
+        "opponents": 5,
+        "aiSkill": "medium",
+        "rubberBand": true,
+        "handling": "drift",
+        "nitro": true,
+        "pickups": [
+          "boost-pad",
+          "item-box"
+        ],
+        "ghost": true,
+        "car": {
+          "model": "motorcycle",
+          "color": "#e8641e"
+        }
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": []
+      }
+    },
+    {
+      "id": "market-trap",
+      "mode": "mission",
+      "identity": {
+        "title": "Dead Drop — 4: The Market Trap",
+        "briefing": "Detective Hale isn't at the market. Moss's men are. It was a trap. Fight your way through every one of them, then get out on foot."
+      },
+      "loadout": {
+        "weapon": "pistol",
+        "health": 150,
+        "ammunition": 96,
+        "grenades": 2
+      },
+      "enemies": [
+        {
+          "id": "market-goon-1",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Moss's man",
+              "seed": 401,
+              "expression": "angry",
+              "garmentStyles": {
+                "set_suit_tie": {
+                  "pattern": "suiting",
+                  "color": "#1a1b1f",
+                  "color2": "#2a2c32"
+                }
+              }
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "market-gunner",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Moss's gunman",
+              "seed": 402,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 100,
+          "kind": "rifleman"
+        },
+        {
+          "id": "market-lookout",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Moss's lookout",
+              "seed": 403,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "cautious",
+          "response": "rifle",
+          "health": 100,
+          "kind": "sniper"
+        },
+        {
+          "id": "market-heavy",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Heavy brute",
+            "params": {
+              "name": "Moss's heavy",
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "pistol",
+          "health": 150
+        },
+        {
+          "id": "market-boss",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Moss's foreman",
+              "seed": 404,
+              "expression": "angry",
+              "garmentStyles": {
+                "set_suit_tie": {
+                  "pattern": "suiting",
+                  "color": "#1a1b1f",
+                  "color2": "#2a2c32"
+                }
+              }
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 150,
+          "kind": "leader"
+        }
+      ],
+      "mission": {
+        "story": "clear",
+        "extraction": "foot",
+        "location": "market-street",
+        "plan": "breakout",
+        "layout": "balanced",
+        "variation": 5,
+        "movement": "agile",
+        "lives": 5,
+        "checkpoints": "auto",
+        "cargo": "none",
+        "driveDifficulty": "easy",
+        "difficulty": "normal",
+        "parTime": 300,
+        "stealth": false,
+        "pursuit": false,
+        "overwatch": false,
+        "environment": {
+          "time": "night",
+          "weather": "clear",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": true,
+          "volume": 0.5
+        },
+        "sideQuests": [
+          "delivery",
+          "bounty"
+        ]
+      },
+      "progression": {
+        "weapon": "loadout",
+        "supplies": "balanced",
+        "scoring": "action",
+        "reward": "rifle"
+      },
+      "camera": {
+        "allowed": [
+          "orbit",
+          "close",
+          "overhead",
+          "isometric"
+        ],
+        "default": "orbit",
+        "rotate": true,
+        "zoom": true
+      },
+      "music": {
+        "track": "spy-mission",
+        "volume": 0.28
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": [
+          {
+            "id": "m-start",
+            "trigger": "start",
+            "text": "Jess, I'm sorry. Hale never got my message. Watch the roofs. They have a shooter up there.",
+            "duration": 6,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "M2"
+          },
+          {
+            "id": "m-spot",
+            "trigger": "spotted",
+            "text": "Give us the package and you can walk away.",
+            "duration": 3,
+            "speaker": "market-boss",
+            "style": "speech",
+            "voice": true,
+            "voiceId": "M1"
+          },
+          {
+            "id": "m-done",
+            "trigger": "objective-complete",
+            "text": "That's all of them. Get out of there.",
+            "duration": 4,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "M2"
+          },
+          {
+            "id": "m-escape",
+            "trigger": "escape",
+            "text": "Bad news. Moss's men took Hale to his walled yard outside the city. Grab a car and head for the green marker.",
+            "duration": 6,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "M2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "moss-yard",
+      "mode": "mission",
+      "identity": {
+        "title": "Dead Drop — 5: Moss's Yard",
+        "briefing": "Moss's men are holding Detective Hale in his walled yard outside the city. Free her, get her into the truck, and drive out past the checkpoints."
+      },
+      "loadout": {
+        "weapon": "rifle",
+        "health": 150,
+        "ammunition": 96,
+        "grenades": 2
+      },
+      "enemies": [
+        {
+          "id": "yard-driver",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Yard driver",
+              "seed": 601,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 100,
+          "kind": "rifleman"
+        },
+        {
+          "id": "yard-guard",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Heavy brute",
+            "params": {
+              "name": "Moss's heavy",
+              "expression": "angry"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 150
+        },
+        {
+          "id": "yard-rifleman",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Yard guard",
+              "seed": 602,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "balanced",
+          "response": "rifle",
+          "health": 100,
+          "kind": "rifleman"
+        },
+        {
+          "id": "yard-lookout",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Yard lookout",
+              "seed": 603,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "cautious",
+          "response": "rifle",
+          "health": 100,
+          "kind": "sniper"
+        },
+        {
+          "id": "yard-boss",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Yard boss",
+              "seed": 604,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 150,
+          "kind": "leader"
+        }
+      ],
+      "companion": {
+        "character": {
+          "kind": "ara-character",
+          "version": 1,
+          "preset": "Businesswoman",
+          "params": {
+            "name": "Detective Ruth Hale",
+            "ageYears": 44,
+            "expression": "afraid",
+            "hairColor": "#2b1d16"
+          }
+        },
+        "health": 100
+      },
+      "mission": {
+        "story": "rescue",
+        "extraction": "pickup",
+        "location": "desert-compound",
+        "plan": "breakout",
+        "layout": "open",
+        "variation": 10,
+        "movement": "agile",
+        "lives": 5,
+        "checkpoints": "auto",
+        "cargo": "none",
+        "driveDifficulty": "standard",
+        "difficulty": "normal",
+        "parTime": 420,
+        "stealth": false,
+        "pursuit": true,
+        "overwatch": false,
+        "environment": {
+          "time": "dusk",
+          "weather": "clear",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": false,
+          "volume": 0.6
+        },
+        "sideQuests": []
+      },
+      "vehicle": {
+        "model": "pickup",
+        "color": "#2b2d33",
+        "pace": "fast"
+      },
+      "progression": {
+        "weapon": "loadout",
+        "supplies": "plentiful",
+        "scoring": "action"
+      },
+      "camera": {
+        "allowed": [
+          "orbit",
+          "close",
+          "overhead",
+          "isometric"
+        ],
+        "default": "orbit",
+        "rotate": true,
+        "zoom": true
+      },
+      "music": {
+        "track": "spy-opening",
+        "volume": 0.28
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": [
+          {
+            "id": "y-start",
+            "trigger": "start",
+            "text": "Hale is somewhere inside the yard. Find her first. Then the truck.",
+            "duration": 5,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "M2"
+          },
+          {
+            "id": "y-boss",
+            "trigger": "spotted",
+            "text": "It's the courier. Don't let her reach the detective!",
+            "duration": 3,
+            "speaker": "yard-boss",
+            "style": "speech",
+            "voice": true,
+            "voiceId": "M1"
+          },
+          {
+            "id": "y-freed",
+            "trigger": "objective-complete",
+            "text": "You must be Jess. Do you still have the package? Then let's get it to the station.",
+            "duration": 6,
+            "speaker": "companion",
+            "style": "speech",
+            "voice": true,
+            "voiceId": "F2"
+          },
+          {
+            "id": "y-escape",
+            "trigger": "escape",
+            "text": "Hale here. Drive us to my office in the city. The green marker shows the way.",
+            "duration": 5,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hales-office",
+      "mode": "mission",
+      "identity": {
+        "title": "Dead Drop — 6: Hale's Office",
+        "briefing": "Hale wants a copy of the evidence in case Moss gets the original. Copy the files at her office computer, then hold the room while Moss's men try to break in. Then leave on foot."
+      },
+      "loadout": {
+        "weapon": "rifle",
+        "health": 150,
+        "ammunition": 96,
+        "grenades": 2
+      },
+      "enemies": [
+        {
+          "id": "office-goon-1",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Moss's man",
+              "seed": 801,
+              "expression": "angry",
+              "garmentStyles": {
+                "set_suit_tie": {
+                  "pattern": "suiting",
+                  "color": "#1a1b1f",
+                  "color2": "#2a2c32"
+                }
+              }
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "office-goon-2",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Moss's man",
+              "seed": 802,
+              "expression": "angry",
+              "garmentStyles": {
+                "set_suit_tie": {
+                  "pattern": "suiting",
+                  "color": "#1a1b1f",
+                  "color2": "#2a2c32"
+                }
+              }
+            }
+          },
+          "aggression": "relentless",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "office-gunner",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Moss's gunman",
+              "seed": 803,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 100,
+          "kind": "rifleman"
+        },
+        {
+          "id": "office-heavy",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Heavy brute",
+            "params": {
+              "name": "Moss's heavy",
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 300,
+          "kind": "heavy"
+        }
+      ],
+      "mission": {
+        "story": "escape",
+        "extraction": "foot",
+        "location": "urban-block",
+        "plan": "breakout",
+        "layout": "open",
+        "variation": 1,
+        "movement": "agile",
+        "lives": 5,
+        "checkpoints": "auto",
+        "cargo": "none",
+        "driveDifficulty": "easy",
+        "difficulty": "normal",
+        "parTime": 360,
+        "stealth": false,
+        "pursuit": false,
+        "overwatch": false,
+        "sideQuests": [
+          "delivery",
+          "bounty"
+        ],
+        "environment": {
+          "time": "night",
+          "weather": "rain",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": true,
+          "volume": 0.55
+        },
+        "steps": [
+          {
+            "type": "download",
+            "duration": 12,
+            "label": "Copy the evidence"
+          },
+          {
+            "type": "defend",
+            "duration": 45,
+            "waves": 2,
+            "label": "Hold the office"
+          }
+        ]
+      },
+      "progression": {
+        "weapon": "loadout",
+        "supplies": "plentiful",
+        "scoring": "action"
+      },
+      "camera": {
+        "allowed": [
+          "orbit",
+          "close",
+          "overhead",
+          "isometric"
+        ],
+        "default": "orbit",
+        "rotate": true,
+        "zoom": true
+      },
+      "music": {
+        "track": "spy-mission",
+        "volume": 0.28
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": [
+          {
+            "id": "o-start",
+            "trigger": "start",
+            "text": "My computer is upstairs. Copy everything. I'll watch the street.",
+            "duration": 5,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          },
+          {
+            "id": "o-step1",
+            "trigger": "step",
+            "at": 1,
+            "text": "Keep holding the button. It takes a few seconds.",
+            "duration": 4,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          },
+          {
+            "id": "o-step2",
+            "trigger": "step",
+            "at": 2,
+            "text": "The copy is done. Moss's men are coming in. Hold the room!",
+            "duration": 4,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          },
+          {
+            "id": "o-escape",
+            "trigger": "escape",
+            "text": "We have a copy now. More of Moss's men are outside. Go out the back and run through the rail yard.",
+            "duration": 6,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rail-yard",
+      "mode": "runner",
+      "identity": {
+        "title": "Dead Drop — 7: The Rail Yard",
+        "briefing": "Moss's men stormed the office. Run out the back and through the rail yard, dodging the moving trains. Run 2,000 metres to lose Dutch."
+      },
+      "enemies": [
+        {
+          "id": "dutch",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Dutch",
+              "ageYears": 42,
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "capture",
+          "health": 100
+        }
+      ],
+      "mission": {
+        "cargo": "none",
+        "sideQuests": [],
+        "environment": {
+          "time": "night",
+          "weather": "clear",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": false,
+          "volume": 0.55
+        }
+      },
+      "music": {
+        "track": "hip-hop-story",
+        "volume": 0.32
+      },
+      "runner": {
+        "theme": "train-yard",
+        "lanes": 3,
+        "startSpeed": 11,
+        "maxSpeed": 27,
+        "speedRamp": "steady",
+        "obstacles": [
+          "barrier-low",
+          "bar-high",
+          "gap",
+          "blocker",
+          "cart"
+        ],
+        "powerUps": [
+          "magnet",
+          "shield",
+          "springs",
+          "hoverboard"
+        ],
+        "chaser": "dutch",
+        "goal": {
+          "type": "distance",
+          "target": 2000
+        },
+        "revive": true,
+        "medals": {
+          "bronze": 3000,
+          "silver": 7000,
+          "gold": 12000
+        },
+        "objects": [
+          {
+            "type": "dossier",
+            "name": "Moss's shipping papers",
+            "count": 3,
+            "clue": "More proof: Moss used his trucks to hide the killing. Hale will want these."
+          }
+        ]
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": []
+      }
+    },
+    {
+      "id": "race-to-hq",
+      "mode": "race",
+      "identity": {
+        "title": "Dead Drop — 8: Race to Headquarters",
+        "briefing": "Hale has a car waiting past the rail yard. Moss's drivers are between you and police headquarters. Beat them across the city."
+      },
+      "enemies": [
+        {
+          "id": "dutch",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Dutch",
+              "ageYears": 42,
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "rider-1",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Athletic man",
+            "params": {
+              "name": "Moss rider",
+              "seed": 31,
+              "expression": "determined"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "rider-2",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Athletic man",
+            "params": {
+              "name": "Moss rider",
+              "seed": 32,
+              "expression": "determined"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "rider-3",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Athletic man",
+            "params": {
+              "name": "Moss rider",
+              "seed": 33,
+              "expression": "determined"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        },
+        {
+          "id": "rider-4",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Athletic man",
+            "params": {
+              "name": "Moss rider",
+              "seed": 34,
+              "expression": "determined"
+            }
+          },
+          "aggression": "balanced",
+          "response": "pistol",
+          "health": 100
+        }
+      ],
+      "mission": {
+        "cargo": "none",
+        "sideQuests": [],
+        "environment": {
+          "time": "dawn",
+          "weather": "clear",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": false,
+          "volume": 0.55
+        }
+      },
+      "music": {
+        "track": "adventure-trailer",
+        "volume": 0.3
+      },
+      "race": {
+        "track": "city-loop",
+        "laps": 2,
+        "opponents": 6,
+        "aiSkill": "hard",
+        "rubberBand": true,
+        "handling": "grip",
+        "nitro": true,
+        "pickups": [
+          "boost-pad"
+        ],
+        "ghost": true,
+        "car": {
+          "model": "sports_car",
+          "color": "#2b2d33"
+        }
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": []
+      }
+    },
+    {
+      "id": "last-mile",
+      "mode": "runner",
+      "identity": {
+        "title": "Dead Drop — 9: The Last Mile",
+        "briefing": "Moss has blocked the last roads to police headquarters. Leave the car and run the final 2,500 metres across the rooftops. Don't let Dutch catch you now."
+      },
+      "enemies": [
+        {
+          "id": "dutch",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Dutch",
+              "ageYears": 42,
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "capture",
+          "health": 100
+        }
+      ],
+      "mission": {
+        "cargo": "none",
+        "sideQuests": [],
+        "environment": {
+          "time": "dawn",
+          "weather": "clear",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": false,
+          "volume": 0.55
+        }
+      },
+      "music": {
+        "track": "adventure-trailer",
+        "volume": 0.32
+      },
+      "runner": {
+        "theme": "city-rooftops",
+        "lanes": 3,
+        "startSpeed": 13,
+        "maxSpeed": 32,
+        "speedRamp": "steep",
+        "obstacles": [
+          "barrier-low",
+          "bar-high",
+          "gap",
+          "blocker",
+          "cart"
+        ],
+        "powerUps": [
+          "magnet",
+          "shield",
+          "boost",
+          "multiplier",
+          "springs",
+          "hoverboard",
+          "coin-rush"
+        ],
+        "chaser": "dutch",
+        "goal": {
+          "type": "distance",
+          "target": 2500
+        },
+        "revive": true,
+        "medals": {
+          "bronze": 6000,
+          "silver": 12000,
+          "gold": 20000
+        }
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": []
+      }
+    },
+    {
+      "id": "the-drop",
+      "mode": "mission",
+      "identity": {
+        "title": "Dead Drop — 10: The Drop",
+        "briefing": "You made it to police headquarters, but Richard Moss got there first with his last men. Get inside the grounds, stop Moss, and hold on until Hale's officers arrive by helicopter. Then the package is finally delivered."
+      },
+      "loadout": {
+        "weapon": "rifle",
+        "health": 150,
+        "ammunition": 96,
+        "grenades": 5
+      },
+      "enemies": [
+        {
+          "id": "hq-rifleman",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Moss's gunman",
+              "seed": 1001,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "balanced",
+          "response": "rifle",
+          "health": 100,
+          "kind": "rifleman"
+        },
+        {
+          "id": "hq-heavy",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "Heavy brute",
+            "params": {
+              "name": "Moss's heavy",
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 300,
+          "kind": "heavy"
+        },
+        {
+          "id": "hq-sniper",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Soldier",
+            "params": {
+              "name": "Moss's sniper",
+              "seed": 1002,
+              "expression": "angry",
+              "accessories": [
+                "tactical_vest",
+                "belt"
+              ],
+              "garmentStyles": {
+                "fatigue_shirt": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "fatigue_pants": {
+                  "pattern": "solid",
+                  "color": "#1b1d22"
+                },
+                "tactical_vest": {
+                  "pattern": "solid",
+                  "color": "#111317"
+                }
+              }
+            }
+          },
+          "aggression": "cautious",
+          "response": "rifle",
+          "health": 100,
+          "kind": "sniper"
+        },
+        {
+          "id": "dutch",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Bodyguard",
+            "params": {
+              "name": "Dutch",
+              "ageYears": 42,
+              "expression": "angry"
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 150,
+          "kind": "guard"
+        },
+        {
+          "id": "richard-moss",
+          "character": {
+            "kind": "ara-character",
+            "version": 1,
+            "preset": "The Corporate High-Flier",
+            "params": {
+              "name": "Richard Moss",
+              "ageYears": 55,
+              "expression": "determined",
+              "accessories": [
+                "watch_gold",
+                "gold_ring"
+              ]
+            }
+          },
+          "aggression": "relentless",
+          "response": "rifle",
+          "health": 200,
+          "kind": "leader"
+        }
+      ],
+      "mission": {
+        "story": "escape",
+        "extraction": "helicopter",
+        "location": "military-base",
+        "plan": "breakout",
+        "layout": "balanced",
+        "variation": 3,
+        "movement": "agile",
+        "lives": 5,
+        "checkpoints": "auto",
+        "cargo": "none",
+        "driveDifficulty": "easy",
+        "difficulty": "hard",
+        "parTime": 480,
+        "stealth": false,
+        "pursuit": false,
+        "overwatch": true,
+        "environment": {
+          "time": "dawn",
+          "weather": "clear",
+          "ambient": "auto",
+          "effects": true,
+          "flashlight": false,
+          "volume": 0.5
+        },
+        "steps": [
+          {
+            "type": "reach",
+            "label": "Reach the police headquarters"
+          },
+          {
+            "type": "eliminate",
+            "target": "richard-moss",
+            "label": "Stop Richard Moss"
+          },
+          {
+            "type": "defend",
+            "duration": 60,
+            "waves": 2,
+            "label": "Hold on until the police arrive"
+          }
+        ],
+        "sideQuests": []
+      },
+      "progression": {
+        "weapon": "loadout",
+        "supplies": "plentiful",
+        "scoring": "action"
+      },
+      "camera": {
+        "allowed": [
+          "orbit",
+          "close",
+          "overhead",
+          "isometric"
+        ],
+        "default": "orbit",
+        "rotate": true,
+        "zoom": true
+      },
+      "music": {
+        "track": "adventure-trailer",
+        "volume": 0.32
+      },
+      "story": {
+        "briefingVoice": true,
+        "cues": [
+          {
+            "id": "h-start",
+            "trigger": "start",
+            "text": "Jess, it's Hale. I'm in the police helicopter. I'll tell you where Moss's men are.",
+            "duration": 5,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          },
+          {
+            "id": "h-over",
+            "trigger": "overwatch",
+            "text": "",
+            "duration": 4,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          },
+          {
+            "id": "h-moss",
+            "trigger": "spotted",
+            "text": "Give me the package and I'll make you rich.",
+            "duration": 3,
+            "speaker": "richard-moss",
+            "style": "speech",
+            "voice": true,
+            "voiceId": "M1"
+          },
+          {
+            "id": "h-step2",
+            "trigger": "step",
+            "at": 2,
+            "text": "Moss is in the courtyard. Stop him!",
+            "duration": 3,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          },
+          {
+            "id": "h-step3",
+            "trigger": "step",
+            "at": 3,
+            "text": "You got him! Hold on, we're landing!",
+            "duration": 4,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          },
+          {
+            "id": "h-escape",
+            "trigger": "escape",
+            "text": "Package delivered, Jess. Thank you.",
+            "duration": 4,
+            "speaker": "radio",
+            "style": "subtitle",
+            "voice": true,
+            "voiceId": "F2"
+          }
+        ]
+      }
+    }
+  ],
+  "gameName": "Dead Drop"
+}
