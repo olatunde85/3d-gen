@@ -25,3 +25,4 @@ h3 { font-size: 17px; margin: 22px 0 4px; }
 ul { padding-left: 22px; }
 li { margin: 6px 0; }
 footer { max-width: 760px; margin: 0 auto; padding: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+code { font: 0.9em ui-monospace, Menlo, monospace; background: #141821; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
