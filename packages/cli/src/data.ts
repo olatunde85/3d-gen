@@ -19,6 +19,18 @@ export function cacheRoot() {
   return join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'ara3d');
 }
 
+/** Renames a folder, retrying briefly: on Windows, antivirus can hold freshly written files for a moment. */
+function moveInto(from: string, to: string) {
+  for (let attempt = 1; ; attempt++) {
+    try { renameSync(from, to);return; }
+    catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (attempt >= 8 || !['EPERM', 'EBUSY', 'EACCES'].includes(code ?? '')) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250 * attempt);
+    }
+  }
+}
+
 /** The folder holding the character data, downloading it on first use. */
 export async function dataFolder(log: (line: string) => void): Promise<string> {
   if (process.env.ARA3D_DATA) return process.env.ARA3D_DATA;
@@ -52,7 +64,7 @@ export async function dataFolder(log: (line: string) => void): Promise<string> {
     if (path.endsWith('/')) continue;
     const file = join(temp, path);mkdirSync(dirname(file), { recursive: true });writeFileSync(file, content);
   }
-  rmSync(folder, { recursive: true, force: true });renameSync(temp, folder);
+  rmSync(folder, { recursive: true, force: true });moveInto(temp, folder);
   log(`Character data cached in ${folder}`);
   return folder;
 }
