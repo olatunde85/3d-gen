@@ -4,3 +4,7 @@
   Cache-Control: public, max-age=86400
 /media/*
   Cache-Control: public, max-age=86400
+# Schemas are read by editors, AI tools and other sites.
+/schemas/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600

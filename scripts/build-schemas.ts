@@ -1,0 +1,20 @@
+/**
+ * Writes Ara's JSON schemas to dist/schemas/, served at ara3dgen.com/schemas/. They are generated from the same
+ * catalogues as the apps, so every ID and range matches the version being deployed.
+ */
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { characterSchema } from '../src/app/character-assist';
+import { assistSchema } from '../src/studio/assist';
+import { nodeLibrary } from './node-assets';
+
+const root = resolve(import.meta.dirname, '..'), out = join(root, 'dist/schemas'), site = 'https://ara3dgen.com/schemas/';
+const { catalog } = await nodeLibrary();
+const schemas = [
+  { file: 'character.v1.json', title: 'Ara character', description: 'A character: a preset and/or appearance parameters (kind "ara-character", version 1).', schema: characterSchema(catalog) },
+  { file: 'studio-film.v2.json', title: 'Ara 3D Studio film', description: 'A Studio film: set, cast, timeline, dialogue, sound and music (version 2).', schema: assistSchema(catalog) },
+];
+mkdirSync(out, { recursive: true });
+for (const s of schemas) writeFileSync(join(out, s.file), JSON.stringify({ $id: site + s.file, ...s.schema }, null, 2) + '\n');
+writeFileSync(join(out, 'index.json'), JSON.stringify({ schemas: schemas.map(({ file, title, description }) => ({ title, description, url: site + file })) }, null, 2) + '\n');
+console.log(`schemas: ${schemas.length} -> dist/schemas/`);

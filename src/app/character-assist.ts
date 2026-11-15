@@ -51,7 +51,7 @@ export function parseCharacterInput(source:string,cat:Catalog,initial:HumanParam
   let patch:Record<string,unknown>,base=structuredClone(initial);
   if('kind'in raw){
     if(raw.kind!=='ara-character'||raw.version!==1)throw Error('Use ara-character version 1. Studio film JSON belongs in Ara Studio.');
-    for(const key of Object.keys(raw))if(!['kind','version','preset','params'].includes(key))throw Error(`Unsupported character field: ${key}.`);
+    for(const key of Object.keys(raw))if(!['$schema','kind','version','preset','params'].includes(key))throw Error(`Unsupported character field: ${key}.`);
     if('preset'in raw){if(typeof raw.preset!=='string'||!Object.hasOwn(PRESETS,raw.preset))throw Error('Choose an exact character preset from the guide.');base={...base,...structuredClone(PRESETS[raw.preset]),name:raw.preset};}
     if(raw.params===undefined&&!('preset'in raw))throw Error('Provide a preset or params.');
     if(raw.params!==undefined&&!object(raw.params))throw Error('params must be an object.');patch=(raw.params??{})as Record<string,unknown>;
@@ -85,7 +85,7 @@ export function characterSchema(cat:Catalog){
   properties.tattoos={type:'array',maxItems:20,uniqueItems:true,items:enumeration(TATTOOS)};
   properties.modifiers={type:'object',additionalProperties:false,maxProperties:400,properties:Object.fromEntries([...modifierRanges(cat)].map(([id,range])=>[id,{type:'number',minimum:range.minimum,maximum:range.maximum,description:range.label}]))};
   properties.garmentStyles={type:'object',maxProperties:60,propertyNames:{enum:[...new Set([...GARMENTS.map(g=>g.id),...OUTFIT_SETS.map(s=>s.id),...Object.keys(CARRY_STYLES),...Object.values(PRESETS).flatMap(p=>Object.keys(p.garmentStyles??{}))])]},additionalProperties:{type:'object',additionalProperties:false,properties:{pattern:enumeration(PATTERNS),color:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},color2:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'}}}};
-  return{$schema:'https://json-schema.org/draft/2020-12/schema',title:'Ara character input',type:'object',additionalProperties:false,required:['kind','version'],anyOf:[{required:['preset']},{required:['params']}],properties:{kind:{const:'ara-character'},version:{const:1},preset:enumeration(Object.keys(PRESETS)),params:{type:'object',additionalProperties:false,properties,not:{required:['age','ageYears']}}}};
+  return{$schema:'https://json-schema.org/draft/2020-12/schema',title:'Ara character input',type:'object',additionalProperties:false,required:['kind','version'],anyOf:[{required:['preset']},{required:['params']}],properties:{$schema:{type:'string',description:'Optional link to this schema, for editors.'},kind:{const:'ara-character'},version:{const:1},preset:enumeration(Object.keys(PRESETS)),params:{type:'object',additionalProperties:false,properties,not:{required:['age','ageYears']}}}};
 }
 /** Shared appearance instructions and live assets, without an LLM task or output schema. */
 export function characterReference(cat:Catalog):string{

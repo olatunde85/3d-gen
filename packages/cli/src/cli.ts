@@ -1,0 +1,124 @@
+/** ara3d: generate rigged, animated Ara characters from the command line. */
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseArgs } from 'node:util';
+import { buildHuman } from '../../../src/core/human';
+import { triangleCount } from '../../../src/core/mesh';
+import { DEFAULT_PARAMS, DETAILS, PRESETS, randomParams, type HumanParams } from '../../../src/core/params';
+import { exportCharacter, type ExportFormat } from '../../../src/export';
+import { characterExample, characterSchema, parseCharacterInput } from '../../../src/app/character-assist';
+import { assistSchema } from '../../../src/studio/assist';
+import { loadLibrary } from './data';
+import PACKAGE from '../package.json';
+
+const FORMATS: readonly ExportFormat[] = ['glb', 'fbx', 'obj', 'zip'];
+const log = (line: string) => console.error(line);
+
+const HELP = `ara3d ${PACKAGE.version}: realistic, rigged and animated 3D characters, built on your machine.
+
+Usage
+  ara3d export [options]          Build characters and write GLB, FBX, OBJ or ZIP files
+  ara3d presets                   List the preset characters
+  ara3d new <name> [--preset P]   Write a starter character file to edit
+  ara3d schema [character|film]   Print a JSON schema (for editors and AI tools)
+
+Export options
+  --preset <name>        A preset, such as "The Soldier" (see ara3d presets)
+  --all-presets          Every preset
+  --random <seed|a-b>    Random characters from a seed or a range, such as 1-200
+  --params <file>        A character file (repeatable): a params.json from an export, or an
+                         "ara-character" file from ara3d new or an AI assistant
+  --formats <list>       glb, fbx, obj, zip, comma-separated (default glb)
+  --detail <level>       low, medium or high
+  --no-animations        Rigged but without animation clips (smaller files)
+  --out <dir>            Output folder (default ./ara3d-out)
+
+Examples
+  npx ara3d export --preset "The Soldier"
+  npx ara3d export --random 1-50 --formats glb --detail low --out characters
+  npx ara3d new hero && npx ara3d export --params hero.json --formats glb,fbx
+
+The character data (about 50 MB) downloads on first run and is cached. Characters are
+CC0 (MakeHuman data); see https://ara3dgen.com/docs/ for engines, rigging and formats.`;
+
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'character';
+
+function seeds(value: string) {
+  const range = /^(\d+)-(\d+)$/.exec(value);
+  if (!range) { if (!/^\d+$/.test(value)) throw Error(`--random takes a seed or a range such as 1-200, not "${value}".`);return [Number(value)]; }
+  const [a, b] = [Number(range[1]), Number(range[2])];
+  if (b < a || b - a >= 10_000) throw Error('--random ranges go low to high and cover at most 10,000 seeds.');
+  return Array.from({ length: b - a + 1 }, (_, i) => a + i);
+}
+
+async function exportCommand(args: string[]) {
+  const { values } = parseArgs({ args, strict: true, options: {
+    preset: { type: 'string', multiple: true }, 'all-presets': { type: 'boolean' }, random: { type: 'string' }, params: { type: 'string', multiple: true },
+    formats: { type: 'string', default: 'glb' }, detail: { type: 'string' }, 'no-animations': { type: 'boolean' }, out: { type: 'string', default: 'ara3d-out' },
+  } });
+  const formats = values.formats!.split(',').map((f) => f.trim()) as ExportFormat[];
+  for (const f of formats) if (!FORMATS.includes(f)) throw Error(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
+  if (values.detail && !(DETAILS as readonly string[]).includes(values.detail)) throw Error(`--detail is one of ${DETAILS.join(', ')}.`);
+  for (const name of values.preset ?? []) if (!PRESETS[name]) throw Error(`Unknown preset "${name}". Run ara3d presets to list them.`);
+  for (const file of values.params ?? []) if (!existsSync(file)) throw Error(`No such file: ${file}`);
+  if (!values.preset && !values['all-presets'] && !values.random && !values.params) throw Error('Choose characters with --preset, --all-presets, --random or --params. Run ara3d --help for examples.');
+
+  const lib = await loadLibrary(log);
+  const overrides: Partial<HumanParams> = {};
+  if (values.detail) overrides.detail = values.detail as HumanParams['detail'];
+  if (values['no-animations']) overrides.animations = false;
+  const jobs: HumanParams[] = [];
+  const presets = values['all-presets'] ? Object.keys(PRESETS) : values.preset ?? [];
+  for (const name of presets) jobs.push({ ...DEFAULT_PARAMS, ...PRESETS[name], name, ...overrides });
+  if (values.random) for (const seed of seeds(values.random)) jobs.push({ ...randomParams(seed, lib.catalog), name: `random_${seed}`, ...overrides });
+  for (const file of values.params ?? []) {
+    // Both an "ara-character" file and a builder export's params.json are accepted.
+    try { jobs.push({ ...parseCharacterInput(readFileSync(file, 'utf8'), lib.catalog), ...overrides }); }
+    catch (error) { throw Error(`${file}: ${(error as Error).message}`); }
+  }
+
+  mkdirSync(values.out!, { recursive: true });
+  for (const [i, params] of jobs.entries()) {
+    const started = performance.now(), character = await buildHuman(lib, params), written: string[] = [];
+    for (const format of formats) {
+      const file = await exportCharacter(lib, character, format);
+      writeFileSync(join(values.out!, file.name), file.data);written.push(`${file.name} (${(file.data.length / 1e6).toFixed(1)} MB)`);
+    }
+    const prefix = jobs.length > 1 ? `[${i + 1}/${jobs.length}] ` : '';
+    console.log(`${prefix}${params.name}: ${(character.height * 100).toFixed(0)} cm, ${triangleCount(character.mesh).toLocaleString('en')} triangles, ${((performance.now() - started) / 1000).toFixed(1)} s -> ${written.join(', ')}`);
+  }
+  log(`Wrote ${jobs.length} character${jobs.length === 1 ? '' : 's'} to ${values.out}`);
+}
+
+function newCommand(args: string[]) {
+  const { values, positionals } = parseArgs({ args, allowPositionals: true, options: { preset: { type: 'string' } } });
+  const name = positionals[0];
+  if (!name) throw Error('Give the character a name: ara3d new <name>');
+  const preset = values.preset ?? characterExample().preset;
+  if (!PRESETS[preset]) throw Error(`Unknown preset "${preset}". Run ara3d presets to list them.`);
+  const file = `${slug(name)}.json`;
+  if (existsSync(file)) throw Error(`${file} already exists.`);
+  const { kind, version } = characterExample();
+  writeFileSync(file, JSON.stringify({ $schema: 'https://ara3dgen.com/schemas/character.v1.json', kind, version, preset, params: { name } }, null, 2) + '\n');
+  console.log(`Wrote ${file}. Edit it (your editor checks it against the schema), then: ara3d export --params ${file}`);
+}
+
+async function schemaCommand(args: string[]) {
+  const which = args[0] ?? 'character';
+  if (which !== 'character' && which !== 'film') throw Error('ara3d schema takes character or film.');
+  const { catalog } = await loadLibrary(log);
+  console.log(JSON.stringify(which === 'character' ? characterSchema(catalog) : assistSchema(catalog), null, 2));
+}
+
+async function main(argv: string[]) {
+  const [command, ...rest] = argv;
+  if (!command || command === '--help' || command === '-h' || command === 'help') return console.log(HELP);
+  if (command === '--version' || command === '-v') return console.log(PACKAGE.version);
+  if (command === 'export') return exportCommand(rest);
+  if (command === 'presets') return console.log(Object.keys(PRESETS).join('\n'));
+  if (command === 'new') return newCommand(rest);
+  if (command === 'schema') return schemaCommand(rest);
+  throw Error(`Unknown command "${command}". Run ara3d --help.`);
+}
+
+main(process.argv.slice(2)).catch((error: Error) => { console.error(`ara3d: ${error.message}`);process.exitCode = 1; });

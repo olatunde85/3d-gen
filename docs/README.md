@@ -5,6 +5,7 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 **Getting started**
 
 - [Self-hosting](self-hosting.md): install, update, build, deploy, the command line, and the tests
+- [Command line (ara3d)](cli.md): `npx ara3d` builds characters in any project, no clone needed; character files and schemas
 - [Using characters in your engine](engines.md): Unity, Unreal, Godot, Blender and the web
 
 **Making characters**

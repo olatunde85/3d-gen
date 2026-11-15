@@ -43,7 +43,7 @@ The whole site is static files, and all the character work runs in each visitor'
 
 ## Command line
 
-Generate characters without opening a browser, for batch jobs, CI or asset pipelines:
+Generate characters without opening a browser, for batch jobs, CI or asset pipelines. Outside this repository, use [`npx ara3d`](cli.md), which needs no clone. Inside it:
 
 ```bash
 npm run export -- --preset "The Soldier" --detail high --out out
