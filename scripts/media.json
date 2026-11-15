@@ -1,0 +1,16 @@
+{
+  "repo": "olatunde85/3d-gen",
+  "release": "media",
+  "files": {
+    "ara-play-promo.mp4": {
+      "asset": "ara-play-promo-2a0c18fc.mp4",
+      "sha256": "2a0c18fc95236124212e92c1d3fb73d024a51ea273e2761ddadcafc791d58302",
+      "size": 24742956
+    },
+    "ara-studio-reel.mp4": {
+      "asset": "ara-studio-reel-99176c34.mp4",
+      "sha256": "99176c34decfaf8f7d1eaac067a214284c2fc64023f7c4727affacc4ef14728f",
+      "size": 13251104
+    }
+  }
+}

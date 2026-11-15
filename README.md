@@ -81,12 +81,14 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 Works on **Windows, macOS and Linux**. Requirements: **Node 20+** and **git**.
 
 ```bash
-git clone https://github.com/olatunde85/3d-gen.git
+git clone --depth 1 https://github.com/olatunde85/3d-gen.git
 cd 3d-gen
 npm install
-npm run setup-assets   # one-time: downloads CC0 MakeHuman data (~420 MB) and builds public/assets (~85 MB)
+npm run setup-assets   # one-time: downloads CC0 MakeHuman data (~420 MB), builds public/assets (~50 MB) and fetches the site videos
 npm run dev            # open http://localhost:5173 (landing page; the app is at /app/)
 ```
+
+`--depth 1` downloads only the current files (about 50 MB) instead of the full history; drop it if you want every past commit.
 
 **Already cloned it?** Update with `git pull`, `npm install`, then `npm run setup-assets` (about a minute; it reuses your downloads). Building, deploying and the command line are covered in [Self-hosting](docs/self-hosting.md).
 
