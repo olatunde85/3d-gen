@@ -19,3 +19,6 @@ publish/vercel/.env.deploy
 publish/vercel/api/
 publish/vercel/.vercel/
 publish/.wrangler/
+
+# Copied from public/assets by npm run release-cli
+packages/data/assets/
