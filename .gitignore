@@ -3,6 +3,8 @@ dist
 out
 vendor
 public/assets
+# Site videos come from the "media" GitHub release (scripts/media.json)
+public/media/*.mp4
 out/
 .DS_Store
 

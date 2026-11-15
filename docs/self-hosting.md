@@ -5,12 +5,14 @@ Ara 3D Gen runs entirely on your machine: in the browser, or headless from the c
 ## Install
 
 ```bash
-git clone https://github.com/olatunde85/3d-gen.git
+git clone --depth 1 https://github.com/olatunde85/3d-gen.git
 cd 3d-gen
 npm install
-npm run setup-assets   # one-time: downloads CC0 MakeHuman data (~420 MB) and builds public/assets (~85 MB)
+npm run setup-assets   # one-time: downloads CC0 MakeHuman data (~420 MB), builds public/assets (~50 MB) and fetches the site videos
 npm run dev            # open http://localhost:5173 (landing page; the app is at /app/)
 ```
+
+`--depth 1` downloads only the current files (about 50 MB) instead of the full history; drop it if you want every past commit, or run `git fetch --unshallow` later.
 
 On Windows, run the same commands in PowerShell, Command Prompt or Git Bash.
 
@@ -32,6 +34,8 @@ npm run build          # -> dist/: landing page at /, the app at /app/, Studio a
 ```
 
 Set `BASE_PATH=/sub/path/` when hosting under a sub-path, such as GitHub Pages.
+
+**Site videos** (`media/ara-play-promo.mp4` and `media/ara-studio-reel.mp4`) are kept out of git, in the repository's [`media` release](https://github.com/olatunde85/3d-gen/releases/tag/media), so re-rendering them never grows the repository. `scripts/media.json` records which version the site uses, and the build downloads any missing video into `public/media/` and checks it (`npm run media:fetch`). Set `ARA_SKIP_MEDIA=1` to build without them; the pages then show the posters.
 
 The Terms (`terms/index.html`) and Privacy Policy (`privacy/index.html`) name the operator of ara3dgen.com and its contact address. If you host your own copy, put your own details in them.
 
@@ -107,7 +111,7 @@ npm run test:studio -- --reel
 npm run build:studio-reel
 ```
 
-The first command renders each film with Studio's MP4 export, plus a screenshot of the editor, to `out/studio-expansion/`; `REEL_SCENES=2,5` renders only those films. The second keeps the part of each film listed in `REEL`, speeds it up slightly, joins the films with short crossfades and the music, and ends by zooming out into the editor. It writes the MP4 and its poster to `public/media/`, and a silent GIF of it for the README to `docs/media/ara-studio-reel.gif`.
+The first command renders each film with Studio's MP4 export, plus a screenshot of the editor, to `out/studio-expansion/`; `REEL_SCENES=2,5` renders only those films. The second keeps the part of each film listed in `REEL`, speeds it up slightly, joins the films with short crossfades and the music, and ends by zooming out into the editor. It writes the MP4 and its poster to `public/media/`, and a silent GIF of it for the README to `docs/media/ara-studio-reel.gif`. Run `npm run media:publish` to upload the new video to the `media` release and record it in `scripts/media.json`, then commit that file.
 
 The Ara Play section plays `media/ara-play-promo.mp4`, just under a minute of Dead Drop, a demo campaign kept in `scripts/promo/dead-drop.json`. To regenerate it:
 
@@ -116,7 +120,7 @@ ARA_TEST_NATIVE_GPU=1 npx tsx scripts/play-browser-check.ts --promo
 npm run build:play-promo
 ```
 
-The first command plays each shot in the real game in Chrome, with bots driving the hero, and records it at 4K to `out/promo/`; `PROMO_SHOTS=rescue,city` records only those shots. The second cuts them to the timeline in `scripts/build-play-promo.ts`, with captions, transitions, the game's own music and an end card, and writes a 1080p video and its poster to `public/media/`, plus a 1440p master for uploading to video sites at `out/play/ara-play-promo-master.mp4`.
+The first command plays each shot in the real game in Chrome, with bots driving the hero, and records it at 4K to `out/promo/`; `PROMO_SHOTS=rescue,city` records only those shots. The second cuts them to the timeline in `scripts/build-play-promo.ts`, with captions, transitions, the game's own music and an end card, and writes a 1080p video and its poster to `public/media/`, plus a 1440p master for uploading to video sites at `out/play/ara-play-promo-master.mp4`. Publish the new video with `npm run media:publish` and commit `scripts/media.json`.
 
 Vehicle validation: `npm run test:vehicles` checks fitting across body shapes, rigs and bind poses and loads animated GLB/FBX props through real importers. `npm run test:studio -- --vehicles` exercises vehicle controls, recovery, deterministic scrubbing and GPU disposal, and writes visual reviews under `out/vehicles/`. Vehicles use local procedural geometry; they require no external downloads.
 
