@@ -14,6 +14,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 |---|---|
 | `ara3d export [options]` | Builds characters and writes GLB, FBX, OBJ or ZIP files |
 | `ara3d presets` | Lists the preset characters |
+| `ara3d animations` | Lists the 216 animation clips by group |
 | `ara3d new <name> [--preset P]` | Writes a starter character file to edit |
 | `ara3d schema [character\|film]` | Prints a JSON schema, for editors and AI tools |
 | `ara3d --help`, `ara3d --version` | Help and the installed version |
@@ -28,8 +29,13 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `--params <file>` | A character file; repeat it for several (see below) |
 | `--formats <list>` | `glb`, `fbx`, `obj` or `zip`, comma-separated; the default is `glb` |
 | `--detail <level>` | `low`, `medium` or `high` |
-| `--no-animations` | Rigged, without the animation clips, for much smaller files |
+| `--animations <list>` | Only these clips or groups, comma-separated, such as `walk,run,idle` or `locomotion,shooter`; see `ara3d animations` |
+| `--no-animations` | Rigged, without the animation clips |
+| `--root-motion` | Walks, runs and strafes move the character forward instead of playing in place |
+| `--separate-clips` | The model plus one file per clip, in a zip; clip files hold only the skeleton and animation (Unity's `model@clip` convention) |
 | `--out <dir>` | Output folder; the default is `./ara3d-out` |
+
+Characters include all 216 animations unless you choose. Most games need far fewer, and files shrink a lot: the Soldier is about 28 MB as a GLB with every clip, 7 MB with `--animations walk,run,idle`, and 5 MB with `--no-animations`. A group name, such as `locomotion`, `combat`, `shooter`, `vehicles` or `emotes`, takes every clip in it.
 
 The `zip` format is the same bundle as the builder's Export panel: GLB and FBX, the rig description, a README, the licence and the character's `params.json`. See [Exporting](exporting.md) for what each format contains.
 
@@ -55,6 +61,9 @@ The `zip` format is the same bundle as the builder's Export panel: GLB and FBX, 
 ```bash
 # 200 different townsfolk, light enough for a crowd
 npx ara3d export --random 1-200 --detail low --no-animations --out Assets/Townsfolk
+
+# Only the clips a shooter needs, moving forward, for Unity
+npx ara3d export --preset "The Soldier" --animations locomotion,shooter,jump --root-motion --separate-clips
 
 # A hero for PC and for phones, from one character file
 npx ara3d export --params hero.json --detail high --formats glb,fbx --out build/pc

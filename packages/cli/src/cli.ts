@@ -5,7 +5,9 @@ import { parseArgs } from 'node:util';
 import { buildHuman } from '../../../src/core/human';
 import { triangleCount } from '../../../src/core/mesh';
 import { DEFAULT_PARAMS, DETAILS, PRESETS, randomParams, type HumanParams } from '../../../src/core/params';
-import { exportCharacter, type ExportFormat } from '../../../src/export';
+import { planExport, runExport, type ExportFormat, type ExportSettings } from '../../../src/export';
+import { CLIPS } from '../../../src/core/anim/clips';
+import { animationGroup } from '../../../src/core/anim/groups';
 import { characterExample, characterSchema, parseCharacterInput } from '../../../src/app/character-assist';
 import { assistSchema } from '../../../src/studio/assist';
 import { loadLibrary } from './data';
@@ -19,6 +21,7 @@ const HELP = `ara3d ${PACKAGE.version}: realistic, rigged and animated 3D charac
 Usage
   ara3d export [options]          Build characters and write GLB, FBX, OBJ or ZIP files
   ara3d presets                   List the preset characters
+  ara3d animations                List the animation clips and their groups
   ara3d new <name> [--preset P]   Write a starter character file to edit
   ara3d schema [character|film]   Print a JSON schema (for editors and AI tools)
 
@@ -30,12 +33,17 @@ Export options
                          "ara-character" file from ara3d new or an AI assistant
   --formats <list>       glb, fbx, obj, zip, comma-separated (default glb)
   --detail <level>       low, medium or high
+  --animations <list>    Only these clips or groups, comma-separated, such as
+                         walk,run,idle or locomotion,shooter (see ara3d animations)
   --no-animations        Rigged but without animation clips (smaller files)
+  --root-motion          Walks, runs and strafes move forward instead of playing in place
+  --separate-clips       The model plus one file per clip, in a zip (Unity's model@clip style)
   --out <dir>            Output folder (default ./ara3d-out)
 
 Examples
   npx ara3d export --preset "The Soldier"
   npx ara3d export --random 1-50 --formats glb --detail low --out characters
+  npx ara3d export --preset "The Soldier" --animations locomotion,pistol_fire --root-motion
   npx ara3d new hero && npx ara3d export --params hero.json --formats glb,fbx
 
 The character data (about 50 MB) downloads on first run and is cached. Characters are
@@ -51,16 +59,49 @@ function seeds(value: string) {
   return Array.from({ length: b - a + 1 }, (_, i) => a + i);
 }
 
+/** Clip IDs from a list of clip IDs and group names (a group is a clip category, such as locomotion or shooter). */
+function clipList(value: string) {
+  const ids = new Set<string>();
+  for (const item of value.split(',').map((s) => s.trim()).filter(Boolean)) {
+    const clip = CLIPS.find((c) => c.id === item), group = CLIPS.filter((c) => c.category.toLowerCase() === item.toLowerCase());
+    if (clip) ids.add(clip.id);
+    else if (group.length) for (const c of group) ids.add(c.id);
+    else throw Error(`Unknown animation "${item}". Run ara3d animations to list clips and groups.`);
+  }
+  return [...ids];
+}
+
+/** The same export settings as the builder's Export panel, from the command-line options. */
+function settings(character: { rig?: unknown; params: HumanParams }, format: ExportFormat, clips: string[], values: { 'root-motion'?: boolean; 'separate-clips'?: boolean }): ExportSettings {
+  const mode = !character.rig || format === 'obj' ? 'static' : character.params.animations ? 'animated' : 'rigged';
+  return {
+    mode, format: format === 'zip' ? 'all' : format, clips, packaging: values['separate-clips'] ? 'separate' : 'embedded', clipMesh: false,
+    rootMotion: !!values['root-motion'], loopSuffix: false, weaponFile: 'held', stageProps: false,
+  };
+}
+
+function animationsCommand() {
+  const groups = new Map<string, string[]>();
+  for (const c of CLIPS) { const g = animationGroup(c);groups.set(g, [...(groups.get(g) ?? []), `${c.id}${c.loop ? ' (loop)' : ''}`]); }
+  console.log(`${CLIPS.length} clips. Pass clip IDs or category names (the part before any "·") to --animations.\n`);
+  for (const [group, ids] of groups) console.log(`${group}\n  ${ids.join(', ')}\n`);
+}
+
 async function exportCommand(args: string[]) {
   const { values } = parseArgs({ args, strict: true, options: {
     preset: { type: 'string', multiple: true }, 'all-presets': { type: 'boolean' }, random: { type: 'string' }, params: { type: 'string', multiple: true },
-    formats: { type: 'string', default: 'glb' }, detail: { type: 'string' }, 'no-animations': { type: 'boolean' }, out: { type: 'string', default: 'ara3d-out' },
+    formats: { type: 'string', default: 'glb' }, detail: { type: 'string' }, animations: { type: 'string' }, 'no-animations': { type: 'boolean' },
+    'root-motion': { type: 'boolean' }, 'separate-clips': { type: 'boolean' }, out: { type: 'string', default: 'ara3d-out' },
   } });
   const formats = values.formats!.split(',').map((f) => f.trim()) as ExportFormat[];
   for (const f of formats) if (!FORMATS.includes(f)) throw Error(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
   if (values.detail && !(DETAILS as readonly string[]).includes(values.detail)) throw Error(`--detail is one of ${DETAILS.join(', ')}.`);
   for (const name of values.preset ?? []) if (!PRESETS[name]) throw Error(`Unknown preset "${name}". Run ara3d presets to list them.`);
   for (const file of values.params ?? []) if (!existsSync(file)) throw Error(`No such file: ${file}`);
+  const clips = values.animations ? clipList(values.animations) : CLIPS.map((c) => c.id);
+  if (values.animations && values['no-animations']) throw Error('Use either --animations or --no-animations.');
+  if ((values.animations || values['root-motion'] || values['separate-clips']) && (values['no-animations'] || formats.every((f) => f === 'obj')))
+    throw Error('--animations, --root-motion and --separate-clips need animated output: glb, fbx or zip, without --no-animations.');
   if (!values.preset && !values['all-presets'] && !values.random && !values.params) throw Error('Choose characters with --preset, --all-presets, --random or --params. Run ara3d --help for examples.');
 
   const lib = await loadLibrary(log);
@@ -81,7 +122,7 @@ async function exportCommand(args: string[]) {
   for (const [i, params] of jobs.entries()) {
     const started = performance.now(), character = await buildHuman(lib, params), written: string[] = [];
     for (const format of formats) {
-      const file = await exportCharacter(lib, character, format);
+      const file = await runExport(lib, character, planExport(character, settings(character, format, clips, values)));
       writeFileSync(join(values.out!, file.name), file.data);written.push(`${file.name} (${(file.data.length / 1e6).toFixed(1)} MB)`);
     }
     const prefix = jobs.length > 1 ? `[${i + 1}/${jobs.length}] ` : '';
@@ -116,6 +157,7 @@ async function main(argv: string[]) {
   if (command === '--version' || command === '-v') return console.log(PACKAGE.version);
   if (command === 'export') return exportCommand(rest);
   if (command === 'presets') return console.log(Object.keys(PRESETS).join('\n'));
+  if (command === 'animations') return animationsCommand();
   if (command === 'new') return newCommand(rest);
   if (command === 'schema') return schemaCommand(rest);
   throw Error(`Unknown command "${command}". Run ara3d --help.`);
