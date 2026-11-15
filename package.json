@@ -27,7 +27,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:studio-maps && npm run media:fetch && tsc --noEmit && vite build && tsx scripts/build-docs.ts",
+    "build": "npm run build:studio-maps && npm run media:fetch && tsc --noEmit && vite build && tsx scripts/build-docs.ts && tsx scripts/build-schemas.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "export": "tsx scripts/export-cli.ts",
@@ -35,6 +35,7 @@
     "setup-assets": "tsx scripts/setup-assets.ts && npm run media:fetch",
     "media:fetch": "tsx scripts/media.ts",
     "media:publish": "tsx scripts/media.ts publish",
+    "release-cli": "tsx scripts/release-cli.ts",
     "build-assets": "tsx scripts/build-assets.ts",
     "test:animations": "tsx scripts/animation-improvement-check.ts",
     "test:boarding": "tsx scripts/boarding-check.ts && tsx scripts/boarding-foot-check.ts",

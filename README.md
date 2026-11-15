@@ -78,7 +78,16 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 
 ## Quick start
 
-Works on **Windows, macOS and Linux**. Requirements: **Node 20+** and **git**.
+**Just need characters?** No clone needed. With Node 20+:
+
+```bash
+npx ara3d export --preset "The Soldier"            # GLB in ./ara3d-out
+npx ara3d export --random 1-50 --formats glb,fbx  # 50 different characters
+```
+
+See [Command line (ara3d)](docs/cli.md) for character files, schemas and every option.
+
+**Run the whole site locally.** Works on **Windows, macOS and Linux**. Requirements: **Node 20+** and **git**.
 
 ```bash
 git clone --depth 1 https://github.com/olatunde85/3d-gen.git
