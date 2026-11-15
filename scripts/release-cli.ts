@@ -1,7 +1,7 @@
 /**
  * Prepares the ara3d CLI for npm.
  *   npm run release-cli              packs public/assets, uploads it to the cli-data release if it changed, builds the CLI
- *   npm run release-cli -- --publish also publishes the package to npm (run npm login first)
+ *   npm run release-cli -- --publish --otp 123456   also publishes to npm (npm login first; the code is from your authenticator app)
  * The data zip is deterministic, so unchanged assets keep the same file and nothing is uploaded.
  */
 import { execFileSync } from 'node:child_process';
@@ -39,5 +39,7 @@ if (sha !== DATA.sha256) {
 } else console.log('data: unchanged');
 
 execFileSync('npx', ['vite', 'build', '--config', join(cli, 'vite.config.ts')], { cwd: root, stdio: 'inherit' });
-if (process.argv.includes('--publish')) execFileSync('npm', ['publish', '--access', 'public'], { cwd: cli, stdio: 'inherit' });
+// npm requires two-factor authentication to publish: pass the current code from your authenticator app with --otp.
+const otp = process.argv[process.argv.indexOf('--otp') + 1];
+if (process.argv.includes('--publish')) execFileSync('npm', ['publish', '--access', 'public', ...(process.argv.includes('--otp') && otp ? [`--otp=${otp}`] : [])], { cwd: cli, stdio: 'inherit' });
 else console.log('Ready. Publish with: npm run release-cli -- --publish');
