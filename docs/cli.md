@@ -39,6 +39,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `--vehicle <id>` | A vehicle fitted to the rider, such as `motorcycle`, `horse`, `car` or `helicopter`; `auto` fits whichever vehicle the chosen riding clips need |
 | `--separate-props` | The weapon as its own file as well; vehicles are always their own file |
 | `--out <dir>` | Output folder; the default is `./ara3d-out` |
+| `--debug` | Adds technical details when something fails |
 
 Characters include all 216 animations unless you choose. Most games need far fewer, and files shrink a lot: the Soldier is about 28 MB as a GLB with every clip, 7 MB with `--animations walk,run,idle`, and 5 MB with `--no-animations`. A group name, such as `locomotion`, `combat`, `shooter`, `vehicles` or `emotes`, takes every clip in it.
 
@@ -49,6 +50,15 @@ The `zip` format is the same bundle as the builder's Export panel: GLB and FBX, 
 ## Progress and output
 
 In a terminal, one status line shows what's happening (downloading with speed and time left, building, writing each format), and each finished character stays on screen. Logs and CI get each step as a plain line instead. Results go to standard output and progress to standard error, so `ara3d export ... > list.txt` saves only the results. The run ends with a summary of files, size, time and the full output path.
+
+## When something goes wrong
+
+- **Network:** the first-run download retries up to four times, with growing waits, when the connection drops, stalls (no data for 30 seconds) or the server is busy. It resumes where it stopped instead of starting again. If it still fails, `ara3d` prints the direct link: download and unzip the file yourself, then set `ARA3D_DATA` to that folder. That also works behind proxies and on offline machines.
+- **Disk space:** `ara3d` checks free space before downloading (about 85 MB) and before writing each file, and says how much is needed and how much is free.
+- **Permissions:** a folder it can't write to is named, with the setting that changes it (`--out`, or `ARA3D_CACHE` for the character data).
+- **Batches:** a character that fails is reported and skipped, and the rest are still made. The run ends with how many were written and which failed, and exits with an error code so scripts and CI notice. Problems that would repeat for every character, such as a full disk, stop the run straight away.
+- **Stopping:** Ctrl+C stops at once. Files are written under a temporary name and renamed only when complete, so a stopped run, a crash or a full disk never leaves a broken model. Temporary files are tidied up on the next run.
+- **Details:** messages are written for people. Add `--debug` for the technical detail behind one.
 
 ## Character files
 
@@ -104,6 +114,7 @@ The schemas are published at [ara3dgen.com/schemas/](https://ara3dgen.com/schema
 |---|---|
 | `ARA3D_CACHE` | Where the character data is cached; by default the system's cache folder (`~/Library/Caches/ara3d`, `~/.cache/ara3d` or `%LOCALAPPDATA%\ara3d\cache`) |
 | `ARA3D_DATA` | Use an assets folder instead of the download, for example `public/assets` in a clone of this repository |
+| `ARA3D_DATA_URL` | Download the character data from a mirror instead of GitHub, for networks that can't reach it; the download is still checked against its checksum |
 
 ## Licence
 

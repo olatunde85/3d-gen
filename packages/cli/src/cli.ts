@@ -12,6 +12,7 @@ import { characterExample, characterSchema, parseCharacterInput } from '../../..
 import { assistSchema } from '../../../src/studio/assist';
 import { loadLibrary } from './data';
 import { finish, megabytes, note, result, seconds, status } from './status';
+import { explain, isFatal, removeLeftovers, UserError, writeSafely } from './safety';
 import { WEAPONS } from '../../../src/core/props/weapons';
 import { CARRIED } from '../../../src/core/props/carry';
 import { VEHICLE_CHOICES, VEHICLE_FOR_CLIP } from '../../../src/core/props/vehicles';
@@ -48,6 +49,7 @@ Export options
                          fits the vehicle that the chosen riding clips need
   --separate-props       The weapon as its own file too (vehicles always are)
   --out <dir>            Output folder (default ./ara3d-out)
+  --debug                Show technical details when something fails
 
 Examples
   npx ara3d export --preset "The Soldier"
@@ -63,9 +65,9 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 
 function seeds(value: string) {
   const range = /^(\d+)-(\d+)$/.exec(value);
-  if (!range) { if (!/^\d+$/.test(value)) throw Error(`--random takes a seed or a range such as 1-200, not "${value}".`);return [Number(value)]; }
+  if (!range) { if (!/^\d+$/.test(value)) throw new UserError(`--random takes a seed or a range such as 1-200, not "${value}".`);return [Number(value)]; }
   const [a, b] = [Number(range[1]), Number(range[2])];
-  if (b < a || b - a >= 10_000) throw Error('--random ranges go low to high and cover at most 10,000 seeds.');
+  if (b < a || b - a >= 10_000) throw new UserError('--random ranges go low to high and cover at most 10,000 seeds.');
   return Array.from({ length: b - a + 1 }, (_, i) => a + i);
 }
 
@@ -76,7 +78,7 @@ function clipList(value: string) {
     const clip = CLIPS.find((c) => c.id === item), group = CLIPS.filter((c) => c.category.toLowerCase() === item.toLowerCase());
     if (clip) ids.add(clip.id);
     else if (group.length) for (const c of group) ids.add(c.id);
-    else throw Error(`Unknown animation "${item}". Run ara3d animations to list clips and groups.`);
+    else throw new UserError(`Unknown animation "${item}". Run ara3d animations to list clips and groups.`);
   }
   return [...ids];
 }
@@ -120,17 +122,17 @@ async function exportCommand(args: string[]) {
     weapon: { type: 'string' }, carry: { type: 'string' }, vehicle: { type: 'string' }, 'separate-props': { type: 'boolean' },
   } });
   const formats = values.formats!.split(',').map((f) => f.trim()) as ExportFormat[];
-  for (const f of formats) if (!FORMATS.includes(f)) throw Error(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
-  if (values.detail && !(DETAILS as readonly string[]).includes(values.detail)) throw Error(`--detail is one of ${DETAILS.join(', ')}.`);
-  for (const name of values.preset ?? []) if (!PRESETS[name]) throw Error(`Unknown preset "${name}". Run ara3d presets to list them.`);
-  for (const file of values.params ?? []) if (!existsSync(file)) throw Error(`No such file: ${file}`);
+  for (const f of formats) if (!FORMATS.includes(f)) throw new UserError(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
+  if (values.detail && !(DETAILS as readonly string[]).includes(values.detail)) throw new UserError(`--detail is one of ${DETAILS.join(', ')}.`);
+  for (const name of values.preset ?? []) if (!PRESETS[name]) throw new UserError(`Unknown preset "${name}". Run ara3d presets to list them.`);
+  for (const file of values.params ?? []) if (!existsSync(file)) throw new UserError(`No such file: ${file}`);
   const clips = values.animations ? clipList(values.animations) : CLIPS.map((c) => c.id);
-  if (values.animations && values['no-animations']) throw Error('Use either --animations or --no-animations.');
+  if (values.animations && values['no-animations']) throw new UserError('Use either --animations or --no-animations.');
   if ((values.animations || values['root-motion'] || values['separate-clips']) && (values['no-animations'] || formats.every((f) => f === 'obj')))
-    throw Error('--animations, --root-motion and --separate-clips need animated output: glb, fbx or zip, without --no-animations.');
-  const choice = (flag: string, value: string | undefined, options: readonly string[]) => { if (value !== undefined && !options.includes(value)) throw Error(`Unknown ${flag} "${value}". Use one of: ${options.join(', ')}.`); };
+    throw new UserError('--animations, --root-motion and --separate-clips need animated output: glb, fbx or zip, without --no-animations.');
+  const choice = (flag: string, value: string | undefined, options: readonly string[]) => { if (value !== undefined && !options.includes(value)) throw new UserError(`Unknown ${flag} "${value}". Use one of: ${options.join(', ')}.`); };
   choice('--weapon', values.weapon, WEAPONS);choice('--carry', values.carry, CARRIED);choice('--vehicle', values.vehicle, VEHICLE_CHOICES);
-  if (!values.preset && !values['all-presets'] && !values.random && !values.params) throw Error('Choose characters with --preset, --all-presets, --random or --params. Run ara3d --help for examples.');
+  if (!values.preset && !values['all-presets'] && !values.random && !values.params) throw new UserError('Choose characters with --preset, --all-presets, --random or --params. Run ara3d --help for examples.');
 
   const begun = performance.now(), lib = await loadLibrary();
   const overrides: Partial<HumanParams> = {};
@@ -147,35 +149,45 @@ async function exportCommand(args: string[]) {
   for (const file of values.params ?? []) {
     // Both an "ara-character" file and a builder export's params.json are accepted.
     try { jobs.push({ ...parseCharacterInput(readFileSync(file, 'utf8'), lib.catalog), ...overrides }); }
-    catch (error) { throw Error(`${file}: ${(error as Error).message}`); }
+    catch (error) { throw new UserError(`${file}: ${(error as Error).message}`); }
   }
 
   ridingTip(jobs, clips, !!values.animations);
-  mkdirSync(values.out!, { recursive: true });
+  mkdirSync(values.out!, { recursive: true });removeLeftovers(values.out!);
   let files = 0, bytes = 0;
+  const failed: string[] = [];
   for (const [i, params] of jobs.entries()) {
     const prefix = jobs.length > 1 ? `[${i + 1}/${jobs.length}] ` : '', started = performance.now(), written: string[] = [];
-    status(`${prefix}${params.name}: building the character...`);
-    const character = await buildHuman(lib, params);
-    for (const format of formats) {
-      status(`${prefix}${params.name}: writing ${format.toUpperCase()}...`);
-      const file = await runExport(lib, character, planExport(character, settings(character, format, clips, values)));
-      writeFileSync(join(values.out!, file.name), file.data);written.push(`${file.name} (${megabytes(file.data.length)})`);files++;bytes += file.data.length;
+    // One failed character is reported and skipped; errors that would repeat for every character (permissions, a
+    // full disk) stop the run.
+    try {
+      status(`${prefix}${params.name}: building the character...`);
+      const character = await buildHuman(lib, params);
+      for (const format of formats) {
+        status(`${prefix}${params.name}: writing ${format.toUpperCase()}...`);
+        const file = await runExport(lib, character, planExport(character, settings(character, format, clips, values)));
+        writeSafely(join(values.out!, file.name), file.data);written.push(`${file.name} (${megabytes(file.data.length)})`);files++;bytes += file.data.length;
+      }
+      result(`${prefix}${params.name}: ${(character.height * 100).toFixed(0)} cm, ${triangleCount(character.mesh).toLocaleString('en')} triangles, ${seconds(performance.now() - started)} -> ${written.join(', ')}`);
+    } catch (error) {
+      if (isFatal(error) || jobs.length === 1) throw error;
+      failed.push(params.name);note(`${prefix}${params.name}: failed: ${explain(error)}`);debug(error);
     }
-    result(`${prefix}${params.name}: ${(character.height * 100).toFixed(0)} cm, ${triangleCount(character.mesh).toLocaleString('en')} triangles, ${seconds(performance.now() - started)} -> ${written.join(', ')}`);
   }
   finish();
-  note(`Done: ${jobs.length} character${jobs.length === 1 ? '' : 's'}, ${files} file${files === 1 ? '' : 's'} (${megabytes(bytes)}) in ${seconds(performance.now() - begun)}, in ${resolvePath(values.out!)}`);
+  const made = jobs.length - failed.length;
+  note(`${failed.length ? `Finished with errors: ${made} of ${jobs.length} characters written, ${failed.length} failed (${failed.join(', ')})` : `Done: ${made} character${made === 1 ? '' : 's'}`}, ${files} file${files === 1 ? '' : 's'} (${megabytes(bytes)}) in ${seconds(performance.now() - begun)}, in ${resolvePath(values.out!)}`);
+  if (failed.length) process.exitCode = 1;
 }
 
 function newCommand(args: string[]) {
   const { values, positionals } = parseArgs({ args, allowPositionals: true, options: { preset: { type: 'string' } } });
   const name = positionals[0];
-  if (!name) throw Error('Give the character a name: ara3d new <name>');
+  if (!name) throw new UserError('Give the character a name: ara3d new <name>');
   const preset = values.preset ?? characterExample().preset;
-  if (!PRESETS[preset]) throw Error(`Unknown preset "${preset}". Run ara3d presets to list them.`);
+  if (!PRESETS[preset]) throw new UserError(`Unknown preset "${preset}". Run ara3d presets to list them.`);
   const file = `${slug(name)}.json`;
-  if (existsSync(file)) throw Error(`${file} already exists.`);
+  if (existsSync(file)) throw new UserError(`${file} already exists.`);
   const { kind, version } = characterExample();
   writeFileSync(file, JSON.stringify({ $schema: 'https://ara3dgen.com/schemas/character.v1.json', kind, version, preset, params: { name } }, null, 2) + '\n');
   console.log(`Wrote ${file}. Edit it (your editor checks it against the schema), then: ara3d export --params ${file}`);
@@ -183,7 +195,7 @@ function newCommand(args: string[]) {
 
 async function schemaCommand(args: string[]) {
   const which = args[0] ?? 'character';
-  if (which !== 'character' && which !== 'film') throw Error('ara3d schema takes character or film.');
+  if (which !== 'character' && which !== 'film') throw new UserError('ara3d schema takes character or film.');
   const { catalog } = await loadLibrary();finish();
   console.log(JSON.stringify(which === 'character' ? characterSchema(catalog) : assistSchema(catalog), null, 2));
 }
@@ -198,7 +210,16 @@ async function main(argv: string[]) {
   if (command === 'props') return propsCommand();
   if (command === 'new') return newCommand(rest);
   if (command === 'schema') return schemaCommand(rest);
-  throw Error(`Unknown command "${command}". Run ara3d --help.`);
+  throw new UserError(`Unknown command "${command}". Run ara3d --help.`);
 }
 
-main(process.argv.slice(2)).catch((error: Error) => { finish();console.error(`ara3d: ${error.message}`);process.exitCode = 1; });
+/** --debug (or ARA3D_DEBUG=1) adds the technical detail behind an error. */
+const DEBUG = process.argv.includes('--debug') || !!process.env.ARA3D_DEBUG;
+function debug(error: unknown) { if (DEBUG) console.error((error as Error)?.stack ?? error); }
+
+main(process.argv.slice(2).filter((a) => a !== '--debug')).catch((error: unknown) => {
+  finish();console.error(`ara3d: ${explain(error)}`);debug(error);
+  // Expected problems already say what to do; anything else may need the details.
+  if (!DEBUG && !(error instanceof UserError) && !(error as NodeJS.ErrnoException)?.code) console.error('Run again with --debug for technical details.');
+  process.exitCode = 1;
+});
