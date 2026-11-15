@@ -11,6 +11,43 @@ const vehicleStyleRules={color:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},accen
 type Rule = {type:string;enum?:readonly string[];minimum?:number;maximum?:number;maxLength?:number;pattern?:string;description?:string;default?:unknown};
 const numeric=(minimum:number,maximum:number):Rule=>({type:'number',minimum,maximum});
 const enumeration=(values:readonly string[]):Rule=>({type:'string',enum:[...new Set(values)]});
+// Notes shown in editors and AI prompts. Body controls blend between body shapes, so they are 0..1 amounts rather
+// than units; the other notes cover settings whose meaning isn't clear from their name or choices.
+const FIELD_NOTES:Record<string,string>={
+  gender:'0 = female, 1 = male; values between blend the two.',
+  age:'Normalized age: 0.5 = 25 years, 1 = 90 years; the lowest allowed is 12 years. ageYears is easier to read.',
+  muscle:'0 = least muscle, 0.5 = average, 1 = most.',
+  weight:'0 = slimmest, 0.5 = average, 1 = heaviest.',
+  height:'0 = shortest, 0.5 = average for the gender and age, 1 = tallest. Not centimetres: the exported height depends on the whole body.',
+  proportions:'Below 0.5 = less common proportions, 0.5 = neutral, 1 = idealised proportions.',
+  african:'Share of African features in the ethnic mix. african, asian and caucasian are relative: they are divided by their total, so 1/1/1 is an even mix.',
+  asian:'Share of Asian features in the ethnic mix, relative to african and caucasian.',
+  caucasian:'Share of Caucasian features in the ethnic mix, relative to african and asian.',
+  breastSize:'0 = smallest, 0.5 = average, 1 = largest.',
+  breastFirmness:'0 = softest, 0.5 = average, 1 = firmest.',
+};
+Object.assign(FIELD_NOTES,{
+  seed:'Picks the small random variations; the same seed always gives the same character.',
+  modifiers:'Fine body sliders by ID, such as nose or jaw shapes: -1..1 for two-way sliders, 0..1 for one-way.',
+  skin:'A skin texture ID, or auto to choose one from the ethnic mix.',
+  skinTint:'#RRGGBB multiplied over the skin texture: it can only darken. #ffffff leaves it unchanged.',
+  hairTint:'#RRGGBB multiplied over a textured hairstyle: it can only darken. #ffffff leaves it unchanged.',
+  hairColor:'#RRGGBB colour of the generated hairstyles, such as braids, buzz cuts and spikes.',
+  outfitTint:'#RRGGBB multiplied over the outfit texture: it can only darken. #ffffff leaves it unchanged.',
+  outfit:'A complete outfit or outfit set ID, or none to dress with separate pieces (top, jacket, bottom, shoes, hat).',
+  underwear:'Briefs under the clothes. Only adults (18+) can switch it off.',
+  garmentStyles:'Pattern and colour per garment ID: {"pattern": ..., "color": "#RRGGBB", "color2": "#RRGGBB"}.',
+  detail:'low: game proxy, about 5-10k triangles. medium: full body, about 30-40k. high: smoothed body and clothing, about 100-120k.',
+  rig:'game: 65 bones with Mixamo names (retargets to Mixamo, Unity Humanoid and Unreal). game_lite: 25 bones, no fingers. full: 163 MakeHuman bones including the face. none: no skeleton.',
+  faceBones:'Adds jaw and eye bones for facial animation.',
+  restPose:'A: the natural A-pose. T: a T-pose, as Mixamo and Unity Humanoid expect.',
+  animations:'Include the animation clips in GLB and FBX exports.',
+  vehicle:'A vehicle fitted to the rider and exported as its own file; auto picks the one the riding clips need.',
+  faceShapes:'Export facial blend shapes (expressions, blinking). Off bakes the expression into the mesh.',
+  speechShapes:'With faceShapes: also export the mouth shapes for lip-sync.',
+  beardColor:'#RRGGBB colour of facial hair.',
+  tattooInk:'#RRGGBB ink colour for tattoos.',
+});
 export function characterRules(cat:Catalog){
   const rules:Record<string,Rule>={};
   for(const [key,value]of Object.entries(DEFAULT_PARAMS))rules[key]=typeof value==='number'?numeric(0,1):typeof value==='boolean'?{type:'boolean'}:typeof value==='string'?{type:'string',maxLength:80}:{type:'object'};
@@ -85,6 +122,7 @@ export function characterSchema(cat:Catalog){
   properties.tattoos={type:'array',maxItems:20,uniqueItems:true,items:enumeration(TATTOOS)};
   properties.modifiers={type:'object',additionalProperties:false,maxProperties:400,properties:Object.fromEntries([...modifierRanges(cat)].map(([id,range])=>[id,{type:'number',minimum:range.minimum,maximum:range.maximum,description:range.label}]))};
   properties.garmentStyles={type:'object',maxProperties:60,propertyNames:{enum:[...new Set([...GARMENTS.map(g=>g.id),...OUTFIT_SETS.map(s=>s.id),...Object.keys(CARRY_STYLES),...Object.values(PRESETS).flatMap(p=>Object.keys(p.garmentStyles??{}))])]},additionalProperties:{type:'object',additionalProperties:false,properties:{pattern:enumeration(PATTERNS),color:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},color2:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'}}}};
+  for(const [key,description] of Object.entries(FIELD_NOTES))if(properties[key])properties[key]={...(properties[key] as object),description};
   return{$schema:'https://json-schema.org/draft/2020-12/schema',title:'Ara character input',type:'object',additionalProperties:false,required:['kind','version'],anyOf:[{required:['preset']},{required:['params']}],properties:{$schema:{type:'string',description:'Optional link to this schema, for editors.'},kind:{const:'ara-character'},version:{const:1},preset:enumeration(Object.keys(PRESETS)),params:{type:'object',additionalProperties:false,properties,not:{required:['age','ageYears']}}}};
 }
 /** Shared appearance instructions and live assets, without an LLM task or output schema. */
