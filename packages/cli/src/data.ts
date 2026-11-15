@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path';
 import { unzipSync } from 'fflate';
 import { AssetLibrary } from '../../../src/core/assets';
 import DATA from './data-version.json';
+import { downloadProgress, megabytes, note, status } from './status';
 
 /** Where downloads are cached: ARA3D_CACHE, or the platform's usual cache folder. */
 export function cacheRoot() {
@@ -32,45 +33,43 @@ function moveInto(from: string, to: string) {
 }
 
 /** The folder holding the character data, downloading it on first use. */
-export async function dataFolder(log: (line: string) => void): Promise<string> {
+export async function dataFolder(): Promise<string> {
   if (process.env.ARA3D_DATA) return process.env.ARA3D_DATA;
   if (!DATA.asset) throw Error('This build of ara3d has no character data attached. Set ARA3D_DATA to an assets folder.');
   const folder = join(cacheRoot(), DATA.sha256.slice(0, 12));
   if (existsSync(join(folder, 'catalog.json'))) return folder;
   const url = `https://github.com/${DATA.repo}/releases/download/${DATA.release}/${DATA.asset}`;
-  log(`Downloading character data (${(DATA.size / 1e6).toFixed(0)} MB, first run only)…`);
-  const response = await fetch(url);
+  note(`First run: downloading the character data (${megabytes(DATA.size)}). Later runs use the cached copy.`);
+  status('Downloading character data...');
+  const response = await fetch(url).catch(() => { throw Error('Could not reach GitHub to download the character data. Check your connection and try again.'); });
   if (!response.ok) throw Error(`Could not download the character data (${response.status}) from ${url}`);
   // Stream the download so a slow connection shows progress instead of looking stuck.
-  const total = Number(response.headers.get('content-length')) || DATA.size, bytes = new Uint8Array(total), reader = response.body!.getReader();
-  let received = 0, shown = -1;
+  const total = Number(response.headers.get('content-length')) || DATA.size, bytes = new Uint8Array(total), reader = response.body!.getReader(), progress = downloadProgress(total);
+  let received = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     if (received + value.length > total) throw Error('The character data download was larger than expected. Please try again.');
-    bytes.set(value, received);received += value.length;
-    const percent = Math.floor((received / total) * 100);
-    if (percent === shown) continue;
-    if (process.stderr.isTTY) process.stderr.write(`\r  ${percent}% of ${(total / 1e6).toFixed(0)} MB`);
-    else if (percent % 25 === 0) log(`  ${percent}%`); // Logs, such as CI, get a line every quarter.
-    shown = percent;
+    bytes.set(value, received);received += value.length;progress(received);
   }
-  if (process.stderr.isTTY) process.stderr.write('\n');
   if (received !== total) throw Error('The character data download was cut short. Please try again.');
+  status('Checking the download...');
   if (createHash('sha256').update(bytes).digest('hex') !== DATA.sha256) throw Error('The character data download failed its checksum. Please try again.');
   // Unpack beside the final folder, then move it into place, so an interrupted run never leaves half the data.
+  status('Unpacking character data...');
   const temp = `${folder}.partial`;rmSync(temp, { recursive: true, force: true });
   for (const [path, content] of Object.entries(unzipSync(bytes))) {
     if (path.endsWith('/')) continue;
     const file = join(temp, path);mkdirSync(dirname(file), { recursive: true });writeFileSync(file, content);
   }
   rmSync(folder, { recursive: true, force: true });moveInto(temp, folder);
-  log(`Character data cached in ${folder}`);
+  note(`Character data cached in ${folder}`);
   return folder;
 }
 
-export async function loadLibrary(log: (line: string) => void) {
-  const folder = await dataFolder(log);
+export async function loadLibrary() {
+  const folder = await dataFolder();
   if (!existsSync(join(folder, 'catalog.json'))) throw Error(`No character data in ${folder} (catalog.json is missing).`);
+  status('Loading character data...');
   return new AssetLibrary({ read: async (p) => new Uint8Array(await readFile(join(folder, p))) }).init();
 }

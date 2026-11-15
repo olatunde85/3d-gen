@@ -1,6 +1,6 @@
 /** ara3d: generate rigged, animated Ara characters from the command line. */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve as resolvePath } from 'node:path';
 import { parseArgs } from 'node:util';
 import { buildHuman } from '../../../src/core/human';
 import { triangleCount } from '../../../src/core/mesh';
@@ -11,10 +11,13 @@ import { animationGroup } from '../../../src/core/anim/groups';
 import { characterExample, characterSchema, parseCharacterInput } from '../../../src/app/character-assist';
 import { assistSchema } from '../../../src/studio/assist';
 import { loadLibrary } from './data';
+import { finish, megabytes, note, result, seconds, status } from './status';
+import { WEAPONS } from '../../../src/core/props/weapons';
+import { CARRIED } from '../../../src/core/props/carry';
+import { VEHICLE_CHOICES, VEHICLE_FOR_CLIP } from '../../../src/core/props/vehicles';
 import PACKAGE from '../package.json';
 
 const FORMATS: readonly ExportFormat[] = ['glb', 'fbx', 'obj', 'zip'];
-const log = (line: string) => console.error(line);
 
 const HELP = `ara3d ${PACKAGE.version}: realistic, rigged and animated 3D characters, built on your machine.
 
@@ -22,6 +25,7 @@ Usage
   ara3d export [options]          Build characters and write GLB, FBX, OBJ or ZIP files
   ara3d presets                   List the preset characters
   ara3d animations                List the animation clips and their groups
+  ara3d props                     List the weapons, carried items and vehicles
   ara3d new <name> [--preset P]   Write a starter character file to edit
   ara3d schema [character|film]   Print a JSON schema (for editors and AI tools)
 
@@ -38,12 +42,18 @@ Export options
   --no-animations        Rigged but without animation clips (smaller files)
   --root-motion          Walks, runs and strafes move forward instead of playing in place
   --separate-clips       The model plus one file per clip, in a zip (Unity's model@clip style)
+  --weapon <id>          A weapon in the hand: rifle, pistol, sword, knife or grenade
+  --carry <id>           Something to carry, such as backpack, briefcase or phone
+  --vehicle <id>         A vehicle fitted to the rider, such as motorcycle or horse; auto
+                         fits the vehicle that the chosen riding clips need
+  --separate-props       The weapon as its own file too (vehicles always are)
   --out <dir>            Output folder (default ./ara3d-out)
 
 Examples
   npx ara3d export --preset "The Soldier"
   npx ara3d export --random 1-50 --formats glb --detail low --out characters
   npx ara3d export --preset "The Soldier" --animations locomotion,pistol_fire --root-motion
+  npx ara3d export --preset "The Soldier" --weapon rifle --vehicle motorcycle --animations locomotion,vehicles
   npx ara3d new hero && npx ara3d export --params hero.json --formats glb,fbx
 
 The character data (about 50 MB) downloads on first run and is cached. Characters are
@@ -72,12 +82,27 @@ function clipList(value: string) {
 }
 
 /** The same export settings as the builder's Export panel, from the command-line options. */
-function settings(character: { rig?: unknown; params: HumanParams }, format: ExportFormat, clips: string[], values: { 'root-motion'?: boolean; 'separate-clips'?: boolean }): ExportSettings {
+function settings(character: { rig?: unknown; params: HumanParams }, format: ExportFormat, clips: string[], values: { 'root-motion'?: boolean; 'separate-clips'?: boolean; 'separate-props'?: boolean }): ExportSettings {
   const mode = !character.rig || format === 'obj' ? 'static' : character.params.animations ? 'animated' : 'rigged';
   return {
     mode, format: format === 'zip' ? 'all' : format, clips, packaging: values['separate-clips'] ? 'separate' : 'embedded', clipMesh: false,
-    rootMotion: !!values['root-motion'], loopSuffix: false, weaponFile: 'held', stageProps: false,
+    rootMotion: !!values['root-motion'], loopSuffix: false, weaponFile: values['separate-props'] ? 'separate' : 'held', stageProps: false,
   };
+}
+
+/** A vehicle with none of its riding clips selected would only stand beside the character: say how to add them. */
+function ridingTip(jobs: HumanParams[], clips: string[], chosen: boolean) {
+  if (!chosen) return;
+  for (const vehicle of new Set(jobs.map((j) => j.vehicle).filter((v) => v !== 'none' && v !== 'auto'))) {
+    const own = Object.entries(VEHICLE_FOR_CLIP).filter(([, v]) => v === vehicle).map(([clip]) => clip);
+    if (own.length && !own.some((c) => clips.includes(c))) note(`Tip: no ${vehicle} clips are selected. Add some to --animations, such as ${own.slice(0, 3).join(',')}, or the vehicles group.`);
+  }
+}
+
+function propsCommand() {
+  console.log(`Weapons (--weapon)\n  ${WEAPONS.filter((w) => w !== 'none').join(', ')}\n`);
+  console.log(`Carried items (--carry)\n  ${CARRIED.filter((c) => c !== 'none').join(', ')}\n`);
+  console.log(`Vehicles (--vehicle)\n  ${VEHICLE_CHOICES.filter((v) => v !== 'none').join(', ')}\n  auto fits the vehicle that the selected riding clips need.`);
 }
 
 function animationsCommand() {
@@ -92,6 +117,7 @@ async function exportCommand(args: string[]) {
     preset: { type: 'string', multiple: true }, 'all-presets': { type: 'boolean' }, random: { type: 'string' }, params: { type: 'string', multiple: true },
     formats: { type: 'string', default: 'glb' }, detail: { type: 'string' }, animations: { type: 'string' }, 'no-animations': { type: 'boolean' },
     'root-motion': { type: 'boolean' }, 'separate-clips': { type: 'boolean' }, out: { type: 'string', default: 'ara3d-out' },
+    weapon: { type: 'string' }, carry: { type: 'string' }, vehicle: { type: 'string' }, 'separate-props': { type: 'boolean' },
   } });
   const formats = values.formats!.split(',').map((f) => f.trim()) as ExportFormat[];
   for (const f of formats) if (!FORMATS.includes(f)) throw Error(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
@@ -102,12 +128,18 @@ async function exportCommand(args: string[]) {
   if (values.animations && values['no-animations']) throw Error('Use either --animations or --no-animations.');
   if ((values.animations || values['root-motion'] || values['separate-clips']) && (values['no-animations'] || formats.every((f) => f === 'obj')))
     throw Error('--animations, --root-motion and --separate-clips need animated output: glb, fbx or zip, without --no-animations.');
+  const choice = (flag: string, value: string | undefined, options: readonly string[]) => { if (value !== undefined && !options.includes(value)) throw Error(`Unknown ${flag} "${value}". Use one of: ${options.join(', ')}.`); };
+  choice('--weapon', values.weapon, WEAPONS);choice('--carry', values.carry, CARRIED);choice('--vehicle', values.vehicle, VEHICLE_CHOICES);
   if (!values.preset && !values['all-presets'] && !values.random && !values.params) throw Error('Choose characters with --preset, --all-presets, --random or --params. Run ara3d --help for examples.');
 
-  const lib = await loadLibrary(log);
+  const begun = performance.now(), lib = await loadLibrary();
   const overrides: Partial<HumanParams> = {};
   if (values.detail) overrides.detail = values.detail as HumanParams['detail'];
   if (values['no-animations']) overrides.animations = false;
+  // Prop flags override only what they name, so a character file keeps its other props.
+  if (values.weapon) overrides.weapon = values.weapon as HumanParams['weapon'];
+  if (values.carry) overrides.carry = values.carry as HumanParams['carry'];
+  if (values.vehicle) overrides.vehicle = values.vehicle as HumanParams['vehicle'];
   const jobs: HumanParams[] = [];
   const presets = values['all-presets'] ? Object.keys(PRESETS) : values.preset ?? [];
   for (const name of presets) jobs.push({ ...DEFAULT_PARAMS, ...PRESETS[name], name, ...overrides });
@@ -118,17 +150,22 @@ async function exportCommand(args: string[]) {
     catch (error) { throw Error(`${file}: ${(error as Error).message}`); }
   }
 
+  ridingTip(jobs, clips, !!values.animations);
   mkdirSync(values.out!, { recursive: true });
+  let files = 0, bytes = 0;
   for (const [i, params] of jobs.entries()) {
-    const started = performance.now(), character = await buildHuman(lib, params), written: string[] = [];
+    const prefix = jobs.length > 1 ? `[${i + 1}/${jobs.length}] ` : '', started = performance.now(), written: string[] = [];
+    status(`${prefix}${params.name}: building the character...`);
+    const character = await buildHuman(lib, params);
     for (const format of formats) {
+      status(`${prefix}${params.name}: writing ${format.toUpperCase()}...`);
       const file = await runExport(lib, character, planExport(character, settings(character, format, clips, values)));
-      writeFileSync(join(values.out!, file.name), file.data);written.push(`${file.name} (${(file.data.length / 1e6).toFixed(1)} MB)`);
+      writeFileSync(join(values.out!, file.name), file.data);written.push(`${file.name} (${megabytes(file.data.length)})`);files++;bytes += file.data.length;
     }
-    const prefix = jobs.length > 1 ? `[${i + 1}/${jobs.length}] ` : '';
-    console.log(`${prefix}${params.name}: ${(character.height * 100).toFixed(0)} cm, ${triangleCount(character.mesh).toLocaleString('en')} triangles, ${((performance.now() - started) / 1000).toFixed(1)} s -> ${written.join(', ')}`);
+    result(`${prefix}${params.name}: ${(character.height * 100).toFixed(0)} cm, ${triangleCount(character.mesh).toLocaleString('en')} triangles, ${seconds(performance.now() - started)} -> ${written.join(', ')}`);
   }
-  log(`Wrote ${jobs.length} character${jobs.length === 1 ? '' : 's'} to ${values.out}`);
+  finish();
+  note(`Done: ${jobs.length} character${jobs.length === 1 ? '' : 's'}, ${files} file${files === 1 ? '' : 's'} (${megabytes(bytes)}) in ${seconds(performance.now() - begun)}, in ${resolvePath(values.out!)}`);
 }
 
 function newCommand(args: string[]) {
@@ -147,7 +184,7 @@ function newCommand(args: string[]) {
 async function schemaCommand(args: string[]) {
   const which = args[0] ?? 'character';
   if (which !== 'character' && which !== 'film') throw Error('ara3d schema takes character or film.');
-  const { catalog } = await loadLibrary(log);
+  const { catalog } = await loadLibrary();finish();
   console.log(JSON.stringify(which === 'character' ? characterSchema(catalog) : assistSchema(catalog), null, 2));
 }
 
@@ -158,9 +195,10 @@ async function main(argv: string[]) {
   if (command === 'export') return exportCommand(rest);
   if (command === 'presets') return console.log(Object.keys(PRESETS).join('\n'));
   if (command === 'animations') return animationsCommand();
+  if (command === 'props') return propsCommand();
   if (command === 'new') return newCommand(rest);
   if (command === 'schema') return schemaCommand(rest);
   throw Error(`Unknown command "${command}". Run ara3d --help.`);
 }
 
-main(process.argv.slice(2)).catch((error: Error) => { console.error(`ara3d: ${error.message}`);process.exitCode = 1; });
+main(process.argv.slice(2)).catch((error: Error) => { finish();console.error(`ara3d: ${error.message}`);process.exitCode = 1; });

@@ -15,6 +15,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `ara3d export [options]` | Builds characters and writes GLB, FBX, OBJ or ZIP files |
 | `ara3d presets` | Lists the preset characters |
 | `ara3d animations` | Lists the 216 animation clips by group |
+| `ara3d props` | Lists the weapons, carried items and vehicles |
 | `ara3d new <name> [--preset P]` | Writes a starter character file to edit |
 | `ara3d schema [character\|film]` | Prints a JSON schema, for editors and AI tools |
 | `ara3d --help`, `ara3d --version` | Help and the installed version |
@@ -33,11 +34,21 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `--no-animations` | Rigged, without the animation clips |
 | `--root-motion` | Walks, runs and strafes move the character forward instead of playing in place |
 | `--separate-clips` | The model plus one file per clip, in a zip; clip files hold only the skeleton and animation (Unity's `model@clip` convention) |
+| `--weapon <id>` | A weapon in the hand: `rifle`, `pistol`, `sword`, `knife` or `grenade` |
+| `--carry <id>` | Something to carry, such as `backpack`, `briefcase`, `handbag`, `parcel`, `head_load` or `phone` |
+| `--vehicle <id>` | A vehicle fitted to the rider, such as `motorcycle`, `horse`, `car` or `helicopter`; `auto` fits whichever vehicle the chosen riding clips need |
+| `--separate-props` | The weapon as its own file as well; vehicles are always their own file |
 | `--out <dir>` | Output folder; the default is `./ara3d-out` |
 
 Characters include all 216 animations unless you choose. Most games need far fewer, and files shrink a lot: the Soldier is about 28 MB as a GLB with every clip, 7 MB with `--animations walk,run,idle`, and 5 MB with `--no-animations`. A group name, such as `locomotion`, `combat`, `shooter`, `vehicles` or `emotes`, takes every clip in it.
 
+Prop flags replace only the prop they name, so a character file's other props stay. A character with a vehicle or a separate prop is written as a zip holding the character, a `props/` folder and a README on how to line them up. If you pick a vehicle but none of its riding clips, `ara3d` suggests the clips to add.
+
 The `zip` format is the same bundle as the builder's Export panel: GLB and FBX, the rig description, a README, the licence and the character's `params.json`. See [Exporting](exporting.md) for what each format contains.
+
+## Progress and output
+
+In a terminal, one status line shows what's happening (downloading with speed and time left, building, writing each format), and each finished character stays on screen. Logs and CI get each step as a plain line instead. Results go to standard output and progress to standard error, so `ara3d export ... > list.txt` saves only the results. The run ends with a summary of files, size, time and the full output path.
 
 ## Character files
 
@@ -64,6 +75,9 @@ npx ara3d export --random 1-200 --detail low --no-animations --out Assets/Townsf
 
 # Only the clips a shooter needs, moving forward, for Unity
 npx ara3d export --preset "The Soldier" --animations locomotion,shooter,jump --root-motion --separate-clips
+
+# A rider: rifle in hand, backpack on, a motorcycle and its riding clips
+npx ara3d export --preset "The Soldier" --weapon rifle --carry backpack --vehicle motorcycle --animations locomotion,vehicles
 
 # A hero for PC and for phones, from one character file
 npx ara3d export --params hero.json --detail high --formats glb,fbx --out build/pc
