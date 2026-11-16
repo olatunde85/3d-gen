@@ -1,8 +1,8 @@
 {
   "name": "ara3d",
-  "version": "0.2.0",
-  "description": "Realistic, rigged and animated 3D characters: a three.js library for the browser and a command-line tool (GLB, FBX, OBJ). Free and open source.",
-  "keywords": ["3d", "character", "avatar", "glb", "gltf", "fbx", "three", "threejs", "rigged", "animation", "makehuman", "cli", "gamedev"],
+  "version": "0.3.2",
+  "description": "Realistic, rigged and animated 3D characters: a three.js library, an <ara-character> embed for any web page, and a command-line tool (GLB, FBX, OBJ). Free and open source.",
+  "keywords": ["web-component", "embed", "3d", "character", "avatar", "glb", "gltf", "fbx", "three", "threejs", "rigged", "animation", "makehuman", "cli", "gamedev"],
   "homepage": "https://ara3dgen.com/docs/library/",
   "repository": { "type": "git", "url": "git+https://github.com/olatunde85/3d-gen.git", "directory": "packages/cli" },
   "bugs": "https://github.com/olatunde85/3d-gen/issues",
@@ -12,10 +12,11 @@
   "bin": { "ara3d": "dist/cli.js" },
   "exports": {
     ".": { "types": "./dist/types/packages/cli/src/index.d.ts", "import": "./dist/index.js" },
+    "./embed": { "types": "./dist/types/packages/cli/src/embed.d.ts", "import": "./dist/embed.js" },
     "./package.json": "./package.json"
   },
   "types": "./dist/types/packages/cli/src/index.d.ts",
-  "sideEffects": false,
+  "sideEffects": ["./dist/embed.js"],
   "files": ["dist"],
   "peerDependencies": { "three": ">=0.160.0" },
   "peerDependenciesMeta": { "three": { "optional": true } },

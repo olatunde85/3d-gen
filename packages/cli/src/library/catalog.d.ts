@@ -5,6 +5,7 @@ declare module 'virtual:ara-catalog' {
     props: { weapons: string[]; carried: string[]; vehicles: string[] };
     expressions: Record<string, Record<string, number>>;
     faceShapes: string[];
+    rides: Record<string, string>;
   };
   export default catalog;
 }

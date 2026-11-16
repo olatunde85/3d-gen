@@ -99,6 +99,31 @@ function proxyMorphs(proxy: Pack<ProxyMeta>, coords: Float32Array, base: Float32
   return any ? out : undefined;
 }
 
+/**
+ * The low-detail body without the skin its clothes cover, as the full body drops it: a face of the simpler body goes
+ * when its corners sit mostly on covered skin, so the skin can't poke through when the character moves.
+ */
+function lowBody(mesh: PolyMesh, proxy: Pack<ProxyMeta>, baseFaces: Uint32Array, hidden: (f: number) => boolean): PolyMesh {
+  const { refs, weights } = proxy.arrays as { refs: Uint32Array; weights: Float32Array };
+  // Skin next to clothing counts as covered too: the simpler body's large faces cut across hollows (an underarm with
+  // the arm raised) and would show at the clothing's edge.
+  const nf = baseFaces.length / 4, count = baseFaces.reduce((m, v) => Math.max(m, v), 0) + 1;
+  const touched = new Uint8Array(count), shows = new Uint8Array(count);
+  for (let f = 0; f < nf; f++) if (hidden(f)) for (let k = 0; k < 4; k++) touched[baseFaces[f * 4 + k]] = 1;
+  for (let f = 0; f < nf; f++) {
+    const corners = baseFaces.subarray(f * 4, f * 4 + 4);
+    if (!hidden(f) && !corners.some((v) => touched[v])) for (const v of corners) shows[v] = 1;
+  }
+  const n = proxy.meta.vertexCount, visible = new Uint8Array(n);
+  // A vertex of the simpler body shows when most of its weight sits on skin that shows.
+  for (let i = 0; i < n; i++) {
+    let share = 0;
+    for (let k = 0; k < 3; k++) if (shows[refs[i * 3 + k]]) share += weights[i * 3 + k];
+    if (share >= 0.5) visible[i] = 1;
+  }
+  return compact(mesh, (_f, corners) => corners.some((v) => visible[v]));
+}
+
 function proxyMesh(proxy: Pack<ProxyMeta>, coords: Float32Array, skin?: Skin, deltas?: Float32Array[]): PolyMesh {
   const a = proxy.arrays as Record<string, Uint8Array & Uint32Array & Float32Array>;
   const positions = fit(proxy, coords);
@@ -299,8 +324,9 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   for (const px of [pOutfit, pShoes, pHat]) if (px) for (const v of px.arrays.deleteVerts as Uint32Array) assetDel[v] = 1;
   const coveredFaces = new Uint8Array(fv.length / 4);
   for (const g of gparts) if (g.hides) for (let f = 0; f < coveredFaces.length; f++) coveredFaces[f] |= g.hides[f];
+  const hiddenFace = (f: number) => (coveredFaces[f] | assetDel[fv[f * 4]] | assetDel[fv[f * 4 + 1]] | assetDel[fv[f * 4 + 2]] | assetDel[fv[f * 4 + 3]]) !== 0;
   let body: PolyMesh = pBody
-    ? proxyMesh(pBody, coords, bskin, faceD)
+    ? lowBody(proxyMesh(pBody, coords, bskin, faceD), pBody, fv, hiddenFace)
     : compact(fullBody, (f, c) => !(assetDel[c[0]] | assetDel[c[1]] | assetDel[c[2]] | assetDel[c[3]]) && !coveredFaces[f]);
   const hd = p.detail === 'high';
   if (hd) body = subdivide(body);

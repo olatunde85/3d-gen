@@ -61,6 +61,23 @@ window.faceTest = async (expression, mouth) => {
   const camera = new THREE.PerspectiveCamera(22, 9 / 7, 0.05, 20);camera.position.set(0, head, 0.85);camera.lookAt(0, head, 0);renderer.render(scene, camera);
   hero.dispose();return { ...after, blinkPeak, lidAfterOff, errors, shapes: meshes.length };
 };
+window.sequenceTest = async () => {
+  const hero = await createCharacter('The Soldier', { assetsUrl: '/assets/', animations: ['walk', 'wave', 'cheer'], detail: 'low' });
+  const mixer = new THREE.AnimationMixer(hero.scene), order = [];
+  const seq = hero.playSequence(mixer, 'walk 1s, wave, cheer');
+  const names = { [hero.clip('walk').name]: 'walk', [hero.clip('wave').name]: 'wave', [hero.clip('cheer').name]: 'cheer' };
+  const lengths = { wave: hero.clip('wave').duration, cheer: hero.clip('cheer').duration };
+  for (let t = 0; t < lengths.wave + lengths.cheer + 0.3; t += 1 / 30) {
+    mixer.update(1 / 30);
+    const top = mixer._actions.filter((a) => a.isRunning()).sort((a, b) => b.getEffectiveWeight() - a.getEffectiveWeight())[0];
+    const name = top && names[top.getClip().name];
+    if (name && order[order.length - 1] !== name) order.push(name);
+  }
+  seq.stop();
+  const errors = [];
+  for (const steps of ['walk, nope', 'walk 3x', '']) try { hero.playSequence(new THREE.AnimationMixer(hero.scene), steps); } catch (e) { errors.push(e.message); }
+  hero.dispose();return { order, lengths, errors };
+};
 window.glbOnly = async () => { const glb = await createCharacterGLB('The Priest', { assetsUrl: '/assets/', animations: 'none', detail: 'low' });return { size: glb.length, magic: String.fromCharCode(...glb.slice(0, 4)) }; };
 window.ready = true;
 </script></body></html>`;
@@ -68,9 +85,12 @@ window.ready = true;
 // Only these paths are served.
 const MOUNTS: [string, string][] = [['/three/', join(root, 'node_modules/three/')], ['/ara3d/', join(root, 'packages/cli/dist/')], ['/assets/', join(root, 'public/assets/')]];
 const TYPES: Record<string, string> = { '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.pack': 'application/octet-stream' };
+let refusedOnce = false;
 const server = createServer((req, res) => {
   const path = decodeURIComponent((req.url ?? '/').split('?')[0]);
   if (path === '/' || path === '/index.html') { res.setHeader('Content-Type', 'text/html');res.end(PAGE);return; }
+  // The first request for the catalogue gets a 503, like a busy CDN: the library has to try again.
+  if (path === '/assets/catalog.json' && !refusedOnce) { refusedOnce = true;res.statusCode = 503;res.end();return; }
   const mount = MOUNTS.find(([prefix]) => path.startsWith(prefix)), file = mount && resolve(mount[1], path.slice(mount[0].length));
   if (!mount || !file || !file.startsWith(mount[1]) || !existsSync(file) || statSync(file).isDirectory()) { res.statusCode = 404;res.end();return; }
   res.setHeader('Content-Type', TYPES[extname(file)] ?? 'application/octet-stream');res.end(readFileSync(file));
@@ -165,8 +185,13 @@ try {
   await photo('face-surprised-O');console.log(`OK faces: expression ${face.expression.toFixed(2)}, mouth ${face.mouth}, blink peak ${face.blinkPeak.toFixed(2)}, errors: ${face.errors.join(' / ')}`);
   const bad = await evaluate<any>(`window.run('Nope', {}, { play: 'walk', az: 0, dist: 4 })`);
   assert.match(bad.error ?? '', /Unknown preset "Nope"/);console.log('OK unknown preset:', bad.error);
+  const seq = await evaluate<any>('window.sequenceTest()');
+  assert.deepEqual(seq.order, ['walk', 'wave', 'cheer', 'walk'], `sequence order ${seq.order}`);
+  assert.equal(seq.errors.length, 3, `sequence errors ${seq.errors}`);
+  console.log(`OK sequence: ${seq.order.join(' → ')} (wave ${seq.lengths.wave.toFixed(1)} s, cheer ${seq.lengths.cheer.toFixed(1)} s); errors: ${seq.errors.join(' / ')}`);
   const glb = await evaluate<any>('window.glbOnly()');
   assert.equal(glb.magic, 'glTF');console.log(`OK createCharacterGLB: ${(glb.size / 1e6).toFixed(1)} MB GLB`);
+  assert.ok(refusedOnce);console.log('OK a busy server (503) was tried again');
   console.log(`Library checks passed. Photos in ${out}`);
 } finally {
   // Let Chrome exit before removing its profile, which it writes to until then.

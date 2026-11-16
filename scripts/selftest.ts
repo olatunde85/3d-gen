@@ -352,7 +352,8 @@ cases.push(['look everything, low', { ...DEFAULT_PARAMS, outfit: 'none', hair: '
 for (const rig of ['game', 'game_lite', 'full', 'none'] as const)
   for (const restPose of ['A', 'T'] as const)
     cases.push([`rig ${rig} ${restPose}`, { ...DEFAULT_PARAMS, ...PRESETS['The Adventurer'], rig, restPose, faceBones: restPose === 'T' }]);
-cases.push(['rig low detail', { ...DEFAULT_PARAMS, detail: 'low', restPose: 'T' }]);
+// In shorts, so the hand-to-leg contact check has bare legs: covered skin is dropped at every detail level.
+cases.push(['rig low detail', { ...DEFAULT_PARAMS, ...PRESETS['The Adventurer'], detail: 'low', restPose: 'T' }]);
 
 for (const [label, p] of cases.filter((_, i) => i % shards === shard)) {
   try {

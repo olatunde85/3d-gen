@@ -126,11 +126,17 @@
 .dev-use-grid article { background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
 .dev-use-grid h3 { margin-bottom: 8px; }
 .dev-use-grid p { color: var(--muted); font-size: 15px; }
+.dev-embed { max-width: 1240px; margin: 0 auto; padding: 40px clamp(16px, 4vw, 48px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: center; scroll-margin-top: 70px; }
+.dev-embed p { color: var(--muted); margin: 14px 0 20px; }
+.dev-embed .dev-terminal { margin-bottom: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dev-terminal .t { color: #8fc5ff; } .dev-terminal .a { color: #c3a6ff; } .dev-terminal .s { color: #9fe3a5; }
+.dev-embed-demo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dev-embed-demo ara-character { border-radius: 14px; border: 1px solid var(--line); background: radial-gradient(90% 70% at 50% 30%, #2a3550, #151a25 62%, #0e1118); }
 .dev-cli { padding-top: 40px; padding-bottom: 40px; display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 28px; align-items: center; scroll-margin-top: 70px; }
 .dev-cli p { color: var(--muted); margin: 14px 0 20px; }
 .dev-terminal { margin: 0; padding: 18px; border-radius: 14px; background: #0b0d12; border: 1px solid var(--line); overflow-x: auto; white-space: pre; }
 .dev-terminal .c { color: #6c7690; } .dev-terminal .p { color: var(--accent-2); }
-.dev-next-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.dev-next-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 22px; }
 .dev-next-grid a { display: grid; gap: 6px; text-decoration: none; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; color: var(--text); }
 .dev-next-grid a:hover { border-color: #3a4458; }
 .dev-next-grid span { color: var(--muted); font-size: 14px; }
@@ -156,7 +162,7 @@
   .pg-view, .pg-meta { order: -2; }
   .pg-controls { order: -1; }
   .dev-use-grid, .dev-next-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dev-cli { grid-template-columns: minmax(0, 1fr); }
+  .dev-cli, .dev-embed { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) {
   .dev-use-grid, .dev-next-grid { grid-template-columns: minmax(0, 1fr); }

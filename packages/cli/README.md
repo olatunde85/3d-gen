@@ -1,6 +1,6 @@
 # ara3d
 
-Realistic, rigged and animated 3D characters, free and open source: a **three.js library** for your web app or game, and a **command-line tool** that writes GLB, FBX or OBJ files for Unity, Unreal, Godot and Blender. Everything runs on your machine or your visitors' devices.
+Realistic, rigged and animated 3D characters, free and open source: a **three.js library** for your web app or game, an **`<ara-character>` tag** for any web page, and a **command-line tool** that writes GLB, FBX or OBJ files for Unity, Unreal, Godot and Blender. Everything runs on your machine or your visitors' devices.
 
 ## In the browser
 
@@ -18,6 +18,15 @@ new THREE.AnimationMixer(hero.scene).clipAction(hero.clip('walk')).play();
 ```
 
 Characters are built in a background worker, and the character data loads from a free CDN. TypeScript types are included. Guide: [ara3dgen.com/docs/library](https://ara3dgen.com/docs/library/).
+
+## On any web page
+
+```html
+<script type="module" src="https://cdn.jsdelivr.net/npm/ara3d@0/dist/embed.js"></script>
+<ara-character preset="The Soldier" animation="walk 2s, wave, cheer" expression="happy"></ara-character>
+```
+
+One tag, no build tools: it works in plain HTML, site builders and any framework. Guide: [ara3dgen.com/docs/embed](https://ara3dgen.com/docs/embed/).
 
 ## On the command line
 

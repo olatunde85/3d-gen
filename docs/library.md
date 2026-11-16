@@ -94,6 +94,23 @@ const exec = await createCharacter('The Female Executive', {
 
 Which parts a character has depends on what it wears: `hero.colors` lists them with their current colours, which makes it easy to build colour pickers. Parts the character doesn't have are skipped, so the same `colors` work across a crowd. On patterned fabric, such as camouflage, the colour replaces the pattern's main colour. For a second colour or a different pattern, set `garmentStyles` in the character's settings (see the [character schema](https://ara3dgen.com/schemas/character.v1.json)). Weapons keep their own colours.
 
+## Chaining animations
+
+`playSequence()` plays clips one after another, blending each into the next, and starts again after the last:
+
+```js
+const hero = await createCharacter('The Priest', { animations: ['walk', 'wave', 'cheer'] });
+const mixer = new THREE.AnimationMixer(hero.scene);
+const sequence = hero.playSequence(mixer, 'walk 3s, wave, cheer x2');
+// In your render loop: mixer.update(delta);
+```
+
+- A clip that loops (walk, idle, run) plays one cycle unless you give it a length, such as `walk 3s`.
+- A one-off move (wave, jump, cheer) plays once, or as many times as you ask, such as `cheer x2`.
+- Steps can also be an array: `['walk', { clip: 'wave', times: 2 }, { clip: 'idle', seconds: 4 }]`.
+- Options: `{ fade: 0.5 }` sets the blend in seconds (default 0.35), and `{ repeat: false }` stops on the last clip.
+- Every clip in the sequence must be in the `animations` you built the character with. `sequence.stop()` ends the sequence and hands the mixer back to you.
+
 ## Faces
 
 Every character carries face shapes, so it can change expression, blink and talk.
@@ -148,6 +165,7 @@ await createCharacter('The Soldier', { assetsUrl: '/ara3d-assets/' });
 ## Good to know
 
 - **Responsiveness:** building runs in a worker, but loading the finished model into three.js happens on the page and takes a moment for large characters. Build during a loading screen, or keep `animations` small.
+- **Pages opened as files:** browsers block the worker on a page opened straight from disk (`file://`), so serve it, even locally (`npx serve`).
 - **Content-Security-Policy:** the worker runs from a `blob:` address. Sites with a strict policy need `worker-src blob:`.
 - **Several characters:** the data loads once and is shared, so later characters build faster.
 - **Licence:** the library is MIT. Characters are built from CC0 MakeHuman data, with animations from the CMU Graphics Lab Motion Capture Database, so you can use them in commercial projects.

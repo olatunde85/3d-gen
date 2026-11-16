@@ -116,6 +116,10 @@ try {
   await until("document.getElementById('pg-loading').classList.contains('error')", 'share error', 30000);
   console.log('OK broken share link:', await evaluate("document.getElementById('pg-status').textContent"));
 
+  // The embed demos load when scrolled into view.
+  await evaluate("document.getElementById('embed').scrollIntoView()");
+  await until("[...document.querySelectorAll('#embed-demo ara-character')].every((e) => e.character)", 'embed demos');await sleep(1500);
+  await photo('embed-section', await box('#embed'));console.log('OK embed demos loaded');
   await photo('rest-desktop', { ...(await box('.dev-uses')), height: await evaluate<number>("document.querySelector('.footer').getBoundingClientRect().bottom + scrollY - document.querySelector('.dev-uses').getBoundingClientRect().top - scrollY") });
   // A phone: no sideways scrolling, and the playground stacks with the view first.
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
@@ -124,6 +128,9 @@ try {
   await photo('phone-top', { x: 0, y: 0, width: 390, height: 844 });
   await evaluate("document.getElementById('playground').scrollIntoView()");await sleep(300);
   await photo('phone-playground', await box('#playground'));
+  await evaluate("document.getElementById('embed').scrollIntoView()");
+  await until("[...document.querySelectorAll('#embed-demo ara-character')].every((e) => e.character)", 'phone embed demos');await sleep(1500);
+  await photo('phone-embed', await box('#embed'));
   await photo('phone-rest', { ...(await box('.dev-uses')), height: await evaluate<number>("document.querySelector('.footer').getBoundingClientRect().bottom - document.querySelector('.dev-uses').getBoundingClientRect().top") });
   console.log(`Developers page checks passed. Photos in ${out}`);
 } finally {
