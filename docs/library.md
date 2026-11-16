@@ -1,6 +1,6 @@
 # JavaScript library (ara3d)
 
-The `ara3d` package generates realistic, rigged and animated characters inside your own web app or game, as three.js objects. Characters are built on the visitor's device, in a background worker, so the page keeps running. The character data loads from a free CDN. There's no server and no account.
+The `ara3d` package generates realistic, rigged and animated characters inside your own web app or game, as three.js objects. Characters are built on the visitor's device, in a background worker, so the page keeps running. The character data loads from a free CDN.
 
 ```bash
 npm install ara3d three
