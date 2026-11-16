@@ -98,6 +98,16 @@ try {
   assert.match(noBag.code, /carry: 'none'/);assert.ok(!noBag.parts.includes('Handbag'));assert.match(noBag.code, /outfit: '#1d2a44'/);
   console.log('OK executive without the handbag, keeping the navy suit');
   await photo('playground-executive-nobag', await box('#playground'));
+  // Every animation: search the full list and play one that isn't among the popular clips.
+  await evaluate("document.getElementById('pg-all-clips').click()");await sleep(200);
+  await photo('all-animations-full', await box('#pg-clips'));
+  await evaluate("(()=>{const e=document.getElementById('pg-clip-search');e.value='swim';e.dispatchEvent(new Event('input'));return 1})()");await sleep(200);
+  await photo('all-animations', await box('#pg-clips'));
+  const swim = await evaluate<string>("(()=>{const b=document.querySelector('#pg-clip-list button');const id=b.querySelector('code').textContent;b.click();return id})()");
+  await sleep(400);await until(ready, 'swim clip');
+  const swum = await evaluate<{ clip: string; code: string; open: boolean }>("({clip:document.getElementById('pg-clip').value,code:document.getElementById('pg-code').textContent,open:document.getElementById('pg-clips').open})");
+  assert.equal(swum.clip, swim);assert.match(swum.code, new RegExp(`animations: \\['${swim}'\\]`));assert.equal(swum.open, false);
+  console.log('OK all animations: picked', swim);
   // A random character, then a broken share link.
   await evaluate("document.querySelector('input[name=source][value=random]').click()");await sleep(400);await until(ready, 'random');
   assert.match(await evaluate("document.getElementById('pg-code').textContent"), /\{ random: 42 \}/);console.log('OK random:', await evaluate("document.getElementById('pg-stats').textContent"));

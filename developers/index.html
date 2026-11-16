@@ -78,7 +78,7 @@
             </fieldset>
             <fieldset>
               <legend>Animation</legend>
-              <label class="field"><span>Playing</span><select id="pg-clip"></select></label>
+              <div class="field"><span class="pg-field-head"><label for="pg-clip">Playing</label><button type="button" class="pg-more" id="pg-all-clips">See all 216</button></span><select id="pg-clip"></select></div>
               <label class="toggle"><input id="pg-inplace" type="checkbox" checked /><span>In place <small>(off: walks and runs move forward)</small></span></label>
             </fieldset>
             <fieldset>
@@ -167,6 +167,15 @@
         </div>
       </section>
     </main>
+
+    <dialog class="pg-dialog" id="pg-clips" aria-labelledby="pg-clips-title">
+      <div class="pg-dialog-head">
+        <h3 id="pg-clips-title">All 216 animations</h3>
+        <button type="button" class="ghost" id="pg-clips-close">Close</button>
+      </div>
+      <input type="search" id="pg-clip-search" placeholder="Search, such as dance, rifle or swim" aria-label="Search animations" />
+      <div class="pg-clip-list" id="pg-clip-list"></div>
+    </dialog>
 
     <footer class="footer">
       <div><b><span class="brand-mark">Ara</span> 3D Gen</b> · <i>Ara</i> is Yoruba for "body".</div>

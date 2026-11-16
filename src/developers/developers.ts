@@ -17,6 +17,10 @@ const RIDE: Record<string, string> = {
   canoe: 'paddle_canoe', kayak: 'paddle_kayak', rowboat: 'row_boat', motorboat: 'drive_boat', helicopter: 'fly_helicopter', tank: 'drive_tank', jet: 'fly_jet',
 };
 const clipName = new Map(ANIMATIONS.map((a) => [a.id, a.name]));
+/** The vehicle each riding clip belongs to. */
+const RIDER: Record<string, string> = Object.fromEntries(Object.entries(RIDE).map(([v, clip]) => [clip, v]));
+/** A clip the visitor picked from the full list; it's built alongside the popular ones. */
+let extraClip = '';
 const label = (id: string) => id === 'none' ? 'None' : id.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector(selector) as T;
@@ -120,7 +124,7 @@ function showStatus(text: string, fraction?: number, error = false) {
 async function build() {
   const id = ++building, chosen = input();
   if (source() === 'share' && !String(chosen).includes('c=')) { showStatus('Paste a link from the builder: open it, choose Share, then Copy link.', 0, true);return; }
-  const ride = RIDE[vehicle.value], clips = ride ? [...PLAY, ride] : PLAY;
+  const ride = RIDE[vehicle.value], clips = [...new Set([...PLAY, ...(ride ? [ride] : []), ...(extraClip ? [extraClip] : [])])];
   showStatus(hero ? 'Rebuilding…' : 'Loading the character data…', 0.02);
   const started = performance.now();
   try {
@@ -193,6 +197,43 @@ function renderColors() {
     item.append(picker, name);return item;
   }));
 }
+
+// --- Every animation ------------------------------------------------------------------------------------------------
+const clipDialog = $<HTMLDialogElement>('#pg-clips'), clipSearch = $<HTMLInputElement>('#pg-clip-search'), clipList = $<HTMLDivElement>('#pg-clip-list');
+/** Lists every animation by category, filtered by the search; the one playing is marked. */
+function renderClipList() {
+  const words = clipSearch.value.toLowerCase().split(/\s+/).filter(Boolean);
+  const groups = new Map<string, typeof ANIMATIONS[number][]>();
+  for (const a of ANIMATIONS) {
+    const text = `${a.name} ${a.id} ${a.category}`.toLowerCase();
+    if (words.every((w) => text.includes(w))) groups.set(a.category, [...(groups.get(a.category) ?? []), a]);
+  }
+  clipList.replaceChildren(...[...groups].map(([category, clips]) => {
+    const section = document.createElement('section'), title = document.createElement('h4'), grid = document.createElement('div');
+    title.innerHTML = `${category} <small>${clips.length}</small>`;grid.className = 'pg-clip-grid';
+    grid.append(...clips.map((a) => {
+      const b = document.createElement('button'), id = document.createElement('code');
+      b.type = 'button';b.textContent = a.name;id.textContent = a.id;b.append(id);b.setAttribute('aria-current', String(a.id === clipSelect.value));
+      b.onclick = () => pickClip(a.id);
+      return b;
+    }));
+    section.append(title, grid);return section;
+  }));
+  if (!groups.size) { const p = document.createElement('p');p.className = 'pg-clip-empty';p.textContent = 'No animation matches that search.';clipList.append(p); }
+}
+/** Plays a clip from the full list: at once if it's already built, otherwise after a rebuild that includes it. */
+function pickClip(id: string) {
+  clipDialog.close();clipSelect.dataset.want = id;
+  // A riding clip brings its vehicle.
+  const newVehicle = !!RIDER[id] && vehicle.value !== RIDER[id];
+  if (newVehicle) { vehicle.value = RIDER[id];propsChosen = true;delete colorChoices.vehicle; }
+  if (!newVehicle && hero?.clip(id) && [...clipSelect.options].some((o) => o.value === id)) { clipSelect.value = id;play();return; }
+  extraClip = id;rebuild();
+}
+$<HTMLButtonElement>('#pg-all-clips').onclick = () => { clipSearch.value = '';renderClipList();clipDialog.showModal();clipSearch.focus(); };
+$<HTMLButtonElement>('#pg-clips-close').onclick = () => clipDialog.close();
+clipDialog.addEventListener('click', (event) => { if (event.target === clipDialog) clipDialog.close(); });
+clipSearch.addEventListener('input', renderClipList);
 
 // --- Faces ---------------------------------------------------------------------------------------------------------
 const chips = $<HTMLDivElement>('#pg-expressions');
