@@ -10,7 +10,7 @@
  * is the game's own: the mission theme, the radio in the city, the runner beat and the race track to the end card.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import sharp from 'sharp';
@@ -48,7 +48,7 @@ const CUTS: Cut[] = [
   { shot: 'race-mountain-pass', from: 0.25, length: 2.4 },
   // The builder, moving
   { shot: 'builder', from: 0.2, length: 6.5, move: [FULL, DIALOG, tighter(DIALOG, 0.94)], ease: 1.4 },
-  { shot: 'customize', from: 0.5, length: 5.0, move: [wider(CUSTOMIZE, 1.12), CUSTOMIZE, tighter(CUSTOMIZE, 0.95)], ease: 1.0, fade: ['smoothleft', 0.6] },
+  { shot: 'customize', from: 0.3, length: 4.3, move: [wider(CUSTOMIZE, 1.12), CUSTOMIZE, tighter(CUSTOMIZE, 0.95)], ease: 1.0, fade: ['smoothleft', 0.6] },
   { shot: 'publish', from: 0.3, length: 1.8, move: [wider(PUBLISH, 1.3), PUBLISH, tighter(PUBLISH, 0.97)], ease: 1.0, fade: ['smoothleft', 0.6] },
   { shot: 'publish', from: 1.5, length: publishLength - 4.5, speed: (publishLength - 4.5) / 2.0, move: [PUBLISH, PUBLISH, tighter(PUBLISH, 0.95)], ease: 0.1, fade: ['fade', 0.4] },
   { shot: 'publish', from: publishLength - 3.0, length: 2.4, move: [tighter(PUBLISH, 0.95), tighter(PUBLISH, 0.95), tighter(PUBLISH, 0.9)], ease: 0.1, fade: ['fade', 0.4] },
@@ -110,6 +110,10 @@ try {
       frame = `scale=3840:2160:flags=lanczos,zoompan=z='1920/(${v(2)})':x='2*(${v(0)})':y='2*(${v(1)})':d=1:s=${W}x${H}:fps=${FPS}`;
     }
     execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(c.from), '-i', join(shots, `${c.shot}.mp4`), '-vf', `setpts=(PTS-STARTPTS)/${c.speed ?? 1},fps=${FPS},${frame},setsar=1${c.dim ? `,eq=brightness=-${c.dim}:saturation=0.8` : ''},format=yuv420p`, '-frames:v', String(n), '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '12', file]);
+    // A cut that comes out short would pull every later cut, and the end card, earlier.
+    const made = Number(execFileSync('ffprobe', ['-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', file], { encoding: 'utf8' }));
+    console.log(`cut ${i} ${c.shot}: ${made}/${n} frames`);
+    if (made !== n) throw Error(`Cut ${i} (${c.shot}) has ${made} frames instead of ${n}.`);
     return file;
   });
   const args = ['-hide_banner', '-loglevel', 'error', '-y'];
@@ -152,7 +156,9 @@ try {
   args.push('-filter_complex', g.join(';'), '-map', '[video]', '-map', '[audio]', '-t', String(total), '-c:v', 'libx264', '-preset', 'slow', '-crf', '15', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', master);
   execFileSync('ffmpeg', args, { stdio: 'inherit' });
   // The site streams a lighter copy; the master is for uploading to video sites, which re-encode it.
-  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', master, '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-preset', 'slow', '-crf', '20', '-maxrate', '7M', '-bufsize', '14M', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', output]);
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', master, '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-preset', 'slow', '-crf', '20', '-maxrate', '6M', '-bufsize', '12M', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', output]);
+  // Cloudflare Pages serves files up to 25 MiB.
+  if (statSync(output).size > 25 * 1024 * 1024) throw Error(`${output} is ${(statSync(output).size / 1048576).toFixed(1)} MiB; Cloudflare Pages takes files up to 25 MiB. Lower -maxrate.`);
   execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(at(3) + 1.2), '-i', output, '-frames:v', '1', '-q:v', '3', poster]);
   console.log(`Ara Play promo: ${total.toFixed(1)} s → ${output} (master: ${master})`);
 } finally { rmSync(work, { recursive: true, force: true }); }
