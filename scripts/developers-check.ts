@@ -132,6 +132,29 @@ try {
   await until("[...document.querySelectorAll('#embed-demo ara-character')].every((e) => e.character)", 'phone embed demos');await sleep(1500);
   await photo('phone-embed', await box('#embed'));
   await photo('phone-rest', { ...(await box('.dev-uses')), height: await evaluate<number>("document.querySelector('.footer').getBoundingClientRect().bottom - document.querySelector('.dev-uses').getBoundingClientRect().top") });
+  // The docs search: "/" focuses it, typing lists matching sections, Enter opens the first.
+  await send('Emulation.setDeviceMetricsOverride', { width: 1400, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await send('Page.navigate', { url: `http://127.0.0.1:${port}/docs/library/` });await sleep(1200);
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: '/', text: '/' });await send('Input.dispatchKeyEvent', { type: 'keyUp', key: '/' });
+  assert.equal(await evaluate("document.activeElement.id"), 'docs-search');
+  await send('Input.insertText', { text: 'chain anim' });
+  await until("document.querySelectorAll('#docs-results a').length > 0", 'search results', 10000);
+  const found = await evaluate<string[]>("[...document.querySelectorAll('#docs-results a b')].map((b) => b.textContent)");
+  assert.ok(/Chaining animations/.test(found[0]), `first result: ${found}`);
+  await photo('docs-search', { x: 0, y: 0, width: 900, height: 700 });
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });await sleep(1200);
+  assert.match(await evaluate<string>('location.href'), /#chaining-animations$/);
+  console.log('OK docs search:', found.slice(0, 3).join(' | '));
+  await evaluate("(()=>{const b=document.getElementById('docs-search');b.focus();b.value='zzqx';b.dispatchEvent(new Event('input'));return 1})()");
+  await until("/No results/.test(document.getElementById('docs-results').textContent)", 'no results', 10000);
+  console.log('OK docs search: no results message');
+  // On a phone, the search box spans the width and its results fit the screen.
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await send('Page.navigate', { url: `http://127.0.0.1:${port}/docs/` });await sleep(1200);
+  await evaluate("(()=>{const b=document.getElementById('docs-search');b.focus();b.value='motorcycle';b.dispatchEvent(new Event('input'));return 1})()");
+  await until("document.querySelectorAll('#docs-results a').length > 0", 'phone search results', 10000);
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), 'no sideways scroll with results open');
+  await photo('docs-search-phone', { x: 0, y: 0, width: 390, height: 844 });
   console.log(`Developers page checks passed. Photos in ${out}`);
 } finally {
   chrome.kill();server.close();await new Promise((r) => { chrome.once('exit', r);setTimeout(r, 3000); });
