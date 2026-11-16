@@ -10,7 +10,7 @@ import { encodeCharacter } from '../app/share';
 
 const ASSETS = `${import.meta.env.BASE_URL}assets/`;
 /** Clips the playground builds once, so switching between them is instant. */
-const PLAY = ['idle', 'walk', 'model_walk', 'run', 'jump', 'wave', 'cheer', 'dance_groove', 'dance_bounce', 'talk_gestures', 'phone_call', 'punch_combo', 'kick_roundhouse', 'rifle_idle', 'rifle_fire_auto', 'pistol_aim'];
+const PLAY = ['idle', 'walk', 'model_walk', 'run', 'jump', 'look_around', 'texting', 'vault_over', 'swim_freestyle', 'talk_gestures', 'phone_call', 'punch_combo', 'kick_roundhouse', 'rifle_idle', 'rifle_fire_auto', 'pistol_aim'];
 /** The riding clip that shows each vehicle in use. */
 const RIDE: Readonly<Record<string, string>> = VEHICLE_CLIPS;
 const clipName = new Map(ANIMATIONS.map((a) => [a.id, a.name]));

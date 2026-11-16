@@ -99,15 +99,15 @@ Which parts a character has depends on what it wears: `hero.colors` lists them w
 `playSequence()` plays clips one after another, blending each into the next, and starts again after the last:
 
 ```js
-const hero = await createCharacter('The Priest', { animations: ['walk', 'wave', 'cheer'] });
+const hero = await createCharacter('The Adventurer', { animations: ['run', 'vault_over', 'ledge_climb_up'] });
 const mixer = new THREE.AnimationMixer(hero.scene);
-const sequence = hero.playSequence(mixer, 'walk 3s, wave, cheer x2');
+const sequence = hero.playSequence(mixer, 'run 2s, vault_over, run 2s, ledge_climb_up');
 // In your render loop: mixer.update(delta);
 ```
 
 - A clip that loops (walk, idle, run) plays one cycle unless you give it a length, such as `walk 3s`.
-- A one-off move (wave, jump, cheer) plays once, or as many times as you ask, such as `cheer x2`.
-- Steps can also be an array: `['walk', { clip: 'wave', times: 2 }, { clip: 'idle', seconds: 4 }]`.
+- A one-off move (vault_over, jump, punch_combo) plays once, or as many times as you ask, such as `vault_over x2`.
+- Steps can also be an array: `['run', { clip: 'vault_over', times: 2 }, { clip: 'idle', seconds: 4 }]`.
 - Options: `{ fade: 0.5 }` sets the blend in seconds (default 0.35), and `{ repeat: false }` stops on the last clip.
 - Every clip in the sequence must be in the `animations` you built the character with. `sequence.stop()` ends the sequence and hands the mixer back to you.
 

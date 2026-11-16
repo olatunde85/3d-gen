@@ -1,17 +1,17 @@
-/** Animation sequences, such as "walk 3s, wave, cheer x2": the steps the library's playSequence() and the embed play. */
+/** Animation sequences, such as "run 2s, vault_over, ledge_climb_up": the steps the library's playSequence() and the embed play. */
 
 /** One step: a clip ID, with an optional length in seconds or a number of times to play it. */
 export type SequenceStep = string | { clip: string; seconds?: number; times?: number };
 
 export interface ParsedStep { id: string; seconds?: number; times?: number }
 
-/** Reads "walk 3s, wave, cheer x2" (or an array of steps) into clip IDs with their lengths or counts. */
+/** Reads "run 2s, vault_over, ledge_climb_up" (or an array of steps) into clip IDs with their lengths or counts. */
 export function parseSteps(steps: string | readonly SequenceStep[]): ParsedStep[] {
   const list = typeof steps === 'string' ? steps.split(',') : steps;
   const parsed: ParsedStep[] = [];
   for (const item of list) {
     if (typeof item !== 'string') {
-      if (!item || typeof item.clip !== 'string') throw Error('Each step needs a clip, such as { clip: "wave" }.');
+      if (!item || typeof item.clip !== 'string') throw Error('Each step needs a clip, such as { clip: "vault_over" }.');
       parsed.push({ id: item.clip, ...(item.seconds !== undefined ? { seconds: item.seconds } : {}), ...(item.times !== undefined ? { times: item.times } : {}) });
       continue;
     }

@@ -86,8 +86,8 @@ export interface AraCharacter {
   /** Natural blinking, on by default; call update() every frame for it to run. */
   blinking: boolean;
   /**
-   * Plays clips one after another on `mixer`, blending each into the next, such as "walk 3s, wave, cheer x2". A step
-   * that loops (walk, idle) plays one cycle unless given a length; others (wave, jump) play once, or a number of times.
+   * Plays clips one after another on `mixer`, blending each into the next, such as "run 2s, vault_over, ledge_climb_up". A step
+   * that loops (walk, idle) plays one cycle unless given a length; others (vault_over, jump) play once, or a number of times.
    * It moves on as you call mixer.update(), and takes over the mixer's other actions.
    */
   playSequence(mixer: AnimationMixer, steps: string | readonly SequenceStep[], options?: SequenceOptions): Sequence;
@@ -199,7 +199,7 @@ function sequence(clipFor: (id: string) => AnimationClip | undefined, mixer: Ani
     const length = step.seconds ?? clip.duration * (step.times ?? 1);
     return { action: mixer.clipAction(clip), loops, times: step.times ?? 1, length: Math.max(length, fade * 2) };
   });
-  if (!plan.length) throw Error('Give playSequence() at least one animation, such as "walk, wave".');
+  if (!plan.length) throw Error('Give playSequence() at least one animation, such as "walk, look_around".');
   const update = mixer.update;
   let index = -1, started = 0, done = false, stopped = false;
   const start = (i: number) => {

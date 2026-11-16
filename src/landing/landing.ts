@@ -105,9 +105,9 @@ mixer.clipAction(hero.clip('rifle_idle')).play();`,
 
 <ara-character
   preset="The Priest"
-  animation="walk 2s, wave, cheer"
+  animation="walk 3s, look_around, talk_gestures"
   expression="happy"></ara-character>`,
-    character: { preset: 'The Priest', animation: 'walk 2s, wave, cheer', expression: 'happy' },
+    character: { preset: 'The Priest', animation: 'walk 3s, look_around, talk_gestures', expression: 'happy' },
     caption: 'Live: this exact tag, running on this page.',
   },
   cli: {
@@ -196,6 +196,8 @@ if (hero) {
   const cards = [...document.querySelectorAll<HTMLAnchorElement>('.hero-cast .cast-card')];
   const show = (card: HTMLAnchorElement) => {
     hero.setAttribute('preset', card.dataset.preset!);hero.setAttribute('animation', card.dataset.animation!);
+    // A bag stays at home for some moves: the High-Flier on his phone, the Beach Girl swimming.
+    if (card.dataset.carry) hero.setAttribute('carry', card.dataset.carry);else hero.removeAttribute('carry');
     name.textContent = card.dataset.preset!;edit.href = card.href;
     for (const c of cards) c.setAttribute('aria-current', String(c === card));
   };
