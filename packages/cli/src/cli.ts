@@ -11,6 +11,7 @@ import { animationGroup } from '../../../src/core/anim/groups';
 import { characterExample, characterSchema, parseCharacterInput } from '../../../src/app/character-assist';
 import { assistSchema } from '../../../src/studio/assist';
 import { loadLibrary } from './data';
+import { mcpCommand } from './mcp';
 import { finish, megabytes, note, result, seconds, status } from './status';
 import { explain, isFatal, removeLeftovers, UserError, writeSafely } from './safety';
 import { WEAPONS } from '../../../src/core/props/weapons';
@@ -29,6 +30,8 @@ Usage
   ara3d props                     List the weapons, carried items and vehicles
   ara3d new <name> [--preset P]   Write a starter character file to edit
   ara3d schema [character|film]   Print a JSON schema (for editors and AI tools)
+  ara3d mcp                       Run as an MCP server, so AI assistants can make characters
+                                  (Claude Code: claude mcp add ara3d -- npx -y ara3d mcp)
 
 Export options
   --preset <name>        A preset, such as "The Soldier" (see ara3d presets)
@@ -210,6 +213,7 @@ async function main(argv: string[]) {
   if (command === 'props') return propsCommand();
   if (command === 'new') return newCommand(rest);
   if (command === 'schema') return schemaCommand(rest);
+  if (command === 'mcp') return mcpCommand();
   throw new UserError(`Unknown command "${command}". Run ara3d --help.`);
 }
 

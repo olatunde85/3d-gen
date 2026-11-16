@@ -106,6 +106,8 @@ See [JavaScript library (ara3d)](docs/library.md).
 
 See [Embed a character](docs/embed.md), or choose **Share → Copy embed code** in the builder.
 
+**Using an AI assistant?** `claude mcp add ara3d -- npx -y ara3d mcp` lets Claude (or Cursor, VS Code and others) make characters for you. See [AI assistants (MCP)](docs/mcp.md).
+
 **Run the whole site locally.** Works on **Windows, macOS and Linux**. Requirements: **Node 20+** and **git**.
 
 ```bash

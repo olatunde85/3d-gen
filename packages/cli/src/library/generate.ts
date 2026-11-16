@@ -77,7 +77,7 @@ export function libraryAt(assetsUrl: string) {
   return lib;
 }
 
-function clipIds(choice: GenerateOptions['animations']) {
+export function clipIds(choice: GenerateOptions['animations']) {
   if (!choice || choice === 'all') return CLIPS.map((c) => c.id);
   if (choice === 'none') return [];
   const ids = new Set<string>();
@@ -90,7 +90,11 @@ function clipIds(choice: GenerateOptions['animations']) {
   return [...ids];
 }
 
-export async function generate(lib: AssetLibrary, input: CharacterInput, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
+/**
+ * The character settings for an input: a preset name, a share link from the builder, { random: seed }, an
+ * "ara-character" object or character settings. Used by the library and the ara3d MCP server.
+ */
+export function characterParams(lib: AssetLibrary, input: CharacterInput): HumanParams {
   let params: HumanParams;
   const share = typeof input === 'string' ? /[#&?]c=([A-Za-z0-9_-]+)/.exec(input) : null;
   if (share) {
@@ -111,6 +115,11 @@ export async function generate(lib: AssetLibrary, input: CharacterInput, options
     const raw = 'kind' in input || 'preset' in input ? { kind: characterExample().kind, version: 1, ...input } : input;
     params = parseCharacterInput(JSON.stringify(raw), lib.catalog);
   }
+  return params;
+}
+
+export async function generate(lib: AssetLibrary, input: CharacterInput, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
+  let params = characterParams(lib, input);
   const clips = clipIds(options.animations);
   params = {
     ...params,

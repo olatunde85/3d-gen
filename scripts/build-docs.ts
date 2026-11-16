@@ -23,7 +23,8 @@ const slugs = files.map((f) => basename(f, '.md')).sort((a, b) => {
 });
 const urlOf = (slug: string) => (slug === 'README' ? `${BASE}docs/` : `${BASE}docs/${slug}/`);
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const plain = (s: string) => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+/** Rendered heading HTML as plain text: tags removed, entities decoded (&amp; last, so "&amp;lt;" stays "&lt;"). */
+const plain = (s: string) => s.replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 
 /** GitHub-style heading anchors, so #links work the same on GitHub and on the site. */
 const anchor = (text: string) =>
