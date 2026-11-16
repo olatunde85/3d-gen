@@ -55,11 +55,10 @@
         </ul>
       </section>
 
-      <section id="playground" class="playground" aria-labelledby="pg-title">
+      <section id="playground" class="playground" aria-label="Playground">
         <div class="pg-head">
           <p class="dev-eyebrow">TRY IT LIVE</p>
-          <h2 id="pg-title">Playground</h2>
-          <p>Choose a character, its props, colours and face. The library rebuilds it in your browser as you go, and the code updates to make exactly what you see.</p>
+          <p>Change anything: it's rebuilt in your browser, and the code updates to match.</p>
         </div>
         <div class="pg-grid">
           <form class="pg-controls" id="pg-form" onsubmit="return false">
@@ -125,7 +124,7 @@
               </span>
             </div>
             <div class="code">
-              <div class="code-head"><span>main.js</span><button type="button" class="copy" data-copy="#pg-code">Copy</button></div>
+              <div class="code-head"><div class="code-tabs" role="tablist" aria-label="Language"><button type="button" role="tab" aria-selected="true" data-lang="js">JavaScript</button><button type="button" role="tab" aria-selected="false" data-lang="ts">TypeScript</button></div><button type="button" class="copy" data-copy="#pg-code">Copy</button></div>
               <pre><code id="pg-code"></code></pre>
             </div>
           </div>

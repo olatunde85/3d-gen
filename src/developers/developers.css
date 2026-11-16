@@ -28,7 +28,7 @@
 .playground { padding-top: 40px; padding-bottom: 56px; scroll-margin-top: 70px; }
 .pg-head { margin-bottom: 24px; }
 .pg-head .dev-eyebrow { margin-bottom: 10px; }
-.pg-head p:last-child { margin-top: 10px; color: var(--muted); max-width: 640px; font-size: 17px; }
+.pg-head p:last-child { color: var(--muted); max-width: 640px; font-size: 17px; }
 .pg-grid { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
 
 .pg-controls { text-align: left; display: grid; gap: 14px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
@@ -88,6 +88,10 @@
 
 .code { border: 1px solid var(--line); border-radius: 14px; background: #0b0d12; overflow: hidden; min-width: 0; }
 .code-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--line); font: 12px ui-monospace, Menlo, monospace; color: var(--muted); }
+.code-tabs { display: flex; gap: 2px; }
+.code-tabs button { border: 0; background: none; color: var(--muted); font: 12px ui-monospace, Menlo, monospace; padding: 5px 9px; border-radius: 7px; cursor: pointer; }
+.code-tabs button[aria-selected="true"] { background: #1c2230; color: var(--text); }
+.code-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .code pre { margin: 0; padding: 14px 16px; overflow-x: auto; }
 .code code, .dev-terminal code { font: 13.5px/1.6 ui-monospace, Menlo, monospace; color: #d7deea; }
 .tok-k { color: #c3a6ff; } .tok-s { color: #9fe3a5; } .tok-c { color: #6c7690; font-style: italic; } .tok-n { color: #ffcf8a; } .tok-f { color: #8fc5ff; }
@@ -110,7 +114,7 @@
 /* Wide screens: the controls, the view and the code side by side, with the code on the right. */
 @media (min-width: 1280px) {
   .playground { max-width: 1720px; }
-  .pg-grid { grid-template-columns: 300px minmax(0, 0.9fr) minmax(0, 1.1fr); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "controls view code" "controls meta code"; align-items: stretch; column-gap: 18px; row-gap: 12px; }
+  .pg-grid { grid-template-columns: 300px minmax(0, 0.85fr) minmax(0, 1.15fr); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "controls view code" "controls meta code"; align-items: stretch; column-gap: 18px; row-gap: 12px; }
   .pg-stage { display: contents; }
   .pg-controls { grid-area: controls; align-self: start; }
   .pg-view { grid-area: view; aspect-ratio: auto; min-height: 560px; }

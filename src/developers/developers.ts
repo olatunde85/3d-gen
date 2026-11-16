@@ -217,7 +217,18 @@ function talkStep(delta: number) {
 /** A line of code with a comment after it, the comments lined up in a column. */
 const note = (code: string, comment: string, column = 34) => `${code.padEnd(column)}// ${comment}`;
 
+/** The language the code is shown in; TypeScript adds the type and the ! where a lookup could come back empty. */
+let lang: 'js' | 'ts' = 'js';
+try { if (localStorage.getItem('ara-dev-lang') === 'ts') lang = 'ts'; } catch { /* Storage can be blocked; JavaScript it is. */ }
+function showLang() { for (const tab of document.querySelectorAll<HTMLButtonElement>('[data-lang]')) tab.setAttribute('aria-selected', String(tab.dataset.lang === lang)); }
+for (const tab of document.querySelectorAll<HTMLButtonElement>('[data-lang]')) tab.onclick = () => {
+  lang = tab.dataset.lang as 'js' | 'ts';showLang();writeCode();
+  try { localStorage.setItem('ara-dev-lang', lang); } catch { /* Not remembered; that's fine. */ }
+};
+showLang();
+
 function writeCode() {
+  const ts = lang === 'ts', sure = ts ? '!' : '';
   const chosen = input(), clip = clipSelect.value || 'idle';
   const literal = typeof chosen === 'string' ? `'${chosen}'` : `{ random: ${chosen.random} }`;
   const colors = hero ? Object.entries(colorChoices).filter(([part]) => part in hero!.colors) : [];
@@ -232,9 +243,9 @@ function writeCode() {
   const ride = hero?.props[0], rideClip = ride && hero!.clip(clip), rideMoves = !!rideClip && ride!.animations.some((a) => a.name === rideClip.name);
   const lines = [
     `import * as THREE from 'three';`,
-    `import { createCharacter } from 'ara3d';`,
+    ts ? `import { createCharacter, type AraCharacter } from 'ara3d';` : `import { createCharacter } from 'ara3d';`,
     ``,
-    `const hero = await createCharacter(${literal}, {`,
+    `const hero${ts ? ': AraCharacter' : ''} = await createCharacter(${literal}, {`,
     ...opts.map((o) => `  ${o}`),
     `});`,
     `scene.add(hero.scene);`,
@@ -244,11 +255,11 @@ function writeCode() {
     ``,
     `// Play a clip: the mixer moves the character's bones.`,
     `const mixer = new THREE.AnimationMixer(hero.scene);`,
-    `const clip = hero.clip('${clip}');`,
+    `const clip = hero.clip('${clip}')${sure};`,
     `mixer.clipAction(clip).play();`,
     ...(rideMoves ? [
       `// The vehicle's own clip turns its wheels, pedals or rotors.`,
-      `const ride = vehicle.animations.find((a) => a.name === clip.name);`,
+      `const ride = vehicle.animations.find((a) => a.name === clip.name)${sure};`,
       `const vehicleMixer = new THREE.AnimationMixer(vehicle.scene);`,
       `vehicleMixer.clipAction(ride).play();`,
     ] : []),
@@ -272,7 +283,7 @@ function writeCode() {
 /** Just enough JavaScript highlighting for the snippet: comments, strings, keywords, numbers and calls. */
 function highlight(code: string) {
   const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return code.replace(/(\/\/[^\n]*)|('(?:[^'\\]|\\.)*')|\b(import|from|const|await|new|for|of)\b|\b(\d+(?:\.\d+)?)\b|\b([A-Za-z_]\w*)(?=\()|([^'/\w]+|\w+|.)/g,
+  return code.replace(/(\/\/[^\n]*)|('(?:[^'\\]|\\.)*')|\b(import|from|const|await|new|for|of|type)\b|\b(\d+(?:\.\d+)?)\b|\b([A-Za-z_]\w*)(?=\()|([^'/\w]+|\w+|.)/g,
     (m, comment, string, keyword, number, call) => comment ? `<span class="tok-c">${escape(comment)}</span>` : string ? `<span class="tok-s">${escape(string)}</span>`
       : keyword ? `<span class="tok-k">${keyword}</span>` : number ? `<span class="tok-n">${number}</span>` : call ? `<span class="tok-f">${call}</span>` : escape(m));
 }

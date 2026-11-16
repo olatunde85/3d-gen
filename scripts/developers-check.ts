@@ -64,6 +64,13 @@ try {
   assert.equal(ride.clip, 'ride_motorcycle');assert.match(ride.code, /vehicle: 'motorcycle'/);assert.match(ride.code, /setExpression\('happy'\)/);
   console.log('OK motorcycle: plays', ride.clip, 'and keeps the chosen expression');
   await photo('playground-motorcycle', await box('#playground'));
+  // The code in TypeScript.
+  await evaluate("document.querySelector('[data-lang=ts]').click()");
+  const typed = await evaluate<string>("document.getElementById('pg-code').textContent");
+  assert.match(typed, /const hero: AraCharacter = await/);assert.match(typed, /hero\.clip\('ride_motorcycle'\)!/);
+  writeFileSync(join(out, 'main.ts'), typed);console.log('OK TypeScript code (out/developers/main.ts)');
+  await photo('playground-typescript', await box('#playground'));
+  await evaluate("document.querySelector('[data-lang=js]').click()");
   // Walking forward instead of in place.
   await set('#pg-vehicle', 'none');await sleep(300);await until(ready, 'no vehicle');
   await set('#pg-clip', 'walk');
