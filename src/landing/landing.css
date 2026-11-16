@@ -114,7 +114,15 @@ p { margin: 0; text-wrap: pretty; }
 .face button[aria-checked="true"] b { background: var(--text); color: #09090b; border-color: var(--text); }
 .face button:active b, .face .edit:active b { transform: scale(0.94); }
 .pad button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.stage-tag { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; white-space: nowrap; color: var(--text); font: 600 15px/1 var(--sans); letter-spacing: -0.01em; pointer-events: none; }
+.shoulders { position: absolute; left: 8px; right: 8px; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; pointer-events: none; z-index: 1; }
+.shoulders button { pointer-events: auto; cursor: pointer; padding: 0; border: 0; background: none; -webkit-tap-highlight-color: transparent; }
+.shoulders b { display: grid; place-items: center; width: 64px; height: 30px; border-radius: 14px 14px 8px 8px; border: 1px solid var(--line-2); background: rgba(24, 24, 28, 0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--text); font: 600 13px var(--display); transition: background 0.1s, transform 0.08s; }
+.shoulders button:hover b { background: rgba(48, 48, 56, 0.85); }
+.shoulders button:active b { transform: translateY(1px); }
+.shoulders button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 14px; }
+/* The loading line sits under the name, clear of the controls. */
+#hero-character::part(status) { top: 46px; bottom: auto; }
+.stage-tag { display: flex; align-items: center; gap: 9px; white-space: nowrap; min-width: 0; margin: 0; color: var(--text); font: 600 15px/1 var(--sans); letter-spacing: -0.01em; pointer-events: none; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); animation: live 2.4s ease-out infinite; }
 @keyframes live { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.45); } 70%, 100% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); } }
 .cast.hero-cast { max-width: var(--wide); margin: 20px auto 0; grid-auto-columns: minmax(0, 1fr); }

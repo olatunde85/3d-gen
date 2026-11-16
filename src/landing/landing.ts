@@ -209,7 +209,7 @@ if (drivenEl && stageEl) {
   new ResizeObserver(measure).observe(stageEl);measure();
   // The camera looks from slightly right of front, so screen directions are turned by its angle.
   const VIEW = Math.atan2(0.35, 1), right = [Math.cos(VIEW), -Math.sin(VIEW)], away = [-Math.sin(VIEW), -Math.cos(VIEW)];
-  let yHeld = true;
+  let yHeld = true, shoulderHeld = true;
   let gait: Gait = 'idle', playing = '', heading = 0, last = 0, engaged = false, onScreen = true;
   const held = new Set<string>(), keys = new Set<string>();
 
@@ -236,6 +236,10 @@ if (drivenEl && stageEl) {
       if (g.buttons[14]?.pressed) ix -= 1;if (g.buttons[15]?.pressed) ix += 1;if (g.buttons[12]?.pressed) iy += 1;if (g.buttons[13]?.pressed) iy -= 1;
       if (g.buttons[2]?.pressed) pad = 'idle';else if (g.buttons[0]?.pressed) pad = 'walk';else if (g.buttons[1]?.pressed) pad = 'run';
       padRun ||= !!g.buttons[1]?.pressed;
+      // LB and RB switch characters, once per press.
+      const lb = !!g.buttons[4]?.pressed, rb = !!g.buttons[5]?.pressed;
+      if (lb && !shoulderHeld) stepCast(-1);else if (rb && !shoulderHeld) stepCast(1);
+      shoulderHeld = lb || rb;
       // Y opens the character in the builder, once per press.
       if (g.buttons[3]?.pressed && !yHeld) location.href = edit.href;
       yHeld = !!g.buttons[3]?.pressed;
@@ -280,6 +284,7 @@ if (drivenEl && stageEl) {
     const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
     if (dir) { e.preventDefault();keys.add(dir); }
     else if (e.key === 'Shift') keys.add('shift');
+    else if (e.key === 'q' || e.key === 'e') stepCast(e.key === 'q' ? -1 : 1);
     else if (e.key === '1' || e.key === '2' || e.key === '3') setGait((['idle', 'walk', 'run'] as const)[Number(e.key) - 1]);
   });
   addEventListener('keyup', (e) => { const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];if (dir) keys.delete(dir);if (e.key === 'Shift') keys.delete('shift'); });
@@ -288,12 +293,21 @@ if (drivenEl && stageEl) {
 
   // The cast below puts another character on stage, standing idle.
   const mark = (card?: HTMLAnchorElement) => { for (const c of cards) c.setAttribute('aria-current', String(c === card)); };
+  const putOnStage = (card: HTMLAnchorElement) => {
+    if (driven.getAttribute('preset') === card.dataset.preset) return;
+    driven.setAttribute('preset', card.dataset.preset!);name.textContent = card.dataset.preset!;edit.href = card.href;mark(card);
+  };
+  /** L1 and R1: the previous or next character in the cast, round and round. */
+  const stepCast = (by: number) => {
+    const at = cards.findIndex((c) => c.dataset.preset === driven.getAttribute('preset'));
+    putOnStage(cards[(at + by + cards.length) % cards.length]);
+  };
   for (const card of cards) card.addEventListener('click', (e) => {
     // A plain click puts the character on stage; with a modifier key the link opens the builder as usual.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    e.preventDefault();
-    driven.setAttribute('preset', card.dataset.preset!);name.textContent = card.dataset.preset!;edit.href = card.href;mark(card);
+    e.preventDefault();putOnStage(card);
   });
+  for (const b of stageEl.querySelectorAll<HTMLButtonElement>('[data-step]')) b.addEventListener('click', () => { engaged = true;stepCast(Number(b.dataset.step)); });
   // A new character starts in the middle, facing the viewer.
   driven.addEventListener('load', () => { heading = 0;playing = 'idle';setGait('idle'); });
   mark(cards.find((c) => c.dataset.preset === driven.getAttribute('preset')));

@@ -94,7 +94,11 @@
         </div>
         <div class="hero-stage reveal">
           <ara-character id="hero-character" preset="The Miami Dealer" animation="idle" clips="walk, run" detail="low" orbit="false" margin="1.75"></ara-character>
-          <p class="stage-tag"><span class="live-dot" aria-hidden="true"></span><span id="hero-name">The Miami Dealer</span></p>
+          <div class="shoulders" role="group" aria-label="Switch character">
+            <button type="button" data-step="-1" title="Previous character (Q)" aria-label="Previous character"><b>L1</b></button>
+            <p class="stage-tag"><span class="live-dot" aria-hidden="true"></span><span id="hero-name">The Miami Dealer</span></p>
+            <button type="button" data-step="1" title="Next character (E)" aria-label="Next character"><b>R1</b></button>
+          </div>
           <div class="pad" role="group" aria-label="Controls">
             <div class="dpad" role="group" aria-label="Move">
               <button type="button" data-dir="up" aria-label="Move away"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7l5 7H7z"/></svg></button>
