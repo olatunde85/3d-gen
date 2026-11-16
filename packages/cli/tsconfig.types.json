@@ -9,5 +9,5 @@
     "types": ["vite/client"]
   },
   "include": [],
-  "files": ["src/index.ts", "src/library/catalog.d.ts"]
+  "files": ["src/index.ts", "src/embed.ts", "src/library/catalog.d.ts"]
 }

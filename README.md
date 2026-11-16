@@ -97,6 +97,15 @@ scene.add(hero.scene);
 
 See [JavaScript library (ara3d)](docs/library.md).
 
+**Want a character on your website?** One tag, no build tools:
+
+```html
+<script type="module" src="https://cdn.jsdelivr.net/npm/ara3d@0/dist/embed.js"></script>
+<ara-character preset="The Soldier" animation="wave"></ara-character>
+```
+
+See [Embed a character](docs/embed.md), or choose **Share → Copy embed code** in the builder.
+
 **Run the whole site locally.** Works on **Windows, macOS and Linux**. Requirements: **Node 20+** and **git**.
 
 ```bash

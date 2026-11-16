@@ -62,6 +62,10 @@ async function openShare(ctx: Ctx) {
   copyLink.addEventListener('click', () => copy(link, 'Link'));
   const copyAll = el('button', { className: 'share-action', textContent: '📋 Copy caption + link' });
   copyAll.addEventListener('click', () => copy(`${caption.value} ${link}`, 'Caption and link'));
+  // The character, live on any web page: the embed script and an <ara-character> tag that loads this share link.
+  const embed = `<script type="module" src="https://cdn.jsdelivr.net/npm/ara3d@0/dist/embed.js"></script>\n<ara-character share="${link}"></ara-character>`;
+  const copyEmbed = el('button', { className: 'share-action', textContent: '</> Copy embed code', title: 'Show this character, animated, on your own website' });
+  copyEmbed.addEventListener('click', () => copy(embed, 'Embed code'));
 
   dlg.append(
     el('div', { className: 'share-head' }, el('b', { textContent: 'Share your character' }), close),
@@ -69,7 +73,7 @@ async function openShare(ctx: Ctx) {
     el('label', { className: 'share-label', textContent: 'Caption' }), caption,
     el('label', { className: 'share-label', textContent: 'Link (opens this exact character)' }), linkInput,
     nets,
-    el('div', { className: 'share-actions' }, download, copyLink, copyAll),
+    el('div', { className: 'share-actions' }, download, copyLink, copyAll, copyEmbed),
     el('div', { className: 'share-hint', textContent: 'Tip: X, Facebook and LinkedIn take the caption and link from websites, not images. Download the image to attach it to your post.' }),
     note,
   );

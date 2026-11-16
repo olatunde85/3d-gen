@@ -5,17 +5,14 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ANIMATIONS, createCharacter, EXPRESSIONS, MOUTH_SHAPES, PRESET_NAMES, PROPS, type AraCharacter, type CharacterColors, type CharacterOptions } from '../../packages/cli/src/index';
+import { ANIMATIONS, createCharacter, EXPRESSIONS, VEHICLE_CLIPS, MOUTH_SHAPES, PRESET_NAMES, PROPS, type AraCharacter, type CharacterColors, type CharacterOptions } from '../../packages/cli/src/index';
 import { encodeCharacter } from '../app/share';
 
 const ASSETS = `${import.meta.env.BASE_URL}assets/`;
 /** Clips the playground builds once, so switching between them is instant. */
 const PLAY = ['idle', 'walk', 'model_walk', 'run', 'jump', 'wave', 'cheer', 'dance_groove', 'dance_bounce', 'talk_gestures', 'phone_call', 'punch_combo', 'kick_roundhouse', 'rifle_idle', 'rifle_fire_auto', 'pistol_aim'];
 /** The riding clip that shows each vehicle in use. */
-const RIDE: Record<string, string> = {
-  car: 'drive_car', sports_car: 'drive_sports_car', suv: 'drive_suv', pickup: 'drive_pickup', motorcycle: 'ride_motorcycle', bicycle: 'ride_bicycle', horse: 'ride_horse',
-  canoe: 'paddle_canoe', kayak: 'paddle_kayak', rowboat: 'row_boat', motorboat: 'drive_boat', helicopter: 'fly_helicopter', tank: 'drive_tank', jet: 'fly_jet',
-};
+const RIDE: Readonly<Record<string, string>> = VEHICLE_CLIPS;
 const clipName = new Map(ANIMATIONS.map((a) => [a.id, a.name]));
 /** The vehicle each riding clip belongs to. */
 const RIDER: Record<string, string> = Object.fromEntries(Object.entries(RIDE).map(([v, clip]) => [clip, v]));
@@ -353,6 +350,14 @@ $<HTMLButtonElement>('#pg-download').onclick = () => {
   const link = document.createElement('a');link.href = URL.createObjectURL(new Blob([hero.glb as BlobPart], { type: 'model/gltf-binary' }));
   link.download = `${hero.params.name.replace(/[^\w-]+/g, '_') || 'character'}.glb`;link.click();setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 };
+
+// The embed demos load when they come into view, after the playground's first character.
+const demo = $<HTMLDivElement>('#embed-demo');
+for (const el of demo.querySelectorAll('ara-character')) el.setAttribute('assets-url', ASSETS);
+new IntersectionObserver((entries, observer) => {
+  if (!entries.some((e) => e.isIntersecting)) return;
+  observer.disconnect();void import('../../packages/cli/src/embed');
+}, { rootMargin: '200px' }).observe(demo);
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {

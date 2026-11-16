@@ -50,7 +50,7 @@ const dataChanged = published.sha256 !== sha;
 if (dataChanged && published.version === dataManifest.version) throw Error(`The character data changed: raise the version in packages/data/package.json (now ${dataManifest.version}).`);
 console.log(`ara3d-data ${dataManifest.version}: ${dataChanged ? 'new data, to publish' : 'unchanged'}`);
 
-for (const config of ['vite.config.ts', 'vite.lib.config.ts']) execFileSync('npx', ['vite', 'build', '--config', join(cli, config)], { cwd: root, stdio: 'inherit' });
+for (const config of ['vite.config.ts', 'vite.lib.config.ts', 'vite.embed.config.ts']) execFileSync('npx', ['vite', 'build', '--config', join(cli, config)], { cwd: root, stdio: 'inherit' });
 execFileSync('npx', ['tsc', '-p', join(cli, 'tsconfig.types.json')], { cwd: root, stdio: 'inherit' });
 // npm requires two-factor authentication to publish: pass the current code from your authenticator app with --otp.
 const otp = process.argv[process.argv.indexOf('--otp') + 1], publish = (cwd: string) => execFileSync('npm', ['publish', '--access', 'public', ...(process.argv.includes('--otp') && otp ? [`--otp=${otp}`] : [])], { cwd, stdio: 'inherit' });

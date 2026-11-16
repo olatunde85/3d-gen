@@ -33,6 +33,8 @@ export const PRESET_NAMES: readonly string[] = CATALOG.presets;
 export const ANIMATIONS: readonly { id: string; name: string; group: string; category: string; loop: boolean }[] = CATALOG.animations;
 /** Props for the weapon, carry and vehicle options. */
 export const PROPS: { weapons: readonly string[]; carried: readonly string[]; vehicles: readonly string[] } = CATALOG.props;
+/** The clip that shows each vehicle in use, such as { motorcycle: 'ride_motorcycle' }. */
+export const VEHICLE_CLIPS: Readonly<Record<string, string>> = CATALOG.rides;
 /** Facial expressions for setExpression(). */
 export const EXPRESSIONS: readonly string[] = Object.keys(CATALOG.expressions);
 /** Mouth shapes for lip-sync (the Oculus viseme names that lip-sync tools use), for setMouth(). */
