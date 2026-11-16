@@ -66,11 +66,13 @@ There are 32 presets (athletes, a detective, a secret agent, a soldier, a cyberp
 
 ## Detail levels
 
-| Level | Body | Typical triangles |
+| Level | Body | Typical triangles, dressed |
 | --- | --- | --- |
-| Low | MakeHuman game proxy (~1.6k quads) | ~5–10k |
-| Medium | Full base mesh | ~30–40k |
-| High (HD) | Catmull-Clark subdivided body + clothing | ~100–120k |
+| Low | MakeHuman game proxy (~1.6k quads) | ~25–50k |
+| Medium | Full base mesh | ~45–65k |
+| High (HD) | Catmull-Clark subdivided body + clothing | ~130–170k |
+
+Low simplifies the body; clothing and hair keep their detail, so they make up most of a low-detail character. A full gown takes more (The Bride is about 90k at low and 110k at medium).
 
 ## Clothing
 

@@ -28,6 +28,14 @@ Characters are built in a background worker, and the character data loads from a
 
 One tag, no build tools: it works in plain HTML, site builders and any framework. Guide: [ara3dgen.com/docs/embed](https://ara3dgen.com/docs/embed/).
 
+## From your AI assistant
+
+```bash
+claude mcp add ara3d -- npx -y ara3d mcp
+```
+
+`ara3d mcp` is an MCP server: Claude, Cursor, VS Code and other assistants make characters on your machine when you ask ("a cyberpunk hacker with a rifle, walking, as GLB"). Setup for each app: [ara3dgen.com/docs/mcp](https://ara3dgen.com/docs/mcp/).
+
 ## On the command line
 
 ```bash

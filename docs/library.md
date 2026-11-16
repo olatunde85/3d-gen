@@ -45,7 +45,7 @@ Unknown fields and out-of-range values are rejected with a message that says wha
 | Option | Meaning |
 |---|---|
 | `animations` | Clip IDs or categories, such as `['walk', 'run']` or `['locomotion', 'shooter']`; `'all'` (the default, 216 clips) or `'none'`. `ANIMATIONS` lists them |
-| `detail` | `'low'` (about 5–10k triangles), `'medium'` (about 30–40k) or `'high'` (about 100–120k) |
+| `detail` | `'low'` (about 25–50k triangles dressed), `'medium'` (about 45–65k) or `'high'` (about 130–170k); see [Detail levels](characters.md#detail-levels) |
 | `rootMotion` | Walks, runs and strafes move the character forward instead of playing in place |
 | `weapon` | `'rifle'`, `'pistol'`, `'sword'`, `'knife'` or `'grenade'`, held in the hand |
 | `carry` | Something to carry, such as `'backpack'`, `'briefcase'` or `'phone'` |

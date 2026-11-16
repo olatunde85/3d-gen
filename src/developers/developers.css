@@ -136,7 +136,7 @@
 .dev-cli p { color: var(--muted); margin: 14px 0 20px; }
 .dev-terminal { margin: 0; padding: 18px; border-radius: 14px; background: #0b0d12; border: 1px solid var(--line); overflow-x: auto; white-space: pre; }
 .dev-terminal .c { color: #6c7690; } .dev-terminal .p { color: var(--accent-2); }
-.dev-next-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 22px; }
+.dev-next-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
 .dev-next-grid a { display: grid; gap: 6px; text-decoration: none; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; color: var(--text); }
 .dev-next-grid a:hover { border-color: #3a4458; }
 .dev-next-grid span { color: var(--muted); font-size: 14px; }
