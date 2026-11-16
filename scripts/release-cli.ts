@@ -57,5 +57,18 @@ const otp = process.argv[process.argv.indexOf('--otp') + 1], publish = (cwd: str
 if (process.argv.includes('--publish')) {
   if (dataChanged) { publish(dataPackage);writeFileSync(hashFile, JSON.stringify({ version: dataManifest.version, sha256: sha }, null, 2) + '\n');console.log('Published ara3d-data; commit packages/data/data-hash.json'); }
   publish(cli);
+  // jsDelivr caches what "ara3d@0" means for up to 12 hours. Once npm shows the new version (it takes a minute or two),
+  // ask jsDelivr to look again, so pages using @0 get this release.
+  const version = JSON.parse(readFileSync(join(cli, 'package.json'), 'utf8')).version;
+  for (let i = 0; i < 36; i++) {
+    const shown = (() => { try { return execFileSync('npm', ['view', 'ara3d', 'version'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
+    if (shown === version) break;
+    if (i === 0) console.log(`Waiting for npm to show ara3d ${version}…`);
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+  for (const file of ['dist/embed.js', 'dist/index.js']) {
+    const response = await fetch(`https://purge.jsdelivr.net/npm/ara3d@0/${file}`).catch(() => undefined);
+    console.log(response?.ok ? `jsDelivr refreshed ara3d@0/${file}` : `Could not refresh ara3d@0/${file} on jsDelivr; it updates within 12 hours anyway.`);
+  }
 }
 else console.log('Ready. Publish with: npm run release-cli -- --publish');
