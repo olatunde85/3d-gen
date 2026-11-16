@@ -64,6 +64,12 @@ try {
   assert.equal(ride.clip, 'ride_motorcycle');assert.match(ride.code, /vehicle: 'motorcycle'/);assert.match(ride.code, /setExpression\('happy'\)/);
   console.log('OK motorcycle: plays', ride.clip, 'and keeps the chosen expression');
   await photo('playground-motorcycle', await box('#playground'));
+  // Longer code scrolls inside the code panel instead of making the playground taller.
+  await evaluate("document.getElementById('pg-talk').click()");await sleep(200);
+  const fit = await evaluate<{ code: number; controls: number; scrolls: boolean }>("({code:document.querySelector('.code').getBoundingClientRect().height,controls:document.querySelector('.pg-controls').getBoundingClientRect().height,scrolls:document.querySelector('.code pre').scrollHeight>document.querySelector('.code pre').clientHeight})");
+  assert.ok(fit.code <= fit.controls + 1 && fit.scrolls, `code panel ${fit.code}px, controls ${fit.controls}px, scrolls ${fit.scrolls}`);
+  console.log(`OK long code scrolls inside a ${Math.round(fit.code)} px panel`);
+  await evaluate("document.getElementById('pg-talk').click()");
   // The code in TypeScript.
   await evaluate("document.querySelector('[data-lang=ts]').click()");
   const typed = await evaluate<string>("document.getElementById('pg-code').textContent");

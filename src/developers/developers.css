@@ -92,7 +92,7 @@
 .code-tabs button { border: 0; background: none; color: var(--muted); font: 12px ui-monospace, Menlo, monospace; padding: 5px 9px; border-radius: 7px; cursor: pointer; }
 .code-tabs button[aria-selected="true"] { background: #1c2230; color: var(--text); }
 .code-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.code pre { margin: 0; padding: 14px 16px; overflow-x: auto; }
+.code pre { margin: 0; padding: 14px 16px; overflow: auto; max-height: 560px; }
 .code code, .dev-terminal code { font: 13.5px/1.6 ui-monospace, Menlo, monospace; color: #d7deea; }
 .tok-k { color: #c3a6ff; } .tok-s { color: #9fe3a5; } .tok-c { color: #6c7690; font-style: italic; } .tok-n { color: #ffcf8a; } .tok-f { color: #8fc5ff; }
 
@@ -119,8 +119,9 @@
   .pg-controls { grid-area: controls; align-self: start; }
   .pg-view { grid-area: view; aspect-ratio: auto; min-height: 560px; }
   .pg-meta { grid-area: meta; }
-  .code { grid-area: code; display: flex; flex-direction: column; }
-  .code pre { flex: 1; overflow: auto; }
+  /* The code never sets the row's height: it fills the height of the controls and view, and longer code scrolls. */
+  .code { grid-area: code; display: flex; flex-direction: column; contain: size; }
+  .code pre { flex: 1; min-height: 0; max-height: none; }
   .code code { font-size: 13px; }
   .code pre { padding: 14px; }
 }
