@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { parseSteps } from './library/sequence';
+import FIGURE_PNG from './library/loading-figure.png?inline';
 import { ANIMATIONS, createCharacter, VEHICLE_CLIPS, type AraCharacter, type Sequence, type CharacterColors, type CharacterInput, type CharacterOptions } from './index';
 
 /** Attributes that change the character itself, so it's rebuilt. */
@@ -19,9 +20,8 @@ const BUILD = ['preset', 'random', 'share', 'src', 'clips', 'detail', 'weapon', 
 const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background', 'margin'];
 
 /** A standing figure, used as a mask for the loading silhouette. */
-/** A standing figure (a mask for the loading silhouette), and its outline and contours. */
-const FIGURE = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 260"><path d="M50 3.5 C57 3.5 61 8.5 61 16 C61 22.5 58 27.5 54 30 C52 31.2 48 31.2 46 30 C42 27.5 39 22.5 39 16 C39 8.5 43 3.5 50 3.5 Z"/><path d="M50 27 C47.5 27 45.5 28 45.4 32 C45.3 35 45 37 43.5 38.5 C40 40.5 35 41 31.5 43 C29.5 44.2 29.2 48 30 52 C30.6 56 31 60 31.4 64 C32 71 33.4 79 34.2 86 C34.6 90 34.4 94 33.6 99 C32.6 105 31.6 111 31.8 118 C32.2 132 33.4 150 35.4 168 C35.8 172 35.6 176 35.4 180 C34.4 190 34.2 202 36.2 216 C37 224 38 231 38.4 238 C38.4 242 35.4 245 35.8 248 C36.4 251 43 251 46.2 249 C47 246 46.4 242 46.2 238 C46 228 46.6 218 46.6 206 C46.6 196 45.8 188 46 181 C46.2 176 46.6 172 46.8 166 C47.6 150 48.6 137 49.2 127 C49.5 124 49.8 123 50 123 C50.2 123 50.5 124 50.8 127 C51.4 137 52.4 150 53.2 166 C53.4 172 53.8 176 54 181 C54.2 188 53.4 196 53.4 206 C53.4 218 54 228 53.8 238 C53.6 242 53 246 53.8 249 C57 251 63.6 251 64.2 248 C64.6 245 61.6 242 61.6 238 C62 231 63 224 63.8 216 C65.8 202 65.6 190 64.6 180 C64.4 176 64.2 172 64.6 168 C66.6 150 67.8 132 68.2 118 C68.4 111 67.4 105 66.4 99 C65.6 94 65.4 90 65.8 86 C66.6 79 68 71 68.6 64 C69 60 69.4 56 70 52 C70.8 48 70.5 44.2 68.5 43 C65 41 60 40.5 56.5 38.5 C55 37 54.7 35 54.6 32 C54.5 28 52.5 27 50 27 Z"/><path d="M31.4 43 C27 43.5 24.2 46 23.8 52 C23.4 60 22.6 68 22 76 C21.6 80 21 84 20.6 88 C19.8 96 19.4 104 19.4 111 C18.2 114 16.6 119 17.4 125 C18.2 130 22.6 131 24 127 C24.8 124 24.4 118 24.6 113 C25 106 25.8 98 26.4 90 C26.8 85 27.2 81 27.8 77 C28.6 70 29.2 62 29.8 55 C30 51 31 46 31.4 43 Z"/><path d="M68.6 43 C73 43.5 75.8 46 76.2 52 C76.6 60 77.4 68 78 76 C78.4 80 79 84 79.4 88 C80.2 96 80.6 104 80.6 111 C81.8 114 83.4 119 82.6 125 C81.8 130 77.4 131 76 127 C75.2 124 75.6 118 75.4 113 C75 106 74.2 98 73.6 90 C73.2 85 72.8 81 72.2 77 C71.4 70 70.8 62 70.2 55 C70 51 69 46 68.6 43 Z"/></svg>')}")`;
-const CONTOURS = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 260" fill="none" stroke-linecap="round" stroke-linejoin="round"><g stroke="#e4e7ee" stroke-opacity="0.32" stroke-width="0.55"><path d="M50 3.5 C57 3.5 61 8.5 61 16 C61 22.5 58 27.5 54 30 C52 31.2 48 31.2 46 30 C42 27.5 39 22.5 39 16 C39 8.5 43 3.5 50 3.5 Z"/><path d="M50 27 C47.5 27 45.5 28 45.4 32 C45.3 35 45 37 43.5 38.5 C40 40.5 35 41 31.5 43 C29.5 44.2 29.2 48 30 52 C30.6 56 31 60 31.4 64 C32 71 33.4 79 34.2 86 C34.6 90 34.4 94 33.6 99 C32.6 105 31.6 111 31.8 118 C32.2 132 33.4 150 35.4 168 C35.8 172 35.6 176 35.4 180 C34.4 190 34.2 202 36.2 216 C37 224 38 231 38.4 238 C38.4 242 35.4 245 35.8 248 C36.4 251 43 251 46.2 249 C47 246 46.4 242 46.2 238 C46 228 46.6 218 46.6 206 C46.6 196 45.8 188 46 181 C46.2 176 46.6 172 46.8 166 C47.6 150 48.6 137 49.2 127 C49.5 124 49.8 123 50 123 C50.2 123 50.5 124 50.8 127 C51.4 137 52.4 150 53.2 166 C53.4 172 53.8 176 54 181 C54.2 188 53.4 196 53.4 206 C53.4 218 54 228 53.8 238 C53.6 242 53 246 53.8 249 C57 251 63.6 251 64.2 248 C64.6 245 61.6 242 61.6 238 C62 231 63 224 63.8 216 C65.8 202 65.6 190 64.6 180 C64.4 176 64.2 172 64.6 168 C66.6 150 67.8 132 68.2 118 C68.4 111 67.4 105 66.4 99 C65.6 94 65.4 90 65.8 86 C66.6 79 68 71 68.6 64 C69 60 69.4 56 70 52 C70.8 48 70.5 44.2 68.5 43 C65 41 60 40.5 56.5 38.5 C55 37 54.7 35 54.6 32 C54.5 28 52.5 27 50 27 Z"/><path d="M31.4 43 C27 43.5 24.2 46 23.8 52 C23.4 60 22.6 68 22 76 C21.6 80 21 84 20.6 88 C19.8 96 19.4 104 19.4 111 C18.2 114 16.6 119 17.4 125 C18.2 130 22.6 131 24 127 C24.8 124 24.4 118 24.6 113 C25 106 25.8 98 26.4 90 C26.8 85 27.2 81 27.8 77 C28.6 70 29.2 62 29.8 55 C30 51 31 46 31.4 43 Z"/><path d="M68.6 43 C73 43.5 75.8 46 76.2 52 C76.6 60 77.4 68 78 76 C78.4 80 79 84 79.4 88 C80.2 96 80.6 104 80.6 111 C81.8 114 83.4 119 82.6 125 C81.8 130 77.4 131 76 127 C75.2 124 75.6 118 75.4 113 C75 106 74.2 98 73.6 90 C73.2 85 72.8 81 72.2 77 C71.4 70 70.8 62 70.2 55 C70 51 69 46 68.6 43 Z"/></g><g stroke="#e4e7ee" stroke-opacity="0.2" stroke-width="0.45"><path d="M37 44 C41 45 45 45.5 48.5 44.6"/><path d="M63 44 C59 45 55 45.5 51.5 44.6"/><path d="M34 63 C38 67.5 45 68 49.4 65.5"/><path d="M66 63 C62 67.5 55 68 50.6 65.5"/><path d="M50 68 L50 104"/><path d="M44.5 76 C46.5 77 48.5 77 49.5 76.5"/><path d="M55.5 76 C53.5 77 51.5 77 50.5 76.5"/><path d="M45 86 C46.8 86.8 48.6 86.8 49.5 86.4"/><path d="M55 86 C53.2 86.8 51.4 86.8 50.5 86.4"/><path d="M35.5 96 C39 104 44 112 48.5 117"/><path d="M64.5 96 C61 104 56 112 51.5 117"/><path d="M38.8 176 C40.5 178.5 43 178.5 44.4 176"/><path d="M61.2 176 C59.5 178.5 57 178.5 55.6 176"/><path d="M38 192 C39 200 40 206 40.4 212"/><path d="M62 192 C61 200 60 206 59.6 212"/><path d="M24.4 79 C25 81 25.6 82 26.4 82.6"/><path d="M75.6 79 C75 81 74.4 82 73.6 82.6"/><path d="M46 27.6 C48.6 29 51.4 29 54 27.6"/></g></svg>')}")`;
+/** A real Ara character as a wireframe (scripts/loading-figure.ts), the mask for the loading figure. */
+const FIGURE = `url("${FIGURE_PNG}")`;
 
 const STYLE = `
 :host { display: block; position: relative; width: 100%; aspect-ratio: 3 / 4; min-height: 160px; overflow: hidden; contain: content; }
@@ -29,22 +29,18 @@ const STYLE = `
 canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: pan-y; }
 .status { position: absolute; left: 50%; bottom: 10%; transform: translateX(-50%); width: min(120px, 40%); display: grid; gap: 6px; transition: opacity 0.25s; }
 .status[hidden] { display: grid; opacity: 0; pointer-events: none; }
-.bar { height: 3px; border-radius: 3px; background: rgba(138, 144, 156, 0.25); overflow: hidden; }
-.bar i { display: block; height: 100%; width: 0; background: rgba(138, 144, 156, 0.75); transition: width 0.2s; }
 /* "Loading…" is for screen readers; an error shows its message in a small panel. */
 .status span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .status.error { bottom: 12px; width: min(240px, 84%); padding: 9px 11px; font: 12px/1.3 system-ui, sans-serif; text-align: center; color: #ffd2c4; background: rgba(15, 17, 22, 0.72); border-radius: 10px; }
-.status.error .bar { display: none; }
-.status.error span { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
+.status.error .status.error span { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
 /* While the first character loads: a quiet, translucent figure with a soft light passing over it, standing where the
    character will. Grey on any background, so it suits any page. */
-.figure { position: absolute; left: 50%; bottom: 17%; height: 70%; aspect-ratio: 100 / 260; transform: translateX(-50%); pointer-events: none; transition: opacity 0.5s; }
-.figure i { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(138, 144, 156, 0.26) 42%, rgba(196, 202, 214, 0.5) 50%, rgba(138, 144, 156, 0.26) 58%) 0 0 / 300% 100%;
+.figure { position: absolute; left: 50%; bottom: 12%; height: 76%; aspect-ratio: 440 / 900; transform: translateX(-50%); pointer-events: none; transition: opacity 0.5s; }
+.figure i { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(150, 156, 170, 0.5) 40%, rgba(225, 230, 240, 0.95) 50%, rgba(150, 156, 170, 0.5) 60%) 0 0 / 300% 100%;
   -webkit-mask: ${FIGURE} center / contain no-repeat; mask: ${FIGURE} center / contain no-repeat; animation: shimmer 2.2s ease-in-out infinite; }
-.figure u { position: absolute; inset: 0; background: ${CONTOURS} center / contain no-repeat; }
 .figure[hidden] { display: block; opacity: 0; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
-@media (prefers-reduced-motion: reduce) { .status, .bar i, .figure { transition: none; } .figure i { animation: none; } }`;
+@media (prefers-reduced-motion: reduce) { .status, .figure { transition: none; } .figure i { animation: none; } }`;
 
 /** A round fade from solid in the middle to clear at the edge, so the water blends into the page. */
 function fade() {
@@ -85,7 +81,6 @@ export class AraCharacterElement extends HTMLElement {
   private view?: { renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; controls: OrbitControls; floor: THREE.Mesh; water: THREE.Mesh; mixers: THREE.AnimationMixer[]; last: number; resize: ResizeObserver; seen: IntersectionObserver };
   private status: HTMLDivElement;
   private figure: HTMLDivElement;
-  private bar: HTMLElement;
   private label: HTMLSpanElement;
   private building = 0;
   private queued = false;
@@ -98,9 +93,9 @@ export class AraCharacterElement extends HTMLElement {
   constructor() {
     super();
     const root = this.attachShadow({ mode: 'open' });
-    root.innerHTML = `<style>${STYLE}</style><div class="figure" part="figure" aria-hidden="true"><i></i><u></u></div><div class="status" part="status" role="status"><div class="bar"><i></i></div><span>Loading…</span></div>`;
+    root.innerHTML = `<style>${STYLE}</style><div class="figure" part="figure" aria-hidden="true"><i></i></div><div class="status" part="status" role="status"><span>Loading…</span></div>`;
     this.figure = root.querySelector('.figure')!;
-    this.status = root.querySelector('.status')!;this.bar = root.querySelector('.bar i')!;this.label = root.querySelector('.status span')!;
+    this.status = root.querySelector('.status')!;this.label = root.querySelector('.status span')!;
   }
 
   connectedCallback() {
@@ -341,6 +336,9 @@ export class AraCharacterElement extends HTMLElement {
   private async rebuild() {
     const id = ++this.building;
     this.show('Loading…', 0.03);
+    // While a new character builds, the loading figure stands in for the old one.
+    if (this.character) { this.character.scene.visible = false;for (const p of this.character.props) p.scene.visible = false; }
+    this.figure.hidden = false;
     try {
       const next = await createCharacter(await this.input(), { ...this.options(), onProgress: (_label, fraction) => { if (id === this.building) this.show('Loading…', 0.05 + fraction * 0.9); } });
       if (id !== this.building || !this.view) { next.dispose();return; }
@@ -356,12 +354,12 @@ export class AraCharacterElement extends HTMLElement {
     }
   }
 
-  private show(text: string, fraction: number) {
-    this.status.hidden = false;this.status.classList.remove('error');this.label.textContent = text;this.bar.style.width = `${Math.round(fraction * 100)}%`;
+  private show(text: string, _fraction?: number) {
+    this.status.hidden = false;this.status.classList.remove('error');this.label.textContent = text;
   }
 
   private fail(error: Error) {
-    this.figure.hidden = true;this.status.hidden = false;this.status.classList.add('error');this.label.textContent = error.message;this.bar.style.width = '0';
+    this.figure.hidden = true;this.status.hidden = false;this.status.classList.add('error');this.label.textContent = error.message;
     console.warn('<ara-character>:', error.message);
     this.dispatchEvent(new CustomEvent('error', { detail: error }));
   }
