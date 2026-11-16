@@ -188,3 +188,27 @@ if (devx) {
     observer.disconnect();void import('../../packages/cli/src/embed');
   }, { rootMargin: '400px 0px' }).observe(devx);
 }
+
+// --- The live character in the hero: the cast below swaps who's on stage ------------------------------------------
+const hero = document.getElementById('hero-character');
+if (hero) {
+  const name = document.getElementById('hero-name')!, edit = document.getElementById('hero-edit') as HTMLAnchorElement;
+  const cards = [...document.querySelectorAll<HTMLAnchorElement>('.hero-cast .cast-card')];
+  const show = (card: HTMLAnchorElement) => {
+    hero.setAttribute('preset', card.dataset.preset!);hero.setAttribute('animation', card.dataset.animation!);
+    name.textContent = card.dataset.preset!;edit.href = card.href;
+    for (const c of cards) c.setAttribute('aria-current', String(c === card));
+  };
+  for (const card of cards) card.addEventListener('click', (e) => {
+    // A plain click puts the character on stage; with a modifier key the link opens the builder as usual.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();show(card);
+  });
+  const first = cards.find((c) => c.dataset.preset === hero.getAttribute('preset'));
+  if (first) first.setAttribute('aria-current', 'true');
+  hero.setAttribute('assets-url', `${import.meta.env.BASE_URL}assets/`);
+  // The 3D starts once the page has loaded, so the text and images come first.
+  const start = () => void import('../../packages/cli/src/embed');
+  if (document.readyState === 'complete') setTimeout(start, 200);
+  else addEventListener('load', () => setTimeout(start, 200), { once: true });
+}

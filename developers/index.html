@@ -27,6 +27,7 @@
         <a href="#playground">Playground</a>
         <a href="#embed">Embed</a>
         <a href="#cli">Command line</a>
+        <a href="#mcp">AI assistants</a>
         <a href="../docs/library/">Library docs</a>
         <a href="../docs/cli/">CLI docs</a>
         <a href="https://github.com/olatunde85/3d-gen">GitHub</a>
@@ -38,11 +39,12 @@
       <section class="dev-hero">
         <p class="dev-eyebrow">Ara for Developers</p>
         <h1>3D characters in <span class="grad">one line of code.</span></h1>
-        <p class="dev-lede">Realistic, rigged and animated humans, generated on your users' devices. A three.js library for your web app or game, and a command-line tool for your pipeline. Free and open source.</p>
+        <p class="dev-lede">Realistic, rigged and animated humans, generated on your users' devices. A three.js library for your web app or game, a command-line tool for your pipeline, and an MCP server for your AI assistant. Free and open source.</p>
         <div class="install" role="tablist" aria-label="Install">
           <div class="install-tabs">
             <button type="button" role="tab" aria-selected="true" data-install="npm">Library</button>
             <button type="button" role="tab" aria-selected="false" data-install="cli">Command line</button>
+            <button type="button" role="tab" aria-selected="false" data-install="mcp">AI assistant</button>
           </div>
           <div class="install-line"><code id="install-command">npm install ara3d three</code><button type="button" class="copy" data-copy="#install-command">Copy</button></div>
         </div>
@@ -172,6 +174,27 @@
 <span class="p">$</span> npx ara3d export --random 1-200 --detail low --no-animations
 <span class="c"># your own character, as a file you can keep in Git</span>
 <span class="p">$</span> npx ara3d new hero &amp;&amp; npx ara3d export --params hero.json --formats glb,fbx</code></pre>
+      </section>
+
+      <section id="mcp" class="dev-cli dev-mcp" aria-labelledby="mcp-title">
+        <div>
+          <h2 id="mcp-title">Or just ask your AI assistant.</h2>
+          <p>Add Ara to Claude, Cursor or VS Code with one line, then ask for characters in plain words. The assistant designs them, builds them on your machine and hands back the files, with a link to keep editing in the builder.</p>
+          <div class="install-line mcp-line"><code id="mcp-command">claude mcp add ara3d -- npx -y ara3d mcp</code><button type="button" class="copy" data-copy="#mcp-command">Copy</button></div>
+          <a class="btn btn-ghost" href="../docs/mcp/">Setup for every assistant</a>
+        </div>
+        <pre class="dev-terminal dev-chat" aria-label="An example conversation"><code><span class="who">You</span>
+Make a cyberpunk hacker with a rifle, walking,
+as a GLB for my Godot game.
+
+<span class="who">Claude</span> <span class="c">· ara3d create_character</span>
+Made The Cyberpunk Hacker: 151 cm tall,
+44,660 triangles, 1 animation, in 1.5 s.
+
+  <span class="file">~/ara3d-characters/The_Cyberpunk_Hacker.glb</span>
+
+See it and keep editing in the Ara builder:
+<span class="c">https://ara3dgen.com/app/#c=…</span></code></pre>
       </section>
 
       <section class="dev-next" aria-labelledby="next-title">

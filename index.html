@@ -92,14 +92,25 @@
             <li>GLB · FBX · OBJ · MP4</li>
           </ul>
         </div>
-        <figure class="hero-media reveal">
-          <div class="frame">
-            <video class="reel-video" data-reel="studio" muted loop playsinline preload="none" poster="/media/ara-studio-reel-poster.jpg" aria-label="Ara 3D Studio reel: a tank and a helicopter, a jet takeoff, a parachute jump, a shootout, a highway race, a street café, a rooftop chase and a beach party, ending in the Studio editor"></video>
-            <button class="reel-sound" type="button" data-video="studio"><span class="play" aria-hidden="true"></span>Watch with sound</button>
+        <div class="hero-stage reveal">
+          <ara-character id="hero-character" preset="The Miami Dealer" animation="dance_groove 6s, cheer" detail="low" auto-rotate></ara-character>
+          <p class="stage-tag"><span class="live-dot" aria-hidden="true"></span>Live 3D · drag to turn</p>
+          <div class="stage-foot">
+            <span id="hero-name">The Miami Dealer</span>
+            <a id="hero-edit" href="app/#preset=The%20Miami%20Dealer">Edit in the builder <span aria-hidden="true">→</span></a>
           </div>
-          <figcaption>Every shot in this reel was made and exported in Ara 3D Studio.</figcaption>
-        </figure>
+        </div>
       </section>
+      <div class="cast hero-cast" aria-label="Presets: show one above, or open it in the builder">
+          <a class="cast-card" href="app/#preset=The%20Female%20Executive" data-preset="The Female Executive" data-animation="model_walk 4s, wave"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive" loading="eager" /><span>Executive</span></a>
+          <a class="cast-card" href="app/#preset=The%20Miami%20Dealer" data-preset="The Miami Dealer" data-animation="dance_groove 6s, cheer"><img src="./docs/media/presets/miami-dealer.jpg" alt="The Miami Dealer" loading="eager" /><span>Dealer</span></a>
+          <a class="cast-card" href="app/#preset=The%20Gangster" data-preset="The Gangster" data-animation="dance_bounce 6s, cheer"><img src="./docs/media/presets/gangster.jpg" alt="The Gangster" loading="eager" /><span>Gangster</span></a>
+          <a class="cast-card" href="app/#preset=The%20Priest" data-preset="The Priest" data-animation="walk 2s, wave, cheer"><img src="./docs/media/presets/priest.jpg" alt="The Priest" loading="eager" /><span>Priest</span></a>
+          <a class="cast-card" href="app/#preset=The%20Corporate%20High-Flier" data-preset="The Corporate High-Flier" data-animation="phone_call 5s, walk 2s"><img src="./docs/media/presets/corporate-high-flier.jpg" alt="The Corporate High-Flier" loading="eager" /><span>High-Flier</span></a>
+          <a class="cast-card" href="app/#preset=The%20Prison%20Escapee" data-preset="The Prison Escapee" data-animation="run 3s, jump, cheer"><img src="./docs/media/presets/prison-escapee.jpg" alt="The Prison Escapee" loading="eager" /><span>Escapee</span></a>
+          <a class="cast-card" href="app/#preset=The%20Arabian%20Oil%20Tycoon" data-preset="The Arabian Oil Tycoon" data-animation="wave, talk_gestures 5s"><img src="./docs/media/presets/arabian-oil-tycoon.jpg" alt="The Arabian Oil Tycoon" loading="eager" /><span>Oil Tycoon</span></a>
+          <a class="cast-card" href="app/#preset=The%20Adventurer" data-preset="The Adventurer" data-animation="punch_combo, kick_roundhouse, cheer"><img src="./docs/media/presets/adventurer.jpg" alt="The Adventurer" loading="eager" /><span>Adventurer</span></a>
+      </div>
 
       <!-- Numbers -->
       <section class="numbers reveal" aria-label="Ara 3D Gen in numbers">
@@ -118,18 +129,9 @@
           <p class="chapter-lede">Start from a preset or a blank body and shape everything: body, face, skin, hair, clothes and props. Every character is rigged and animated the moment you export it.</p>
           <a class="more" href="app/">Open the builder <span aria-hidden="true">→</span></a>
         </header>
-        <div class="cast" aria-label="Presets: open any of them in the builder">
-            <a class="cast-card" href="app/#preset=The%20Female%20Executive"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive preset" loading="lazy" /><span>Executive</span></a>
-            <a class="cast-card" href="app/#preset=The%20Miami%20Dealer"><img src="./docs/media/presets/miami-dealer.jpg" alt="The Miami Dealer preset" loading="lazy" /><span>Dealer</span></a>
-            <a class="cast-card" href="app/#preset=The%20Gangster"><img src="./docs/media/presets/gangster.jpg" alt="The Gangster preset" loading="lazy" /><span>Gangster</span></a>
-            <a class="cast-card" href="app/#preset=The%20Priest"><img src="./docs/media/presets/priest.jpg" alt="The Priest preset" loading="lazy" /><span>Priest</span></a>
-            <a class="cast-card" href="app/#preset=The%20Corporate%20High-Flier"><img src="./docs/media/presets/corporate-high-flier.jpg" alt="The Corporate High-Flier preset" loading="lazy" /><span>High-Flier</span></a>
-            <a class="cast-card" href="app/#preset=The%20Prison%20Escapee"><img src="./docs/media/presets/prison-escapee.jpg" alt="The Prison Escapee preset" loading="lazy" /><span>Escapee</span></a>
-            <a class="cast-card" href="app/#preset=The%20Arabian%20Oil%20Tycoon"><img src="./docs/media/presets/arabian-oil-tycoon.jpg" alt="The Arabian Oil Tycoon preset" loading="lazy" /><span>Oil Tycoon</span></a>
-            <a class="cast-card" href="app/#preset=The%20Adventurer"><img src="./docs/media/presets/adventurer.jpg" alt="The Adventurer preset" loading="lazy" /><span>Adventurer</span></a>
-            <a class="cast-card" href="app/#preset=The%20Cyberpunk%20Hacker"><img src="./docs/media/presets/cyberpunk-hacker.jpg" alt="The Cyberpunk Hacker preset" loading="lazy" /><span>Hacker</span></a>
-            <a class="cast-card" href="app/#preset=The%20Yoruba%20Warrior"><img src="./docs/media/presets/yoruba-warrior.jpg" alt="The Yoruba Warrior preset" loading="lazy" /><span>Yoruba Warrior</span></a>
-        </div>
+        <figure class="chapter-media reveal">
+          <div class="frame"><img src="/media/builder.jpg" alt="The Ara builder: The Female Executive in her cream pantsuit, with the quick-build controls on the left and export, Studio and Share at the bottom" width="2000" height="1250" loading="lazy" /></div>
+        </figure>
         <dl class="specs stagger">
           <div><dt>Realistic humans</dt><dd>The CC0 MakeHuman dataset: 900+ morph targets, 219 detail sliders, 20 photo-based skins and three detail levels.</dd></div>
           <div><dt>Clothing and culture</dt><dd>Tops, bottoms, wrappers, uniforms and 30+ accessories in kente, aso-oke, ankara, adire, camo and leather, all recolourable.</dd></div>
@@ -147,9 +149,16 @@
         <header class="chapter-head reveal">
           <p class="index"><span>02</span>Film</p>
           <h2>Direct your characters in short films.</h2>
-          <p class="chapter-lede">Cast up to five characters in a scene and direct each one on a timeline. Add dialogue, sound and music, then export an MP4. The reel above was made this way.</p>
+          <p class="chapter-lede">Cast up to five characters in a scene and direct each one on a timeline. Add dialogue, sound and music, then export an MP4. Every shot in this reel was made that way.</p>
           <p class="more-row"><a class="more" href="studio/">Open Studio <span aria-hidden="true">→</span></a><a class="more more-quiet" href="docs/studio/">Studio guide</a></p>
         </header>
+        <figure class="chapter-media reveal">
+          <div class="frame">
+            <video class="reel-video" data-reel="studio" muted loop playsinline preload="none" poster="/media/ara-studio-reel-poster.jpg" aria-label="Ara 3D Studio reel: a tank and a helicopter, a jet takeoff, a parachute jump, a shootout, a highway race, a street café, a rooftop chase and a beach party, ending in the Studio editor"></video>
+            <button class="reel-sound" type="button" data-video="studio"><span class="play" aria-hidden="true"></span>Watch with sound</button>
+          </div>
+          <figcaption>Made and exported in Ara 3D Studio.</figcaption>
+        </figure>
         <div class="locations stagger" aria-label="Eight of the 66 Studio locations">
           <figure><img src="/studio-location-previews/neon-street.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Neon street</figcaption></figure>
           <figure><img src="/studio-location-previews/football-stadium.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Football stadium</figcaption></figure>

@@ -33,7 +33,7 @@ options(weapon, ['none', ...PROPS.weapons]);options(carry, ['none', ...PROPS.car
 options(vehicle, ['none', ...PROPS.vehicles.filter((v) => v !== 'auto')]);
 
 // --- Install tabs and copy buttons -----------------------------------------------------------------------------
-const INSTALL: Record<string, string> = { npm: 'npm install ara3d three', cli: 'npx ara3d export --preset "The Soldier"' };
+const INSTALL: Record<string, string> = { npm: 'npm install ara3d three', cli: 'npx ara3d export --preset "The Soldier"', mcp: 'claude mcp add ara3d -- npx -y ara3d mcp' };
 for (const tab of document.querySelectorAll<HTMLButtonElement>('[data-install]')) tab.onclick = () => {
   for (const t of document.querySelectorAll('[data-install]')) t.setAttribute('aria-selected', String(t === tab));
   $('#install-command').textContent = INSTALL[tab.dataset.install!];
