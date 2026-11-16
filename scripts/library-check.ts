@@ -85,9 +85,12 @@ window.ready = true;
 // Only these paths are served.
 const MOUNTS: [string, string][] = [['/three/', join(root, 'node_modules/three/')], ['/ara3d/', join(root, 'packages/cli/dist/')], ['/assets/', join(root, 'public/assets/')]];
 const TYPES: Record<string, string> = { '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.pack': 'application/octet-stream' };
+let refusedOnce = false;
 const server = createServer((req, res) => {
   const path = decodeURIComponent((req.url ?? '/').split('?')[0]);
   if (path === '/' || path === '/index.html') { res.setHeader('Content-Type', 'text/html');res.end(PAGE);return; }
+  // The first request for the catalogue gets a 503, like a busy CDN: the library has to try again.
+  if (path === '/assets/catalog.json' && !refusedOnce) { refusedOnce = true;res.statusCode = 503;res.end();return; }
   const mount = MOUNTS.find(([prefix]) => path.startsWith(prefix)), file = mount && resolve(mount[1], path.slice(mount[0].length));
   if (!mount || !file || !file.startsWith(mount[1]) || !existsSync(file) || statSync(file).isDirectory()) { res.statusCode = 404;res.end();return; }
   res.setHeader('Content-Type', TYPES[extname(file)] ?? 'application/octet-stream');res.end(readFileSync(file));
@@ -188,6 +191,7 @@ try {
   console.log(`OK sequence: ${seq.order.join(' → ')} (wave ${seq.lengths.wave.toFixed(1)} s, cheer ${seq.lengths.cheer.toFixed(1)} s); errors: ${seq.errors.join(' / ')}`);
   const glb = await evaluate<any>('window.glbOnly()');
   assert.equal(glb.magic, 'glTF');console.log(`OK createCharacterGLB: ${(glb.size / 1e6).toFixed(1)} MB GLB`);
+  assert.ok(refusedOnce);console.log('OK a busy server (503) was tried again');
   console.log(`Library checks passed. Photos in ${out}`);
 } finally {
   // Let Chrome exit before removing its profile, which it writes to until then.

@@ -165,6 +165,7 @@ await createCharacter('The Soldier', { assetsUrl: '/ara3d-assets/' });
 ## Good to know
 
 - **Responsiveness:** building runs in a worker, but loading the finished model into three.js happens on the page and takes a moment for large characters. Build during a loading screen, or keep `animations` small.
+- **Pages opened as files:** browsers block the worker on a page opened straight from disk (`file://`), so serve it, even locally (`npx serve`).
 - **Content-Security-Policy:** the worker runs from a `blob:` address. Sites with a strict policy need `worker-src blob:`.
 - **Several characters:** the data loads once and is shared, so later characters build faster.
 - **Licence:** the library is MIT. Characters are built from CC0 MakeHuman data, with animations from the CMU Graphics Lab Motion Capture Database, so you can use them in commercial projects.

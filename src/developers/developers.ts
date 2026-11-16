@@ -303,10 +303,11 @@ function writeCode() {
     ] : []),
     ``,
     `// Every frame, move the animation and the face on.`,
-    `const clock = new THREE.Clock();`,
-    `renderer.setAnimationLoop(() => {`,
+    `let last = performance.now();`,
+    `renderer.setAnimationLoop((time) => {`,
     `  // Seconds since the last frame.`,
-    `  const delta = clock.getDelta();`,
+    `  const delta = (time - last) / 1000;`,
+    `  last = time;`,
     `  // Pose the body for this moment of the clip.`,
     `  mixer.update(delta);`,
     ...(rideMoves ? [`  vehicleMixer.update(delta);`] : []),
@@ -359,9 +360,9 @@ new IntersectionObserver((entries, observer) => {
   observer.disconnect();void import('../../packages/cli/src/embed');
 }, { rootMargin: '200px' }).observe(demo);
 
-const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
-  const delta = Math.min(clock.getDelta(), 0.1);
+let last = 0;
+renderer.setAnimationLoop((time) => {
+  const delta = last ? Math.min((time - last) / 1000, 0.1) : 0;last = time;
   for (const m of mixers) m.update(delta);
   talkStep(delta);hero?.update(delta);follow();
   controls.update();renderer.render(scene, camera);

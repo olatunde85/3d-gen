@@ -18,17 +18,30 @@ const BUILD = ['preset', 'random', 'share', 'src', 'detail', 'weapon', 'carry', 
 /** Attributes that apply at once. */
 const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background'];
 
+/** A standing figure, used as a mask for the loading silhouette. */
+const FIGURE = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 260"><ellipse cx="50" cy="19" rx="12.5" ry="14.5"/><path d="M44 33 C44 37 43 39 39 40 C33 42 26 43 23 48 C20 53 19 62 18 72 C17 86 15 100 13 114 C12 120 12 127 15 129 C18 131 20 126 21 120 C23 106 25 92 27 80 C28 75 29 71 30 68 C30 80 31 92 31 104 C31 112 29 118 29 126 C29 150 31 175 32 200 C33 220 33 238 33 248 C33 252 30 254 31 257 C35 259 44 259 45 256 C46 240 46 222 47 200 C48 175 49 150 50 136 C51 150 52 175 53 200 C54 222 54 240 55 256 C56 259 65 259 69 257 C70 254 67 252 67 248 C67 238 67 220 68 200 C69 175 71 150 71 126 C71 118 69 112 69 104 C69 92 70 80 70 68 C71 71 72 75 73 80 C75 92 77 106 79 120 C80 126 82 131 85 129 C88 127 88 120 87 114 C85 100 83 86 82 72 C81 62 80 53 77 48 C74 43 67 42 61 40 C57 39 56 37 56 33 Z"/></svg>')}")`;
+
 const STYLE = `
 :host { display: block; position: relative; width: 100%; aspect-ratio: 3 / 4; min-height: 160px; overflow: hidden; contain: content; }
 :host([hidden]) { display: none; }
 canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: pan-y; }
-.status { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: min(220px, 80%); display: grid; gap: 6px; padding: 9px 11px;
-  font: 12px/1.3 system-ui, sans-serif; text-align: center; color: #e9edf4; background: rgba(15, 17, 22, 0.72); border-radius: 10px; transition: opacity 0.25s; }
+.status { position: absolute; left: 50%; bottom: 10%; transform: translateX(-50%); width: min(120px, 40%); display: grid; gap: 6px; transition: opacity 0.25s; }
 .status[hidden] { display: grid; opacity: 0; pointer-events: none; }
-.bar { height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.15); overflow: hidden; }
-.bar i { display: block; height: 100%; width: 0; background: #7aa2ff; transition: width 0.2s; }
-.status.error { color: #ffb4a0; }
-@media (prefers-reduced-motion: reduce) { .status, .bar i { transition: none; } }`;
+.bar { height: 3px; border-radius: 3px; background: rgba(138, 144, 156, 0.25); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: rgba(138, 144, 156, 0.75); transition: width 0.2s; }
+/* "Loading…" is for screen readers; an error shows its message in a small panel. */
+.status span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.status.error { bottom: 12px; width: min(240px, 84%); padding: 9px 11px; font: 12px/1.3 system-ui, sans-serif; text-align: center; color: #ffd2c4; background: rgba(15, 17, 22, 0.72); border-radius: 10px; }
+.status.error .bar { display: none; }
+.status.error span { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
+/* While the first character loads: a quiet, translucent figure with a soft light passing over it, standing where the
+   character will. Grey on any background, so it suits any page. */
+.figure { position: absolute; left: 50%; bottom: 17%; height: 70%; aspect-ratio: 100 / 260; transform: translateX(-50%); pointer-events: none; transition: opacity 0.5s; }
+.figure i { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(138, 144, 156, 0.26) 42%, rgba(196, 202, 214, 0.5) 50%, rgba(138, 144, 156, 0.26) 58%) 0 0 / 300% 100%;
+  -webkit-mask: ${FIGURE} center / contain no-repeat; mask: ${FIGURE} center / contain no-repeat; animation: shimmer 2.2s ease-in-out infinite; }
+.figure[hidden] { display: block; opacity: 0; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .status, .bar i, .figure { transition: none; } .figure i { animation: none; } }`;
 
 /** "outfit: #1d2a44; carry: #8a1c1c" -> { outfit: '#1d2a44', carry: '#8a1c1c' } */
 function parseColors(text: string): CharacterColors {
@@ -55,8 +68,9 @@ export class AraCharacterElement extends HTMLElement {
   static observedAttributes = [...BUILD, ...LIVE];
   /** The character on show, once it has loaded. */
   character?: AraCharacter;
-  private view?: { renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; controls: OrbitControls; floor: THREE.Mesh; mixers: THREE.AnimationMixer[]; clock: THREE.Clock; resize: ResizeObserver; seen: IntersectionObserver };
+  private view?: { renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; controls: OrbitControls; floor: THREE.Mesh; mixers: THREE.AnimationMixer[]; last: number; resize: ResizeObserver; seen: IntersectionObserver };
   private status: HTMLDivElement;
+  private figure: HTMLDivElement;
   private bar: HTMLElement;
   private label: HTMLSpanElement;
   private building = 0;
@@ -67,7 +81,8 @@ export class AraCharacterElement extends HTMLElement {
   constructor() {
     super();
     const root = this.attachShadow({ mode: 'open' });
-    root.innerHTML = `<style>${STYLE}</style><div class="status" role="status"><div class="bar"><i></i></div><span>Loading…</span></div>`;
+    root.innerHTML = `<style>${STYLE}</style><div class="figure" aria-hidden="true"><i></i></div><div class="status" role="status"><div class="bar"><i></i></div><span>Loading…</span></div>`;
+    this.figure = root.querySelector('.figure')!;
     this.status = root.querySelector('.status')!;this.bar = root.querySelector('.bar i')!;this.label = root.querySelector('.status span')!;
   }
 
@@ -89,9 +104,9 @@ export class AraCharacterElement extends HTMLElement {
     const resize = new ResizeObserver(() => this.fit());resize.observe(this);
     // Off screen, the element stops drawing.
     const seen = new IntersectionObserver(([entry]) => { this.visible = entry.isIntersecting; });seen.observe(this);
-    this.view = { renderer, scene, camera, controls, floor, mixers: [], clock: new THREE.Clock(), resize, seen };
+    this.view = { renderer, scene, camera, controls, floor, mixers: [], last: 0, resize, seen };
     this.applyLive();this.fit();
-    renderer.setAnimationLoop(() => this.draw());
+    renderer.setAnimationLoop((time) => this.draw(time));
     this.build();
   }
 
@@ -193,8 +208,9 @@ export class AraCharacterElement extends HTMLElement {
     }
   }
 
-  private draw() {
-    const v = this.view!, delta = Math.min(v.clock.getDelta(), 0.1);
+  private draw(time: number) {
+    const v = this.view!, delta = v.last ? Math.min((time - v.last) / 1000, 0.1) : 0;
+    v.last = time;
     if (!this.visible) return;
     for (const m of v.mixers) m.update(delta);
     this.character?.update(delta);
@@ -242,7 +258,7 @@ export class AraCharacterElement extends HTMLElement {
       this.character = next;v.scene.add(next.scene);for (const p of next.props) v.scene.add(p.scene);
       v.renderer.domElement.setAttribute('aria-label', `3D character: ${next.params.name}`);
       this.applyExpression();this.play();this.frame();
-      this.status.hidden = true;
+      this.status.hidden = true;this.figure.hidden = true;
       this.dispatchEvent(new CustomEvent('load', { detail: next }));
     } catch (error) {
       if (id === this.building) this.fail(error as Error);
@@ -254,7 +270,7 @@ export class AraCharacterElement extends HTMLElement {
   }
 
   private fail(error: Error) {
-    this.status.hidden = false;this.status.classList.add('error');this.label.textContent = error.message;this.bar.style.width = '0';
+    this.figure.hidden = true;this.status.hidden = false;this.status.classList.add('error');this.label.textContent = error.message;this.bar.style.width = '0';
     console.warn('<ara-character>:', error.message);
     this.dispatchEvent(new CustomEvent('error', { detail: error }));
   }

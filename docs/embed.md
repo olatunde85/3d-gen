@@ -52,7 +52,7 @@ A clip that loops (walk, idle, run) plays one cycle unless you give it a length,
 
 ## Updating
 
-Change an attribute and the character updates. `expression` applies at once, and so does a new order of animations it has already loaded. A new character, props, colours or an animation it hasn't loaded rebuild it, which takes a second or two.
+While the first character loads, the element shows a quiet grey figure and a thin progress line. Change an attribute and the character updates. `expression` applies at once, and so does a new order of animations it has already loaded. A new character, props, colours or an animation it hasn't loaded rebuild it, which takes a second or two.
 
 ## Size
 
@@ -87,3 +87,4 @@ With a bundler, `import 'ara3d/embed'` registers the element. TypeScript knows i
 - **Content-Security-Policy:** sites with a strict policy need to allow `https://cdn.jsdelivr.net` for scripts and connections, and `blob:` addresses for workers, images and connections.
 - **Phones:** a sideways swipe turns the character and an up-or-down swipe scrolls the page.
 - **Removing an element** frees its memory.
+- **Testing on your computer:** open the page through a web server, such as `npx serve`, not by double-clicking the file. Browsers block the embed on pages opened as files, and it says so.

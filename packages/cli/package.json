@@ -1,6 +1,6 @@
 {
   "name": "ara3d",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Realistic, rigged and animated 3D characters: a three.js library, an <ara-character> embed for any web page, and a command-line tool (GLB, FBX, OBJ). Free and open source.",
   "keywords": ["web-component", "embed", "3d", "character", "avatar", "glb", "gltf", "fbx", "three", "threejs", "rigged", "animation", "makehuman", "cli", "gamedev"],
   "homepage": "https://ara3dgen.com/docs/library/",

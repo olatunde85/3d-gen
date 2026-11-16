@@ -44,17 +44,34 @@ export interface Generated {
   clipNames: Record<string, string>;
 }
 
+/**
+ * Downloads one data file. A dropped connection, a stalled server or a busy one (5xx, 429) is tried again up to four
+ * times, waiting 0.5, 1, 2 and 4 seconds, so a CDN hiccup slows a character down instead of breaking it.
+ */
+async function download(url: string): Promise<Uint8Array> {
+  for (let attempt = 0; ; attempt++) {
+    let status = 0;
+    // A server that hasn't started answering in 20 seconds is given up on and asked again.
+    const stalled = new AbortController(), timer = setTimeout(() => stalled.abort(), 20000);
+    try {
+      const response = await fetch(url, { signal: stalled.signal });
+      clearTimeout(timer);
+      status = response.status;
+      if (response.ok) return new Uint8Array(await response.arrayBuffer());
+    } catch { status = 0; /* No response, or the download broke off: try again. */ } finally { clearTimeout(timer); }
+    const again = attempt < 4 && (status === 0 || status === 429 || status >= 500);
+    if (!again) throw Error(status ? `Could not load the character data (${status}) from ${url}` : `Could not reach the character data at ${url}. Check the internet connection.`);
+    await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+  }
+}
+
 const libraries = new Map<string, Promise<AssetLibrary>>();
 /** The character data at `assetsUrl`, loaded once and shared by every character built from it. */
 export function libraryAt(assetsUrl: string) {
   const base = assetsUrl.endsWith('/') ? assetsUrl : `${assetsUrl}/`;
   let lib = libraries.get(base);
   if (!lib) {
-    lib = new AssetLibrary({ read: async (path) => {
-      const response = await fetch(base + path);
-      if (!response.ok) throw Error(`Could not load the character data (${response.status}) from ${base + path}`);
-      return new Uint8Array(await response.arrayBuffer());
-    } }).init();
+    lib = new AssetLibrary({ read: (path) => download(base + path) }).init();
     lib.catch(() => libraries.delete(base));libraries.set(base, lib);
   }
   return lib;

@@ -120,6 +120,8 @@ function generator() {
 }
 
 function run(input: CharacterInput, options: CharacterOptions = {}): Promise<Generated> {
+  // Browsers don't start workers on pages opened straight from disk.
+  if (globalThis.location?.protocol === 'file:') return Promise.reject(Error('This page was opened as a file, and browsers block ara3d there. Open it from a web server instead, such as: npx serve'));
   const { assetsUrl = DEFAULT_ASSETS_URL, onProgress, ...rest } = options;
   // Resolve relative URLs against the page, since the worker runs from a blob: address.
   const absolute = new URL(assetsUrl, globalThis.location?.href).href;
