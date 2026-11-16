@@ -189,135 +189,113 @@ if (devx) {
   }, { rootMargin: '400px 0px' }).observe(devx);
 }
 
-// --- The live character in the hero ------------------------------------------------------------------------------
-// The eight presets take turns on stage. Between them the frame pauses, breaks into blocks that fall away, and the
-// next character assembles from blocks. The next one is built in the background while the current one plays.
-type Stage = HTMLElement & { character?: { params: { name: string } }; snapshot(): HTMLCanvasElement | undefined; restart(): void };
+// --- The live character in the hero: drive them with the on-screen pad, the keyboard or a gamepad -----------------
+type Body = { position: { x: number; z: number; set(x: number, y: number, z: number): void }; rotation: { y: number } };
+type Driven = HTMLElement & { character?: { scene: Body; params: { name: string } }; playClip(id: string, fade?: number): boolean };
+const drivenEl = document.getElementById('hero-character') as Driven | null;
 const stageEl = document.querySelector<HTMLElement>('.hero-stage');
-const first = document.getElementById('hero-character') as Stage | null;
-if (stageEl && first) {
+if (drivenEl && stageEl) {
+  const driven = drivenEl;
   const name = document.getElementById('hero-name')!, edit = document.getElementById('hero-edit') as HTMLAnchorElement;
-  const blocks = stageEl.querySelector<HTMLElement>('.stage-blocks')!;
   const cards = [...document.querySelectorAll<HTMLAnchorElement>('.hero-cast .cast-card')];
-  const HOLD = 9500, COLS = 8, ROWS = 10;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const frame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
-  let shown = first, spare: Stage | undefined, index = Math.max(0, cards.findIndex((c) => c.dataset.preset === first.getAttribute('preset')));
-  let busy = false, wanted: number | undefined, timer = 0, hover = false, onScreen = true;
+  const paces = [...stageEl.querySelectorAll<HTMLButtonElement>('[data-gait]')];
+  type Gait = 'idle' | 'walk' | 'run';
+  const SPEED: Record<Gait, number> = { idle: 0, walk: 1.1, run: 2.5 };
+  // The stage's floor: how far the character can go before turning back (metres; +z is towards the viewer). The sides
+  // follow what the camera sees: the stage frames a standing person (about 1.8 m) with room around them.
+  const MARGIN = Number(driven.getAttribute('margin')) || 1.3;
+  const AREA = { x: 0.8, back: -1.6, front: 0.45 };
+  const measure = () => { const { width, height } = stageEl.getBoundingClientRect();AREA.x = Math.max(0.4, (1.8 * MARGIN * width) / Math.max(1, height) / 2 - 0.45); };
+  new ResizeObserver(measure).observe(stageEl);measure();
+  // The camera looks from slightly right of front, so screen directions are turned by its angle.
+  const VIEW = Math.atan2(0.35, 1), right = [Math.cos(VIEW), -Math.sin(VIEW)], away = [-Math.sin(VIEW), -Math.cos(VIEW)];
+  let gait: Gait = 'idle', playing = '', heading = 0, last = 0, engaged = false, onScreen = true;
+  const held = new Set<string>(), keys = new Set<string>();
 
-  /** Resolves when `el` shows `preset` (building it if needed); rejects if it can't be built. */
-  const ready = (el: Stage, card: HTMLAnchorElement) => new Promise<void>((ok, fail) => {
-    const preset = card.dataset.preset!;
-    if (el.character?.params.name === preset && el.getAttribute('animation') === card.dataset.animation) { ok();return; }
-    const done = (e: Event) => { if ((e as CustomEvent).detail?.params?.name !== preset) return;off();ok(); };
-    const failed = () => { off();fail(Error(preset)); };
-    const off = () => { el.removeEventListener('load', done);el.removeEventListener('error', failed); };
-    el.addEventListener('load', done);el.addEventListener('error', failed);
-    el.setAttribute('preset', preset);el.setAttribute('animation', card.dataset.animation!);
+  const setGait = (g: Gait) => { gait = g;for (const b of paces) b.setAttribute('aria-checked', String(b.dataset.gait === g)); };
+  const play = (clip: Gait) => { if (clip !== playing && driven.playClip(clip, 0.22)) playing = clip; };
+  const turnTowards = (target: number, rate: number) => {
+    const diff = Math.atan2(Math.sin(target - heading), Math.cos(target - heading));
+    heading += Math.sign(diff) * Math.min(Math.abs(diff), rate);
+  };
+
+  function step(now: number) {
+    const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;last = now;
+    requestAnimationFrame(step);
+    const body = driven.character?.scene;
+    if (!body || !onScreen) return;
+    // Input: the pad, arrow keys or WASD, and a connected gamepad's stick or d-pad.
+    let ix = 0, iy = 0, pad: Gait | undefined, padRun = false;
+    const on = (d: string) => held.has(d) || keys.has(d);
+    if (on('left')) ix -= 1;if (on('right')) ix += 1;if (on('up')) iy += 1;if (on('down')) iy -= 1;
+    for (const g of navigator.getGamepads?.() ?? []) {
+      if (!g) continue;
+      const [sx = 0, sy = 0] = g.axes;
+      if (Math.hypot(sx, sy) > 0.25) { ix += sx;iy -= sy; }
+      if (g.buttons[14]?.pressed) ix -= 1;if (g.buttons[15]?.pressed) ix += 1;if (g.buttons[12]?.pressed) iy += 1;if (g.buttons[13]?.pressed) iy -= 1;
+      if (g.buttons[2]?.pressed) pad = 'idle';else if (g.buttons[0]?.pressed) pad = 'walk';else if (g.buttons[1]?.pressed) pad = 'run';
+      padRun ||= !!g.buttons[1]?.pressed;
+    }
+    if (pad && pad !== gait) setGait(pad);
+    const steering = Math.hypot(ix, iy) > 0.1;
+    // Holding a direction while idle walks that way, or runs with Shift; letting go stops again.
+    const pace: Gait = gait !== 'idle' ? (keys.has('shift') || padRun ? 'run' : gait) : steering ? (keys.has('shift') || padRun ? 'run' : 'walk') : 'idle';
+    if (steering) {
+      const wx = right[0] * ix + away[0] * iy, wz = right[1] * ix + away[1] * iy;
+      turnTowards(Math.atan2(wx, wz), dt * 9);
+    }
+    let moving = pace !== 'idle';
+    if (moving) {
+      const x = body.position.x + Math.sin(heading) * SPEED[pace] * dt, z = body.position.z + Math.cos(heading) * SPEED[pace] * dt;
+      const inside = Math.abs(x) <= AREA.x && z >= AREA.back && z <= AREA.front;
+      if (inside) body.position.set(x, 0, z);
+      // At the edge, turn back towards the middle of the stage (or stop, if someone is steering into it).
+      else if (steering) moving = false;
+      else turnTowards(Math.atan2(-body.position.x, -body.position.z), dt * 5);
+    }
+    body.rotation.y = heading;
+    play(moving ? pace : 'idle');
+  }
+
+  // The on-screen direction pad: held while pressed.
+  for (const button of stageEl.querySelectorAll<HTMLButtonElement>('[data-dir]')) {
+    const dir = button.dataset.dir!;
+    const press = (e: PointerEvent) => { e.preventDefault();engaged = true;held.add(dir);button.classList.add('held');button.setPointerCapture?.(e.pointerId); };
+    const release = () => { held.delete(dir);button.classList.remove('held'); };
+    button.addEventListener('pointerdown', press);
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) button.addEventListener(type, release);
+    button.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  for (const b of paces) b.addEventListener('click', () => { engaged = true;setGait(b.dataset.gait as Gait); });
+
+  // The keyboard drives once someone has used the controls or clicked the stage, and only while it's on screen.
+  const KEYS: Record<string, string> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right' };
+  stageEl.addEventListener('pointerdown', () => { engaged = true; });
+  addEventListener('keydown', (e) => {
+    if (!engaged || !onScreen || e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) return;
+    const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];
+    if (dir) { e.preventDefault();keys.add(dir); }
+    else if (e.key === 'Shift') keys.add('shift');
+    else if (e.key === '1' || e.key === '2' || e.key === '3') setGait((['idle', 'walk', 'run'] as const)[Number(e.key) - 1]);
   });
-  const mark = (i: number) => {
-    const card = cards[i];name.textContent = card.dataset.preset!;edit.href = card.href;
-    for (const c of cards) c.setAttribute('aria-current', String(c === card));
-  };
-  /** The second stage, made the first time it's needed. */
-  const other = () => {
-    if (!spare) {
-      spare = document.createElement('ara-character') as Stage;
-      for (const a of ['detail', 'auto-rotate', 'assets-url']) { const v = first.getAttribute(a);if (v !== null) spare.setAttribute(a, v); }
-      spare.classList.add('off');
-      spare.setAttribute('preset', cards[(index + 1) % cards.length].dataset.preset!);spare.setAttribute('animation', cards[(index + 1) % cards.length].dataset.animation!);
-      stageEl.insertBefore(spare, blocks);
-    }
-    return spare === shown ? first : spare;
-  };
+  addEventListener('keyup', (e) => { const dir = KEYS[e.key] ?? KEYS[e.key.toLowerCase()];if (dir) keys.delete(dir);if (e.key === 'Shift') keys.delete('shift'); });
+  addEventListener('blur', () => { keys.clear();held.clear(); });
+  new IntersectionObserver(([e]) => { onScreen = e.isIntersecting;if (!onScreen) { engaged = false;keys.clear(); } }).observe(stageEl);
 
-  /** Lays the snapshot out as a grid of blocks over the stage. */
-  function tiles(image: HTMLCanvasElement) {
-    const { width, height } = stageEl!.getBoundingClientRect(), w = width / COLS, h = height / ROWS, url = image.toDataURL();
-    blocks.replaceChildren();
-    const out: HTMLElement[] = [];
-    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-      const b = document.createElement('i');
-      Object.assign(b.style, { left: `${c * w}px`, top: `${r * h}px`, width: `${Math.ceil(w) + 1}px`, height: `${Math.ceil(h) + 1}px`,
-        backgroundImage: `url(${url})`, backgroundSize: `${width}px ${height}px`, backgroundPosition: `${-c * w}px ${-r * h}px` });
-      b.dataset.c = String(c);b.dataset.r = String(r);blocks.append(b);out.push(b);
-    }
-    return out;
-  }
-  /** Where a block flies to (or from): outward from the centre and downward, turning as it goes. */
-  const scatter = (b: HTMLElement, up: boolean) => {
-    const c = Number(b.dataset.c) - (COLS - 1) / 2, r = Number(b.dataset.r) - (ROWS - 1) / 2;
-    const dx = c * 26 + (Math.random() - 0.5) * 50, dy = (up ? -1 : 1) * (50 + Math.random() * 120) + r * 10;
-    return `translate(${dx}px, ${dy}px) rotate(${(Math.random() - 0.5) * 70}deg) scale(${0.35 + Math.random() * 0.3})`;
-  };
-  const delay = (b: HTMLElement, outward: boolean) => {
-    const d = Math.hypot(Number(b.dataset.c) - (COLS - 1) / 2, (Number(b.dataset.r) - (ROWS - 1) / 2) * 0.8);
-    return (outward ? d : 6 - d) * 45 + Math.random() * 90;
-  };
-
-  async function switchTo(i: number) {
-    if (busy) { wanted = i;return; }
-    busy = true;clearTimeout(timer);
-    const next = other();
-    try {
-      await ready(next, cards[i]);
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        next.restart();next.classList.remove('off');shown.classList.add('off');
-      } else {
-        // Pause: the current frame, frozen, as blocks.
-        const before = shown.snapshot();
-        if (before) {
-          const parts = tiles(before);shown.classList.add('off');
-          await wait(380);
-          // Break: the blocks fall away from the centre.
-          await Promise.all(parts.map((b) => b.animate([{ transform: 'none', opacity: 1 }, { transform: scatter(b, false), opacity: 0 }],
-            { duration: 620, delay: delay(b, true), easing: 'cubic-bezier(.55,0,.8,.4)', fill: 'forwards' }).finished));
-        }
-        // Rebuild: the next character's first frame assembles from blocks.
-        next.restart();await frame();await frame();
-        const after = next.snapshot();
-        if (after) {
-          const parts = tiles(after);
-          await Promise.all(parts.map((b) => b.animate([{ transform: scatter(b, true), opacity: 0 }, { transform: 'none', opacity: 1 }],
-            { duration: 680, delay: delay(b, false), easing: 'cubic-bezier(.2,.7,.25,1)', fill: 'backwards' }).finished));
-        }
-        next.restart();next.classList.remove('off');shown.classList.add('off');
-        await frame();blocks.replaceChildren();
-      }
-      shown = next;index = i;mark(i);
-      // Build the one after next while this one plays.
-      void ready(other(), cards[(i + 1) % cards.length]).catch(() => {});
-    } catch {
-      // A character that can't be built is skipped.
-      index = i;
-    } finally {
-      busy = false;
-      if (wanted !== undefined) { const w = wanted;wanted = undefined;void switchTo(w); } else schedule();
-    }
-  }
-  /** The next turn, held while someone is turning the character or the stage is out of sight. */
-  function schedule() {
-    clearTimeout(timer);
-    timer = window.setTimeout(function tick() {
-      if (hover || !onScreen || document.hidden) { timer = window.setTimeout(tick, 1000);return; }
-      void switchTo((index + 1) % cards.length);
-    }, HOLD);
-  }
-
-  for (const [i, card] of cards.entries()) card.addEventListener('click', (e) => {
-    // A plain click brings the character on stage; with a modifier key the link opens the builder as usual.
+  // The cast below puts another character on stage, standing idle.
+  const mark = (card?: HTMLAnchorElement) => { for (const c of cards) c.setAttribute('aria-current', String(c === card)); };
+  for (const card of cards) card.addEventListener('click', (e) => {
+    // A plain click puts the character on stage; with a modifier key the link opens the builder as usual.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    e.preventDefault();if (i !== index || busy) void switchTo(i);
+    e.preventDefault();
+    driven.setAttribute('preset', card.dataset.preset!);name.textContent = card.dataset.preset!;edit.href = card.href;mark(card);
   });
-  stageEl.addEventListener('pointerenter', () => { hover = true; });
-  stageEl.addEventListener('pointerleave', () => { hover = false; });
-  new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; }).observe(stageEl);
-  mark(index);
-  first.setAttribute('assets-url', `${import.meta.env.BASE_URL}assets/`);
-  first.addEventListener('load', () => {
-    // The first character is on stage: build the next one and start taking turns.
-    if (!spare) { other();schedule(); }
-  }, { once: true });
+  // A new character starts in the middle, facing the viewer.
+  driven.addEventListener('load', () => { heading = 0;playing = 'idle';setGait('idle'); });
+  mark(cards.find((c) => c.dataset.preset === driven.getAttribute('preset')));
+  requestAnimationFrame(step);
+
+  driven.setAttribute('assets-url', `${import.meta.env.BASE_URL}assets/`);
   // The 3D starts once the page has loaded, so the text and images come first.
   const start = () => void import('../../packages/cli/src/embed');
   if (document.readyState === 'complete') setTimeout(start, 200);

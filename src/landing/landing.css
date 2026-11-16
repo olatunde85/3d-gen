@@ -94,10 +94,26 @@ p { margin: 0; text-wrap: pretty; }
   background: radial-gradient(closest-side at 50% 46%, rgba(160, 172, 255, 0.09), transparent), radial-gradient(38% 12% at 50% 90%, rgba(109, 141, 255, 0.14), transparent);
 }
 .hero-stage ara-character { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
-.hero-stage ara-character.off { opacity: 0; pointer-events: none; }
-/* The switch between characters: the frame breaks into blocks that fall away, then the next one assembles. */
-.stage-blocks { position: absolute; inset: 0; pointer-events: none; }
-.stage-blocks i { position: absolute; background-repeat: no-repeat; will-change: transform, opacity; }
+/* The on-screen gamepad: a direction pad on the left, pace buttons on the right. */
+.pad { position: absolute; left: 0; right: 0; bottom: 40px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 8px; pointer-events: none; }
+.pad button { pointer-events: auto; -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.dpad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); }
+.dpad button { display: grid; place-items: center; padding: 0; border: 1px solid var(--line-2); background: rgba(24, 24, 28, 0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--muted); transition: background 0.1s, color 0.1s; }
+.dpad svg { width: 18px; height: 18px; fill: currentColor; }
+.dpad [data-dir="up"] { grid-area: 1 / 2; border-radius: 10px 10px 0 0; border-bottom: 0; }
+.dpad [data-dir="left"] { grid-area: 2 / 1; border-radius: 10px 0 0 10px; border-right: 0; }
+.dpad [data-dir="right"] { grid-area: 2 / 3; border-radius: 0 10px 10px 0; border-left: 0; }
+.dpad [data-dir="down"] { grid-area: 3 / 2; border-radius: 0 0 10px 10px; border-top: 0; }
+.dpad-hub { grid-area: 2 / 2; background: rgba(24, 24, 28, 0.72); border-top: 1px solid transparent; }
+.dpad button:hover, .dpad button.held { color: var(--text); background: rgba(48, 48, 56, 0.85); }
+.face { display: flex; gap: 10px; }
+.face button { display: grid; justify-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--muted); font: 500 11.5px var(--sans); }
+.face b { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line-2); background: rgba(24, 24, 28, 0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--text); font: 600 14px var(--display); transition: background 0.1s, color 0.1s, transform 0.08s; }
+.face button:hover b { background: rgba(48, 48, 56, 0.85); }
+.face button[aria-checked="true"] { color: var(--text); }
+.face button[aria-checked="true"] b { background: var(--text); color: #09090b; border-color: var(--text); }
+.face button:active b { transform: scale(0.94); }
+.pad button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .stage-tag { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); white-space: nowrap; display: flex; align-items: center; gap: 8px; color: var(--muted); font: 500 12px/1 var(--mono); pointer-events: none; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); animation: live 2.4s ease-out infinite; }
 @keyframes live { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.45); } 70%, 100% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); } }
@@ -291,7 +307,10 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
   .cta .btn-primary { flex-basis: 100%; }
   .specs, .specs-5 { grid-template-columns: minmax(0, 1fr); }
   .cast { grid-auto-columns: 30vw; }
-  .hero-stage { height: 420px; }
+  /* On a phone the controls sit below the character instead of over it. */
+  .hero-stage { height: 540px; }
+  .hero-stage ara-character { inset: 0 0 128px 0; height: auto; }
+  .pad { bottom: 36px; padding: 0 2px; }
   .devx-tabs { grid-auto-columns: max-content; }
   .devx-tabs button { padding: 14px 18px; }
   .devx-tabs button span { display: none; }

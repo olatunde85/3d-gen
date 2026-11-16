@@ -93,24 +93,37 @@
           </ul>
         </div>
         <div class="hero-stage reveal">
-          <ara-character id="hero-character" preset="The Female Executive" animation="walk 3s, run 2s, jump, look_around 3s" detail="low" auto-rotate></ara-character>
-          <div class="stage-blocks" aria-hidden="true"></div>
-          <p class="stage-tag"><span class="live-dot" aria-hidden="true"></span>Live 3D · drag to turn</p>
+          <ara-character id="hero-character" preset="The Miami Dealer" animation="idle" clips="walk, run" detail="low" orbit="false" margin="1.75"></ara-character>
+          <p class="stage-tag"><span class="live-dot" aria-hidden="true"></span>Live 3D · take the controls</p>
+          <div class="pad" role="group" aria-label="Controls">
+            <div class="dpad" role="group" aria-label="Move">
+              <button type="button" data-dir="up" aria-label="Move away"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7l5 7H7z"/></svg></button>
+              <button type="button" data-dir="left" aria-label="Move left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12l7-5v10z"/></svg></button>
+              <span class="dpad-hub" aria-hidden="true"></span>
+              <button type="button" data-dir="right" aria-label="Move right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 12l-7 5V7z"/></svg></button>
+              <button type="button" data-dir="down" aria-label="Move closer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17l-5-7h10z"/></svg></button>
+            </div>
+            <div class="face" role="radiogroup" aria-label="Pace">
+              <button type="button" role="radio" data-gait="idle" aria-checked="true" title="Idle (1)"><b>X</b><span>Idle</span></button>
+              <button type="button" role="radio" data-gait="walk" aria-checked="false" title="Walk (2)"><b>A</b><span>Walk</span></button>
+              <button type="button" role="radio" data-gait="run" aria-checked="false" title="Run (3, or hold Shift)"><b>B</b><span>Run</span></button>
+            </div>
+          </div>
           <div class="stage-foot">
-            <span id="hero-name">The Female Executive</span>
-            <a id="hero-edit" href="app/#preset=The%20Female%20Executive">Edit in the builder <span aria-hidden="true">→</span></a>
+            <span id="hero-name">The Miami Dealer</span>
+            <a id="hero-edit" href="app/#preset=The%20Miami%20Dealer">Edit in the builder <span aria-hidden="true">→</span></a>
           </div>
         </div>
       </section>
-      <div class="cast hero-cast" aria-label="Presets: show one above, or open it in the builder">
-          <a class="cast-card" href="app/#preset=The%20Female%20Executive" data-preset="The Female Executive" data-animation="walk 3s, run 2s, jump, look_around 3s"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive" loading="eager" /><span>Executive</span></a>
-          <a class="cast-card" href="app/#preset=The%20Miami%20Dealer" data-preset="The Miami Dealer" data-animation="walk 3s, run 2s, jump, look_around 3s"><img src="./docs/media/presets/miami-dealer.jpg" alt="The Miami Dealer" loading="eager" /><span>Dealer</span></a>
-          <a class="cast-card" href="app/#preset=The%20Beach%20Girl" data-preset="The Beach Girl" data-animation="walk 3s, run 2s, jump, look_around 3s"><img src="./docs/media/presets/beach-girl.jpg" alt="The Beach Girl" loading="eager" /><span>Beach Girl</span></a>
-          <a class="cast-card" href="app/#preset=The%20Priest" data-preset="The Priest" data-animation="walk 3s, run 2s, jump, look_around 3s"><img src="./docs/media/presets/priest.jpg" alt="The Priest" loading="eager" /><span>Priest</span></a>
-          <a class="cast-card" href="app/#preset=The%20Corporate%20High-Flier" data-preset="The Corporate High-Flier" data-animation="walk 3s, run 2s, jump, look_around 3s"><img src="./docs/media/presets/corporate-high-flier.jpg" alt="The Corporate High-Flier" loading="eager" /><span>High-Flier</span></a>
-          <a class="cast-card" href="app/#preset=The%20Prison%20Escapee" data-preset="The Prison Escapee" data-animation="walk 3s, run 2s, jump, look_around 3s"><img src="./docs/media/presets/prison-escapee.jpg" alt="The Prison Escapee" loading="eager" /><span>Escapee</span></a>
-          <a class="cast-card" href="app/#preset=The%20Arabian%20Oil%20Tycoon" data-preset="The Arabian Oil Tycoon" data-animation="walk 3s, run 2s, jump, look_around 3s"><img src="./docs/media/presets/arabian-oil-tycoon.jpg" alt="The Arabian Oil Tycoon" loading="eager" /><span>Oil Tycoon</span></a>
-          <a class="cast-card" href="app/#preset=The%20Adventurer" data-preset="The Adventurer" data-animation="walk 3s, run 2s, jump, look_around 3s"><img src="./docs/media/presets/adventurer.jpg" alt="The Adventurer" loading="eager" /><span>Adventurer</span></a>
+      <div class="cast hero-cast" aria-label="Presets: put one on stage, or open it in the builder">
+          <a class="cast-card" href="app/#preset=The%20Female%20Executive" data-preset="The Female Executive"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive" loading="eager" /><span>Executive</span></a>
+          <a class="cast-card" href="app/#preset=The%20Gangster" data-preset="The Gangster"><img src="./docs/media/presets/gangster.jpg" alt="The Gangster" loading="eager" /><span>Gangster</span></a>
+          <a class="cast-card" href="app/#preset=The%20Priest" data-preset="The Priest"><img src="./docs/media/presets/priest.jpg" alt="The Priest" loading="eager" /><span>Priest</span></a>
+          <a class="cast-card" href="app/#preset=The%20Corporate%20High-Flier" data-preset="The Corporate High-Flier"><img src="./docs/media/presets/corporate-high-flier.jpg" alt="The Corporate High-Flier" loading="eager" /><span>High-Flier</span></a>
+          <a class="cast-card" href="app/#preset=The%20Prison%20Escapee" data-preset="The Prison Escapee"><img src="./docs/media/presets/prison-escapee.jpg" alt="The Prison Escapee" loading="eager" /><span>Escapee</span></a>
+          <a class="cast-card" href="app/#preset=The%20Arabian%20Oil%20Tycoon" data-preset="The Arabian Oil Tycoon"><img src="./docs/media/presets/arabian-oil-tycoon.jpg" alt="The Arabian Oil Tycoon" loading="eager" /><span>Oil Tycoon</span></a>
+          <a class="cast-card" href="app/#preset=The%20Adventurer" data-preset="The Adventurer"><img src="./docs/media/presets/adventurer.jpg" alt="The Adventurer" loading="eager" /><span>Adventurer</span></a>
+          <a class="cast-card" href="app/#preset=The%20Miami%20Dealer" data-preset="The Miami Dealer"><img src="./docs/media/presets/miami-dealer.jpg" alt="The Miami Dealer" loading="eager" /><span>Dealer</span></a>
       </div>
 
       <!-- Numbers -->

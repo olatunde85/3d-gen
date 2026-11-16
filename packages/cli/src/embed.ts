@@ -14,9 +14,9 @@ import { parseSteps } from './library/sequence';
 import { ANIMATIONS, createCharacter, VEHICLE_CLIPS, type AraCharacter, type Sequence, type CharacterColors, type CharacterInput, type CharacterOptions } from './index';
 
 /** Attributes that change the character itself, so it's rebuilt. */
-const BUILD = ['preset', 'random', 'share', 'src', 'detail', 'weapon', 'carry', 'vehicle', 'colors', 'assets-url'];
+const BUILD = ['preset', 'random', 'share', 'src', 'clips', 'detail', 'weapon', 'carry', 'vehicle', 'colors', 'assets-url'];
 /** Attributes that apply at once. */
-const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background'];
+const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background', 'margin'];
 
 /** A standing figure, used as a mask for the loading silhouette. */
 const FIGURE = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 260"><ellipse cx="50" cy="19" rx="12.5" ry="14.5"/><path d="M44 33 C44 37 43 39 39 40 C33 42 26 43 23 48 C20 53 19 62 18 72 C17 86 15 100 13 114 C12 120 12 127 15 129 C18 131 20 126 21 120 C23 106 25 92 27 80 C28 75 29 71 30 68 C30 80 31 92 31 104 C31 112 29 118 29 126 C29 150 31 175 32 200 C33 220 33 238 33 248 C33 252 30 254 31 257 C35 259 44 259 45 256 C46 240 46 222 47 200 C48 175 49 150 50 136 C51 150 52 175 53 200 C54 222 54 240 55 256 C56 259 65 259 69 257 C70 254 67 252 67 248 C67 238 67 220 68 200 C69 175 71 150 71 126 C71 118 69 112 69 104 C69 92 70 80 70 68 C71 71 72 75 73 80 C75 92 77 106 79 120 C80 126 82 131 85 129 C88 127 88 120 87 114 C85 100 83 86 82 72 C81 62 80 53 77 48 C74 43 67 42 61 40 C57 39 56 37 56 33 Z"/></svg>')}")`;
@@ -88,6 +88,8 @@ export class AraCharacterElement extends HTMLElement {
   private queued = false;
   private visible = true;
   private sequence?: Sequence;
+  /** The clip playing on the character, for playClip()'s blends. */
+  private active?: THREE.AnimationAction;
   private extentFor?: { hero: AraCharacter; animation: string; box: THREE.Box3 };
 
   constructor() {
@@ -143,6 +145,7 @@ export class AraCharacterElement extends HTMLElement {
       if (ids.every((id) => this.character?.clip(id))) { this.frame();this.play(); } else this.build();
     }
     else if (name === 'expression') this.applyExpression();
+    else if (name === 'margin') { if (this.character) this.frame(); }
     else this.applyLive();
   }
 
@@ -221,7 +224,8 @@ export class AraCharacterElement extends HTMLElement {
     const v = this.view!, box = this.extent();
     const size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
     const fit = Math.max(size.y, Math.max(size.x, size.z) / Math.max(0.5, v.camera.aspect));
-    const distance = (fit / (2 * Math.tan((v.camera.fov * Math.PI) / 360))) * 1.3;
+    // margin: how much room to leave around the character (1.3 by default; more leaves space to move around).
+    const distance = (fit / (2 * Math.tan((v.camera.fov * Math.PI) / 360))) * (Number(this.getAttribute('margin')) || 1.3);
     v.controls.target.copy(center);v.camera.position.copy(center).add(new THREE.Vector3(0.35, 0.1, 1).normalize().multiplyScalar(distance));
     v.controls.minDistance = distance * 0.35;v.controls.maxDistance = distance * 2.5;
     v.floor.scale.setScalar(Math.max(0.6, Math.max(size.x, size.z) * 0.75));
@@ -250,7 +254,7 @@ export class AraCharacterElement extends HTMLElement {
     if (!v || !hero) return;
     for (const m of v.mixers) m.stopAllAction();
     this.sequence?.stop();this.sequence = undefined;
-    v.mixers = [];
+    v.mixers = [];this.active = undefined;
     // A corrected attribute clears the message its mistake left.
     if (this.status.classList.contains('error')) this.status.hidden = true;
     const steps = parseSteps(this.animation);
@@ -266,8 +270,26 @@ export class AraCharacterElement extends HTMLElement {
     // A vehicle has a clip of the same name for its wheels, pedals or rotors.
     for (const [root, clips] of [[hero.scene, [clip]], ...hero.props.map((p) => [p.scene, p.animations] as const)] as const) {
       const own = clips.find((c) => c.name === clip.name);
-      if (own) { const mixer = new THREE.AnimationMixer(root);mixer.clipAction(own).play();v.mixers.push(mixer); }
+      if (own) { const mixer = new THREE.AnimationMixer(root), action = mixer.clipAction(own).play();v.mixers.push(mixer);if (root === hero.scene) this.active = action; }
     }
+  }
+
+  /**
+   * Blends to a loaded clip (from animation or clips) without rebuilding or reframing, for games and controls:
+   * el.playClip('run'). Returns false if the clip isn't loaded.
+   */
+  playClip(id: string, fade = 0.25): boolean {
+    const v = this.view, hero = this.character, clip = hero?.clip(id);
+    if (!v || !hero || !clip) return false;
+    this.sequence?.stop();this.sequence = undefined;
+    let mixer = v.mixers.find((m) => m.getRoot() === hero.scene);
+    if (!mixer) { mixer = new THREE.AnimationMixer(hero.scene);v.mixers.unshift(mixer); }
+    const next = mixer.clipAction(clip);
+    if (next === this.active && next.isRunning()) return true;
+    next.reset().setEffectiveWeight(1).play();
+    if (this.active && this.active !== next) this.active.crossFadeTo(next, fade, false);
+    this.active = next;
+    return true;
   }
 
   private draw(time: number) {
@@ -276,6 +298,8 @@ export class AraCharacterElement extends HTMLElement {
     if (!this.visible) return;
     for (const m of v.mixers) m.update(delta);
     this.character?.update(delta);
+    // The shade stays under a character that's been moved.
+    if (this.character) v.floor.position.set(this.character.scene.position.x, 0, this.character.scene.position.z);
     v.controls.update();v.renderer.render(v.scene, v.camera);
   }
 
@@ -293,7 +317,9 @@ export class AraCharacterElement extends HTMLElement {
   }
 
   private options(): CharacterOptions {
-    const options: CharacterOptions = { animations: this.clipIds() };
+    // Extra clips to load without playing, for playClip().
+    const extra = (this.getAttribute('clips') ?? '').split(',').map((c) => c.trim()).filter(Boolean);
+    const options: CharacterOptions = { animations: [...new Set([...this.clipIds(), ...extra])] };
     const detail = this.getAttribute('detail'), colors = this.getAttribute('colors'), assets = this.getAttribute('assets-url');
     if (detail) options.detail = detail as CharacterOptions['detail'];
     for (const prop of ['weapon', 'carry', 'vehicle'] as const) { const value = this.getAttribute(prop);if (value) (options as Record<string, unknown>)[prop] = value; }
