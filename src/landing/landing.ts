@@ -209,6 +209,7 @@ if (drivenEl && stageEl) {
   new ResizeObserver(measure).observe(stageEl);measure();
   // The camera looks from slightly right of front, so screen directions are turned by its angle.
   const VIEW = Math.atan2(0.35, 1), right = [Math.cos(VIEW), -Math.sin(VIEW)], away = [-Math.sin(VIEW), -Math.cos(VIEW)];
+  let yHeld = true;
   let gait: Gait = 'idle', playing = '', heading = 0, last = 0, engaged = false, onScreen = true;
   const held = new Set<string>(), keys = new Set<string>();
 
@@ -235,6 +236,9 @@ if (drivenEl && stageEl) {
       if (g.buttons[14]?.pressed) ix -= 1;if (g.buttons[15]?.pressed) ix += 1;if (g.buttons[12]?.pressed) iy += 1;if (g.buttons[13]?.pressed) iy -= 1;
       if (g.buttons[2]?.pressed) pad = 'idle';else if (g.buttons[0]?.pressed) pad = 'walk';else if (g.buttons[1]?.pressed) pad = 'run';
       padRun ||= !!g.buttons[1]?.pressed;
+      // Y opens the character in the builder, once per press.
+      if (g.buttons[3]?.pressed && !yHeld) location.href = edit.href;
+      yHeld = !!g.buttons[3]?.pressed;
     }
     if (pad && pad !== gait) setGait(pad);
     const steering = Math.hypot(ix, iy) > 0.1;

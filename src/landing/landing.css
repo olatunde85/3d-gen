@@ -95,7 +95,7 @@ p { margin: 0; text-wrap: pretty; }
 }
 .hero-stage ara-character { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
 /* The on-screen gamepad: a direction pad on the left, pace buttons on the right. */
-.pad { position: absolute; left: 0; right: 0; bottom: 40px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 8px; pointer-events: none; }
+.pad { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 8px; pointer-events: none; }
 .pad button { pointer-events: auto; -webkit-tap-highlight-color: transparent; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
 .dpad { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); }
 .dpad button { display: grid; place-items: center; padding: 0; border: 1px solid var(--line-2); background: rgba(24, 24, 28, 0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--muted); transition: background 0.1s, color 0.1s; }
@@ -109,18 +109,14 @@ p { margin: 0; text-wrap: pretty; }
 .face { display: flex; gap: 10px; }
 .face button { display: grid; justify-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--muted); font: 500 11.5px var(--sans); }
 .face b { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line-2); background: rgba(24, 24, 28, 0.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--text); font: 600 14px var(--display); transition: background 0.1s, color 0.1s, transform 0.08s; }
-.face button:hover b { background: rgba(48, 48, 56, 0.85); }
+.face button:hover b, .face .edit:hover b { background: rgba(48, 48, 56, 0.85); }
 .face button[aria-checked="true"] { color: var(--text); }
 .face button[aria-checked="true"] b { background: var(--text); color: #09090b; border-color: var(--text); }
-.face button:active b { transform: scale(0.94); }
+.face button:active b, .face .edit:active b { transform: scale(0.94); }
 .pad button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.stage-tag { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); white-space: nowrap; display: flex; align-items: center; gap: 8px; color: var(--muted); font: 500 12px/1 var(--mono); pointer-events: none; }
+.stage-tag { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; white-space: nowrap; color: var(--text); font: 600 15px/1 var(--sans); letter-spacing: -0.01em; pointer-events: none; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); animation: live 2.4s ease-out infinite; }
 @keyframes live { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.45); } 70%, 100% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); } }
-.stage-foot { position: absolute; left: 0; right: 0; bottom: 4px; display: flex; align-items: baseline; justify-content: center; gap: 16px; font-size: 14px; pointer-events: none; }
-.stage-foot span { font-weight: 600; letter-spacing: -0.01em; }
-.stage-foot a { color: var(--muted); text-decoration: none; pointer-events: auto; }
-.stage-foot a:hover { color: var(--text); }
 .cast.hero-cast { max-width: var(--wide); margin: 20px auto 0; grid-auto-columns: minmax(0, 1fr); }
 @media (max-width: 860px) { .cast.hero-cast { grid-auto-columns: 30vw; } }
 .hero-cast .cast-card { position: relative; }
@@ -308,9 +304,9 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
   .specs, .specs-5 { grid-template-columns: minmax(0, 1fr); }
   .cast { grid-auto-columns: 30vw; }
   /* On a phone the controls sit below the character instead of over it. */
-  .hero-stage { height: 540px; }
-  .hero-stage ara-character { inset: 0 0 128px 0; height: auto; }
-  .pad { bottom: 36px; padding: 0 2px; }
+  .hero-stage { height: 510px; }
+  .hero-stage ara-character { inset: 0 0 118px 0; height: auto; }
+  .pad { bottom: 8px; padding: 0 2px; }
   .devx-tabs { grid-auto-columns: max-content; }
   .devx-tabs button { padding: 14px 18px; }
   .devx-tabs button span { display: none; }
@@ -324,3 +320,7 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
   .js .reveal, .js .stagger > * { opacity: 1; transform: none; transition: none; }
 }
 .frame img { display: block; width: 100%; height: auto; }
+
+.face .edit { display: grid; justify-items: center; gap: 5px; color: var(--muted); font: 500 11.5px var(--sans); text-decoration: none; pointer-events: auto; }
+.face .edit:hover { color: var(--text); }
+.pad .edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

@@ -94,7 +94,7 @@
         </div>
         <div class="hero-stage reveal">
           <ara-character id="hero-character" preset="The Miami Dealer" animation="idle" clips="walk, run" detail="low" orbit="false" margin="1.75"></ara-character>
-          <p class="stage-tag"><span class="live-dot" aria-hidden="true"></span>Live 3D · take the controls</p>
+          <p class="stage-tag"><span class="live-dot" aria-hidden="true"></span><span id="hero-name">The Miami Dealer</span></p>
           <div class="pad" role="group" aria-label="Controls">
             <div class="dpad" role="group" aria-label="Move">
               <button type="button" data-dir="up" aria-label="Move away"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7l5 7H7z"/></svg></button>
@@ -107,11 +107,8 @@
               <button type="button" role="radio" data-gait="idle" aria-checked="true" title="Idle (1)"><b>X</b><span>Idle</span></button>
               <button type="button" role="radio" data-gait="walk" aria-checked="false" title="Walk (2)"><b>A</b><span>Walk</span></button>
               <button type="button" role="radio" data-gait="run" aria-checked="false" title="Run (3, or hold Shift)"><b>B</b><span>Run</span></button>
+              <a id="hero-edit" class="edit" href="app/#preset=The%20Miami%20Dealer" title="Open this character in the builder"><b>Y</b><span>Edit</span></a>
             </div>
-          </div>
-          <div class="stage-foot">
-            <span id="hero-name">The Miami Dealer</span>
-            <a id="hero-edit" href="app/#preset=The%20Miami%20Dealer">Edit in the builder <span aria-hidden="true">→</span></a>
           </div>
         </div>
       </section>
