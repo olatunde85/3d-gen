@@ -24,7 +24,7 @@
     <meta name="twitter:title" content="Ara 3D Gen: realistic 3D characters, rigged, animated, yours" />
     <meta name="twitter:description" content="Free and open source. Unlimited rigged, animated characters in your browser. GLB, FBX, OBJ." />
     <meta name="twitter:image" content="https://ara3dgen.com/og.jpg" />
-    <meta name="theme-color" content="#0f1116" />
+    <meta name="theme-color" content="#09090b" />
     <link rel="stylesheet" href="/src/landing/landing.css" />
     <!-- Scroll reveals hide sections until the page script shows them; without the script, nothing stays hidden. -->
     <script>document.documentElement.classList.add('js');setTimeout(function(){if(!window.__landing)document.documentElement.classList.remove('js')},3000);</script>
@@ -45,7 +45,7 @@
             "license": "https://opensource.org/licenses/MIT",
             "isAccessibleForFree": true,
             "sameAs": ["https://github.com/olatunde85/3d-gen"],
-            "featureList": ["Realistic human characters", "Automatic rigging", "216 game-ready animations", "Ara 3D Studio: short films with 66 locations, dialogue, sound and MP4 export", "GLB, FBX and OBJ export", "Clothing, hair, beards and tattoos", "Weapons on a socket bone", "Unlimited, no account"]
+            "featureList": ["Realistic human characters", "Automatic rigging", "216 game-ready animations", "Ara 3D Studio: short films with 66 locations, dialogue, sound and MP4 export", "Ara Play: games with missions, races and runs, published online", "GLB, FBX and OBJ export", "A three.js library, an embed, a command-line tool and an MCP server for AI assistants", "Unlimited, no account"]
           },
           {
             "@type": "WebSite",
@@ -58,62 +58,47 @@
 
   </head>
   <body>
+    <a class="skip" href="#main">Skip to content</a>
     <header class="nav">
-      <a class="brand" href="./"><span class="brand-mark">Ara</span> 3D Gen</a>
-      <nav>
-        <a href="#play">Play</a>
+      <a class="brand" href="./" aria-label="Ara 3D Gen home"><span class="brand-mark">Ara</span> 3D Gen</a>
+      <nav aria-label="Main">
+        <a href="app/">Builder</a>
         <a href="#studio">Studio</a>
-        <a href="#features">Features</a>
-        <a href="#why">Why self-host</a>
-        <a href="#start">Get started</a>
-        <a href="developers/">Developers</a>
+        <a href="#play">Play</a>
+        <a href="#developers">Developers</a>
         <a href="docs/">Docs</a>
-        <a href="https://github.com/olatunde85/3d-gen">GitHub</a>
       </nav>
-      <a class="btn btn-ghost btn-sm nav-studio" href="studio/">Open Studio</a>
-      <a class="btn btn-primary btn-sm" href="app/">Open Builder</a>
+      <div class="nav-end">
+        <a class="nav-link" href="https://github.com/olatunde85/3d-gen">GitHub</a>
+        <a class="btn btn-primary btn-sm" href="app/">Open Builder</a>
+      </div>
     </header>
 
-    <main>
+    <main id="main">
       <!-- Hero -->
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Open source · MIT licence · Free assets</p>
+          <a class="announce" href="#developers"><span class="announce-tag">New</span>Make characters from your AI assistant<span class="announce-arrow" aria-hidden="true">→</span></a>
           <h1>Build it. Film it.<br /><span class="grad">Play it.</span></h1>
-          <p class="lede">Create realistic 3D characters, direct them in films, and build games with missions, races and runs to share online. Free, in your browser.</p>
-          <div class="cta cta-doors">
-            <a class="btn btn-primary" href="app/"><svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3.5"/><path d="M5 21c0-4.4 3.1-7.5 7-7.5s7 3.1 7 7.5"/></svg><span class="cta-words"><span class="cta-verb">Build a</span> <span class="cta-noun">character</span></span><span class="cta-arrow" aria-hidden="true">→</span></a>
-            <a class="btn btn-ghost" href="studio/"><svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="m3 9 2.5-5 15.5 0-2.5 5M8.5 4 6 9M14.5 4 12 9"/></svg><span class="cta-words"><span class="cta-verb">Make a</span> <span class="cta-noun">film</span></span></a>
-            <a class="btn btn-ghost" href="play/"><svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a5 5 0 0 1 4.6 7l-.7 1.6a2.6 2.6 0 0 1-4.2.8L14.5 15h-5l-2.2 2.4a2.6 2.6 0 0 1-4.2-.8L2.4 15A5 5 0 0 1 7 8z"/><path d="M7.5 10.5v3M6 12h3"/><circle cx="16.5" cy="11" r=".6"/><circle cx="18" cy="12.8" r=".6"/></svg><span class="cta-words"><span class="cta-verb">Make a</span> <span class="cta-noun">game</span></span></a>
+          <p class="lede">Realistic 3D characters you can rig, animate, film and turn into games, in your browser. No account, no install, and everything you make is yours.</p>
+          <div class="cta">
+            <a class="btn btn-primary" href="app/">Build a character</a>
+            <a class="btn btn-ghost" href="studio/">Make a film</a>
+            <a class="btn btn-ghost" href="play/">Make a game</a>
           </div>
-          <ul class="facts">
-            <li><b>32</b> presets</li>
-            <li><b>216</b> animations</li>
-            <li><b>66</b> film locations</li>
-            <li><b>GLB · FBX · OBJ · MP4</b></li>
+          <ul class="meta">
+            <li>Free and open source</li>
+            <li>MIT licence, CC0 characters</li>
+            <li>GLB · FBX · OBJ · MP4</li>
           </ul>
         </div>
-
-        <figure class="product reveal">
-          <div class="window">
-            <div class="window-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="window-title">Ara 3D Studio</span></div>
+        <figure class="hero-media reveal">
+          <div class="frame">
             <video class="reel-video" data-reel="studio" muted loop playsinline preload="none" poster="/media/ara-studio-reel-poster.jpg" aria-label="Ara 3D Studio reel: a tank and a helicopter, a jet takeoff, a parachute jump, a shootout, a highway race, a street café, a rooftop chase and a beach party, ending in the Studio editor"></video>
-            <button class="reel-sound" type="button" data-video="studio"><span class="btn-video-icon" aria-hidden="true"><span class="play"></span></span> Watch with sound</button>
+            <button class="reel-sound" type="button" data-video="studio"><span class="play" aria-hidden="true"></span>Watch with sound</button>
           </div>
           <figcaption>Every shot in this reel was made and exported in Ara 3D Studio.</figcaption>
         </figure>
-
-        <div class="gallery" aria-label="Presets: open any of them in the builder">
-          <a class="card" href="app/#preset=The%20Female%20Executive"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive preset" loading="eager" /><span>Executive</span></a>
-          <a class="card" href="app/#preset=The%20Miami%20Dealer"><img src="./docs/media/presets/miami-dealer.jpg" alt="The Miami Dealer preset" /><span>Dealer</span></a>
-          <a class="card" href="app/#preset=The%20Gangster"><img src="./docs/media/presets/gangster.jpg" alt="The Gangster preset" /><span>Gangster</span></a>
-          <a class="card" href="app/#preset=The%20Priest"><img src="./docs/media/presets/priest.jpg" alt="The Priest preset" /><span>Priest</span></a>
-          <a class="card" href="app/#preset=The%20Corporate%20High-Flier"><img src="./docs/media/presets/corporate-high-flier.jpg" alt="The Corporate High-Flier preset" /><span>High-Flier</span></a>
-          <a class="card" href="app/#preset=The%20Prison%20Escapee"><img src="./docs/media/presets/prison-escapee.jpg" alt="The Prison Escapee preset" /><span>Prison Escapee</span></a>
-          <a class="card" href="app/#preset=The%20Arabian%20Oil%20Tycoon"><img src="./docs/media/presets/arabian-oil-tycoon.jpg" alt="The Arabian Oil Tycoon preset" /><span>Oil Tycoon</span></a>
-          <a class="card" href="app/#preset=The%20Adventurer"><img src="./docs/media/presets/adventurer.jpg" alt="The Adventurer preset" /><span>Adventurer</span></a>
-        </div>
-        <p class="gallery-hint">Click any character to open it in the builder.</p>
       </section>
 
       <!-- Numbers -->
@@ -125,172 +110,191 @@
         <div><b>$0</b><span>free and open source</span></div>
       </section>
 
-      <!-- Studio -->
-      <section id="play" class="section">
-        <div class="reveal">
-          <p class="eyebrow">Ara Play</p>
+      <!-- 01 Build -->
+      <section id="build" class="chapter">
+        <header class="chapter-head reveal">
+          <p class="index"><span>01</span>Build</p>
+          <h2>Characters you’d actually ship.</h2>
+          <p class="chapter-lede">Start from a preset or a blank body and shape everything: body, face, skin, hair, clothes and props. Every character is rigged and animated the moment you export it.</p>
+          <a class="more" href="app/">Open the builder <span aria-hidden="true">→</span></a>
+        </header>
+        <div class="cast" aria-label="Presets: open any of them in the builder">
+            <a class="cast-card" href="app/#preset=The%20Female%20Executive"><img src="./docs/media/presets/female-executive.jpg" alt="The Female Executive preset" loading="lazy" /><span>Executive</span></a>
+            <a class="cast-card" href="app/#preset=The%20Miami%20Dealer"><img src="./docs/media/presets/miami-dealer.jpg" alt="The Miami Dealer preset" loading="lazy" /><span>Dealer</span></a>
+            <a class="cast-card" href="app/#preset=The%20Gangster"><img src="./docs/media/presets/gangster.jpg" alt="The Gangster preset" loading="lazy" /><span>Gangster</span></a>
+            <a class="cast-card" href="app/#preset=The%20Priest"><img src="./docs/media/presets/priest.jpg" alt="The Priest preset" loading="lazy" /><span>Priest</span></a>
+            <a class="cast-card" href="app/#preset=The%20Corporate%20High-Flier"><img src="./docs/media/presets/corporate-high-flier.jpg" alt="The Corporate High-Flier preset" loading="lazy" /><span>High-Flier</span></a>
+            <a class="cast-card" href="app/#preset=The%20Prison%20Escapee"><img src="./docs/media/presets/prison-escapee.jpg" alt="The Prison Escapee preset" loading="lazy" /><span>Escapee</span></a>
+            <a class="cast-card" href="app/#preset=The%20Arabian%20Oil%20Tycoon"><img src="./docs/media/presets/arabian-oil-tycoon.jpg" alt="The Arabian Oil Tycoon preset" loading="lazy" /><span>Oil Tycoon</span></a>
+            <a class="cast-card" href="app/#preset=The%20Adventurer"><img src="./docs/media/presets/adventurer.jpg" alt="The Adventurer preset" loading="lazy" /><span>Adventurer</span></a>
+            <a class="cast-card" href="app/#preset=The%20Cyberpunk%20Hacker"><img src="./docs/media/presets/cyberpunk-hacker.jpg" alt="The Cyberpunk Hacker preset" loading="lazy" /><span>Hacker</span></a>
+            <a class="cast-card" href="app/#preset=The%20Yoruba%20Warrior"><img src="./docs/media/presets/yoruba-warrior.jpg" alt="The Yoruba Warrior preset" loading="lazy" /><span>Yoruba Warrior</span></a>
+        </div>
+        <dl class="specs stagger">
+          <div><dt>Realistic humans</dt><dd>The CC0 MakeHuman dataset: 900+ morph targets, 219 detail sliders, 20 photo-based skins and three detail levels.</dd></div>
+          <div><dt>Clothing and culture</dt><dd>Tops, bottoms, wrappers, uniforms and 30+ accessories in kente, aso-oke, ankara, adire, camo and leather, all recolourable.</dd></div>
+          <div><dt>Hair, beards, tattoos</dt><dd>Cornrows, box braids, a mohawk and buzz cuts, stubble to full beards, tattoos and earrings, fitted to every head.</dd></div>
+          <div><dt>Automatic rigging</dt><dd>Mixamo bone names for Unity, Unreal and Godot. Game, lite or full skeletons, A- or T-pose, face bones and a weapon socket.</dd></div>
+          <div><dt>Faces that come alive</dt><dd>Blinking, 9 expressions with real teeth and tongue, and lip-sync mouth shapes, exported as blend shapes.</dd></div>
+          <div><dt>216 animations</dt><dd>Motion-captured walks and runs, fights, emotes, sitting, swimming, a shooter set with cover, and riding 14 vehicles.</dd></div>
+          <div><dt>Weapons and props</dt><dd>Rifles, pistols, swords and knives held properly in every pose, bags to carry and vehicles fitted to each rider.</dd></div>
+          <div><dt>Exports you can trust</dt><dd>GLB, FBX and OBJ: static, rigged or animated, one file or one per clip. The export panel lists every file first.</dd></div>
+        </dl>
+      </section>
+
+      <!-- 02 Film -->
+      <section id="studio" class="chapter">
+        <header class="chapter-head reveal">
+          <p class="index"><span>02</span>Film</p>
+          <h2>Direct your characters in short films.</h2>
+          <p class="chapter-lede">Cast up to five characters in a scene and direct each one on a timeline. Add dialogue, sound and music, then export an MP4. The reel above was made this way.</p>
+          <p class="more-row"><a class="more" href="studio/">Open Studio <span aria-hidden="true">→</span></a><a class="more more-quiet" href="docs/studio/">Studio guide</a></p>
+        </header>
+        <div class="locations stagger" aria-label="Eight of the 66 Studio locations">
+          <figure><img src="/studio-location-previews/neon-street.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Neon street</figcaption></figure>
+          <figure><img src="/studio-location-previews/football-stadium.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Football stadium</figcaption></figure>
+          <figure><img src="/studio-location-previews/night-club.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Night club</figcaption></figure>
+          <figure><img src="/studio-location-previews/harbour.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Harbour</figcaption></figure>
+          <figure><img src="/studio-location-previews/military-base.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Military base</figcaption></figure>
+          <figure><img src="/studio-location-previews/street-cafe.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Street café</figcaption></figure>
+          <figure><img src="/studio-location-previews/yacht-deck.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Yacht deck</figcaption></figure>
+          <figure><img src="/studio-location-previews/desert-outpost.webp" alt="" loading="lazy" width="960" height="600" /><figcaption>Desert outpost</figcaption></figure>
+        </div>
+        <dl class="specs stagger">
+          <div><dt>66 locations</dt><dd>Offices, homes, beaches, a neon alley, a highway, a harbour, a military base and a football stadium.</dd></div>
+          <div><dt>Five characters a scene</dt><dd>Your own characters or presets, each with its own timeline of actions, placement and equipment.</dd></div>
+          <div><dt>Vehicles</dt><dd>Cars, motorbikes, boats, a horse, a tank, a helicopter and a jet, with boarding, driving and crashes.</dd></div>
+          <div><dt>Action</dt><dd>Fight scenes, sword combos, gunfights from cover and reactions when someone is hit.</dd></div>
+          <div><dt>Sound</dt><dd>Typed or recorded dialogue, 20 sound effects and 9 music tracks, mixed into the film.</dd></div>
+          <div><dt>Cameras and text</dt><dd>Wide, medium and close shots with their own angles, subtitles and speech bubbles.</dd></div>
+          <div><dt>Assist</dt><dd>Describe a film to any AI assistant and paste back a complete, editable project.</dd></div>
+          <div><dt>MP4 export</dt><dd>720p or 1080p at 30 fps with sound, landscape or portrait. Save projects and reopen them.</dd></div>
+        </dl>
+      </section>
+
+      <!-- 03 Play -->
+      <section id="play" class="chapter">
+        <header class="chapter-head reveal">
+          <p class="index"><span>03</span>Play</p>
           <h2>Make a game. Publish it in a minute.</h2>
-          <p class="section-lede">Cast your characters in missions, races and endless runs, string up to ten chapters into a campaign with a city to explore between them, then put it on the web with one click. No code, no engine, no install.</p>
-          <p class="links"><a href="play/">Open Ara Play →</a><a href="docs/play/">Read the Ara Play guide →</a><a href="docs/hosting-games/">Hosting your game →</a></p>
-        </div>
-        <figure class="product reveal">
-          <div class="window">
-            <div class="window-bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="window-title">Dead Drop · made with Ara Play</span></div>
+          <p class="chapter-lede">Cast your characters in missions, races and endless runs, string up to ten chapters into a campaign, then put it on the web with one click. No code, no engine, no install.</p>
+          <p class="more-row"><a class="more" href="play/">Open Ara Play <span aria-hidden="true">→</span></a><a class="more more-quiet" href="docs/play/">Ara Play guide</a><a class="more more-quiet" href="docs/hosting-games/">Hosting your game</a></p>
+        </header>
+        <figure class="chapter-media reveal">
+          <div class="frame">
             <video class="reel-video" data-reel="play" muted loop playsinline preload="none" poster="/media/ara-play-promo-poster.jpg" aria-label="Ara Play promo: Dead Drop, a demo game. A rescue, a companion boarding a pickup, a shootout, police in a city district, endless runs across five settings, two races, then the game builder, publishing and the game live in a browser"></video>
-            <button class="reel-sound" type="button" data-video="play"><span class="btn-video-icon" aria-hidden="true"><span class="play"></span></span> Watch with sound</button>
+            <button class="reel-sound" type="button" data-video="play"><span class="play" aria-hidden="true"></span>Watch with sound</button>
           </div>
-          <figcaption>Every shot is Dead Drop, a ten-chapter game made in Ara Play, played live.</figcaption>
+          <figcaption>Dead Drop, a ten-chapter game made in Ara Play, played live.</figcaption>
         </figure>
-        <div class="capabilities stagger">
-          <div><h3>Missions</h3><p>Escape, rescue and clear across five locations, with objectives to reach, download, defend, eliminate, survive, escort, chase and convoy.</p></div>
-          <div><h3>Companions and vehicles</h3><p>Free a companion who follows you to the truck and rides along. 14 drivable vehicles, from a keke to a muscle car.</p></div>
-          <div><h3>Combat</h3><p>Pistols, rifles and grenades, cover, stealth takedowns, snipers, heavies and squad leaders.</p></div>
-          <div><h3>A city between chapters</h3><p>Free roam with traffic, pedestrians, police and a wanted level, side jobs and a car radio.</p></div>
-          <div><h3>Arcade races</h3><p>11 circuits, 13 cars, drifting, nitro, items, ghosts, cups and expert rivals.</p></div>
-          <div><h3>Endless runs</h3><p>11 settings, 7 power-ups including spring boots and a hoverboard, objects to find and armed enemies to shoot.</p></div>
-          <div><h3>Campaigns and story</h3><p>Up to ten chapters in any mix of modes, with branching choices, dialogue, voices and opening and ending films.</p></div>
-          <div><h3>Assist and Customize</h3><p>Describe a game to any AI assistant and paste back a playable campaign. Set its name, How to play and colours.</p></div>
-          <div><h3>Publish online</h3><p>Live on Cloudflare in about a minute with no sign-up, ready to claim into your own free account. Or download it and host it anywhere.</p></div>
+        <dl class="specs stagger">
+          <div><dt>Missions</dt><dd>Escape, rescue and clear across five locations: reach, download, defend, survive, escort, chase and convoy.</dd></div>
+          <div><dt>Companions and vehicles</dt><dd>Free a companion who follows you and rides along. 14 drivable vehicles, from a keke to a muscle car.</dd></div>
+          <div><dt>Combat</dt><dd>Pistols, rifles and grenades, cover, stealth takedowns, snipers, heavies and squad leaders.</dd></div>
+          <div><dt>A city between chapters</dt><dd>Free roam with traffic, pedestrians, police and a wanted level, side jobs and a car radio.</dd></div>
+          <div><dt>Arcade races</dt><dd>11 circuits, 13 cars, drifting, nitro, items, ghosts, cups and expert rivals.</dd></div>
+          <div><dt>Endless runs</dt><dd>11 settings and 7 power-ups, including spring boots and a hoverboard.</dd></div>
+          <div><dt>Campaigns and story</dt><dd>Up to ten chapters with branching choices, dialogue, voices and opening and ending films.</dd></div>
+          <div><dt>Publish online</dt><dd>Live in about a minute with no sign-up, ready to claim into your own free account, or download it and host it anywhere.</dd></div>
+        </dl>
+      </section>
+
+      <!-- 04 Develop -->
+      <section id="developers" class="chapter dev">
+        <header class="chapter-head reveal">
+          <p class="index"><span>04</span>Develop</p>
+          <h2>Characters in your code, your pages and your AI assistant.</h2>
+          <p class="chapter-lede">One free npm package: a three.js library, a one-tag embed, a command-line tool and an MCP server. Characters build on your users’ devices or your own machine, with no server to run.</p>
+          <p class="more-row"><a class="more" href="developers/">Ara for Developers <span aria-hidden="true">→</span></a><a class="more more-quiet" href="developers/#playground">Playground</a></p>
+        </header>
+        <div class="devx reveal" data-tab="library">
+          <div class="devx-tabs" role="tablist" aria-label="Ways to use Ara in code">
+            <button type="button" role="tab" id="devx-tab-library" data-tab="library" aria-selected="true" aria-controls="devx-panel"><b>Library</b><span>three.js characters in your app or game</span></button>
+            <button type="button" role="tab" id="devx-tab-embed" data-tab="embed" aria-selected="false" aria-controls="devx-panel" tabindex="-1"><b>Embed</b><span>One tag on any web page</span></button>
+            <button type="button" role="tab" id="devx-tab-cli" data-tab="cli" aria-selected="false" aria-controls="devx-panel" tabindex="-1"><b>Command line</b><span>GLB, FBX and OBJ for any engine</span></button>
+            <button type="button" role="tab" id="devx-tab-mcp" data-tab="mcp" aria-selected="false" aria-controls="devx-panel" tabindex="-1"><b>AI assistants</b><span>Ask Claude, Cursor or VS Code</span></button>
+          </div>
+          <div class="devx-stage" id="devx-panel" role="tabpanel" aria-labelledby="devx-tab-library">
+            <div class="devx-code">
+              <div class="devx-bar"><span id="devx-file">main.js</span><button type="button" class="devx-copy" id="devx-copy">Copy</button></div>
+              <pre><code id="devx-code"></code></pre>
+            </div>
+            <div class="devx-preview">
+              <ara-character id="devx-character" preset="The Soldier" animation="rifle_idle" weapon="rifle" detail="low"></ara-character>
+              <p class="devx-caption" id="devx-caption">Live: the character this code makes.</p>
+            </div>
+          </div>
+        </div>
+        <div class="devx-foot reveal">
+          <code class="install"><span aria-hidden="true">$</span> npm install ara3d</code>
+          <nav aria-label="Developer guides"><a href="docs/library/">Library</a><a href="docs/embed/">Embed</a><a href="docs/cli/">Command line</a><a href="docs/mcp/">MCP</a><a href="https://www.npmjs.com/package/ara3d">npm</a></nav>
         </div>
       </section>
 
-      <section id="studio" class="section">
-        <div class="reveal">
-          <p class="eyebrow">Ara 3D Studio</p>
-          <h2>Direct your characters in short films</h2>
-          <p class="section-lede">Take any character from the builder, cast up to five of them in each scene, and direct each one's performance on a timeline. Add dialogue, sound and music, then export an MP4. Free, in your browser.</p>
-          <p class="links"><a href="studio/">Open Studio →</a><a href="docs/studio/">Read the Studio guide →</a></p>
-        </div>
-        <div class="capabilities stagger">
-          <div><h3>66 locations</h3><p>Offices, homes, beaches, a neon alley, a highway, a harbour, a military base and a football stadium.</p></div>
-          <div><h3>Up to five characters per scene</h3><p>Your own characters or presets, each with its own timeline of actions, placement and equipment.</p></div>
-          <div><h3>216 animations</h3><p>Talk, dance, sit, fight, shoot from cover, vault, climb, swim and get up again.</p></div>
-          <div><h3>Vehicles</h3><p>Cars, motorbikes, boats, a horse, a tank, a helicopter and a jet, with boarding, driving and crashes.</p></div>
-          <div><h3>Action</h3><p>Fight scenes, sword combos, gunfights from cover and gunshot reactions with blood.</p></div>
-          <div><h3>Sound</h3><p>Typed or recorded dialogue, 20 sound effects and 9 music tracks, mixed into the film.</p></div>
-          <div><h3>Cameras and text</h3><p>Wide, medium and close shots with their own angles, plus subtitles and speech bubbles.</p></div>
-          <div><h3>Assist</h3><p>Describe a film to any AI assistant and paste back a complete, editable project.</p></div>
-          <div><h3>MP4 export</h3><p>720p or 1080p at 30 fps with sound, landscape or portrait. Save and reopen projects.</p></div>
-        </div>
-      </section>
-
-
-      <!-- Features -->
-      <section id="features" class="section">
-        <p class="eyebrow">What you get</p>
-        <h2 class="reveal">Everything between a blank scene and a playable character</h2>
-        <div class="features stagger">
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7m0 0-3 6m3-6 3 6M7 11h10"/></svg></div>
-            <h3>Realistic humans</h3>
-            <p>Built on the CC0 MakeHuman dataset: 900+ morph targets, 219 detail sliders, 20 photo-based skins and three detail levels from about 5k to 120k triangles.</p>
-          </article>
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><path d="M8 3 4 6l2 4 2-1v12h8V9l2 1 2-4-4-3-2 2h-4z"/></svg></div>
-            <h3>Clothing and culture</h3>
-            <p>Mix-and-match tops, bottoms, wrappers, uniforms and 30+ accessories. Kente, aso-oke, ankara, adire, camo and leather, all recolourable.</p>
-          </article>
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><path d="M6 10c0-4 2.7-7 6-7s6 3 6 7M6 10v3c0 4 2.7 8 6 8s6-4 6-8v-3M9 14c1 1.5 5 1.5 6 0"/></svg></div>
-            <h3>Hair, beards, tattoos</h3>
-            <p>Cornrows, box braids, a punk mohawk and buzz cuts. Stubble to full beards. Tattoos and earrings. All follow every head and body shape.</p>
-          </article>
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="4" r="1.6"/><circle cx="6" cy="11" r="1.6"/><circle cx="18" cy="11" r="1.6"/><circle cx="9" cy="20" r="1.6"/><circle cx="15" cy="20" r="1.6"/><path d="M12 6v6m0 0-5-1m5 1 5-1m-5 1-3 7m3-7 3 7"/></svg></div>
-            <h3>Automatic rigging</h3>
-            <p>Mixamo bone names for Unity Humanoid, Unreal and Godot. Game, lite or full skeleton, A- or T-pose, face bones and a weapon socket.</p>
-          </article>
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/><path d="M8.5 15c2 2 5 2 7 0"/></svg></div>
-            <h3>Faces that come alive</h3>
-            <p>Characters blink and glance around. 9 expressions with real teeth and tongue, a talking clip, and lip-sync mouth shapes, exported as blend shapes in GLB and FBX.</p>
-          </article>
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><path d="M5 4v16l14-8z"/></svg></div>
-            <h3>216 animations</h3>
-            <p>A motion-captured walk and run, turns, jumps, pickup, press, open door, push, carrying, sitting and lying down, unarmed fighting, emotes, a rifle and pistol shooter set with cover, sword combos, and vehicles: car, bike, motorcycle, horse, canoe, kayak and boat.</p>
-          </article>
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><path d="M4 20 16 8m0 0 2-4 2 2-4 2M9 15l-3-3m-2 8 2-2"/></svg></div>
-            <h3>Weapons and props</h3>
-            <p>Rifle, pistol, sword and knife on a socket bone; the hands stay on the weapon in every pose. And a bicycle, fitted to every rider, for the cycling animation.</p>
-          </article>
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg></div>
-            <h3>Exports you can trust</h3>
-            <p>Static, rigged, or rigged + animations; one file or one per clip. The export panel lists every file before you download.</p>
-          </article>
-          <article>
-            <div class="icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM7 9l3 3-3 3m5 0h5"/></svg></div>
-            <h3>Batch command line</h3>
-            <p>Self-host it and generate hundreds of NPCs from a script. Every export carries its settings, so any character can be regenerated.</p>
-          </article>
-        </div>
-      </section>
-
-      <!-- Why self-host -->
-      <section id="why" class="section">
-        <p class="eyebrow">Why self-host</p>
-        <h2>Online generators rent you characters. This one is yours.</h2>
+      <!-- Why -->
+      <section id="why" class="chapter">
+        <header class="chapter-head reveal">
+          <h2>Online generators rent you characters. <span class="grad">This one is yours.</span></h2>
+        </header>
         <div class="compare reveal" role="table" aria-label="Online platforms compared with Ara 3D Gen">
           <div class="row head" role="row"><span role="columnheader"></span><span role="columnheader">Online platforms</span><span role="columnheader">Ara 3D Gen</span></div>
-          <div class="row" role="row"><span role="rowheader">Cost</span><span>Subscriptions, credits or per-export fees</span><span class="yes">Free and open source</span></div>
-          <div class="row" role="row"><span role="rowheader">Limits</span><span>Monthly export or generation caps</span><span class="yes">Unlimited</span></div>
-          <div class="row" role="row"><span role="rowheader">Privacy</span><span>Your work lives on their servers</span><span class="yes">Runs on your machine</span></div>
-          <div class="row" role="row"><span role="rowheader">Offline</span><span>Needs a connection</span><span class="yes">Works offline when self-hosted</span></div>
-          <div class="row" role="row"><span role="rowheader">Automation</span><span>Web UI, sometimes a paid API</span><span class="yes">Batch CLI and TypeScript API</span></div>
-          <div class="row" role="row"><span role="rowheader">Ownership</span><span>Licence terms can change</span><span class="yes">Commercial use OK</span></div>
-          <div class="row" role="row"><span role="rowheader">Customising</span><span>What the vendor ships</span><span class="yes">Fork it: add garments, hair, animations</span></div>
+          <div class="row" role="row"><span role="rowheader">Cost</span><span>Subscriptions, credits or per-export fees</span><span>Free and open source</span></div>
+          <div class="row" role="row"><span role="rowheader">Limits</span><span>Monthly export or generation caps</span><span>Unlimited</span></div>
+          <div class="row" role="row"><span role="rowheader">Privacy</span><span>Your work lives on their servers</span><span>Runs on your machine</span></div>
+          <div class="row" role="row"><span role="rowheader">Offline</span><span>Needs a connection</span><span>Works offline when self-hosted</span></div>
+          <div class="row" role="row"><span role="rowheader">Automation</span><span>Web UI, sometimes a paid API</span><span>Library, CLI and MCP server</span></div>
+          <div class="row" role="row"><span role="rowheader">Ownership</span><span>Licence terms can change</span><span>Commercial use allowed</span></div>
+          <div class="row" role="row"><span role="rowheader">Customising</span><span>What the vendor ships</span><span>Fork it: add garments, hair, animations</span></div>
         </div>
       </section>
 
-      <!-- Use cases -->
-      <section class="section">
-        <p class="eyebrow">Who it's for</p>
-        <h2>From indie games to research labs</h2>
-        <div class="uses stagger">
-          <div><h3>Game developers</h3><p>NPCs, crowds and prototype heroes, ready for Unity, Unreal, Godot or the web.</p></div>
-          <div><h3>Animators and previs</h3><p>Rigged bodies to pose, animate and block out scenes.</p></div>
-          <div><h3>XR and simulation</h3><p>Diverse avatars for training, digital twins and virtual worlds.</p></div>
-          <div><h3>Educators and students</h3><p>Learn rigging, animation and engines with a real pipeline.</p></div>
-          <div><h3>Researchers</h3><p>Synthetic, diverse humans for computer-vision datasets.</p></div>
+      <!-- Who and tools -->
+      <section class="chapter audience">
+        <header class="chapter-head reveal"><h2>From indie games to research labs.</h2></header>
+        <dl class="specs specs-5 stagger">
+          <div><dt>Game developers</dt><dd>NPCs, crowds and prototype heroes for Unity, Unreal, Godot or the web.</dd></div>
+          <div><dt>Animators and previs</dt><dd>Rigged bodies to pose, animate and block out scenes.</dd></div>
+          <div><dt>XR and simulation</dt><dd>Diverse avatars for training, digital twins and virtual worlds.</dd></div>
+          <div><dt>Educators and students</dt><dd>Rigging, animation and engines, with a real pipeline.</dd></div>
+          <div><dt>Researchers</dt><dd>Synthetic, diverse humans for computer-vision datasets.</dd></div>
+        </dl>
+        <div class="tools reveal">
+          <span>Works with</span>
+          <ul><li>Unity</li><li>Unreal Engine</li><li>Godot</li><li>Blender</li><li>three.js</li><li>Babylon.js</li><li>PlayCanvas</li><li>Mixamo</li></ul>
         </div>
-      </section>
-
-      <!-- Engines -->
-      <section class="section engines">
-        <p class="eyebrow">Works with your tools</p>
-        <ul class="chips">
-          <li>Unity</li><li>Unreal Engine</li><li>Godot</li><li>Blender</li><li>three.js</li><li>Babylon.js</li><li>PlayCanvas</li><li>Mixamo</li>
-        </ul>
       </section>
 
       <!-- Get started -->
-      <section id="start" class="section start">
-        <div>
-          <p class="eyebrow">Get started</p>
-          <h2>Use it online, or own the whole pipeline</h2>
-          <p>The online builder has every feature for making characters by hand. Self-host it for batch generation, offline use and your own garments, hair and animations. Works on Windows, macOS and Linux with Node 20+ and git.</p>
+      <section id="start" class="start">
+        <div class="start-copy reveal">
+          <h2>Your first character is a minute away.</h2>
+          <p>Everything for making characters by hand is in the online builder. Self-host it for batch generation, offline use and your own garments, hair and animations, on Windows, macOS or Linux.</p>
           <div class="cta">
-            <a class="btn btn-primary" href="app/">Open the builder <span aria-hidden="true">→</span></a>
+            <a class="btn btn-primary" href="app/">Open the builder</a>
             <a class="btn btn-ghost" href="https://github.com/olatunde85/3d-gen">View on GitHub</a>
           </div>
         </div>
-        <pre class="terminal" aria-label="Install commands"><code><span class="c"># one-time setup</span>
-git clone https://github.com/olatunde85/3d-gen.git
+        <pre class="terminal reveal" aria-label="Install commands"><code><span class="c"># run the whole site on your machine</span>
+git clone --depth 1 https://github.com/olatunde85/3d-gen.git
 cd 3d-gen
 npm install
 npm run setup-assets
-<span class="c"># run it</span>
 npm run dev</code></pre>
       </section>
     </main>
 
     <footer class="footer">
-      <div><b><span class="brand-mark">Ara</span> 3D Gen</b> · <i>Ara</i> is Yoruba for "body".</div>
-      <div>Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a> · Your exports are yours.</div>
-      <div><a href="docs/">Docs</a> · <a href="developers/">Developers</a> · <a href="https://github.com/olatunde85/3d-gen">GitHub</a> · <a href="app/">Builder</a> · <a href="studio/">Studio</a> · <a href="play/">Play</a> · <a href="terms/">Terms</a> · <a href="privacy/">Privacy</a> · <a href="privacy/#cookies">Cookies</a></div>
-      <div><a href="mailto:josholatunde@gmail.com">Hire me for a private project</a></div>
+      <div class="footer-brand">
+        <a class="brand" href="./"><span class="brand-mark">Ara</span> 3D Gen</a>
+        <p><i>Ara</i> is Yoruba for “body”.</p>
+        <p><a href="mailto:josholatunde@gmail.com">Hire me for a private project</a></p>
+      </div>
+      <nav class="footer-cols" aria-label="Footer">
+        <div><h3>Make</h3><a href="app/">Builder</a><a href="studio/">Studio</a><a href="play/">Play</a></div>
+        <div><h3>Develop</h3><a href="developers/">Developers</a><a href="docs/library/">Library</a><a href="docs/embed/">Embed</a><a href="docs/cli/">Command line</a><a href="docs/mcp/">MCP</a></div>
+        <div><h3>Project</h3><a href="docs/">Docs</a><a href="https://github.com/olatunde85/3d-gen">GitHub</a><a href="terms/">Terms</a><a href="privacy/">Privacy</a><a href="privacy/#cookies">Cookies</a></div>
+      </nav>
+      <p class="footer-credits">Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a> · Your exports are yours.</p>
     </footer>
 
     <dialog class="video-modal" aria-label="Video">
