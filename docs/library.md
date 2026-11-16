@@ -18,6 +18,8 @@ mixer.clipAction(hero.clip('walk')).play();
 // In your render loop: mixer.update(delta);
 ```
 
+**Try it first** in the [playground](https://ara3dgen.com/developers/#playground): pick a character, props and an expression, and copy the code it writes.
+
 It's written in TypeScript and ships its types, so editors autocomplete every option. It needs three.js 0.160 or newer, a modern browser, and a bundler (Vite, webpack, Next.js and so on) or an import map. No extra bundler setup is needed: the worker is built in.
 
 ## Choosing a character
@@ -128,4 +130,4 @@ await createCharacter('The Soldier', { assetsUrl: '/ara3d-assets/' });
 
 ## For maintainers
 
-The library lives beside the CLI in `packages/cli/` (`src/index.ts`, with the worker in `src/library/`) and shares the generator code with the website. `npx vite build --config packages/cli/vite.lib.config.ts` builds `dist/index.js`, and `npm run test:library` checks it in headless Chrome, with photos in `out/library/`. `npm run release-cli` builds both packages. When `public/assets` changes, raise the version in `packages/data/package.json`; `--publish` then publishes `ara3d-data` before `ara3d`.
+The library lives beside the CLI in `packages/cli/` (`src/index.ts`, with the worker in `src/library/`) and shares the generator code with the website. `npx vite build --config packages/cli/vite.lib.config.ts` builds `dist/index.js`, and `npm run test:library` checks it in headless Chrome, with photos in `out/library/`. The [developers page](https://ara3dgen.com/developers/) (`developers/index.html`, `src/developers/`) runs the library from source for its playground; after `npm run build`, `npm run test:developers` checks it on desktop and phone, with photos in `out/developers/`. `npm run release-cli` builds both packages. When `public/assets` changes, raise the version in `packages/data/package.json`; `--publish` then publishes `ara3d-data` before `ara3d`.
