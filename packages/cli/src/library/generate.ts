@@ -5,13 +5,17 @@
 import { unzipSync } from 'fflate';
 import { AssetLibrary } from '../../../../src/core/assets';
 import { buildHuman } from '../../../../src/core/human';
-import { DEFAULT_PARAMS, PRESETS, type HumanParams } from '../../../../src/core/params';
+import { DEFAULT_PARAMS, PRESETS, randomParams, type HumanParams } from '../../../../src/core/params';
+import { decodeCharacter } from '../../../../src/app/share';
 import { CLIPS } from '../../../../src/core/anim/clips';
 import { characterExample, parseCharacterInput } from '../../../../src/app/character-assist';
 import { exportClipName, planExport, runExport, stemOf, type ExportSettings } from '../../../../src/export';
 
-/** What to build: a preset name, an "ara-character" object, or character settings (as in a params.json). */
-export type CharacterInput = string | Record<string, unknown>;
+/**
+ * What to build: a preset name, a share link from the Ara builder, { random: seed }, an "ara-character" object, or
+ * character settings (as in a params.json).
+ */
+export type CharacterInput = string | { random: number; name?: string } | Record<string, unknown>;
 
 export interface GenerateOptions {
   /** Clip IDs or groups (such as "locomotion"), "all" (the default) or "none". */
@@ -65,9 +69,20 @@ function clipIds(choice: GenerateOptions['animations']) {
 
 export async function generate(lib: AssetLibrary, input: CharacterInput, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
   let params: HumanParams;
-  if (typeof input === 'string') {
-    if (!PRESETS[input]) throw Error(`Unknown preset "${input}". See PRESET_NAMES.`);
+  const share = typeof input === 'string' ? /[#&?]c=([A-Za-z0-9_-]+)/.exec(input) : null;
+  if (share) {
+    // A link from the builder's Share button: the character as designed there.
+    const shared = decodeCharacter(share[1], DEFAULT_PARAMS.detail);
+    if (!shared) throw Error('That share link could not be read. Copy it again from the Ara builder (Share, then Copy link).');
+    params = shared;
+  } else if (typeof input === 'string') {
+    if (!PRESETS[input]) throw Error(`Unknown preset "${input}". See PRESET_NAMES, or pass a share link from the Ara builder.`);
     params = { ...DEFAULT_PARAMS, ...structuredClone(PRESETS[input]), name: input };
+  } else if ('random' in input) {
+    // The same seed always gives the same character, as with ara3d export --random.
+    const seed = Number(input.random);
+    if (!Number.isInteger(seed) || seed < 0 || seed > 1e9) throw Error('random takes a whole number from 0 to 1,000,000,000.');
+    params = { ...randomParams(seed, lib.catalog), name: typeof input.name === 'string' ? input.name : `random_${seed}` };
   } else {
     // The same checks as the builder's LLM Assist and the CLI: unknown fields and out-of-range values are errors.
     const raw = 'kind' in input || 'preset' in input ? { kind: characterExample().kind, version: 1, ...input } : input;

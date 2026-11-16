@@ -25,6 +25,11 @@ It's written in TypeScript and ships its types, so editors autocomplete every op
 `createCharacter(input, options)` takes:
 
 - **A preset name:** `'The Soldier'`. `PRESET_NAMES` lists all 32.
+- **A share link from the builder:** design a character visually at [ara3dgen.com/app](https://ara3dgen.com/app/), choose **Share**, copy the link and pass it in:
+  ```js
+  await createCharacter('https://ara3dgen.com/app/#c=eJyr...');
+  ```
+- **A random character:** `{ random: 42 }`. The same seed always gives the same person, so a crowd of `{ random: 1 }` to `{ random: 50 }` looks the same on every visit.
 - **An `ara-character` object:** a preset plus changes, the same format as the [CLI's character files](cli.md#character-files) and the builder's LLM Assist:
   ```js
   await createCharacter({ preset: 'The Bride', params: { name: 'Ada', ageYears: 30 } });
@@ -63,6 +68,24 @@ Choose only the clips you need. A character with every clip is about 28 MB and t
 
 `createCharacterGLB(input, options)` returns only the GLB bytes and doesn't need three.js. Use it to save characters, send them to a server, or load them in another engine.
 
+## Faces
+
+Every character carries face shapes, so it can change expression, blink and talk.
+
+```js
+hero.setExpression('happy');         // or 0.5 for a hint of a smile: hero.setExpression('happy', 0.5)
+hero.setMouth('viseme_aa');          // a mouth shape for lip-sync; hero.setMouth(null) closes it
+hero.setFace({ browInnerUp: 0.6 });  // any face shape by name
+
+// In your render loop, after mixer.update(delta):
+hero.update(delta);                  // runs natural blinking; hero.blinking = false turns it off
+```
+
+- **Expressions:** `EXPRESSIONS` lists them: neutral, happy, laughing, angry, sad, crying, surprised, afraid and determined. A character starts with the expression in its settings.
+- **Lip-sync:** `MOUTH_SHAPES` are the 14 Oculus viseme names (`viseme_aa`, `viseme_PP` and so on) that lip-sync tools output. Feed each viseme your tool reports to `setMouth()`. While a mouth shape shows, it moves the jaw and the expression's smile or frown eases off, so talking and expressions combine without over-stretching the mouth.
+- **Face shapes:** `FACE_SHAPES` lists every shape, with ARKit-style names (`eyeBlinkLeft`, `jawOpen`, `mouthSmile` and so on), so face-capture data can drive them directly.
+- A few clips animate the face themselves, such as talk and laugh. While one plays, three.js's mixer sets those shapes each frame; blinking still runs on top.
+
 ## Lists
 
 `PRESET_NAMES`, `ANIMATIONS` (each clip's `id`, `name`, `group`, `category` and whether it loops) and `PROPS` (`weapons`, `carried`, `vehicles`) are available straight away, without loading any data. Use them to build pickers.
@@ -81,6 +104,20 @@ cp -r node_modules/ara3d-data/assets public/ara3d-assets
 ```js
 await createCharacter('The Soldier', { assetsUrl: '/ara3d-assets/' });
 ```
+
+## Crowds, rigs and other animations
+
+- **Crowds:** build a few characters, then clone them instead of rebuilding. Clones share the geometry and textures, so they cost little memory:
+  ```js
+  import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+  const walker = clone(hero.scene);
+  scene.add(walker);
+  new THREE.AnimationMixer(walker).clipAction(hero.clip('walk')).play();
+  ```
+  Mix in random characters (`{ random: n }`) for variety, and use `detail: 'low'` with only the clips the crowd needs.
+- **T-pose:** characters are rigged in a natural A-pose. Pass `{ preset: 'The Soldier', params: { restPose: 'T' } }` for a T-pose, which Unity Humanoid and many retargeting tools expect.
+- **Smaller rigs:** `params: { rig: 'game_lite' }` gives a 25-bone skeleton without fingers, for distant characters. See [Rigging](rigging.md) for every option.
+- **Mixamo and other animations:** the default game rig uses Mixamo's bone names (`Hips`, `Spine`, `LeftArm` and so on). Mixamo files prefix their bones with `mixamorig:`, so rename their tracks to match, for example `track.name = track.name.replace('mixamorig:', '')`. Clips made for a T-pose skeleton work best on a character built with `restPose: 'T'`. If limbs still twist, the skeletons' bone orientations differ; retarget with a tool such as three's `SkeletonUtils.retargetClip`.
 
 ## Good to know
 

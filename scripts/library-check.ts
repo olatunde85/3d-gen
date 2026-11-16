@@ -11,6 +11,8 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
+import { encodeCharacter } from '../src/app/share';
+import { DEFAULT_PARAMS, PRESETS } from '../src/core/params';
 
 const root = resolve(import.meta.dirname, '..'), out = join(root, 'out/library');
 const chromePath = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -42,6 +44,22 @@ window.run = async (input, options, view) => {
     const result = { seconds, framesWhileBuilding: frames, steps: steps.size, height: hero.height, clips: hero.animations.map((a) => a.name), clipFound: !!clip, props: hero.props.map((p) => p.name), glb: hero.glb.length, name: hero.params.name };
     hero.dispose();return result;
   } catch (error) { ticking = false;return { error: error.message }; }
+};
+window.faceTest = async (expression, mouth) => {
+  const hero = await createCharacter('The Female Executive', { assetsUrl: '/assets/', animations: ['idle'] });
+  const meshes = [];hero.scene.traverse((o) => { if (o.morphTargetDictionary) meshes.push(o); });
+  const value = (name) => Math.max(...meshes.map((m) => m.morphTargetDictionary[name] === undefined ? 0 : m.morphTargetInfluences[m.morphTargetDictionary[name]]));
+  hero.setExpression(expression);hero.setMouth(mouth);
+  const after = { expression: value(expression === 'happy' ? 'mouthSmile' : 'eyeWideLeft'), mouth: value(mouth), otherMouth: value('viseme_PP') };
+  let blinkPeak = 0;for (let i = 0; i < 200; i++) { hero.update(0.05);blinkPeak = Math.max(blinkPeak, value('eyeBlinkLeft')); }
+  hero.blinking = false;let lidAfterOff = 0;for (let i = 0; i < 200; i++) { hero.update(0.05);lidAfterOff = Math.max(lidAfterOff, value('eyeBlinkLeft')); }
+  let errors = [];for (const f of [() => hero.setExpression('nope'), () => hero.setMouth('viseme_ZZ')]) try { f(); } catch (e) { errors.push(e.message); }
+  // A close-up of the face, for the eye.
+  const scene = new THREE.Scene();scene.background = new THREE.Color(0xcfd6dd);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x667788, 2.4));const sun = new THREE.DirectionalLight(0xffffff, 1.6);sun.position.set(1, 3, 4);scene.add(sun);scene.add(hero.scene);
+  const head = new THREE.Box3().setFromObject(hero.scene).max.y - 0.13;
+  const camera = new THREE.PerspectiveCamera(22, 9 / 7, 0.05, 20);camera.position.set(0, head, 0.85);camera.lookAt(0, head, 0);renderer.render(scene, camera);
+  hero.dispose();return { ...after, blinkPeak, lidAfterOff, errors, shapes: meshes.length };
 };
 window.glbOnly = async () => { const glb = await createCharacterGLB('The Priest', { assetsUrl: '/assets/', animations: 'none', detail: 'low' });return { size: glb.length, magic: String.fromCharCode(...glb.slice(0, 4)) }; };
 window.ready = true;
@@ -107,6 +125,28 @@ try {
     await photo(name);
     console.log(`OK ${name}: ${r.name}, ${r.height.toFixed(2)} m, ${r.clips.length} clips, props ${r.props.join(', ') || 'none'}, ${(r.glb / 1e6).toFixed(1)} MB, ${r.seconds.toFixed(1)} s, ${r.framesWhileBuilding} frames drawn meanwhile`);
   }
+  // Random characters and share links from the builder.
+  const shareCode = encodeCharacter({ ...DEFAULT_PARAMS, ...PRESETS['The Priest'], name: 'Shared priest', hairColor: '#aa3311' });
+  for (const [name, character] of [['random', { random: 42 }], ['share-link', `https://ara3dgen.com/app/#c=${shareCode}`]] as const) {
+    const r = await evaluate<any>(`window.run(${JSON.stringify(character)}, { animations: ['idle'], detail: 'low' }, { play: 'idle', az: 0.4, dist: 4.2 })`);
+    assert.ok(!r.error, `${name}: ${r.error}`);
+    assert.equal(r.name, name === 'random' ? 'random_42' : 'Shared priest');
+    await photo(name);console.log(`OK ${name}: ${r.name}, ${r.height.toFixed(2)} m`);
+  }
+  const broken = await evaluate<any>(`window.run('https://ara3dgen.com/app/#c=broken', {}, { play: 'idle', az: 0, dist: 4 })`);
+  assert.match(broken.error ?? '', /share link could not be read/);console.log('OK broken share link:', broken.error);
+  // Faces: an expression, a mouth shape, blinking, and switching blinking off.
+  for (const [expression, mouth] of [['surprised', 'viseme_O'], ['happy', 'viseme_aa'], ['angry', 'viseme_E']] as const) {
+    await evaluate(`window.faceTest(${JSON.stringify(expression)}, ${JSON.stringify(mouth)})`);await photo(`face-${expression}-${mouth ?? 'none'}`);
+  }
+  const face = await evaluate<any>(`window.faceTest('surprised', 'viseme_O')`);
+  assert.ok(face.shapes > 0, 'face shapes exported');
+  assert.ok(face.expression > 0.3, `surprised widens the eyes (${face.expression})`);
+  assert.equal(face.mouth, 1);assert.equal(face.otherMouth, 0);
+  assert.ok(face.blinkPeak > 0.9, `blinks (${face.blinkPeak})`);
+  assert.ok(face.lidAfterOff < 0.5, `blinking off (${face.lidAfterOff})`);
+  assert.equal(face.errors.length, 2);
+  await photo('face-surprised-O');console.log(`OK faces: expression ${face.expression.toFixed(2)}, mouth ${face.mouth}, blink peak ${face.blinkPeak.toFixed(2)}, errors: ${face.errors.join(' / ')}`);
   const bad = await evaluate<any>(`window.run('Nope', {}, { play: 'walk', az: 0, dist: 4 })`);
   assert.match(bad.error ?? '', /Unknown preset "Nope"/);console.log('OK unknown preset:', bad.error);
   const glb = await evaluate<any>('window.glbOnly()');
