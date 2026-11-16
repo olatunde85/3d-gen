@@ -231,6 +231,20 @@ export class AraCharacterElement extends HTMLElement {
     if (swimming) v.camera.position.copy(center).add(new THREE.Vector3(0.35, 0.75, 1).normalize().multiplyScalar(distance));
   }
 
+  /** The current frame as a 2D canvas, for thumbnails and transitions; transparent where there's no background. */
+  snapshot(): HTMLCanvasElement | undefined {
+    const v = this.view;
+    if (!v) return undefined;
+    // Read straight after drawing, while the frame is still in the buffer.
+    v.renderer.render(v.scene, v.camera);
+    const source = v.renderer.domElement, copy = document.createElement('canvas');
+    copy.width = source.width;copy.height = source.height;copy.getContext('2d')!.drawImage(source, 0, 0);
+    return copy;
+  }
+
+  /** Starts the animation again from the beginning. */
+  restart() { this.play(); }
+
   private play() {
     const v = this.view, hero = this.character;
     if (!v || !hero) return;

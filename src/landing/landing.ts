@@ -189,26 +189,135 @@ if (devx) {
   }, { rootMargin: '400px 0px' }).observe(devx);
 }
 
-// --- The live character in the hero: the cast below swaps who's on stage ------------------------------------------
-const hero = document.getElementById('hero-character');
-if (hero) {
+// --- The live character in the hero ------------------------------------------------------------------------------
+// The eight presets take turns on stage. Between them the frame pauses, breaks into blocks that fall away, and the
+// next character assembles from blocks. The next one is built in the background while the current one plays.
+type Stage = HTMLElement & { character?: { params: { name: string } }; snapshot(): HTMLCanvasElement | undefined; restart(): void };
+const stageEl = document.querySelector<HTMLElement>('.hero-stage');
+const first = document.getElementById('hero-character') as Stage | null;
+if (stageEl && first) {
   const name = document.getElementById('hero-name')!, edit = document.getElementById('hero-edit') as HTMLAnchorElement;
+  const blocks = stageEl.querySelector<HTMLElement>('.stage-blocks')!;
   const cards = [...document.querySelectorAll<HTMLAnchorElement>('.hero-cast .cast-card')];
-  const show = (card: HTMLAnchorElement) => {
-    hero.setAttribute('preset', card.dataset.preset!);hero.setAttribute('animation', card.dataset.animation!);
-    // A bag stays at home for some moves: the High-Flier on his phone, the Beach Girl swimming.
-    if (card.dataset.carry) hero.setAttribute('carry', card.dataset.carry);else hero.removeAttribute('carry');
-    name.textContent = card.dataset.preset!;edit.href = card.href;
+  const HOLD = 9500, COLS = 8, ROWS = 10;
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const frame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
+  let shown = first, spare: Stage | undefined, index = Math.max(0, cards.findIndex((c) => c.dataset.preset === first.getAttribute('preset')));
+  let busy = false, wanted: number | undefined, timer = 0, hover = false, onScreen = true;
+
+  /** Resolves when `el` shows `preset` (building it if needed); rejects if it can't be built. */
+  const ready = (el: Stage, card: HTMLAnchorElement) => new Promise<void>((ok, fail) => {
+    const preset = card.dataset.preset!;
+    if (el.character?.params.name === preset && el.getAttribute('animation') === card.dataset.animation) { ok();return; }
+    const done = (e: Event) => { if ((e as CustomEvent).detail?.params?.name !== preset) return;off();ok(); };
+    const failed = () => { off();fail(Error(preset)); };
+    const off = () => { el.removeEventListener('load', done);el.removeEventListener('error', failed); };
+    el.addEventListener('load', done);el.addEventListener('error', failed);
+    el.setAttribute('preset', preset);el.setAttribute('animation', card.dataset.animation!);
+  });
+  const mark = (i: number) => {
+    const card = cards[i];name.textContent = card.dataset.preset!;edit.href = card.href;
     for (const c of cards) c.setAttribute('aria-current', String(c === card));
   };
-  for (const card of cards) card.addEventListener('click', (e) => {
-    // A plain click puts the character on stage; with a modifier key the link opens the builder as usual.
+  /** The second stage, made the first time it's needed. */
+  const other = () => {
+    if (!spare) {
+      spare = document.createElement('ara-character') as Stage;
+      for (const a of ['detail', 'auto-rotate', 'assets-url']) { const v = first.getAttribute(a);if (v !== null) spare.setAttribute(a, v); }
+      spare.classList.add('off');
+      spare.setAttribute('preset', cards[(index + 1) % cards.length].dataset.preset!);spare.setAttribute('animation', cards[(index + 1) % cards.length].dataset.animation!);
+      stageEl.insertBefore(spare, blocks);
+    }
+    return spare === shown ? first : spare;
+  };
+
+  /** Lays the snapshot out as a grid of blocks over the stage. */
+  function tiles(image: HTMLCanvasElement) {
+    const { width, height } = stageEl!.getBoundingClientRect(), w = width / COLS, h = height / ROWS, url = image.toDataURL();
+    blocks.replaceChildren();
+    const out: HTMLElement[] = [];
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      const b = document.createElement('i');
+      Object.assign(b.style, { left: `${c * w}px`, top: `${r * h}px`, width: `${Math.ceil(w) + 1}px`, height: `${Math.ceil(h) + 1}px`,
+        backgroundImage: `url(${url})`, backgroundSize: `${width}px ${height}px`, backgroundPosition: `${-c * w}px ${-r * h}px` });
+      b.dataset.c = String(c);b.dataset.r = String(r);blocks.append(b);out.push(b);
+    }
+    return out;
+  }
+  /** Where a block flies to (or from): outward from the centre and downward, turning as it goes. */
+  const scatter = (b: HTMLElement, up: boolean) => {
+    const c = Number(b.dataset.c) - (COLS - 1) / 2, r = Number(b.dataset.r) - (ROWS - 1) / 2;
+    const dx = c * 26 + (Math.random() - 0.5) * 50, dy = (up ? -1 : 1) * (50 + Math.random() * 120) + r * 10;
+    return `translate(${dx}px, ${dy}px) rotate(${(Math.random() - 0.5) * 70}deg) scale(${0.35 + Math.random() * 0.3})`;
+  };
+  const delay = (b: HTMLElement, outward: boolean) => {
+    const d = Math.hypot(Number(b.dataset.c) - (COLS - 1) / 2, (Number(b.dataset.r) - (ROWS - 1) / 2) * 0.8);
+    return (outward ? d : 6 - d) * 45 + Math.random() * 90;
+  };
+
+  async function switchTo(i: number) {
+    if (busy) { wanted = i;return; }
+    busy = true;clearTimeout(timer);
+    const next = other();
+    try {
+      await ready(next, cards[i]);
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        next.restart();next.classList.remove('off');shown.classList.add('off');
+      } else {
+        // Pause: the current frame, frozen, as blocks.
+        const before = shown.snapshot();
+        if (before) {
+          const parts = tiles(before);shown.classList.add('off');
+          await wait(380);
+          // Break: the blocks fall away from the centre.
+          await Promise.all(parts.map((b) => b.animate([{ transform: 'none', opacity: 1 }, { transform: scatter(b, false), opacity: 0 }],
+            { duration: 620, delay: delay(b, true), easing: 'cubic-bezier(.55,0,.8,.4)', fill: 'forwards' }).finished));
+        }
+        // Rebuild: the next character's first frame assembles from blocks.
+        next.restart();await frame();await frame();
+        const after = next.snapshot();
+        if (after) {
+          const parts = tiles(after);
+          await Promise.all(parts.map((b) => b.animate([{ transform: scatter(b, true), opacity: 0 }, { transform: 'none', opacity: 1 }],
+            { duration: 680, delay: delay(b, false), easing: 'cubic-bezier(.2,.7,.25,1)', fill: 'backwards' }).finished));
+        }
+        next.restart();next.classList.remove('off');shown.classList.add('off');
+        await frame();blocks.replaceChildren();
+      }
+      shown = next;index = i;mark(i);
+      // Build the one after next while this one plays.
+      void ready(other(), cards[(i + 1) % cards.length]).catch(() => {});
+    } catch {
+      // A character that can't be built is skipped.
+      index = i;
+    } finally {
+      busy = false;
+      if (wanted !== undefined) { const w = wanted;wanted = undefined;void switchTo(w); } else schedule();
+    }
+  }
+  /** The next turn, held while someone is turning the character or the stage is out of sight. */
+  function schedule() {
+    clearTimeout(timer);
+    timer = window.setTimeout(function tick() {
+      if (hover || !onScreen || document.hidden) { timer = window.setTimeout(tick, 1000);return; }
+      void switchTo((index + 1) % cards.length);
+    }, HOLD);
+  }
+
+  for (const [i, card] of cards.entries()) card.addEventListener('click', (e) => {
+    // A plain click brings the character on stage; with a modifier key the link opens the builder as usual.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    e.preventDefault();show(card);
+    e.preventDefault();if (i !== index || busy) void switchTo(i);
   });
-  const first = cards.find((c) => c.dataset.preset === hero.getAttribute('preset'));
-  if (first) first.setAttribute('aria-current', 'true');
-  hero.setAttribute('assets-url', `${import.meta.env.BASE_URL}assets/`);
+  stageEl.addEventListener('pointerenter', () => { hover = true; });
+  stageEl.addEventListener('pointerleave', () => { hover = false; });
+  new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; }).observe(stageEl);
+  mark(index);
+  first.setAttribute('assets-url', `${import.meta.env.BASE_URL}assets/`);
+  first.addEventListener('load', () => {
+    // The first character is on stage: build the next one and start taking turns.
+    if (!spare) { other();schedule(); }
+  }, { once: true });
   // The 3D starts once the page has loaded, so the text and images come first.
   const start = () => void import('../../packages/cli/src/embed');
   if (document.readyState === 'complete') setTimeout(start, 200);

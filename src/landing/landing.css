@@ -93,7 +93,11 @@ p { margin: 0; text-wrap: pretty; }
   /* No box: a soft light behind the character and a glow on the floor, both fading into the page. */
   background: radial-gradient(closest-side at 50% 46%, rgba(160, 172, 255, 0.09), transparent), radial-gradient(38% 12% at 50% 90%, rgba(109, 141, 255, 0.14), transparent);
 }
-.hero-stage ara-character { width: 100%; height: 100%; aspect-ratio: auto; }
+.hero-stage ara-character { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+.hero-stage ara-character.off { opacity: 0; pointer-events: none; }
+/* The switch between characters: the frame breaks into blocks that fall away, then the next one assembles. */
+.stage-blocks { position: absolute; inset: 0; pointer-events: none; }
+.stage-blocks i { position: absolute; background-repeat: no-repeat; will-change: transform, opacity; }
 .stage-tag { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); white-space: nowrap; display: flex; align-items: center; gap: 8px; color: var(--muted); font: 500 12px/1 var(--mono); pointer-events: none; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); animation: live 2.4s ease-out infinite; }
 @keyframes live { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.45); } 70%, 100% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); } }
