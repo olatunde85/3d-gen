@@ -26,8 +26,9 @@
 
 /* --- Playground --- */
 .playground { padding-top: 40px; padding-bottom: 56px; scroll-margin-top: 70px; }
-.pg-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; margin-bottom: 20px; }
-.pg-head p { color: var(--muted); max-width: 560px; }
+.pg-head { margin-bottom: 24px; }
+.pg-head .dev-eyebrow { margin-bottom: 10px; }
+.pg-head p:last-child { margin-top: 10px; color: var(--muted); max-width: 640px; font-size: 17px; }
 .pg-grid { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
 
 .pg-controls { text-align: left; display: grid; gap: 14px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
