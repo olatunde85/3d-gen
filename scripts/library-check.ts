@@ -41,7 +41,7 @@ window.run = async (input, options, view) => {
     }
     const camera = new THREE.PerspectiveCamera(30, 9 / 7, 0.1, 50);
     camera.position.set(Math.sin(view.az) * view.dist, 1.5, Math.cos(view.az) * view.dist);camera.lookAt(0, 0.95, 0);renderer.render(scene, camera);
-    const result = { seconds, framesWhileBuilding: frames, steps: steps.size, height: hero.height, clips: hero.animations.map((a) => a.name), clipFound: !!clip, props: hero.props.map((p) => p.name), glb: hero.glb.length, name: hero.params.name };
+    const result = { seconds, framesWhileBuilding: frames, steps: steps.size, height: hero.height, clips: hero.animations.map((a) => a.name), clipFound: !!clip, props: hero.props.map((p) => p.name), colors: hero.colors, carry: hero.params.carry, glb: hero.glb.length, name: hero.params.name };
     hero.dispose();return result;
   } catch (error) { ticking = false;return { error: error.message }; }
 };
@@ -125,6 +125,22 @@ try {
     await photo(name);
     console.log(`OK ${name}: ${r.name}, ${r.height.toFixed(2)} m, ${r.clips.length} clips, props ${r.props.join(', ') || 'none'}, ${(r.glb / 1e6).toFixed(1)} MB, ${r.seconds.toFixed(1)} s, ${r.framesWhileBuilding} frames drawn meanwhile`);
   }
+  // Colours, and taking away a preset's own bag.
+  const recolour: [string, unknown, object, object, (r: any) => void][] = [
+    ['executive-recoloured', 'The Female Executive', { colors: { outfit: '#1d2a44', carry: '#8a1c1c', shoes: '#111111' } }, { play: 'idle', az: 0.5, dist: 4.2 },
+      (r) => { assert.equal(r.carry, 'handbag');assert.deepEqual({ outfit: r.colors.outfit, carry: r.colors.carry, shoes: r.colors.shoes }, { outfit: '#1d2a44', carry: '#8a1c1c', shoes: '#111111' }); }],
+    ['executive-no-bag', 'The Female Executive', { carry: 'none' }, { play: 'idle', az: 0.5, dist: 4.2 }, (r) => { assert.equal(r.carry, 'none');assert.ok(!('carry' in r.colors)); }],
+    ['motorcycle-blue', 'The Soldier', { animations: ['ride_motorcycle'], vehicle: 'motorcycle', colors: { vehicle: '#1f6fd1', top: '#2b2b2b' } }, { play: 'ride_motorcycle', az: 1.2, dist: 5.5 },
+      (r) => { assert.equal(r.colors.vehicle, '#1f6fd1');assert.equal(r.colors.top, '#2b2b2b'); }],
+  ];
+  for (const [name, character, options, view, check] of recolour) {
+    const r = await evaluate<any>(`window.run(${JSON.stringify(character)}, ${JSON.stringify({ animations: ['idle'], detail: 'low', ...options })}, ${JSON.stringify(view)})`);
+    assert.ok(!r.error, `${name}: ${r.error}`);check(r);
+    await photo(name);console.log(`OK ${name}:`, JSON.stringify(r.colors));
+  }
+  const badColour = await evaluate<any>(`window.run('The Soldier', { animations: 'none', detail: 'low', colors: { shirt: '#ffffff' } }, { play: 'idle', az: 0, dist: 4 })`);
+  assert.match(badColour.error ?? '', /Unknown colour "shirt"/);console.log('OK unknown colour:', badColour.error);
+
   // Random characters and share links from the builder.
   const shareCode = encodeCharacter({ ...DEFAULT_PARAMS, ...PRESETS['The Priest'], name: 'Shared priest', hairColor: '#aa3311' });
   for (const [name, character] of [['random', { random: 42 }], ['share-link', `https://ara3dgen.com/app/#c=${shareCode}`]] as const) {

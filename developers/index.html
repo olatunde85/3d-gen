@@ -58,7 +58,7 @@
       <section id="playground" class="playground" aria-labelledby="pg-title">
         <div class="pg-head">
           <h2 id="pg-title">Playground</h2>
-          <p>Every change rebuilds the character in your browser with the library, then shows the code that makes it.</p>
+          <p>Every change rebuilds the character in your browser with the library, then shows the code that makes it. Props and colours start as the character's own.</p>
         </div>
         <div class="pg-grid">
           <form class="pg-controls" id="pg-form" onsubmit="return false">
@@ -79,6 +79,7 @@
             <fieldset>
               <legend>Animation</legend>
               <label class="field"><span>Playing</span><select id="pg-clip"></select></label>
+              <label class="toggle"><input id="pg-inplace" type="checkbox" checked /><span>In place <small>(off: walks and runs move forward)</small></span></label>
             </fieldset>
             <fieldset>
               <legend>Props</legend>
@@ -87,6 +88,10 @@
                 <label class="field"><span>Carry</span><select id="pg-carry"></select></label>
                 <label class="field"><span>Vehicle</span><select id="pg-vehicle"></select></label>
               </div>
+            </fieldset>
+            <fieldset>
+              <legend>Colours</legend>
+              <div class="pg-colors" id="pg-colors"></div>
             </fieldset>
             <fieldset>
               <legend>Face</legend>

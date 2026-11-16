@@ -64,8 +64,29 @@ try {
   assert.equal(ride.clip, 'ride_motorcycle');assert.match(ride.code, /vehicle: 'motorcycle'/);assert.match(ride.code, /setExpression\('happy'\)/);
   console.log('OK motorcycle: plays', ride.clip, 'and keeps the chosen expression');
   await photo('playground-motorcycle', await box('#playground'));
+  // Walking forward instead of in place.
+  await set('#pg-vehicle', 'none');await sleep(300);await until(ready, 'no vehicle');
+  await set('#pg-clip', 'walk');
+  await evaluate("document.getElementById('pg-inplace').click()");await sleep(400);await until(ready, 'root motion');
+  assert.match(await evaluate("document.getElementById('pg-code').textContent"), /rootMotion: true/);console.log('OK in place off: rootMotion in the code');
+  // The camera follows the walker, so after a few steps the character is still in view.
+  await sleep(2500);await photo('playground-walking-forward', await box('#pg-view'));
+  await evaluate("document.getElementById('pg-inplace').click()");await sleep(400);await until(ready, 'in place again');
+  // A preset's own bag shows in the Carry select; choosing none takes it away; colours rebuild and appear in the code.
+  await set('#pg-preset', 'The Female Executive');await sleep(400);await until(ready, 'executive');
+  const exec = await evaluate<{ carry: string; code: string; parts: string[] }>("({carry:document.getElementById('pg-carry').value,code:document.getElementById('pg-code').textContent,parts:[...document.querySelectorAll('#pg-colors span')].map(s=>s.textContent)})");
+  assert.equal(exec.carry, 'handbag');assert.doesNotMatch(exec.code, /carry:/);assert.ok(exec.parts.includes('Handbag'), `colour parts: ${exec.parts}`);
+  console.log('OK executive: carries her handbag; colours for', exec.parts.join(', '));
+  await set('#pg-colors input[data-part=outfit]', '#1d2a44');await sleep(400);await until(ready, 'recolour');
+  assert.match(await evaluate("document.getElementById('pg-code').textContent"), /colors: \{ outfit: '#1d2a44' \}/);
+  await photo('playground-executive-navy', await box('#playground'));
+  await set('#pg-carry', 'none');await sleep(400);await until(ready, 'no handbag');
+  const noBag = await evaluate<{ code: string; parts: string[] }>("({code:document.getElementById('pg-code').textContent,parts:[...document.querySelectorAll('#pg-colors span')].map(s=>s.textContent)})");
+  assert.match(noBag.code, /carry: 'none'/);assert.ok(!noBag.parts.includes('Handbag'));assert.match(noBag.code, /outfit: '#1d2a44'/);
+  console.log('OK executive without the handbag, keeping the navy suit');
+  await photo('playground-executive-nobag', await box('#playground'));
   // A random character, then a broken share link.
-  await set('#pg-vehicle', 'none');await evaluate("document.querySelector('input[name=source][value=random]').click()");await sleep(400);await until(ready, 'random');
+  await evaluate("document.querySelector('input[name=source][value=random]').click()");await sleep(400);await until(ready, 'random');
   assert.match(await evaluate("document.getElementById('pg-code').textContent"), /\{ random: 42 \}/);console.log('OK random:', await evaluate("document.getElementById('pg-stats').textContent"));
   await evaluate("document.querySelector('input[name=source][value=share]').click()");
   await evaluate("(()=>{const e=document.getElementById('pg-share');e.value='https://ara3dgen.com/app/#c=broken';e.dispatchEvent(new Event('input',{bubbles:true}));return 1})()");

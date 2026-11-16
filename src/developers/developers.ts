@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ANIMATIONS, createCharacter, EXPRESSIONS, MOUTH_SHAPES, PRESET_NAMES, PROPS, type AraCharacter, type CharacterOptions } from '../../packages/cli/src/index';
+import { ANIMATIONS, createCharacter, EXPRESSIONS, MOUTH_SHAPES, PRESET_NAMES, PROPS, type AraCharacter, type CharacterColors, type CharacterOptions } from '../../packages/cli/src/index';
 import { encodeCharacter } from '../app/share';
 
 const ASSETS = `${import.meta.env.BASE_URL}assets/`;
@@ -23,6 +23,7 @@ const $ = <T extends HTMLElement>(selector: string) => document.querySelector(se
 const form = $<HTMLFormElement>('#pg-form'), view = $<HTMLDivElement>('#pg-view');
 const preset = $<HTMLSelectElement>('#pg-preset'), seed = $<HTMLInputElement>('#pg-seed'), share = $<HTMLInputElement>('#pg-share'), clipSelect = $<HTMLSelectElement>('#pg-clip');
 const weapon = $<HTMLSelectElement>('#pg-weapon'), carry = $<HTMLSelectElement>('#pg-carry'), vehicle = $<HTMLSelectElement>('#pg-vehicle'), talk = $<HTMLInputElement>('#pg-talk');
+const inPlace = $<HTMLInputElement>('#pg-inplace'), colorList = $<HTMLDivElement>('#pg-colors');
 const loading = $<HTMLDivElement>('#pg-loading'), bar = $<HTMLElement>('#pg-bar'), statusText = $<HTMLSpanElement>('#pg-status');
 
 const options = (select: HTMLSelectElement, values: readonly string[], text = label) => { select.replaceChildren(...values.map((v) => new Option(text(v), v))); };
@@ -85,15 +86,31 @@ function frame(objects: THREE.Object3D[]) {
 // --- Building ----------------------------------------------------------------------------------------------------
 // `picked` is an expression the visitor chose: it stays across rebuilds; otherwise each character shows its own.
 let hero: AraCharacter | undefined, mixers: THREE.AnimationMixer[] = [], expression = '', picked = '', building = 0;
+type PropSlot = 'weapon' | 'carry' | 'vehicle';
+const propSelects: Record<PropSlot, HTMLSelectElement> = { weapon, carry, vehicle };
+/** The character's own props (The Female Executive's handbag): the selects start on them and the code lists changes. */
+let own: Record<PropSlot, string> = { weapon: 'none', carry: 'none', vehicle: 'none' };
+/** Set once the visitor changes a prop; builds then pass all three, so "none" takes a prop away. */
+let propsChosen = false;
+/** Colours the visitor picked, by part. A new character starts from its own colours. */
+let colorChoices: CharacterColors = {};
 const source = () => (form.elements.namedItem('source') as RadioNodeList).value as 'preset' | 'random' | 'share';
 const detail = () => (form.elements.namedItem('detail') as RadioNodeList).value as 'low' | 'medium' | 'high';
 const input = (): string | { random: number } => source() === 'random' ? { random: Math.max(0, Math.round(Number(seed.value) || 0)) } : source() === 'share' ? share.value.trim() : preset.value;
 // The selects only offer the library's own PROPS, so their values are valid choices.
-const props = (): Pick<CharacterOptions, 'weapon' | 'carry' | 'vehicle'> => ({
-  ...(weapon.value !== 'none' ? { weapon: weapon.value as CharacterOptions['weapon'] } : {}),
-  ...(carry.value !== 'none' ? { carry: carry.value as CharacterOptions['carry'] } : {}),
-  ...(vehicle.value !== 'none' ? { vehicle: vehicle.value as CharacterOptions['vehicle'] } : {}),
-});
+const props = (): Pick<CharacterOptions, PropSlot> => propsChosen
+  ? { weapon: weapon.value as CharacterOptions['weapon'], carry: carry.value as CharacterOptions['carry'], vehicle: vehicle.value as CharacterOptions['vehicle'] }
+  : {};
+/** The props that differ from the character's own, as the code passes them. */
+const propChanges = () => (Object.keys(propSelects) as PropSlot[]).filter((k) => propSelects[k].value !== own[k]).map((k) => [k, propSelects[k].value] as const);
+
+/** A different character: it starts with its own props and colours. */
+function newCharacter() {
+  propsChosen = false;colorChoices = {};
+  for (const select of Object.values(propSelects)) select.value = 'none';
+  if (Object.values(RIDE).includes(clipSelect.dataset.want ?? '')) clipSelect.dataset.want = 'idle';
+  rebuild();
+}
 
 function showStatus(text: string, fraction?: number, error = false) {
   loading.hidden = false;loading.classList.toggle('error', error);statusText.textContent = text;
@@ -108,17 +125,24 @@ async function build() {
   const started = performance.now();
   try {
     const next = await createCharacter(chosen, {
-      assetsUrl: ASSETS, animations: clips, detail: detail(), ...props(),
+      assetsUrl: ASSETS, animations: clips, detail: detail(), rootMotion: !inPlace.checked, ...props(),
+      ...(Object.keys(colorChoices).length ? { colors: colorChoices } : {}),
       onProgress: (text, fraction) => { if (id === building) showStatus(text, 0.05 + fraction * 0.9); },
     });
     if (id !== building) { next.dispose();return; } // A newer build replaced this one.
     if (hero) { scene.remove(hero.scene);for (const p of hero.props) scene.remove(p.scene);hero.dispose(); }
     hero = next;scene.add(hero.scene);for (const p of hero.props) scene.add(p.scene);
+    if (!propsChosen) {
+      own = { weapon: hero.params.weapon, carry: hero.params.carry, vehicle: hero.params.vehicle === 'auto' ? 'none' : hero.params.vehicle };
+      for (const k of Object.keys(propSelects) as PropSlot[]) propSelects[k].value = own[k];
+    }
+    renderColors();
     expression = picked || hero.params.expression;if (picked) hero.setExpression(picked);renderExpressions();
     options(clipSelect, clips, (c) => clipName.get(c) ?? c);
     const want = clipSelect.dataset.want ?? 'idle';
     clipSelect.value = clips.includes(want) ? want : ride ?? 'idle';
     play();frame([hero.scene, ...hero.props.map((p) => p.scene)]);
+    hips = hero.scene.getObjectByName('Hips') ?? hero.scene;hips.getWorldPosition(lastHips);floor.position.set(0, 0, 0);
     loading.hidden = true;
     const triangles = countTriangles(hero.scene);
     $('#pg-stats').textContent = `${hero.params.name} · built in ${((performance.now() - started) / 1000).toFixed(1)} s · ${triangles.toLocaleString('en')} triangles · ${hero.height.toFixed(2)} m`;
@@ -144,8 +168,31 @@ function play() {
   writeCode();
 }
 
+// With "In place" off, walks and runs travel: the camera and the shade under the character follow its hips.
+let hips: THREE.Object3D | undefined;
+const lastHips = new THREE.Vector3(), nowHips = new THREE.Vector3();
+function follow() {
+  if (!hips || inPlace.checked) return;
+  hips.getWorldPosition(nowHips);
+  const step = new THREE.Vector3(nowHips.x - lastHips.x, 0, nowHips.z - lastHips.z);
+  controls.target.add(step);camera.position.add(step);floor.position.set(nowHips.x, 0, nowHips.z);lastHips.copy(nowHips);
+}
+
 let rebuildTimer = 0;
 const rebuild = () => { clearTimeout(rebuildTimer);rebuildTimer = window.setTimeout(build, 250); };
+
+// --- Colours -------------------------------------------------------------------------------------------------------
+const PART_NAMES: Record<string, string> = { outfit: 'Outfit', top: 'Top', jacket: 'Jacket', bottom: 'Bottom', shoes: 'Shoes' };
+const partName = (part: string) => part === 'carry' ? label(carry.value) : part === 'vehicle' ? label(vehicle.value) : PART_NAMES[part] ?? part;
+/** A colour picker for each part this character lets you recolour, starting on its current colour. */
+function renderColors() {
+  if (!hero) return;
+  colorList.replaceChildren(...Object.entries(hero.colors).map(([part, color]) => {
+    const item = document.createElement('label'), picker = document.createElement('input'), name = document.createElement('span');
+    picker.type = 'color';picker.value = color!;picker.dataset.part = part;name.textContent = partName(part);
+    item.append(picker, name);return item;
+  }));
+}
 
 // --- Faces ---------------------------------------------------------------------------------------------------------
 const chips = $<HTMLDivElement>('#pg-expressions');
@@ -167,30 +214,50 @@ function talkStep(delta: number) {
 }
 
 // --- The code that makes what you see --------------------------------------------------------------------------------
+/** A line of code with a comment after it, the comments lined up in a column. */
+const note = (code: string, comment: string, column = 34) => `${code.padEnd(column)}// ${comment}`;
+
 function writeCode() {
-  const chosen = input(), clip = clipSelect.value || 'idle', extra = Object.entries(props()).map(([k, v]) => `${k}: '${v}'`);
+  const chosen = input(), clip = clipSelect.value || 'idle';
   const literal = typeof chosen === 'string' ? `'${chosen}'` : `{ random: ${chosen.random} }`;
-  const opts = [`animations: ['${clip}']`, ...(detail() !== 'medium' ? [`detail: '${detail()}'`] : []), ...extra];
+  const colors = hero ? Object.entries(colorChoices).filter(([part]) => part in hero!.colors) : [];
+  const opts = [
+    `animations: ['${clip}'],`,
+    ...(detail() !== 'medium' ? [`detail: '${detail()}',`] : []),
+    ...(!inPlace.checked ? [note(`rootMotion: true,`, 'walks and runs move forward instead of in place', 32)] : []),
+    ...propChanges().map(([k, v]) => v === 'none' ? note(`${k}: 'none',`, `without the ${label(own[k]).toLowerCase()}`, 32) : `${k}: '${v}',`),
+    ...(colors.length ? [`colors: { ${colors.map(([part, color]) => `${part}: '${color}'`).join(', ')} },`] : []),
+  ];
+  const ride = hero?.props[0], rideClip = ride && hero!.clip(clip), rideMoves = !!rideClip && ride!.animations.some((a) => a.name === rideClip.name);
   const lines = [
     `import * as THREE from 'three';`,
     `import { createCharacter } from 'ara3d';`,
     ``,
     `const hero = await createCharacter(${literal}, {`,
-    ...opts.map((o) => `  ${o},`),
+    ...opts.map((o) => `  ${o}`),
     `});`,
     `scene.add(hero.scene);`,
-    ...(hero?.props.length ? [`for (const prop of hero.props) scene.add(prop.scene); // the ${vehicle.value}`] : []),
+    ...(ride ? [note(`const [vehicle] = hero.props;`, `the ${label(vehicle.value).toLowerCase()}, at the character's origin`), `scene.add(vehicle.scene);`] : []),
     ...(hero && expression !== hero.params.expression ? [`hero.setExpression('${expression}');`] : []),
-    ...(talk.checked ? [`hero.setMouth('viseme_aa'); // each mouth shape from your lip-sync tool`] : []),
+    ...(talk.checked ? [note(`hero.setMouth('viseme_aa');`, 'call with each mouth shape your lip-sync tool reports')] : []),
     ``,
+    `// Play a clip: the mixer moves the character's bones.`,
     `const mixer = new THREE.AnimationMixer(hero.scene);`,
-    `mixer.clipAction(hero.clip('${clip}')).play();`,
+    `const clip = hero.clip('${clip}');`,
+    `mixer.clipAction(clip).play();`,
+    ...(rideMoves ? [
+      `// The vehicle has a clip of the same name, for its wheels, pedals or rotors.`,
+      `const vehicleMixer = new THREE.AnimationMixer(vehicle.scene);`,
+      `vehicleMixer.clipAction(vehicle.animations.find((a) => a.name === clip.name)).play();`,
+    ] : []),
     ``,
+    `// Every frame, move the animation and the face on by the time that has passed.`,
     `const clock = new THREE.Clock();`,
     `renderer.setAnimationLoop(() => {`,
-    `  const delta = clock.getDelta();`,
-    `  mixer.update(delta);`,
-    `  hero.update(delta); // blinking`,
+    note(`  const delta = clock.getDelta();`, 'seconds since the last frame'),
+    note(`  mixer.update(delta);`, 'poses the body for this moment of the clip'),
+    ...(rideMoves ? [note(`  vehicleMixer.update(delta);`, 'and the vehicle')] : []),
+    note(`  hero.update(delta);`, 'blinks the eyes every few seconds'),
     `  renderer.render(scene, camera);`,
     `});`,
   ];
@@ -208,16 +275,22 @@ function highlight(code: string) {
 // --- Wiring ----------------------------------------------------------------------------------------------------------
 function showSource() { for (const f of form.querySelectorAll<HTMLElement>('[data-for]')) f.hidden = f.dataset.for !== source(); }
 form.addEventListener('change', (event) => {
-  const target = event.target as HTMLElement;
+  const target = event.target as HTMLInputElement | HTMLSelectElement;
   if (target === clipSelect) { clipSelect.dataset.want = clipSelect.value;play();return; }
   if (target === talk) { writeCode();return; }
-  if (target === vehicle) clipSelect.dataset.want = RIDE[vehicle.value] ?? 'idle';
-  if ((target as HTMLInputElement).name === 'source') showSource();
+  if (target.dataset.part) { colorChoices[target.dataset.part as keyof CharacterColors] = target.value;rebuild();return; }
+  if (target === preset || target === seed || target === share || target.name === 'source') { showSource();newCharacter();return; }
+  if (target === weapon || target === carry || target === vehicle) {
+    propsChosen = true;
+    // A new bag or vehicle starts in its own colour.
+    if (target === carry) delete colorChoices.carry;
+    if (target === vehicle) { delete colorChoices.vehicle;clipSelect.dataset.want = RIDE[vehicle.value] ?? 'idle'; }
+  }
   rebuild();
 });
-seed.addEventListener('input', rebuild);
-share.addEventListener('input', rebuild);
-$<HTMLButtonElement>('#pg-dice').onclick = () => { seed.value = String(Math.floor(Math.random() * 100000));rebuild(); };
+seed.addEventListener('input', newCharacter);
+share.addEventListener('input', newCharacter);
+$<HTMLButtonElement>('#pg-dice').onclick = () => { seed.value = String(Math.floor(Math.random() * 100000));newCharacter(); };
 $<HTMLButtonElement>('#pg-download').onclick = () => {
   if (!hero) return;
   const link = document.createElement('a');link.href = URL.createObjectURL(new Blob([hero.glb as BlobPart], { type: 'model/gltf-binary' }));
@@ -228,7 +301,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const delta = Math.min(clock.getDelta(), 0.1);
   for (const m of mixers) m.update(delta);
-  talkStep(delta);hero?.update(delta);
+  talkStep(delta);hero?.update(delta);follow();
   controls.update();renderer.render(scene, camera);
 });
 clipSelect.dataset.want = 'walk';showSource();writeCode();build();

@@ -50,8 +50,11 @@ Unknown fields and out-of-range values are rejected with a message that says wha
 | `weapon` | `'rifle'`, `'pistol'`, `'sword'`, `'knife'` or `'grenade'`, held in the hand |
 | `carry` | Something to carry, such as `'backpack'`, `'briefcase'` or `'phone'` |
 | `vehicle` | A vehicle fitted to the rider, such as `'motorcycle'` or `'horse'`; it comes back in `props` |
+| `colors` | New colours for parts of the character, such as `{ outfit: '#1d2a44', carry: '#8a1c1c' }`; see [Colours](#colours) |
 | `onProgress` | `(label, fraction) => {}`, for a loading bar |
 | `assetsUrl` | Where the character data is served from; see [Hosting the data](#hosting-the-data) |
+
+Presets come with their own props: The Female Executive carries a handbag and The Professional Hitman a pistol. Pass `'none'` to take one away, such as `carry: 'none'`.
 
 Choose only the clips you need. A character with every clip is about 28 MB and takes several seconds to build; with three clips it's about 7 MB and takes 1–3 seconds.
 
@@ -64,11 +67,32 @@ Choose only the clips you need. A character with every clip is about 28 MB and t
 | `clip(id)` | The clip for an ID, such as `hero.clip('walk')` |
 | `props` | Props exported beside the character, such as a vehicle: `{ name, scene, animations }`. They share the character's origin, so add them at the same position and play the matching clip on both |
 | `params` | The character's full settings. Save them to rebuild the same character later |
+| `colors` | The current colour of each part you can recolour, such as `{ top: '#5b6b3a', bottom: '#5b6b3a' }` |
 | `height` | Standing height in metres |
 | `glb` | The character as a GLB file, for downloading or uploading |
 | `dispose()` | Frees the GPU memory when you remove the character |
 
 `createCharacterGLB(input, options)` returns only the GLB bytes and doesn't need three.js. Use it to save characters, send them to a server, or load them in another engine.
+
+## Colours
+
+The `colors` option recolours fabric and props:
+
+```js
+const exec = await createCharacter('The Female Executive', {
+  colors: { outfit: '#1d2a44', shoes: '#111111', carry: '#8a1c1c' },
+});
+```
+
+| Part | What it colours |
+|---|---|
+| `outfit` | A suit, gown or other outfit made of one fabric. On a few older whole-body outfits it's multiplied over the fabric, so it can darken them but not lighten them |
+| `top`, `jacket`, `bottom` | Separate pieces, such as a shirt worn under a suit, or a T-shirt and jeans |
+| `shoes` | Heels, sneakers, oxfords, loafers and slides |
+| `carry` | The bag or other carried item |
+| `vehicle` | The vehicle's paint (or a horse's coat) |
+
+Which parts a character has depends on what it wears: `hero.colors` lists them with their current colours, which makes it easy to build colour pickers. Parts the character doesn't have are skipped, so the same `colors` work across a crowd. On patterned fabric, such as camouflage, the colour replaces the pattern's main colour. For a second colour or a different pattern, set `garmentStyles` in the character's settings (see the [character schema](https://ara3dgen.com/schemas/character.v1.json)). Weapons keep their own colours.
 
 ## Faces
 

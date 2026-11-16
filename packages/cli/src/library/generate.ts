@@ -10,6 +10,8 @@ import { decodeCharacter } from '../../../../src/app/share';
 import { CLIPS } from '../../../../src/core/anim/clips';
 import { characterExample, parseCharacterInput } from '../../../../src/app/character-assist';
 import { exportClipName, planExport, runExport, stemOf, type ExportSettings } from '../../../../src/export';
+import { vehicleStyleForChoice } from '../../../../src/core/props/vehicles';
+import { applyColors, colorsOf, type CharacterColors } from './colors';
 
 /**
  * What to build: a preset name, a share link from the Ara builder, { random: seed }, an "ara-character" object, or
@@ -25,6 +27,8 @@ export interface GenerateOptions {
   weapon?: HumanParams['weapon'];
   carry?: HumanParams['carry'];
   vehicle?: HumanParams['vehicle'];
+  /** New colours for the outfit, top, jacket, bottom, shoes, carried item or vehicle. */
+  colors?: CharacterColors;
 }
 
 export interface GeneratedFile { name: string; data: Uint8Array }
@@ -32,6 +36,8 @@ export interface Generated {
   /** The character's GLB, then any prop GLBs (a vehicle, or a separate weapon). */
   files: GeneratedFile[];
   params: HumanParams;
+  /** The colour of each part that can be recoloured. */
+  colors: CharacterColors;
   /** Standing height in metres. */
   height: number;
   /** Clip ID -> the animation's name inside the GLB. */
@@ -94,9 +100,11 @@ export async function generate(lib: AssetLibrary, input: CharacterInput, options
     ...(options.detail ? { detail: options.detail } : {}),
     ...(options.weapon ? { weapon: options.weapon } : {}),
     ...(options.carry ? { carry: options.carry } : {}),
-    ...(options.vehicle ? { vehicle: options.vehicle } : {}),
+    // A newly chosen vehicle gets its own factory paint, as in the builder.
+    ...(options.vehicle ? { vehicle: options.vehicle, vehicleStyle: vehicleStyleForChoice(options.vehicle, params.vehicleStyle) } : {}),
     ...(options.animations === 'none' ? { animations: false } : {}),
   };
+  if (options.colors) params = applyColors(params, options.colors);
   onProgress?.('Building the character', 0);
   const character = await buildHuman(lib, params);
   const settings: ExportSettings = {
@@ -111,5 +119,5 @@ export async function generate(lib: AssetLibrary, input: CharacterInput, options
       .map(([path, data]) => ({ name: path.split('/').pop()!, data, main: !path.includes('/props/') && path.endsWith(`/${own}`) }))
       .sort((a, b) => Number(b.main) - Number(a.main)).map(({ name, data }) => ({ name, data }))
     : [{ name: file.name, data: file.data }];
-  return { files, params, height: character.height, clipNames: Object.fromEntries(clips.map((id) => [id, exportClipName(id, settings)])) };
+  return { files, params, colors: colorsOf(params), height: character.height, clipNames: Object.fromEntries(clips.map((id) => [id, exportClipName(id, settings)])) };
 }

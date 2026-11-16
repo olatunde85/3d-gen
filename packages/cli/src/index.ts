@@ -14,13 +14,14 @@ import type { AnimationClip, Group } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import AraWorker from './library/worker?worker&inline';
 import type { CharacterInput, Generated, GenerateOptions } from './library/generate';
+import type { CharacterColors } from './library/colors';
 import type { WorkerReply, WorkerRequest } from './library/worker';
 import type { HumanParams } from '../../../src/core/params';
 import DATA from '../../data/package.json';
 // Built from the generator's own lists at build time (see vite.lib.config.ts).
 import CATALOG from 'virtual:ara-catalog';
 
-export type { CharacterInput, GenerateOptions };
+export type { CharacterColors, CharacterInput, GenerateOptions };
 export type CharacterParams = Partial<HumanParams>;
 
 /** The character data this version uses, served by jsDelivr from the ara3d-data npm package. */
@@ -57,6 +58,8 @@ export interface AraCharacter {
   props: { name: string; scene: Group; animations: AnimationClip[] }[];
   /** The character's settings, after presets and options were applied: save them to rebuild it. */
   params: HumanParams;
+  /** The colour of each part that can be recoloured with the colors option, such as { top: '#4a5a3a', shoes: '#141414' }. */
+  colors: CharacterColors;
   /** Standing height in metres. */
   height: number;
   /** The character as a GLB file, for downloading or uploading. */
@@ -148,7 +151,9 @@ function faceControls(root: Group, resting: string) {
       for (const [shape, keep] of Object.entries(MOUTH_SHARE)) set(shape, (base[shape] ?? 0) * (1 - (1 - keep) * w));
     },
     update(delta: number, blinking: boolean) {
-      if (!blinking || !meshes.length) return;
+      if (!meshes.length) return;
+      // Turned off mid-blink: open the eyes back to the expression's lids.
+      if (!blinking) { if (phase >= 0) { for (const lid of lids) set(lid, base[lid] ?? 0);phase = -1; } return; }
       // A blink every 2-6 seconds, from whatever the expression holds: the lids close in 0.07 s, stay shut for 0.04 s
       // (so they close fully at any frame rate) and open in 0.1 s.
       if (phase < 0) { next -= delta;if (next <= 0) { phase = 0;next = 2 + Math.random() * 4; } return; }
@@ -181,7 +186,7 @@ export async function createCharacter(input: CharacterInput, options?: Character
   const props = await Promise.all(rest.map(async (f) => ({ name: f.name.replace(/\.glb$/, ''), ...(await load(f.data)) })));
   const byName = new Map(character.animations.map((a) => [a.name, a])), face = faceControls(character.scene, generated.params.expression);
   const hero: AraCharacter = {
-    ...character, props, params: generated.params, height: generated.height, glb: main.data,
+    ...character, props, params: generated.params, colors: generated.colors, height: generated.height, glb: main.data,
     clip: (id) => byName.get(generated.clipNames[id] ?? id),
     setExpression: face.setExpression, setMouth: face.setMouth, setFace: face.setFace,
     blinking: true, update: (delta) => face.update(delta, hero.blinking),
