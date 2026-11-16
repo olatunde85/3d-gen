@@ -1,0 +1,166 @@
+/* Ara for Developers: the hero, the live playground and the guides around it. Builds on the landing page's colours;
+   class names carry a dev- or pg- prefix so the landing page's own styles never apply here. */
+.dev-hero, .playground, .dev-uses, .dev-cli, .dev-next { max-width: 1240px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 48px); }
+.dev-hero { padding-top: clamp(48px, 9vw, 104px); padding-bottom: 40px; text-align: center; }
+.dev-eyebrow { font: 600 13px/1 ui-monospace, Menlo, monospace; letter-spacing: 0.16em; color: var(--accent-2); margin-bottom: 18px; }
+.dev-hero h1 { font-size: clamp(38px, 6.4vw, 76px); max-width: 980px; margin: 0 auto; }
+.dev-hero h1 .grad { white-space: nowrap; }
+.dev-lede { max-width: 720px; margin: 22px auto 0; color: var(--muted); font-size: clamp(17px, 2vw, 19px); }
+
+.install { max-width: 560px; margin: 30px auto 0; text-align: left; }
+.install-tabs { display: flex; gap: 4px; }
+.install-tabs button { border: 0; background: none; color: var(--muted); font: 600 13px system-ui, sans-serif; padding: 7px 12px; border-radius: 8px 8px 0 0; cursor: pointer; }
+.install-tabs button[aria-selected="true"] { background: var(--panel); color: var(--text); }
+.install-line { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 0 12px 12px 12px; }
+.install-line code { flex: 1; min-width: 0; font: 15px/1.4 ui-monospace, Menlo, monospace; color: var(--text); overflow-x: auto; white-space: nowrap; }
+.install-line code::before { content: "$ "; color: var(--muted); }
+
+.copy, .ghost { flex: none; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); color: var(--text); font: 600 13px system-ui, sans-serif; padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+.copy:hover, .ghost:hover:not(:disabled) { border-color: #3a4458; }
+.copy[data-copied] { color: #7ee2a8; border-color: #2f6b4d; }
+.ghost:disabled { opacity: 0.45; cursor: default; }
+.copy:focus-visible, .ghost:focus-visible, .install-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.dev-facts { list-style: none; padding: 0; margin: 28px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; color: var(--muted); font-size: 15px; }
+.dev-facts b { color: var(--text); }
+
+/* --- Playground --- */
+.playground { padding-top: 40px; padding-bottom: 56px; scroll-margin-top: 70px; }
+.pg-head { margin-bottom: 24px; }
+.pg-head .dev-eyebrow { margin-bottom: 10px; }
+.pg-head p:last-child { color: var(--muted); max-width: 640px; font-size: 17px; }
+.pg-grid { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+
+.pg-controls { text-align: left; display: grid; gap: 14px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.pg-controls fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; min-width: 0; }
+.pg-controls fieldset + fieldset { border-top: 1px solid var(--line); padding-top: 14px; }
+/* Floated, so each legend sits inside its group instead of on the divider line. */
+.pg-controls legend { float: left; width: 100%; font: 600 12px ui-monospace, Menlo, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 0; margin: 0; }
+.pg-controls legend + * { clear: both; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field > span { font-size: 13px; color: var(--muted); }
+.field[hidden] { display: none; }
+.pg-controls select, .pg-controls input[type="number"], .pg-controls input[type="url"] {
+  width: 100%; min-width: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 10px; font: 14px system-ui, sans-serif;
+}
+.pg-controls select:focus-visible, .pg-controls input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pg-row { display: flex; gap: 8px; }
+.pg-row3 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pg-row3 > :last-child { grid-column: 1 / -1; }
+
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; text-align: center; padding: 7px 4px; border-radius: 7px; font-size: 13px; color: var(--muted); }
+.seg input:checked + span { background: #26314a; color: var(--text); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); }
+
+.pg-chips { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+.pg-chips button { border: 1px solid var(--line); background: var(--panel); color: var(--muted); border-radius: 999px; padding: 6px 11px; font: 13px system-ui, sans-serif; cursor: pointer; text-transform: capitalize; }
+.pg-chips button[aria-checked="true"] { background: #26314a; color: var(--text); border-color: #3e5180; }
+.pg-chips button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--muted); cursor: pointer; }
+.toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+.toggle small { font-size: 12px; color: rgba(233, 237, 244, 0.45); }
+.pg-colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pg-colors label { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 5px 8px 5px 5px; cursor: pointer; }
+.pg-colors label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-colors input { flex: none; width: 28px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: none; cursor: pointer; }
+.pg-colors input::-webkit-color-swatch-wrapper { padding: 0; }
+.pg-colors input::-webkit-color-swatch { border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; }
+.pg-colors input::-moz-color-swatch { border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; }
+.pg-colors input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pg-colors:empty::before { content: "Loading…"; font-size: 13px; color: var(--muted); }
+
+.pg-stage { display: grid; gap: 12px; min-width: 0; }
+.pg-view { position: relative; aspect-ratio: 16 / 11; min-height: 340px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: radial-gradient(90% 70% at 50% 30%, #2a3550, #151a25 62%, #0e1118); }
+.pg-view canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.pg-loading { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); width: min(320px, 80%); display: grid; gap: 8px; text-align: center; font-size: 13px; color: var(--text); background: rgba(15, 17, 22, 0.78); backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; transition: opacity 0.25s; }
+.pg-loading[hidden] { display: grid; opacity: 0; pointer-events: none; }
+.pg-loading .bar { height: 4px; border-radius: 4px; background: #2a3243; overflow: hidden; }
+.pg-loading .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 0.2s; }
+.pg-loading.error { color: #ffb4a0; border-color: #6b3a2f; }
+.pg-hint { position: absolute; right: 12px; top: 10px; margin: 0; font-size: 12px; color: rgba(233, 237, 244, 0.45); pointer-events: none; }
+.pg-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; font-size: 13px; color: var(--muted); }
+.pg-actions { display: flex; align-items: center; gap: 10px; }
+.ghost-link { font-size: 13px; color: var(--accent-2); }
+
+.code { border: 1px solid var(--line); border-radius: 14px; background: #0b0d12; overflow: hidden; min-width: 0; }
+.code-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--line); font: 12px ui-monospace, Menlo, monospace; color: var(--muted); }
+.code-tabs { display: flex; gap: 2px; }
+.code-tabs button { border: 0; background: none; color: var(--muted); font: 12px ui-monospace, Menlo, monospace; padding: 5px 9px; border-radius: 7px; cursor: pointer; }
+.code-tabs button[aria-selected="true"] { background: #1c2230; color: var(--text); }
+.code-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.code pre { margin: 0; padding: 14px 16px; overflow: auto; max-height: 560px; }
+.code code, .dev-terminal code { font: 13.5px/1.6 ui-monospace, Menlo, monospace; color: #d7deea; }
+.tok-k { color: #c3a6ff; } .tok-s { color: #9fe3a5; } .tok-c { color: #6c7690; font-style: italic; } .tok-n { color: #ffcf8a; } .tok-f { color: #8fc5ff; }
+
+.pg-field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+.pg-more { border: 0; background: none; padding: 0; font: 600 13px system-ui, sans-serif; color: var(--accent-2); cursor: pointer; }
+.pg-more:hover { text-decoration: underline; }
+.pg-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* The full list of animations. */
+.pg-dialog { width: min(900px, calc(100vw - 32px)); max-height: min(80vh, 760px); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--bg-2); color: var(--text); text-align: left; }
+.pg-dialog[open] { display: flex; flex-direction: column; }
+.pg-dialog::backdrop { background: rgba(5, 7, 12, 0.72); backdrop-filter: blur(4px); }
+.pg-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px 10px; }
+.pg-dialog-head h3 { margin: 0; }
+.pg-dialog input[type="search"] { margin: 0 18px 12px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: 15px system-ui, sans-serif; }
+.pg-dialog input[type="search"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pg-clip-list { overflow: auto; padding: 0 18px 18px; }
+.pg-clip-list h4 { margin: 14px 0 8px; font: 600 12px ui-monospace, Menlo, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.pg-clip-list h4 small { font-weight: 400; letter-spacing: 0; opacity: 0.7; }
+.pg-clip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.pg-clip-grid button { display: grid; gap: 2px; text-align: left; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 10px; padding: 8px 10px; font: 14px system-ui, sans-serif; cursor: pointer; }
+.pg-clip-grid button:hover { border-color: #3a4458; }
+.pg-clip-grid button[aria-current="true"] { background: #26314a; border-color: #3e5180; }
+.pg-clip-grid button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pg-clip-grid code { font: 11.5px ui-monospace, Menlo, monospace; color: var(--muted); }
+.pg-clip-empty { color: var(--muted); padding: 12px 0; }
+
+/* --- Around the playground --- */
+.dev-uses, .dev-next { padding-top: 40px; padding-bottom: 40px; }
+.dev-use-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.dev-use-grid article { background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+.dev-use-grid h3 { margin-bottom: 8px; }
+.dev-use-grid p { color: var(--muted); font-size: 15px; }
+.dev-cli { padding-top: 40px; padding-bottom: 40px; display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 28px; align-items: center; scroll-margin-top: 70px; }
+.dev-cli p { color: var(--muted); margin: 14px 0 20px; }
+.dev-terminal { margin: 0; padding: 18px; border-radius: 14px; background: #0b0d12; border: 1px solid var(--line); overflow-x: auto; white-space: pre; }
+.dev-terminal .c { color: #6c7690; } .dev-terminal .p { color: var(--accent-2); }
+.dev-next-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.dev-next-grid a { display: grid; gap: 6px; text-decoration: none; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; color: var(--text); }
+.dev-next-grid a:hover { border-color: #3a4458; }
+.dev-next-grid span { color: var(--muted); font-size: 14px; }
+
+/* Wide screens: the controls, the view and the code side by side, with the code on the right. */
+@media (min-width: 1280px) {
+  .playground { max-width: 1720px; }
+  .pg-grid { grid-template-columns: 300px minmax(0, 0.85fr) minmax(0, 1.15fr); grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "controls view code" "controls meta code"; align-items: stretch; column-gap: 18px; row-gap: 12px; }
+  .pg-stage { display: contents; }
+  .pg-controls { grid-area: controls; align-self: start; }
+  .pg-view { grid-area: view; aspect-ratio: auto; min-height: 560px; }
+  .pg-meta { grid-area: meta; }
+  /* The code never sets the row's height: it fills the height of the controls and view, and longer code scrolls. */
+  .code { grid-area: code; display: flex; flex-direction: column; contain: size; }
+  .code pre { flex: 1; min-height: 0; max-height: none; }
+  .code code { font-size: 13px; }
+  .code pre { padding: 14px; }
+}
+@media (max-width: 980px) {
+  .pg-grid { grid-template-columns: minmax(0, 1fr); }
+  /* On narrow screens: the view, then the controls, then the code. */
+  .pg-stage { display: contents; }
+  .pg-view, .pg-meta { order: -2; }
+  .pg-controls { order: -1; }
+  .dev-use-grid, .dev-next-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dev-cli { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .dev-use-grid, .dev-next-grid { grid-template-columns: minmax(0, 1fr); }
+  .pg-view { aspect-ratio: 4 / 5; min-height: 0; }
+  .install-line code { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { .pg-loading, .pg-loading .bar i { transition: none; } }

@@ -36,6 +36,8 @@
     "media:fetch": "tsx scripts/media.ts",
     "media:publish": "tsx scripts/media.ts publish",
     "release-cli": "tsx scripts/release-cli.ts",
+    "test:library": "tsx scripts/library-check.ts",
+    "test:developers": "tsx scripts/developers-check.ts",
     "build-assets": "tsx scripts/build-assets.ts",
     "test:animations": "tsx scripts/animation-improvement-check.ts",
     "test:boarding": "tsx scripts/boarding-check.ts && tsx scripts/boarding-foot-check.ts",

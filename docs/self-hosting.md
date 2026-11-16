@@ -30,7 +30,7 @@ Re-run `setup-assets` after every update. New versions can add or change generat
 ## Build and deploy
 
 ```bash
-npm run build          # -> dist/: landing page at /, the app at /app/, Studio at /studio/, Play at /play/, Terms at /terms/, Privacy at /privacy/, these docs at /docs/, videos at /media/
+npm run build          # -> dist/: landing page at /, the app at /app/, Studio at /studio/, Play at /play/, the developers page at /developers/, Terms at /terms/, Privacy at /privacy/, these docs at /docs/, videos at /media/
 ```
 
 Set `BASE_PATH=/sub/path/` when hosting under a sub-path, such as GitHub Pages.

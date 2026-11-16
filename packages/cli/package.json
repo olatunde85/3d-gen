@@ -1,15 +1,23 @@
 {
   "name": "ara3d",
-  "version": "0.1.0",
-  "description": "Generate realistic, rigged and animated 3D characters (GLB, FBX, OBJ) from the command line. Free and open source.",
-  "keywords": ["3d", "character", "avatar", "glb", "gltf", "fbx", "rigged", "animation", "makehuman", "cli", "gamedev"],
-  "homepage": "https://ara3dgen.com",
+  "version": "0.2.0",
+  "description": "Realistic, rigged and animated 3D characters: a three.js library for the browser and a command-line tool (GLB, FBX, OBJ). Free and open source.",
+  "keywords": ["3d", "character", "avatar", "glb", "gltf", "fbx", "three", "threejs", "rigged", "animation", "makehuman", "cli", "gamedev"],
+  "homepage": "https://ara3dgen.com/docs/library/",
   "repository": { "type": "git", "url": "git+https://github.com/olatunde85/3d-gen.git", "directory": "packages/cli" },
   "bugs": "https://github.com/olatunde85/3d-gen/issues",
   "license": "MIT",
   "author": "Joshua Olatunde",
   "type": "module",
   "bin": { "ara3d": "dist/cli.js" },
+  "exports": {
+    ".": { "types": "./dist/types/packages/cli/src/index.d.ts", "import": "./dist/index.js" },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/types/packages/cli/src/index.d.ts",
+  "sideEffects": false,
   "files": ["dist"],
+  "peerDependencies": { "three": ">=0.160.0" },
+  "peerDependenciesMeta": { "three": { "optional": true } },
   "engines": { "node": ">=20" }
 }

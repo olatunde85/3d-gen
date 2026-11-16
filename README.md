@@ -87,6 +87,16 @@ npx ara3d export --random 1-50 --formats glb,fbx  # 50 different characters
 
 See [Command line (ara3d)](docs/cli.md) for character files, schemas and every option.
 
+**Building a web app or game?** Generate characters at runtime with three.js:
+
+```js
+import { createCharacter } from 'ara3d';
+const hero = await createCharacter('The Soldier', { animations: ['walk', 'idle'] });
+scene.add(hero.scene);
+```
+
+See [JavaScript library (ara3d)](docs/library.md).
+
 **Run the whole site locally.** Works on **Windows, macOS and Linux**. Requirements: **Node 20+** and **git**.
 
 ```bash
