@@ -23,7 +23,7 @@ Characters are built in a background worker, and the character data loads from a
 
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/ara3d@0/dist/embed.js"></script>
-<ara-character preset="The Soldier" animation="wave" expression="happy"></ara-character>
+<ara-character preset="The Soldier" animation="walk 2s, wave, cheer" expression="happy"></ara-character>
 ```
 
 One tag, no build tools: it works in plain HTML, site builders and any framework. Guide: [ara3dgen.com/docs/embed](https://ara3dgen.com/docs/embed/).

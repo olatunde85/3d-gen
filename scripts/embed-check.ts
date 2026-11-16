@@ -23,7 +23,7 @@ const PAGE = `<!doctype html><html><head><meta name="viewport" content="width=de
 <ara-character id="executive" preset="The Female Executive" colors="outfit: #1d2a44; carry: #8a1c1c" assets-url="/assets/"></ara-character>
 <ara-character id="rider" preset="The Soldier" vehicle="motorcycle" style="aspect-ratio:3/4" assets-url="/assets/"></ara-character>
 <ara-character id="random" random="42" background="#20283a" auto-rotate assets-url="/assets/"></ara-character>
-<ara-character id="file" src="/hero.json" animation="walk" assets-url="/assets/"></ara-character>
+<ara-character id="file" src="/hero.json" animation="walk 2s, wave, cheer" assets-url="/assets/"></ara-character>
 <ara-character id="broken" preset="Nobody" assets-url="/assets/"></ara-character>
 </body></html>`;
 const HERO = JSON.stringify({ kind: 'ara-character', version: 1, preset: 'The Bride', params: { name: 'Ada' } });
@@ -73,13 +73,25 @@ try {
   console.log('OK six elements:', events.join(' | '));
   await photo('page');
   // An expression applies at once; a new animation rebuilds with that clip.
-  const loads = events.length;
+  const loads = await evaluate<number>('events.length');
   await evaluate("document.getElementById('soldier').setAttribute('expression','surprised')");await sleep(300);
   assert.equal(await evaluate('events.length'), loads, 'an expression does not rebuild');
   await evaluate("document.getElementById('soldier').setAttribute('animation','dance_groove')");
   await until(`events.length > ${loads}`, 'new animation');
   assert.ok(await evaluate("!!document.getElementById('soldier').character.clip('dance_groove')"));
   console.log('OK attributes: expression at once, animation rebuilt with dance_groove');
+  // A sequence: the bride walks, waves and cheers, all three clips loaded in one build.
+  assert.ok(await evaluate("['walk','wave','cheer'].every((id) => document.getElementById('file').character.clip(id))"));
+  const before = await evaluate<number>('events.length');
+  await evaluate("document.getElementById('file').setAttribute('animation','cheer, walk 1s')");await sleep(300);
+  assert.equal(await evaluate('events.length'), before, 'reordering loaded clips does not rebuild');
+  await evaluate("document.getElementById('file').setAttribute('animation','walk 3x')");await sleep(300);
+  assert.match(await evaluate<string>("document.getElementById('file').shadowRoot.querySelector('.status').textContent"), /Can't read "3x"/);
+  await evaluate("document.getElementById('file').setAttribute('animation','walk 2s, wave, cheer')");await sleep(300);
+  assert.ok(await evaluate<boolean>("document.getElementById('file').shadowRoot.querySelector('.status').hidden"), 'the fixed attribute clears the message');
+  console.log('OK sequence: walk 2s, wave, cheer; reordering is instant; a typo explains itself');
+  const strip = await evaluate<object>("(()=>{const r=document.getElementById('file').getBoundingClientRect();return {x:r.x+scrollX,y:r.y+scrollY,width:r.width,height:r.height,scale:1}})()");
+  for (let i = 0; i < 8; i++) { await sleep(600);const r = await send<{ data: string }>('Page.captureScreenshot', { format: 'png', clip: strip });writeFileSync(join(out, `sequence-${i}.png`), Buffer.from(r.data, 'base64')); }
   // Removing an element frees it.
   await evaluate("document.getElementById('random').remove()");
   assert.equal(await evaluate("document.getElementById('random') ? 1 : document.querySelectorAll('ara-character').length"), 5);

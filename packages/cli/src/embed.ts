@@ -3,13 +3,15 @@
  *
  *   <script type="module" src="https://cdn.jsdelivr.net/npm/ara3d@0/dist/embed.js"></script>
  *   <ara-character preset="The Soldier" animation="wave" expression="happy"></ara-character>
+ *   <ara-character preset="The Priest" animation="walk 3s, wave, cheer"></ara-character>
  *
  * The file bundles three.js and the library, so the page needs nothing else. Each element draws its own view, pauses
  * while it's off screen, and frees its GPU memory when it's removed.
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { createCharacter, VEHICLE_CLIPS, type AraCharacter, type CharacterColors, type CharacterInput, type CharacterOptions } from './index';
+import { parseSteps } from './library/sequence';
+import { createCharacter, VEHICLE_CLIPS, type AraCharacter, type Sequence, type CharacterColors, type CharacterInput, type CharacterOptions } from './index';
 
 /** Attributes that change the character itself, so it's rebuilt. */
 const BUILD = ['preset', 'random', 'share', 'src', 'detail', 'weapon', 'carry', 'vehicle', 'colors', 'assets-url'];
@@ -60,6 +62,7 @@ export class AraCharacterElement extends HTMLElement {
   private building = 0;
   private queued = false;
   private visible = true;
+  private sequence?: Sequence;
 
   constructor() {
     super();
@@ -104,15 +107,24 @@ export class AraCharacterElement extends HTMLElement {
   attributeChangedCallback(name: string, before: string | null, after: string | null) {
     if (!this.view || before === after) return;
     if (BUILD.includes(name)) this.build();
-    else if (name === 'animation') { if (this.character?.clip(this.animation)) this.play();else this.build(); }
+    else if (name === 'animation') {
+      let ids: string[];
+      try { ids = this.clipIds(); } catch (error) { this.fail(error as Error);return; }
+      if (ids.every((id) => this.character?.clip(id))) this.play();else this.build();
+    }
     else if (name === 'expression') this.applyExpression();
     else this.applyLive();
   }
 
-  /** The clip that plays: the animation attribute, a vehicle's riding clip, or idle. */
+  /** What plays: the animation attribute (one clip, or a sequence such as "walk 3s, wave"), a vehicle's riding clip, or idle. */
   get animation() {
     const vehicle = this.getAttribute('vehicle') ?? '';
-    return this.getAttribute('animation') || VEHICLE_CLIPS[vehicle] || 'idle';
+    return this.getAttribute('animation')?.trim() || VEHICLE_CLIPS[vehicle] || 'idle';
+  }
+
+  /** The clips the animation uses, each once. */
+  private clipIds() {
+    return [...new Set(parseSteps(this.animation).map((s) => s.id))];
   }
 
   private on(name: string, fallback: boolean) {
@@ -160,8 +172,19 @@ export class AraCharacterElement extends HTMLElement {
     const v = this.view, hero = this.character;
     if (!v || !hero) return;
     for (const m of v.mixers) m.stopAllAction();
-    const clip = hero.clip(this.animation);
+    this.sequence?.stop();this.sequence = undefined;
     v.mixers = [];
+    // A corrected attribute clears the message its mistake left.
+    if (this.status.classList.contains('error')) this.status.hidden = true;
+    const steps = parseSteps(this.animation);
+    if (steps.length > 1 || steps[0]?.seconds || steps[0]?.times) {
+      // A sequence plays on the character; a vehicle, if any, rests.
+      const mixer = new THREE.AnimationMixer(hero.scene);
+      try { this.sequence = hero.playSequence(mixer, this.animation); } catch (error) { this.fail(error as Error);return; }
+      v.mixers = [mixer];
+      return;
+    }
+    const clip = steps[0] && hero.clip(steps[0].id);
     if (!clip) return;
     // A vehicle has a clip of the same name for its wheels, pedals or rotors.
     for (const [root, clips] of [[hero.scene, [clip]], ...hero.props.map((p) => [p.scene, p.animations] as const)] as const) {
@@ -192,7 +215,7 @@ export class AraCharacterElement extends HTMLElement {
   }
 
   private options(): CharacterOptions {
-    const options: CharacterOptions = { animations: [this.animation] };
+    const options: CharacterOptions = { animations: this.clipIds() };
     const detail = this.getAttribute('detail'), colors = this.getAttribute('colors'), assets = this.getAttribute('assets-url');
     if (detail) options.detail = detail as CharacterOptions['detail'];
     for (const prop of ['weapon', 'carry', 'vehicle'] as const) { const value = this.getAttribute(prop);if (value) (options as Record<string, unknown>)[prop] = value; }

@@ -27,7 +27,7 @@ Use one of these:
 
 | Attribute | Example | |
 |---|---|---|
-| `animation` | `animation="dance_groove"` | The clip that plays (default `idle`). The [playground](https://ara3dgen.com/developers/#playground) lists all 216 with their IDs |
+| `animation` | `animation="dance_groove"` | The clip that plays (default `idle`), or several in a row, such as `walk 3s, wave, cheer` (see below). The [playground](https://ara3dgen.com/developers/#playground) lists all 216 with their IDs |
 | `expression` | `expression="laughing"` | neutral, happy, laughing, angry, sad, crying, surprised, afraid or determined |
 | `weapon` | `weapon="rifle"` | rifle, pistol, sword, knife or grenade |
 | `carry` | `carry="briefcase"` | Something to carry; `none` takes away a preset's own bag |
@@ -40,7 +40,19 @@ Use one of these:
 | `zoom` | `zoom` | Lets visitors zoom with the mouse wheel or a pinch. It's off by default, so the page still scrolls over the character |
 | `assets-url` | `assets-url="/ara3d-assets/"` | Serve the character data yourself (see [Hosting the data](library.md#hosting-the-data)) |
 
-Change an attribute and the character updates. `expression` applies at once; a new character, props, colours or an animation it hasn't loaded rebuild it, which takes a second or two.
+## Chaining animations
+
+List clips in `animation`, separated by commas, and they play one after another, blending into each other, then start again:
+
+```html
+<ara-character preset="The Priest" animation="walk 3s, wave, cheer x2"></ara-character>
+```
+
+A clip that loops (walk, idle, run) plays one cycle unless you give it a length, such as `walk 3s`. A one-off move (wave, jump, cheer) plays once, or as many times as you ask, such as `cheer x2`.
+
+## Updating
+
+Change an attribute and the character updates. `expression` applies at once, and so does a new order of animations it has already loaded. A new character, props, colours or an animation it hasn't loaded rebuild it, which takes a second or two.
 
 ## Size
 

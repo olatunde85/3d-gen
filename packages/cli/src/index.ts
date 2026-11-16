@@ -10,18 +10,29 @@
  * Characters are built in a background worker, so the page stays responsive, and exported with the same exporter as
  * the Ara builder and the ara3d CLI. The character data loads from a free CDN by default.
  */
-import type { AnimationClip, Group } from 'three';
+import { LoopRepeat, type AnimationAction, type AnimationClip, type AnimationMixer, type Group } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import AraWorker from './library/worker?worker&inline';
 import type { CharacterInput, Generated, GenerateOptions } from './library/generate';
 import type { CharacterColors } from './library/colors';
+import { parseSteps, type SequenceStep } from './library/sequence';
 import type { WorkerReply, WorkerRequest } from './library/worker';
 import type { HumanParams } from '../../../src/core/params';
 import DATA from '../../data/package.json';
 // Built from the generator's own lists at build time (see vite.lib.config.ts).
 import CATALOG from 'virtual:ara-catalog';
 
-export type { CharacterColors, CharacterInput, GenerateOptions };
+export type { CharacterColors, CharacterInput, GenerateOptions, SequenceStep };
+
+/** Options for playSequence(). */
+export interface SequenceOptions {
+  /** Seconds each clip blends into the next (default 0.35). */
+  fade?: number;
+  /** Start again after the last clip (default true). Without it, the last clip keeps playing, or holds its last pose. */
+  repeat?: boolean;
+}
+/** A sequence that is playing: stop() ends it, leaving the mixer to you. */
+export interface Sequence { stop(): void }
 export type CharacterParams = Partial<HumanParams>;
 
 /** The character data this version uses, served by jsDelivr from the ara3d-data npm package. */
@@ -74,6 +85,12 @@ export interface AraCharacter {
   setFace(weights: Record<string, number>): void;
   /** Natural blinking, on by default; call update() every frame for it to run. */
   blinking: boolean;
+  /**
+   * Plays clips one after another on `mixer`, blending each into the next, such as "walk 3s, wave, cheer x2". A step
+   * that loops (walk, idle) plays one cycle unless given a length; others (wave, jump) play once, or a number of times.
+   * It moves on as you call mixer.update(), and takes over the mixer's other actions.
+   */
+  playSequence(mixer: AnimationMixer, steps: string | readonly SequenceStep[], options?: SequenceOptions): Sequence;
   /** Runs blinking. Call it every frame, after mixer.update(), with the seconds since the last frame. */
   update(delta: number): void;
   /** Frees the GPU memory held by the character and its props. */
@@ -169,6 +186,42 @@ function faceControls(root: Group, resting: string) {
   return controls;
 }
 
+const LOOPS = new Map(CATALOG.animations.map((a) => [a.id, a.loop]));
+
+function sequence(clipFor: (id: string) => AnimationClip | undefined, mixer: AnimationMixer, steps: string | readonly SequenceStep[], { fade = 0.35, repeat = true }: SequenceOptions = {}): Sequence {
+  const plan = parseSteps(steps).map((step) => {
+    const clip = clipFor(step.id);
+    if (!clip) throw Error(`The animation "${step.id}" isn't loaded. Add it to the animations option (see ANIMATIONS for the IDs).`);
+    const loops = LOOPS.get(step.id) ?? true;
+    // A looping clip plays one cycle by default; a one-off move plays once, or as many times as asked.
+    const length = step.seconds ?? clip.duration * (step.times ?? 1);
+    return { action: mixer.clipAction(clip), loops, times: step.times ?? 1, length: Math.max(length, fade * 2) };
+  });
+  if (!plan.length) throw Error('Give playSequence() at least one animation, such as "walk, wave".');
+  const update = mixer.update;
+  let index = -1, started = 0, done = false, stopped = false;
+  const start = (i: number) => {
+    const before: AnimationAction | undefined = plan[index]?.action, step = plan[i];
+    index = i;started = mixer.time;
+    step.action.reset();step.action.clampWhenFinished = true;
+    step.action.setLoop(LoopRepeat, step.loops ? Infinity : step.times);
+    step.action.play();
+    if (before && before !== step.action) before.crossFadeTo(step.action, fade, false);
+  };
+  mixer.stopAllAction();start(0);
+  // Each mixer.update() moves time on; when a step's time is nearly up, the next one starts blending in.
+  mixer.update = (delta: number) => {
+    update.call(mixer, delta);
+    if (!stopped && !done && mixer.time - started >= plan[index].length - fade) {
+      if (index + 1 < plan.length) start(index + 1);
+      else if (repeat) start(0);
+      else done = true;
+    }
+    return mixer;
+  };
+  return { stop() { stopped = true;mixer.update = update; } };
+}
+
 /** Builds a character and returns its GLB file, without needing three.js. */
 export async function createCharacterGLB(input: CharacterInput, options?: CharacterOptions): Promise<Uint8Array> {
   return (await run(input, options)).files[0].data;
@@ -192,6 +245,7 @@ export async function createCharacter(input: CharacterInput, options?: Character
     clip: (id) => byName.get(generated.clipNames[id] ?? id),
     setExpression: face.setExpression, setMouth: face.setMouth, setFace: face.setFace,
     blinking: true, update: (delta) => face.update(delta, hero.blinking),
+    playSequence: (mixer, steps, options) => sequence(hero.clip, mixer, steps, options),
     dispose() {
       for (const root of [character.scene, ...props.map((p) => p.scene)]) root.traverse((object) => {
         const mesh = object as { geometry?: { dispose(): void }; material?: unknown };
