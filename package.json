@@ -37,6 +37,7 @@
     "media:publish": "tsx scripts/media.ts publish",
     "release-cli": "tsx scripts/release-cli.ts",
     "test:library": "tsx scripts/library-check.ts",
+    "test:web-assets": "tsx scripts/web-assets-check.ts",
     "test:embed": "tsx scripts/embed-check.ts",
     "test:mcp": "tsx scripts/mcp-check.ts",
     "test:landing": "tsx scripts/landing-check.ts",

@@ -130,6 +130,14 @@ export class AssetLibrary {
   catalog!: Catalog;
   base!: Pack<BaseMeta>;
   targets!: Pack<TargetsMeta>;
+  /**
+   * With the web copy of the data (initWeb), which file holds each target. Targets load on demand with loadTargets(),
+   * and only those are in `targets`.
+   */
+  targetFiles?: Record<string, string>;
+  /** The web copy's texture size: textures read with small = true come from web/textures. */
+  webTextureSize?: number;
+  private targetLoads = new Map<string, Promise<void>>();
   private proxies = new Map<string, Promise<Pack<ProxyMeta>>>();
   private textures = new Map<string, Promise<Uint8Array>>();
   /** Textures generated at runtime (procedural garments), by file name. */
@@ -167,6 +175,50 @@ export class AssetLibrary {
     return this;
   }
 
+  /**
+   * For downloads over the web: the catalog and base mesh now, and body-shape targets as loadTargets() asks for them,
+   * from the web copy of the data (scripts/build-web-assets.ts). Data without a web copy loads in full, as init().
+   */
+  async initWeb(): Promise<this> {
+    const [cat, base, index] = await Promise.all([
+      this.source.read('catalog.json'),
+      this.source.read('base.pack'),
+      this.source.read('web/index.json').catch(() => undefined),
+    ]);
+    if (!index) return this.init();
+    this.catalog = JSON.parse(new TextDecoder().decode(cat));
+    this.base = decodePack<BaseMeta>(base);
+    const web = JSON.parse(new TextDecoder().decode(index)) as { textureSize: number; targets: Record<string, string> };
+    this.targetFiles = web.targets;this.webTextureSize = web.textureSize;
+    this.targets = { meta: { targets: {} }, arrays: { idx: new Uint16Array(0), dx: new Int16Array(0), dy: new Int16Array(0), dz: new Int16Array(0) } };
+    return this;
+  }
+
+  /** Makes sure these targets are loaded (with the web copy of the data); the full data has them all already. */
+  async loadTargets(names: Iterable<string>): Promise<void> {
+    if (!this.targetFiles) return;
+    const files = new Set<string>();
+    for (const name of names) { const file = this.targetFiles[name];if (file && !this.targets.meta.targets[name]) files.add(file); }
+    await Promise.all([...files].map((file) => {
+      let load = this.targetLoads.get(file);
+      if (!load) {
+        load = this.source.read(`web/targets/${file}`).then((bytes) => this.addTargets(decodeTargets(decodePack<TargetsMeta>(bytes))));
+        load.catch(() => this.targetLoads.delete(file));
+        this.targetLoads.set(file, load);
+      }
+      return load;
+    }));
+  }
+
+  /** Appends a decoded pack's targets to `targets`. */
+  private addTargets(pack: Pack<TargetsMeta>) {
+    const table = this.targets.meta.targets, have = this.targets.arrays as Record<string, Uint16Array | Int16Array>, add = pack.arrays as Record<string, Uint16Array | Int16Array>;
+    const start = have.idx.length;
+    const join = <T extends Uint16Array | Int16Array>(a: T, b: T): T => { const out = new (a.constructor as new (n: number) => T)(a.length + b.length);out.set(a);out.set(b, a.length);return out; };
+    this.targets.arrays = { idx: join(have.idx, add.idx), dx: join(have.dx, add.dx), dy: join(have.dy, add.dy), dz: join(have.dz, add.dz) };
+    for (const [name, [offset, count, scale]] of Object.entries(pack.meta.targets)) table[name] = [start + offset, count, scale];
+  }
+
   /** Catalog only (for UIs that delegate building to a worker). */
   async initCatalog(): Promise<this> {
     this.catalog = JSON.parse(new TextDecoder().decode(await this.source.read('catalog.json')));
@@ -179,11 +231,13 @@ export class AssetLibrary {
     return p;
   }
 
-  texture(name: string): Promise<Uint8Array> {
+  /** A texture's bytes. `small` reads the web copy's smaller texture when the data has one (see initWeb). */
+  texture(name: string, small = false): Promise<Uint8Array> {
     const gen = this.generated.get(name);
     if (gen) return Promise.resolve(gen);
-    let p = this.textures.get(name);
-    if (!p) this.textures.set(name, (p = this.source.read(`textures/${name}`)));
+    const path = small && this.webTextureSize ? `web/textures/${name}` : `textures/${name}`;
+    let p = this.textures.get(path);
+    if (!p) this.textures.set(path, (p = this.source.read(path)));
     return p;
   }
 

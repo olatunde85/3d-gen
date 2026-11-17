@@ -123,3 +123,5 @@ await fetchSystemAssets();
 await fetchMocap();
 log('building public/assets…');
 await import('./build-assets');
+log('building the web copy for the library…');
+await import('./build-web-assets');

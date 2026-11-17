@@ -35,7 +35,8 @@ export function encodePack(meta: unknown, arrays: Record<string, TypedArray>, gz
     const a = arrays[e.name];
     out.set(new Uint8Array(a.buffer, a.byteOffset, a.byteLength), base + e.offset);
   }
-  return gzip ? gzipSync(out, { level: 9 }) : out;
+  // No timestamp in the gzip header, so the same data always packs to the same bytes.
+  return gzip ? gzipSync(out, { level: 9, mtime: 0 }) : out;
 }
 
 export function decodePack<M = unknown>(input: Uint8Array): Pack<M> {
