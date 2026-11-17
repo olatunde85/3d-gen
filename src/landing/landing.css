@@ -316,6 +316,8 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
   .cta .btn { flex: 1 1 auto; }
   .cta .btn-primary { flex-basis: 100%; }
   .specs, .specs-5 { grid-template-columns: minmax(0, 1fr); }
+  /* On a phone the hero keeps only the formats under its buttons. */
+  .meta li:not(:last-child) { display: none; }
   .cast { grid-auto-columns: 30vw; }
   /* On a phone the controls sit below the character instead of over it. */
   .hero-stage { height: 560px; }
