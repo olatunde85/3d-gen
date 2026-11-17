@@ -36,7 +36,7 @@ Changing the set keeps your cast, performances, camera shots and title. Every se
 ## Direct the cast
 
 - **Add characters:** bring your exact character from the builder, or pick an Ara preset. **Add character** grows the cast to **five**. New characters start in a free spot and the others stay where they are.
-- **Select:** a film opens with nobody selected. Click a character in the picture, or their name under **The cast**. The selected character gets a gold ring and a name tag. Click the background, press **Escape** or use **Deselect** to clear it. Equipment and placement say so if you try to use them with nobody selected.
+- **Select:** a film opens with nobody selected. Click a character in the picture, or their name under **The cast**. The selected character gets a blue ring and a name tag. Click the background, press **Escape** or use **Deselect** to clear it. Equipment and placement say so if you try to use them with nobody selected.
 - **Move:**
   - Drag a character across the floor, or choose **Click to place** (or Shift-click the ground).
   - **Arrow keys** move the selected character 0.1 m, relative to your view. With the preview focused, hold **Ctrl** (or **Command ⌘** on Mac) with **Left/Right** to turn 5°, or **Up/Down** to raise or lower 0.05 m. **Shift** is also supported as an alternative. Selecting a character focuses the preview. Releasing the modifier completes the move even if the browser misses the arrow-key release.

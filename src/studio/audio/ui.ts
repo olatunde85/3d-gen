@@ -35,7 +35,7 @@ export function setupSoundEditor(editor:SoundEditor){
     let values=peaks.get(cue.asset);if(!values){const data=new DataView(await asset.blob.arrayBuffer());if(token!==waveToken)return;const frames=(data.byteLength-44)/(2*asset.channels);values=new Float32Array(canvas.width);
       for(let x=0;x<canvas.width;x++){const start=Math.floor(x/canvas.width*frames),end=Math.floor((x+1)/canvas.width*frames);for(let i=start;i<end;i+=Math.max(1,Math.floor((end-start)/24)))values[x]=Math.max(values[x],Math.abs(data.getInt16(44+i*asset.channels*2,true)/32768));}peaks.set(cue.asset,values);}
     const mid=canvas.height/2;ctx.strokeStyle='#dcb884';ctx.lineWidth=1;for(let x=0;x<canvas.width;x++){ctx.beginPath();ctx.moveTo(x,mid-values[x]*mid*.9);ctx.lineTo(x,mid+values[x]*mid*.9);ctx.stroke();}
-    ctx.fillStyle='rgba(224,183,133,.13)';ctx.fillRect(cue.offset/asset.duration*canvas.width,0,Math.min(1,cue.duration*cue.speed/asset.duration)*canvas.width,canvas.height);
+    ctx.fillStyle='rgba(244,244,245,.1)';ctx.fillRect(cue.offset/asset.duration*canvas.width,0,Math.min(1,cue.duration*cue.speed/asset.duration)*canvas.width,canvas.height);
   }
   function render(){
     const audio=editor.project().audio;if(!audio.speech.some(c=>c.id===selected))selected=audio.speech[0]?.id??'';
