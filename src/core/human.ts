@@ -146,10 +146,10 @@ function mouthPart(
   bones?: { head: number; jaw: number },
 ): PolyMesh {
   const a = proxy.arrays as { faceSizes: Uint8Array; faceVerts: Uint32Array; faceUVs: Uint32Array; uvs: Float32Array };
-  const positions = fit(proxy, coords);
-  const n = positions.length / 3;
+  let positions = fit(proxy, coords), faceVerts = a.faceVerts;
+  let n = positions.length / 3;
   // Which vertices belong to the lower jaw.
-  const lower = new Uint8Array(n);
+  let lower = new Uint8Array(n);
   if (kind === 'tongue') lower.fill(1);
   else {
     // Separate pieces (each tooth, the gums); teeth split at the biggest height gap between them.
@@ -169,6 +169,33 @@ function mouthPart(
         const below = cy(vs) < split;
         for (const v of vs) lower[v] = below ? 1 : 0;
       } else for (const v of vs) lower[v] = positions[v * 3 + 1] < split ? 1 : 0; // gums, vertex by vertex
+    }
+    // The gums are one piece over both jaws. A face across the split would stretch into a red wall at the corners of
+    // an open mouth, so each face goes wholly to one jaw (by its middle), and vertices both jaws use are doubled.
+    const side: number[] = [];
+    for (let f = 0, c = 0; f < a.faceSizes.length; c += a.faceSizes[f], f++) {
+      let y = 0;
+      for (let k = 0; k < a.faceSizes[f]; k++) y += positions[a.faceVerts[c + k] * 3 + 1];
+      const vs = Array.from({ length: a.faceSizes[f] }, (_, k) => a.faceVerts[c + k]);
+      side.push(vs.every((v) => lower[v] === lower[vs[0]]) ? lower[vs[0]] : y / a.faceSizes[f] < split ? 1 : 0);
+    }
+    const copy = new Map<number, number>(), extra: number[] = [], extraLower: number[] = [];
+    faceVerts = Uint32Array.from(a.faceVerts);
+    for (let f = 0, c = 0; f < a.faceSizes.length; c += a.faceSizes[f], f++)
+      for (let k = 0; k < a.faceSizes[f]; k++) {
+        const v = a.faceVerts[c + k];
+        if (lower[v] === side[f]) continue;
+        let d = copy.get(v);
+        if (d === undefined) {
+          d = n + extra.length / 3;copy.set(v, d);
+          extra.push(positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]);extraLower.push(side[f]);
+        }
+        faceVerts[c + k] = d;
+      }
+    if (extra.length) {
+      positions = Float32Array.from([...positions, ...extra]);
+      lower = Uint8Array.from([...lower, ...extraLower]);
+      n = positions.length / 3;
     }
   }
   let morphs: Float32Array[] | undefined;
@@ -200,7 +227,22 @@ function mouthPart(
     }
     skin = { j, w };
   }
-  return { positions, faceSizes: a.faceSizes, faceVerts: a.faceVerts, faceUVs: a.faceUVs, uvs: a.uvs, skin, morphs };
+  return { positions, faceSizes: a.faceSizes, faceVerts, faceUVs: a.faceUVs, uvs: a.uvs, skin, morphs };
+}
+
+/**
+ * The faces inside the mouth, past the lips: the middle of the mouth's patch in MakeHuman's skin texture layout (an
+ * oval centred at u 0.84, v 0.075). Found by texture position, so it works on every body mesh that shares the layout.
+ */
+function mouthInside(m: PolyMesh): boolean[] {
+  const out: boolean[] = [];
+  for (let f = 0, c = 0; f < m.faceSizes.length; c += m.faceSizes[f++]) {
+    let u = 0, v = 0;
+    for (let k = 0; k < m.faceSizes[f]; k++) { const t = m.faceUVs[c + k];u += m.uvs[t * 2];v += m.uvs[t * 2 + 1]; }
+    u /= m.faceSizes[f];v /= m.faceSizes[f];
+    out.push(Math.hypot((u - 0.84) / 0.086, (v - 0.075) / 0.067) < 0.72);
+  }
+  return out;
 }
 
 function toMaterial(m: AssetMaterial, overrides: Partial<Material> = {}): Material {
@@ -357,7 +399,15 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
   // own lit-sphere shader; as a multiplier it darkens the painted texture to about a fifth, so
   // the texture is used as painted.
   const skinBase = skin.material!.color.toLowerCase() === '#808080' ? '#ffffff' : skin.material!.color;
-  parts.push([body, { ...toMaterial(skin.material!), name: 'Skin', color: tint(skinBase, p.skinTint), roughness: 0.66, roughnessMap: skinRoughness(lib) }]);
+  const skinMaterial: Material = { ...toMaterial(skin.material!), name: 'Skin', color: tint(skinBase, p.skinTint), roughness: 0.66, roughnessMap: skinRoughness(lib) };
+  // Inside the mouth: the texture paints it an even red, lit like the face, which shows as red walls in the corners
+  // of an open mouth. Real mouths are in shadow past the lips, so the inner part of that patch gets a darker copy of
+  // the skin material; its outer ring (the inside of the lips) stays as painted.
+  const deep = mouthInside(body);
+  if (deep.some(Boolean)) {
+    parts.push([compact(body, (f) => !deep[f]), skinMaterial]);
+    parts.push([compact(body, (f) => deep[f]), { ...skinMaterial, name: 'Mouth', color: tint(skinMaterial.color, '#5c4646'), roughness: 0.5 }]);
+  } else parts.push([body, skinMaterial]);
   if (looks.overlay) parts.push([hd ? subdivide(looks.overlay[0]) : looks.overlay[0], looks.overlay[1]]);
   // Eyes: the textures' sclera is near pure white; real sclera is off-white and in the lids' shade,
   // so the eye is toned down (the iris stays readable) and a little less glossy.

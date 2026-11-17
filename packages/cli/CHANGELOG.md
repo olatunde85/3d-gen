@@ -2,6 +2,11 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.7.4 — 2026-11-18
+
+- **Fixed:** the tank top, tactical vest, hi-vis vest and leather armour have clean strap edges at every detail level, and the straps stay clean when the arms rise (waving, cheering).
+- **Fixed:** an open mouth no longer shows red walls at its corners. The gums split cleanly between the jaws, and the inside of the mouth is in shadow. Exported characters have a `Mouth` material for it, beside `Skin`.
+
 ## 0.7.3 — 2026-11-17 (with ara3d-data 1.1.0)
 
 - Loads ara3d-data 1.1.0 again, now that it's on npm, so the faster loading from 0.7.0 is back: the first character usually takes 2–4 MB.
