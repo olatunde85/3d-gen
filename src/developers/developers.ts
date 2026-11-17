@@ -7,6 +7,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ANIMATIONS, createCharacter, EXPRESSIONS, VEHICLE_CLIPS, MOUTH_SHAPES, PRESET_NAMES, PROPS, type AraCharacter, type CharacterColors, type CharacterOptions } from '../../packages/cli/src/index';
 import { encodeCharacter } from '../app/share';
+import { siteMenu } from '../landing/nav';
+siteMenu();
 
 const ASSETS = `${import.meta.env.BASE_URL}assets/`;
 /** Clips the playground builds once, so switching between them is instant. */

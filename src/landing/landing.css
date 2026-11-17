@@ -52,6 +52,8 @@ p { margin: 0; text-wrap: pretty; }
 .nav nav a, .nav-link { color: var(--muted); text-decoration: none; font-size: 14px; transition: color 0.15s; }
 .nav nav a:hover, .nav-link:hover { color: var(--text); }
 .nav-end { display: flex; align-items: center; gap: 20px; margin-left: auto; }
+.nav-menu, .nav-extra { display: none; }
+@media (max-width: 860px) { .nav-extra { display: block; } }
 .nav > nav + .btn { margin-left: auto; }
 
 /* --- Buttons: white for the main action, quiet outlines for the rest --- */
@@ -298,6 +300,18 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
   .hero-stage { height: 460px; }
   .nav { gap: 16px; }
   .nav nav, .nav-link { display: none; }
+  /* The menu: a button that opens the links as a sheet under the bar. */
+  .nav-menu { display: grid; place-content: center; gap: 5px; width: 38px; height: 34px; margin-left: 4px; padding: 0; border: 1px solid var(--line-2); border-radius: 8px; background: none; cursor: pointer; }
+  .nav-menu span { display: block; width: 16px; height: 1.5px; border-radius: 2px; background: var(--text); transition: transform 0.2s; }
+  .nav.open .nav-menu span:first-child { transform: translateY(3.25px) rotate(45deg); }
+  .nav.open .nav-menu span:last-child { transform: translateY(-3.25px) rotate(-45deg); }
+  .nav.open nav {
+    position: absolute; left: 0; right: 0; top: 100%; display: grid; gap: 0; padding: 8px var(--gutter) 16px;
+    background: var(--bg); border-bottom: 1px solid var(--line); box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+  }
+  .nav.open nav a { padding: 14px 0; border-bottom: 1px solid var(--line); color: var(--text); font-size: 17px; }
+  .nav.open nav a:last-child { border-bottom: 0; }
+  .nav .nav-end { margin-left: auto; }
   .numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; }
   .numbers > div { padding: 20px 0 22px; }
   .numbers > div + div { padding-left: 0; }

@@ -2,6 +2,8 @@
  * Landing page: the Studio reel and the Ara Play promo playing muted while on screen, either with sound in a lightbox, scroll
  * reveals and counting numbers.
  */
+import { siteMenu } from './nav';
+siteMenu();
 // Served with the site (CDN-cached), so viral traffic costs nothing extra.
 const REELS: Record<string, { src: string; poster: string; label: string }> = {
   studio: { src: `${import.meta.env.BASE_URL}media/ara-studio-reel.mp4`, poster: `${import.meta.env.BASE_URL}media/ara-studio-reel-poster.jpg`, label: 'Ara 3D Studio reel' },
