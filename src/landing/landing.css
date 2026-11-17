@@ -46,8 +46,11 @@ p { margin: 0; text-wrap: pretty; }
   border-bottom: 1px solid var(--line);
 }
 .brand { color: var(--text); text-decoration: none; font: 650 17px/1 var(--display); letter-spacing: -0.02em; white-space: nowrap; }
-.brand-mark { color: var(--text); }
-.brand-mark::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+/* The logo (public/logo.svg), then "Ara" in full white and "3D Gen" in grey. */
+.brand { display: inline-flex; align-items: center; }
+.brand-mark { display: inline-flex; align-items: center; color: var(--text); }
+.brand-mark::before { content: ''; width: 24px; height: 24px; margin-right: 9px; background: url(/logo.svg) center / contain no-repeat; }
+.brand-sub { color: var(--muted); margin-left: 0.28em; }
 .nav nav { display: flex; gap: 26px; }
 .nav nav a, .nav-link { color: var(--muted); text-decoration: none; font-size: 14px; transition: color 0.15s; }
 .nav nav a:hover, .nav-link:hover { color: var(--text); }

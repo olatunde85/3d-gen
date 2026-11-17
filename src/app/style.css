@@ -508,5 +508,7 @@ html dialog.ai-assist {
   --ai-bg: #111114; --ai-field: #0b0b0e; --ai-raised: #1a1a1f; --ai-line: #2a2a31;
   --ai-text: #f4f4f5; --ai-muted: #a1a1aa; --ai-accent: #f4f4f5; --ai-accent-hover: #ffffff; --ai-on-accent: #09090b;
 }
-/* The brand mark, as on the landing page. */
-h1 > a:first-child::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+/* The logo and wordmark, as on the landing page. */
+h1 > .brand { display: inline-flex; align-items: center; vertical-align: -3px; }
+h1 > .brand::before { content: ''; width: 20px; height: 20px; margin-right: 8px; background: url(/logo.svg) center / contain no-repeat; }
+h1 > .brand .brand-sub { font-style: normal; color: var(--muted); margin-left: 0.28em; }

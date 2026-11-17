@@ -4,7 +4,7 @@
  * any choice stays readable. Editor dialogs keep Ara's own colours; the game screens take the theme.
  */
 export interface GameTheme { accent: string; background: string; text: string }
-export const DEFAULT_THEME: GameTheme = { accent: '#274f45', background: '#eeede5', text: '#203332' };
+export const DEFAULT_THEME: GameTheme = { accent: '#f4f4f5', background: '#09090b', text: '#f4f4f5' };
 export const THEME_PRESETS: { id: string; name: string; theme: GameTheme }[] = [
   { id: 'ara', name: 'Ara', theme: DEFAULT_THEME },
   { id: 'midnight', name: 'Midnight', theme: { accent: '#7c9cff', background: '#11151d', text: '#e8ecf4' } },

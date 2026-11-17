@@ -12,7 +12,9 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.65 sys
 a { color: var(--link); }
 .legal-top { display: flex; gap: 20px; align-items: center; justify-content: space-between; max-width: 760px; margin: 0 auto; padding: 22px 20px; border-bottom: 1px solid var(--line); }
 .legal-top a { text-decoration: none; }
-.legal-top .home { color: var(--text); font-weight: 700; }
+.legal-top .home { display: inline-flex; align-items: center; gap: 0.28em; color: var(--text); font-weight: 700; }
+.legal-top .home img { margin-right: 6px; }
+.legal-top .home span { color: var(--muted); }
 .legal-top nav { display: flex; gap: 18px; font-size: 15px; }
 .legal-top nav a[aria-current] { color: var(--text); }
 main { max-width: 760px; margin: 0 auto; padding: 36px 20px 64px; }

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<!-- The Ara mark: a figure whose body is an A; the crossbar sweeps out like a leg stepping forward. -->
+<defs><mask id="ara-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="#fff"/><path d="M10.5 56.5C15 49.5 23 46.5 31 45.5S38.5 44 40.5 43.3" transform="translate(0 -1.6)" fill="none" stroke="#000" stroke-width="11.2" stroke-linecap="round"/></mask></defs>
+<g fill="none" stroke="#f4f4f5" stroke-linecap="round"><path d="M32 22L20.9 45.6" stroke-width="9" mask="url(#ara-cut)"/><path d="M10.5 56.5C15 49.5 23 46.5 31 45.5S38.5 44 40.5 43.3" stroke-width="8"/><path d="M32 22L48.5 57" stroke-width="9"/></g>
+<circle cx="32" cy="9.5" r="6.5" fill="#6d8dff"/>
+</svg>

@@ -159,9 +159,9 @@ export class StudioScene {
     const actor=this.selectionId?this.actors.get(this.selectionId):undefined;if(!actor)return;
     const W=this.canvas.width,H=this.canvas.height,origin=actor.stagePosition,radius=actor.height*.3;
     // Sized for the screen, whatever the film's resolution or the preview's size.
-    const u=Math.max(W/1280,W/(this.canvas.clientWidth||W)),gold='#f4c78f',ink='rgba(10,12,16,.8)';
+    const u=Math.max(W/1280,W/(this.canvas.clientWidth||W)),ring='#8ea6ff',ink='rgba(10,12,16,.8)';
     const project=(p:THREE.Vector3)=>{p.project(this.camera);return{x:(p.x+1)*W/2,y:(1-p.y)*H/2,z:p.z};};
-    const stroke=()=>{ctx.strokeStyle=ink;ctx.lineWidth=5.5*u;ctx.stroke();ctx.strokeStyle=gold;ctx.lineWidth=2.6*u;ctx.stroke();};
+    const stroke=()=>{ctx.strokeStyle=ink;ctx.lineWidth=5.5*u;ctx.stroke();ctx.strokeStyle=ring;ctx.lineWidth=2.6*u;ctx.stroke();};
     ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
     let visible=false,whole=true;const points=[];
     for(let i=0;i<=64;i++){const a=i/64*Math.PI*2,p=project(new THREE.Vector3(origin.x+Math.cos(a)*radius,origin.y+.018,origin.z+Math.sin(a)*radius));points.push(p);if(p.z< -1||p.z>1)whole=false;else if(p.x>=0&&p.x<=W&&p.y>=0&&p.y<=H)visible=true;}
@@ -185,7 +185,7 @@ export class StudioScene {
       const name=actor.character.params.name||'Selected character',size=Math.round(13*u),padX=10*u,h=24*u,gap=10*u;
       ctx.font=`650 ${size}px system-ui,-apple-system,'Segoe UI',sans-serif`;const w=Math.min(W*.5,ctx.measureText(name).width+padX*2);
       const x=Math.min(W-w-6*u,Math.max(6*u,tip.x-w/2)),y=Math.min(H-h-6*u,Math.max(6*u,tip.y-gap-h-6*u)),r=h/2;
-      ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=8*u;ctx.fillStyle=gold;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();ctx.shadowBlur=0;
+      ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=8*u;ctx.fillStyle=ring;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();ctx.shadowBlur=0;
       const px=Math.min(x+w-r,Math.max(x+r,tip.x));ctx.beginPath();ctx.moveTo(px-6*u,y+h-0.5);ctx.lineTo(px,y+h+6*u);ctx.lineTo(px+6*u,y+h-0.5);ctx.closePath();ctx.fill();
       ctx.fillStyle='#1d1f24';ctx.textBaseline='middle';ctx.textAlign='center';ctx.fillText(name,x+w/2,y+h/2+0.5*u,w-padX*2);
     }

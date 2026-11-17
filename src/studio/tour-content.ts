@@ -14,7 +14,7 @@ export const TOUR_STEPS:readonly TourStep[] = [
   {title:'Meet your cast',demo:'cast',targets:['#cast-roster','.cast-actions','#character'],
     body:'Add up to five characters. Choose a preset, or use + Custom to import character settings saved from the builder. Click a name to select them; Character builder edits their appearance. Equipment below gives the selected character a weapon or bag.'},
   {title:'Select, drag, place',demo:'drag',targets:['#film'],
-    body:'Click a character: a gold ring marks your selection. Drag their body to move them. For another way to place them, use Click to place, or Shift-click the ground. Click empty background or press Escape to deselect.',
+    body:'Click a character: a blue ring marks your selection. Drag their body to move them. For another way to place them, use Click to place, or Shift-click the ground. Click empty background or press Escape to deselect.',
     keys:[{keys:['Esc'],label:'Deselect character'}]},
   {title:'Move a selected character',demo:'move',targets:['#blocking-settings'],
     body:'Click a character in the preview, then use the arrow keys to move them relative to your view. The placement fields on the right let you enter precise coordinates.',
