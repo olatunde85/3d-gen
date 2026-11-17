@@ -1,0 +1,17 @@
+{
+  "name": "ara3d-three-starter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "ara3d": "^0.6.0",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0"
+  }
+}

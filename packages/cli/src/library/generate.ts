@@ -118,14 +118,18 @@ export function characterParams(lib: AssetLibrary, input: CharacterInput): Human
   return params;
 }
 
+/** Texting and phone calls need the phone in hand: clips asked for by name bring it, unless a carried item was chosen. */
+export const needsPhone = (clips: readonly string[], carry?: string) => !carry && clips.some((id) => id === 'phone_call' || id === 'texting');
+
 export async function generate(lib: AssetLibrary, input: CharacterInput, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
   let params = characterParams(lib, input);
   const clips = clipIds(options.animations);
+  const phone = Array.isArray(options.animations) && needsPhone(clips, options.carry);
   params = {
     ...params,
     ...(options.detail ? { detail: options.detail } : {}),
     ...(options.weapon ? { weapon: options.weapon } : {}),
-    ...(options.carry ? { carry: options.carry } : {}),
+    ...(options.carry ? { carry: options.carry } : phone ? { carry: 'phone' } : {}),
     // A newly chosen vehicle gets its own factory paint, as in the builder.
     ...(options.vehicle ? { vehicle: options.vehicle, vehicleStyle: vehicleStyleForChoice(options.vehicle, params.vehicleStyle) } : {}),
     ...(options.animations === 'none' ? { animations: false } : {}),

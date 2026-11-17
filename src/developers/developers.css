@@ -151,6 +151,8 @@
 .dev-next-grid a { display: grid; gap: 6px; text-decoration: none; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; color: var(--text); }
 .dev-next-grid a:hover { border-color: #3a4458; }
 .dev-next-grid span { color: var(--muted); font-size: 14px; }
+.dev-lead { color: var(--muted); margin: 10px 0 0; max-width: 640px; }
+.dev-lead a { color: var(--text); }
 
 /* Wide screens: the controls, the view and the code side by side, with the code on the right. */
 @media (min-width: 1280px) {

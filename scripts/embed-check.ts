@@ -80,6 +80,17 @@ try {
   await until(`events.length > ${loads}`, 'new animation');
   assert.ok(await evaluate("!!document.getElementById('soldier').character.clip('dance_groove')"));
   console.log('OK attributes: expression at once, animation rebuilt with dance_groove');
+  // look-at="pointer": the head turns towards the pointer, wherever it is on the page, and adds no rebuild.
+  const yaw = `(()=>{const h=document.getElementById('soldier').character.scene.getObjectByName('Head'),d=new (h.position.constructor)();h.getWorldDirection(d);return Math.atan2(d.x,d.z)*180/Math.PI})()`;
+  const ahead = await evaluate<number>(yaw), box = await evaluate<any>("(()=>{const r=document.getElementById('soldier').getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}})()");
+  await evaluate("document.getElementById('soldier').setAttribute('look-at','pointer')");
+  // The element sits at the page's left edge: the pointer goes far to its right, then back to its left.
+  const turnTo = async (x: number) => { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y: box.y + box.h * 0.2 });await sleep(900);return evaluate<number>(yaw); };
+  const right = await turnTo(box.x + box.w + 500), left = await turnTo(1);
+  assert.ok(Math.abs(right - ahead) > 20 && Math.abs(right - left) > 20, `the head follows the pointer (ahead ${ahead.toFixed(0)}°, pointer right ${right.toFixed(0)}°, left ${left.toFixed(0)}°)`);
+  await evaluate("document.getElementById('soldier').removeAttribute('look-at')");
+  assert.equal(await evaluate('events.length'), loads + 1, 'look-at does not rebuild');
+  console.log(`OK look-at="pointer": the head follows the pointer (${ahead.toFixed(0)}° ahead, ${right.toFixed(0)}° and ${left.toFixed(0)}°)`);
   // A sequence: the bride walks, waves and cheers, all three clips loaded in one build.
   assert.ok(await evaluate("['walk','wave','cheer'].every((id) => document.getElementById('file').character.clip(id))"));
   const before = await evaluate<number>('events.length');

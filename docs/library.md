@@ -20,6 +20,14 @@ mixer.clipAction(hero.clip('walk')).play();
 
 **Try it first** in the [playground](https://ara3dgen.com/developers/#playground): pick a character, props and an expression, and copy the code it writes.
 
+**Or start from a template** that runs in your browser on StackBlitz, with nothing to install:
+
+- [three.js game starter](https://stackblitz.com/github/olatunde85/3d-gen/tree/main/examples/three-starter): a character you steer with the keyboard or by clicking the ground, walking, running and looking at you when it stops.
+- [React Three Fiber](https://stackblitz.com/github/olatunde85/3d-gen/tree/main/examples/react-three-fiber): a reusable `<Character>` component; click the ground to walk there.
+- [Plain HTML](https://stackblitz.com/github/olatunde85/3d-gen/tree/main/examples/html-embed): characters on a page with the [`<ara-character>`](embed.md) tag.
+
+Their code is in the [examples folder](https://github.com/olatunde85/3d-gen/tree/main/examples) on GitHub.
+
 It's written in TypeScript and ships its types, so editors autocomplete every option. It needs three.js 0.160 or newer, a modern browser, and a bundler (Vite, webpack, Next.js and so on) or an import map. No extra bundler setup is needed: the worker is built in.
 
 ## Choosing a character
@@ -48,7 +56,7 @@ Unknown fields and out-of-range values are rejected with a message that says wha
 | `detail` | `'low'` (about 25–50k triangles dressed), `'medium'` (about 45–65k) or `'high'` (about 130–170k); see [Detail levels](characters.md#detail-levels) |
 | `rootMotion` | Walks, runs and strafes move the character forward instead of playing in place |
 | `weapon` | `'rifle'`, `'pistol'`, `'sword'`, `'knife'` or `'grenade'`, held in the hand |
-| `carry` | Something to carry, such as `'backpack'`, `'briefcase'` or `'phone'` |
+| `carry` | Something to carry, such as `'backpack'`, `'briefcase'` or `'phone'`. With the `texting` or `phone_call` clip in `animations`, the character carries the phone unless you choose something else |
 | `vehicle` | A vehicle fitted to the rider, such as `'motorcycle'` or `'horse'`; it comes back in `props` |
 | `colors` | New colours for parts of the character, such as `{ outfit: '#1d2a44', carry: '#8a1c1c' }`; see [Colours](#colours) |
 | `onProgress` | `(label, fraction) => {}`, for a loading bar |
@@ -111,6 +119,42 @@ const sequence = hero.playSequence(mixer, 'run 2s, vault_over, run 2s, ledge_cli
 - Options: `{ fade: 0.5 }` sets the blend in seconds (default 0.35), and `{ repeat: false }` stops on the last clip.
 - Every clip in the sequence must be in the `animations` you built the character with. `sequence.stop()` ends the sequence and hands the mixer back to you.
 
+## Walking and running
+
+`locomotion()` blends idle, walk and run by speed. Your code moves the character; set `speed` from that movement every frame, and the steps keep pace with the ground:
+
+```js
+const hero = await createCharacter('The Soldier', { animations: ['idle', 'walk', 'run'] });
+const mixer = new THREE.AnimationMixer(hero.scene);
+const legs = hero.locomotion(mixer);
+
+// In your render loop:
+hero.scene.position.addScaledVector(direction, speed * delta);  // your own movement, in metres per second
+legs.speed = speed;
+mixer.update(delta);
+hero.update(delta);
+```
+
+- At 0 the character stands in the idle. Up to `legs.walkSpeed` (about 1.5 m/s for a 1.78 m character) it eases into the walk, and between that and `legs.runSpeed` (about 3.7 m/s) it blends into the run. Faster than that, the run plays faster.
+- The natural speeds scale with the character's height, so a tall character takes longer strides.
+- Changes of speed ease in over a quarter of a second. Set `{ smoothing: 0.1 }` for a snappier change.
+- Use other clips with `{ idle: 'rifle_idle', walk: 'rifle_walk', run: 'rifle_run' }`, after loading them in `animations`.
+- `legs.stop()` hands the mixer back to you, for a jump or another one-off move. Call `hero.locomotion(mixer)` again to carry on.
+
+## Looking at things
+
+`lookAt()` turns the head and neck towards a point or an object:
+
+```js
+hero.lookAt(new THREE.Vector3(2, 1.6, 3));  // a point in the scene
+hero.lookAt(camera);                        // follows the camera as it moves
+hero.lookAt(null);                          // looks ahead again
+```
+
+- The neck takes some of the turn and the head the rest, up to 75° to the side and 35° up or down. A target behind the character eases the head back to the front.
+- `{ amount: 0.5 }` turns halfway, and `{ smoothing: 0.4 }` turns more slowly (the default is 0.2 seconds).
+- The turn is added on top of the animation, so it works while the character walks or talks. It runs in `hero.update(delta)`, which must come after `mixer.update(delta)`.
+
 ## Faces
 
 Every character carries face shapes, so it can change expression, blink and talk.
@@ -121,11 +165,12 @@ hero.setMouth('viseme_aa');          // a mouth shape for lip-sync; hero.setMout
 hero.setFace({ browInnerUp: 0.6 });  // any face shape by name
 
 // In your render loop, after mixer.update(delta):
-hero.update(delta);                  // runs natural blinking; hero.blinking = false turns it off
+hero.update(delta);                  // runs blinking, looking and lip-sync; hero.blinking = false stops the blinking
 ```
 
 - **Expressions:** `EXPRESSIONS` lists them: neutral, happy, laughing, angry, sad, crying, surprised, afraid and determined. A character starts with the expression in its settings.
-- **Lip-sync:** `MOUTH_SHAPES` are the 14 Oculus viseme names (`viseme_aa`, `viseme_PP` and so on) that lip-sync tools output. Feed each viseme your tool reports to `setMouth()`. While a mouth shape shows, it moves the jaw and the expression's smile or frown eases off, so talking and expressions combine without over-stretching the mouth.
+- **Lip-sync from audio:** `hero.lipSync(audio)` moves the mouth with whatever plays through an `<audio>` or `<video>` element, a `MediaStream` (such as a microphone) or a Web Audio node. It reads loudness and the shape of the sound, so it suits voice-overs and live talking without any extra tools. It runs in `hero.update(delta)`, and `.stop()` closes the mouth. Browsers start audio only after a click or a key press, so start playback from one.
+- **Lip-sync from a tool:** `MOUTH_SHAPES` are the 14 Oculus viseme names (`viseme_aa`, `viseme_PP` and so on) that lip-sync tools output. Feed each viseme your tool reports to `setMouth()`. While a mouth shape shows, it moves the jaw and the expression's smile or frown eases off, so talking and expressions combine without over-stretching the mouth.
 - **Face shapes:** `FACE_SHAPES` lists every shape, with ARKit-style names (`eyeBlinkLeft`, `jawOpen`, `mouthSmile` and so on), so face-capture data can drive them directly.
 - A few clips animate the face themselves, such as talk and laugh. While one plays, three.js's mixer sets those shapes each frame; blinking still runs on top.
 

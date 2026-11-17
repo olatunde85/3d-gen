@@ -79,6 +79,31 @@ window.sequenceTest = async () => {
   hero.dispose();return { order, lengths, errors };
 };
 window.glbOnly = async () => { const glb = await createCharacterGLB('The Priest', { assetsUrl: '/assets/', animations: 'none', detail: 'low' });return { size: glb.length, magic: String.fromCharCode(...glb.slice(0, 4)) }; };
+window.motionTest = async () => {
+  const hero = await createCharacter('The Soldier', { assetsUrl: '/assets/', animations: ['idle', 'walk', 'run'], detail: 'low' });
+  const mixer = new THREE.AnimationMixer(hero.scene), legs = hero.locomotion(mixer);
+  const weights = () => ['idle', 'walk', 'run'].map((id) => +mixer.clipAction(hero.clip(id)).getEffectiveWeight().toFixed(2));
+  const step = (seconds) => { for (let i = 0; i < seconds * 60; i++) { mixer.update(1 / 60);hero.update(1 / 60); } };
+  const gaits = {};
+  for (const [name, speed] of [['stand', 0], ['walk', legs.walkSpeed], ['run', legs.runSpeed]]) { legs.speed = speed;step(2);gaits[name] = weights(); }
+  // The head turns towards a point to the character's left (+X), and back when told to look ahead.
+  legs.speed = 0;step(1);
+  const head = hero.scene.getObjectByName('Head'), ahead = new THREE.Vector3(), turned = new THREE.Vector3();
+  head.getWorldDirection(ahead);hero.lookAt(new THREE.Vector3(2, 1.6, 1.5));step(1);head.getWorldDirection(turned);
+  const turn = THREE.MathUtils.radToDeg(Math.atan2(turned.x, turned.z) - Math.atan2(ahead.x, ahead.z));
+  hero.lookAt(null);
+  // Lip-sync from a Web Audio node: a buzzing tone opens the mouth; stop() closes it.
+  const ctx = new AudioContext();await ctx.resume();
+  const tone = ctx.createOscillator();tone.type = 'sawtooth';tone.frequency.value = 150;const gain = ctx.createGain();gain.gain.value = 0.5;tone.connect(gain);tone.start();
+  const meshes = [];hero.scene.traverse((o) => { if (o.morphTargetDictionary) meshes.push(o); });
+  const mouth = () => Math.max(...['viseme_aa', 'viseme_O', 'viseme_E', 'viseme_SS'].map((n) => Math.max(...meshes.map((m) => m.morphTargetDictionary[n] === undefined ? 0 : m.morphTargetInfluences[m.morphTargetDictionary[n]]))));
+  const sync = hero.lipSync(gain);let open = 0;
+  for (let i = 0; i < 12; i++) { await new Promise((r) => setTimeout(r, 50));hero.update(0.05);open = Math.max(open, mouth()); }
+  sync.stop();hero.update(0.05);const closed = mouth();tone.stop();
+  let error = '';try { hero.locomotion(mixer, { run: 'sprint_fast' }); } catch (e) { error = e.message; }
+  hero.dispose();
+  return { gaits, walkSpeed: legs.walkSpeed, runSpeed: legs.runSpeed, turn, open, closed, error };
+};
 window.ready = true;
 </script></body></html>`;
 
@@ -98,7 +123,7 @@ const server = createServer((req, res) => {
 await new Promise((r) => server.once('listening', r));
 const port = (server.address() as { port: number }).port, profile = mkdtempSync(join(tmpdir(), 'ara-library-'));
 
-const chrome = spawn(chromePath, ['--headless=new', '--use-angle=metal', '--no-first-run', `--user-data-dir=${profile}`, '--remote-debugging-pipe', '--window-size=900,700', 'about:blank'], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
+const chrome = spawn(chromePath, ['--headless=new', '--use-angle=metal', '--no-first-run', `--user-data-dir=${profile}`, '--remote-debugging-pipe', '--autoplay-policy=no-user-gesture-required', '--window-size=900,700', 'about:blank'], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });
 const input = chrome.stdio[3] as Writable, output = chrome.stdio[4] as Readable, pending = new Map<number, (m: any) => void>();
 let seq = 0, session = '', buffer = '';
 output.on('data', (chunk: Buffer) => {
@@ -189,6 +214,17 @@ try {
   assert.deepEqual(seq.order, ['walk', 'wave', 'cheer', 'walk'], `sequence order ${seq.order}`);
   assert.equal(seq.errors.length, 3, `sequence errors ${seq.errors}`);
   console.log(`OK sequence: ${seq.order.join(' → ')} (wave ${seq.lengths.wave.toFixed(1)} s, cheer ${seq.lengths.cheer.toFixed(1)} s); errors: ${seq.errors.join(' / ')}`);
+  // Texting brings the phone (in place of her handbag), unless a carried item is chosen.
+  const texting = await evaluate<any>(`window.run('The Female Executive', { animations: ['texting'], detail: 'low' }, { play: 'texting', az: 0, dist: 4 })`);
+  const keepBag = await evaluate<any>(`window.run('The Female Executive', { animations: ['texting'], detail: 'low', carry: 'handbag' }, { play: 'texting', az: 0, dist: 4 })`);
+  assert.equal(texting.carry, 'phone');assert.equal(keepBag.carry, 'handbag');
+  console.log('OK texting brings the phone, and a chosen carry stays');
+  const motion = await evaluate<any>('window.motionTest()');
+  assert.deepEqual(motion.gaits, { stand: [1, 0, 0], walk: [0, 1, 0], run: [0, 0, 1] }, JSON.stringify(motion.gaits));
+  assert.ok(motion.turn > 25, `the head turned ${motion.turn.toFixed(0)}°`);
+  assert.ok(motion.open > 0.3 && motion.closed === 0, `mouth opened ${motion.open} and closed to ${motion.closed}`);
+  assert.match(motion.error, /isn't loaded/);
+  console.log(`OK movement: idle/walk/run blend by speed (walk ${motion.walkSpeed.toFixed(2)} m/s, run ${motion.runSpeed.toFixed(2)} m/s), the head turned ${motion.turn.toFixed(0)}°, lip-sync opened the mouth to ${motion.open.toFixed(2)} and closed it`);
   const glb = await evaluate<any>('window.glbOnly()');
   assert.equal(glb.magic, 'glTF');console.log(`OK createCharacterGLB: ${(glb.size / 1e6).toFixed(1)} MB GLB`);
   assert.ok(refusedOnce);console.log('OK a busy server (503) was tried again');

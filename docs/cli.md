@@ -35,7 +35,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `--root-motion` | Walks, runs and strafes move the character forward instead of playing in place |
 | `--separate-clips` | The model plus one file per clip, in a zip; clip files hold only the skeleton and animation (Unity's `model@clip` convention) |
 | `--weapon <id>` | A weapon in the hand: `rifle`, `pistol`, `sword`, `knife` or `grenade` |
-| `--carry <id>` | Something to carry, such as `backpack`, `briefcase`, `handbag`, `parcel`, `head_load` or `phone` |
+| `--carry <id>` | Something to carry, such as `backpack`, `briefcase`, `handbag`, `parcel`, `head_load` or `phone`. `--animations` with `texting` or `phone_call` brings the phone unless you set `--carry` |
 | `--vehicle <id>` | A vehicle fitted to the rider, such as `motorcycle`, `horse`, `car` or `helicopter`; `auto` fits whichever vehicle the chosen riding clips need |
 | `--separate-props` | The weapon as its own file as well; vehicles are always their own file |
 | `--out <dir>` | Output folder; the default is `./ara3d-out` |

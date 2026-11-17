@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ara characters on a web page</title>
+    <!-- One script adds the <ara-character> tag. It includes three.js; the character data loads from jsDelivr. -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/ara3d@0/dist/embed.js"></script>
+    <style>
+      body { margin: 0; padding: 32px 16px; background: #09090b; color: #f4f4f5; font: 15px/1.5 system-ui, sans-serif; }
+      main { max-width: 980px; margin: 0 auto; }
+      h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 6px; }
+      p { color: #a1a1aa; margin: 0 0 28px; }
+      .cast { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+      figure { margin: 0; background: #111114; border: 1px solid #2a2a31; border-radius: 14px; overflow: hidden; }
+      figcaption { padding: 10px 14px 14px; font-size: 13px; color: #a1a1aa; }
+      figcaption code { color: #f4f4f5; }
+      button { margin-top: 8px; background: #f4f4f5; color: #09090b; border: 0; border-radius: 8px; padding: 7px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Ara characters, straight in HTML</h1>
+      <p>No build step and no 3D code: each character below is one tag. Move your pointer around the page.</p>
+      <div class="cast">
+        <figure>
+          <!-- look-at="pointer": the head follows the visitor's pointer, anywhere on the page. -->
+          <ara-character preset="The Adventurer" expression="happy" look-at="pointer"></ara-character>
+          <figcaption><code>look-at="pointer"</code> follows your pointer</figcaption>
+        </figure>
+        <figure>
+          <!-- Several clips in a row, blended into each other, then repeated. -->
+          <ara-character preset="The Female Executive" animation="model_walk 3s, look_around, texting 3s"></ara-character>
+          <figcaption>A sequence: <code>model_walk 3s, look_around, texting 3s</code></figcaption>
+        </figure>
+        <figure>
+          <!-- New fabric colours, and a different carried item. -->
+          <ara-character id="dealer" preset="The Miami Dealer" colors="outfit: #1d2a44" animation="idle" look-at="camera"></ara-character>
+          <figcaption>
+            <code>colors</code> and <code>look-at="camera"</code><br />
+            <button id="dance">Dance</button>
+          </figcaption>
+        </figure>
+      </div>
+    </main>
+    <script type="module">
+      // From JavaScript: play a clip that's already loaded, or set any attribute to change the character.
+      const dealer = document.getElementById('dealer');
+      document.getElementById('dance').onclick = () => dealer.setAttribute('animation', 'dance_groove');
+    </script>
+  </body>
+</html>
