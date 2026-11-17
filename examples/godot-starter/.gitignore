@@ -1,0 +1,5 @@
+.godot/
+characters/*.glb
+characters/*.import
+characters/*.png
+characters/*.jpg
