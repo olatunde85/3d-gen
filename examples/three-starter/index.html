@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ara character, three.js starter</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #09090b; color: #f4f4f5; font: 14px/1.4 system-ui, sans-serif; overflow: hidden; }
+      canvas { display: block; touch-action: none; }
+      #help { position: fixed; left: 16px; bottom: 16px; padding: 10px 12px; background: rgba(17, 17, 20, 0.8); border: 1px solid #2a2a31; border-radius: 10px; }
+      #help b { font-weight: 600; }
+      #status { position: fixed; inset: 0; display: grid; place-items: center; color: #a1a1aa; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="status">Building your character…</div>
+    <div id="help"><b>WASD</b> or arrow keys to move, <b>Shift</b> to run. Or click the ground to walk there (double-click to run).</div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

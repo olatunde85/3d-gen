@@ -1,0 +1,11 @@
+{
+  "name": "ara3d-html-embed",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "vite": "^8.0.0"
+  }
+}

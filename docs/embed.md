@@ -35,6 +35,7 @@ Use one of these:
 | `colors` | `colors="outfit: #1d2a44; carry: #8a1c1c"` | New colours for `outfit`, `top`, `jacket`, `bottom`, `shoes`, `carry` and `vehicle` (see [Colours](library.md#colours)) |
 | `detail` | `detail="low"` | `low`, `medium` or `high`. Use `low` when a page shows many characters |
 | `background` | `background="#20283a"` | A background colour. Without it the element is transparent, so the page shows through |
+| `look-at` | `look-at="pointer"` | `pointer` turns the character's head towards the visitor's pointer, wherever it is on the page. `camera` makes it look at the viewer |
 | `auto-rotate` | `auto-rotate` | Turns the character slowly |
 | `orbit` | `orbit="false"` | Stops visitors from turning the character |
 | `zoom` | `zoom` | Lets visitors zoom with the mouse wheel or a pinch. It's off by default, so the page still scrolls over the character |
@@ -82,7 +83,7 @@ With a bundler, `import 'ara3d/embed'` registers the element. TypeScript knows i
 
 ## Good to know
 
-- **Versions:** `ara3d@0` follows the newest 0.x release, though browsers that already have the file can keep their copy for up to a week. To stay on one release, or to get a new one at once, use the full version, such as `ara3d@0.5.0`.
+- **Versions:** `ara3d@0` follows the newest 0.x release, though browsers that already have the file can keep their copy for up to a week. To stay on one release, or to get a new one at once, use the full version, such as `ara3d@0.6.0`.
 - **Many characters:** each element draws only while it's on screen, and the character data downloads once for the whole page. Browsers allow about 16 3D views per page, so for crowds use the [library](library.md#crowds-rigs-and-other-animations) in a single scene.
 - **Content-Security-Policy:** sites with a strict policy need to allow `https://cdn.jsdelivr.net` for scripts and connections, and `blob:` addresses for workers, images and connections.
 - **Phones:** a sideways swipe turns the character and an up-or-down swipe scrolls the page.

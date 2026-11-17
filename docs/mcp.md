@@ -58,7 +58,7 @@ Assistants usually ask before running a tool, and show what they're about to mak
 
 - **Where files go:** set `ARA3D_OUT` to change the default folder, for example `"env": { "ARA3D_OUT": "/Users/me/game/characters" }` beside `args` in the config. The assistant can also name a folder for each character.
 - **Offline or a fixed copy of the data:** the same `ARA3D_DATA`, `ARA3D_DATA_URL` and `ARA3D_CACHE` settings as the [command line](cli.md).
-- **A fixed version:** `npx -y ara3d@0.5.0 mcp` instead of `ara3d`.
+- **A fixed version:** `npx -y ara3d@0.6.0 mcp` instead of `ara3d`.
 
 ## Good to know
 
