@@ -21,7 +21,7 @@ import { EXPRESSIONS } from '../../../src/core/face';
 import { characterSchema } from '../../../src/app/character-assist';
 import { encodeCharacter } from '../../../src/app/share';
 import { planExport, runExport, type ExportFormat, type ExportSettings } from '../../../src/export';
-import { characterParams, clipIds, type CharacterInput } from './library/generate';
+import { characterParams, clipIds, needsPhone, type CharacterInput } from './library/generate';
 import { applyColors, COLOR_SLOTS, colorsOf, type CharacterColors } from './library/colors';
 import { loadLibrary } from './data';
 import { explain, writeSafely } from './safety';
@@ -120,7 +120,7 @@ async function createCharacter(args: Args, progress: (done: number, message: str
     ...(typeof args.name === 'string' && args.name.trim() ? { name: args.name.trim() } : {}),
     ...(args.detail ? { detail: args.detail as HumanParams['detail'] } : {}),
     ...(args.weapon ? { weapon: args.weapon as HumanParams['weapon'] } : {}),
-    ...(args.carry ? { carry: args.carry as HumanParams['carry'] } : {}),
+    ...(args.carry ? { carry: args.carry as HumanParams['carry'] } : args.animations !== undefined && needsPhone(clips) ? { carry: 'phone' as const } : {}),
     ...(args.vehicle ? { vehicle: args.vehicle as HumanParams['vehicle'], vehicleStyle: vehicleStyleForChoice(args.vehicle as HumanParams['vehicle'], params.vehicleStyle) } : {}),
     ...(clips.length ? {} : { animations: false }),
   };

@@ -12,6 +12,7 @@ import { characterExample, characterSchema, parseCharacterInput } from '../../..
 import { assistSchema } from '../../../src/studio/assist';
 import { loadLibrary } from './data';
 import { mcpCommand } from './mcp';
+import { needsPhone } from './library/generate';
 import { finish, megabytes, note, result, seconds, status } from './status';
 import { explain, isFatal, removeLeftovers, UserError, writeSafely } from './safety';
 import { WEAPONS } from '../../../src/core/props/weapons';
@@ -144,6 +145,7 @@ async function exportCommand(args: string[]) {
   // Prop flags override only what they name, so a character file keeps its other props.
   if (values.weapon) overrides.weapon = values.weapon as HumanParams['weapon'];
   if (values.carry) overrides.carry = values.carry as HumanParams['carry'];
+  else if (values.animations && needsPhone(clips)) overrides.carry = 'phone';
   if (values.vehicle) overrides.vehicle = values.vehicle as HumanParams['vehicle'];
   const jobs: HumanParams[] = [];
   const presets = values['all-presets'] ? Object.keys(PRESETS) : values.preset ?? [];

@@ -30,7 +30,7 @@ Use one of these:
 | `animation` | `animation="texting"` | The clip that plays (default `idle`), or several in a row, such as `walk 3s, look_around, talk_gestures` (see below). The [playground](https://ara3dgen.com/developers/#playground) lists all 216 with their IDs |
 | `expression` | `expression="laughing"` | neutral, happy, laughing, angry, sad, crying, surprised, afraid or determined |
 | `weapon` | `weapon="rifle"` | rifle, pistol, sword, knife or grenade |
-| `carry` | `carry="briefcase"` | Something to carry; `none` takes away a preset's own bag |
+| `carry` | `carry="briefcase"` | Something to carry; `none` takes away a preset's own bag. A `texting` or `phone_call` animation brings the phone, in place of a preset's bag, unless you set `carry` |
 | `vehicle` | `vehicle="motorcycle"` | A vehicle fitted to the rider. Without an `animation`, it plays the riding clip |
 | `colors` | `colors="outfit: #1d2a44; carry: #8a1c1c"` | New colours for `outfit`, `top`, `jacket`, `bottom`, `shoes`, `carry` and `vehicle` (see [Colours](library.md#colours)) |
 | `detail` | `detail="low"` | `low`, `medium` or `high`. Use `low` when a page shows many characters |

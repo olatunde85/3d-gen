@@ -214,6 +214,11 @@ try {
   assert.deepEqual(seq.order, ['walk', 'wave', 'cheer', 'walk'], `sequence order ${seq.order}`);
   assert.equal(seq.errors.length, 3, `sequence errors ${seq.errors}`);
   console.log(`OK sequence: ${seq.order.join(' → ')} (wave ${seq.lengths.wave.toFixed(1)} s, cheer ${seq.lengths.cheer.toFixed(1)} s); errors: ${seq.errors.join(' / ')}`);
+  // Texting brings the phone (in place of her handbag), unless a carried item is chosen.
+  const texting = await evaluate<any>(`window.run('The Female Executive', { animations: ['texting'], detail: 'low' }, { play: 'texting', az: 0, dist: 4 })`);
+  const keepBag = await evaluate<any>(`window.run('The Female Executive', { animations: ['texting'], detail: 'low', carry: 'handbag' }, { play: 'texting', az: 0, dist: 4 })`);
+  assert.equal(texting.carry, 'phone');assert.equal(keepBag.carry, 'handbag');
+  console.log('OK texting brings the phone, and a chosen carry stays');
   const motion = await evaluate<any>('window.motionTest()');
   assert.deepEqual(motion.gaits, { stand: [1, 0, 0], walk: [0, 1, 0], run: [0, 0, 1] }, JSON.stringify(motion.gaits));
   assert.ok(motion.turn > 25, `the head turned ${motion.turn.toFixed(0)}°`);
