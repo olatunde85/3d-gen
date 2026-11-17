@@ -2,6 +2,10 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.7.2 — 2026-11-17
+
+- **Fixed:** characters build again from the default CDN. 0.7.0 and 0.7.1 ask for ara3d-data 1.1.0, which isn't available on npm yet. 0.7.2 loads ara3d-data 1.0.0, which has no web copy, so the first character downloads about 10 MB, as in 0.6.
+
 ## 0.7.1 — 2026-11-17
 
 - **Fixed:** an expression set with `hero.setExpression()` now holds while animations play. Before, the clip's own copy of the face replaced it at the clip's first blink.
@@ -11,7 +15,7 @@ Releases of the `ara3d` package (command-line tool, browser library, `<ara-chara
 
 - **Faster loading:** the library downloads only the body shapes a character uses. The first character usually takes 2–4 MB instead of about 10 MB, and each different character after it adds well under 1 MB.
 - Low and medium detail use textures up to 1024 pixels across. High detail keeps the full-size ones.
-- ara3d-data 1.1.0 adds the web copy of the data these use (`assets/web/`). ara3d 0.7 needs ara3d-data 1.1 or later.
+- ara3d-data 1.1.0 adds the web copy of the data these use (`assets/web/`). With older data, the library loads the full files instead.
 
 ## 0.6.0 — 2026-11-17
 
