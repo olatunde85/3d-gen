@@ -53,6 +53,10 @@ try {
       await photo(`devx-${name}-${tab}`, await box('.devx'));
     }
     assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), `${name}: no sideways scroll`);
+    // The install line and guide links under the Develop panel, templates included.
+    await evaluate("document.querySelector('.devx-foot').scrollIntoView({block:'center'})");await sleep(1200);
+    assert.ok(await evaluate(`[...document.querySelectorAll('.devx-foot nav a')].some((a) => a.textContent === 'Godot starter')`), `${name}: Godot starter link`);
+    await photo(`devx-foot-${name}`, await box('.devx-foot'));
     // Phones have no live 3D at all; desktop has the hero's character and the Develop panel's.
     const live = await evaluate<number>("document.querySelectorAll('ara-character, canvas').length");
     assert.equal(live, mobile ? 0 : 2, `${name}: ${live} live 3D views`);
