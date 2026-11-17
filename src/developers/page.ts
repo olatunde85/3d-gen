@@ -23,10 +23,17 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')
 };
 
 // --- The playground: live only where there's room for it ---------------------------------------------------------
+// Where there isn't, a short library section with a recording of the character takes its place.
 if (lowMemory) {
   $('#playground')?.remove();
-  for (const link of document.querySelectorAll('a[href="#playground"]')) link.remove();
-} else void import('./developers');
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('a[href="#playground"]')) { link.href = '#library';link.textContent = 'Library'; }
+  const library = $('#library'), video = library.querySelector('video')!;
+  library.hidden = false;
+  video.src = `${import.meta.env.BASE_URL}media/develop/library.mp4`;video.autoplay = true;void video.play().catch(() => {});
+} else {
+  $('#library')?.remove();
+  void import('./developers');
+}
 
 // --- Embed demos: recordings (scripts/develop-clips.ts) on phones and low-memory devices -------------------------
 const demo = $<HTMLDivElement>('#embed-demo');

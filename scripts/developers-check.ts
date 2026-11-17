@@ -127,6 +127,11 @@ try {
   assert.ok(await evaluate("!document.getElementById('playground') && !document.querySelector('canvas') && !document.querySelector('a[href=\"#playground\"]')"), 'no playground on a phone');
   assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), 'no sideways scroll on a phone');
   console.log('OK phone: no playground and no live 3D');
+  // In the playground's place, a library section with a recording of the character its code makes.
+  await evaluate("document.getElementById('library').scrollIntoView()");
+  await until("(() => { const v = document.querySelector('#library video');return !document.getElementById('library').hidden && v.readyState >= 2 && !v.paused; })()", 'phone library recording');await sleep(600);
+  await photo('phone-library', await box('#library'));
+  console.log('OK phone: the library section plays its recording');
   await photo('phone-top', { x: 0, y: 0, width: 390, height: 844 });
   await evaluate("document.getElementById('embed').scrollIntoView()");
   // A phone plays recordings of the demos instead of three more live 3D views.
