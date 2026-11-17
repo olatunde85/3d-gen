@@ -5,6 +5,7 @@
  */
 import { AssetLibrary, fetchSource } from '../core/assets';
 import { buildHuman, type Character } from '../core/human';
+import { neededTargets } from '../core/morph';
 import type { HumanParams } from '../core/params';
 import { planExport, runExport, type ExportFile, type ExportSettings } from '../export';
 
@@ -26,12 +27,14 @@ const post = (m: FromWorker, transfer: Transferable[] = []) => (self as unknown 
 
 async function handle(m: ToWorker) {
   if (m.type === 'init') {
-    lib = new AssetLibrary(fetchSource(m.assets)).init();
+    // Body shapes load as each character needs them (see AssetLibrary.initWeb), not all up front.
+    lib = new AssetLibrary(fetchSource(m.assets)).initWeb();
     return;
   }
   try {
     const L = await lib!;
     if (m.type === 'build') {
+      await L.loadTargets(neededTargets(L, m.params));
       current = await buildHuman(L, m.params, { onStage: (label) => post({ type: 'progress', id: m.id, label }) });
       // Generated textures (fabrics, tattoos, hair) the main thread hasn't seen yet.
       const textures: [string, Uint8Array][] = [];
