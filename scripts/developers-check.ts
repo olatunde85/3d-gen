@@ -129,7 +129,9 @@ try {
   await evaluate("document.getElementById('playground').scrollIntoView()");await sleep(300);
   await photo('phone-playground', await box('#playground'));
   await evaluate("document.getElementById('embed').scrollIntoView()");
-  await until("[...document.querySelectorAll('#embed-demo ara-character')].every((e) => e.character)", 'phone embed demos');await sleep(1500);
+  // A phone plays recordings of the demos instead of three more live 3D views.
+  await until("document.querySelectorAll('#embed-demo ara-character').length === 0 && [...document.querySelectorAll('#embed-demo video')].length === 3 && [...document.querySelectorAll('#embed-demo video')].every((v) => v.readyState >= 2 && !v.paused)", 'phone embed recordings');await sleep(800);
+  console.log('OK phone: the embed demos play recordings');
   await photo('phone-embed', await box('#embed'));
   await photo('phone-rest', { ...(await box('.dev-uses')), height: await evaluate<number>("document.querySelector('.footer').getBoundingClientRect().bottom - document.querySelector('.dev-uses').getBoundingClientRect().top") });
   // The docs search: "/" focuses it, typing lists matching sections, Enter opens the first.

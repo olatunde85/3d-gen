@@ -131,6 +131,7 @@
 .dev-embed .dev-terminal { margin-bottom: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .dev-terminal .t { color: #8fc5ff; } .dev-terminal .a { color: #c3a6ff; } .dev-terminal .s { color: #9fe3a5; }
 .dev-embed-demo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dev-embed-demo .dev-embed-video { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 14px; border: 1px solid var(--line); background: #0f0f12; }
 .dev-embed-demo ara-character { border-radius: 14px; border: 1px solid var(--line); background: radial-gradient(80% 60% at 50% 40%, #1c1d24, #0f0f12 70%); }
 .dev-cli { padding-top: 40px; padding-bottom: 40px; display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 28px; align-items: center; scroll-margin-top: 70px; }
 .dev-cli p { color: var(--muted); margin: 14px 0 20px; }

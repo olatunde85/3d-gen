@@ -356,8 +356,20 @@ $<HTMLButtonElement>('#pg-download').onclick = () => {
 
 // The embed demos load when they come into view, after the playground's first character.
 const demo = $<HTMLDivElement>('#embed-demo');
+// Phones and low-memory devices play recordings of the demos (scripts/develop-clips.ts): with the playground running,
+// more live 3D views are more than they comfortably hold.
+const recorded = matchMedia('(max-width: 860px), (pointer: coarse)').matches || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
+if (recorded) {
+  for (const [i, el] of [...demo.querySelectorAll('ara-character')].entries()) {
+    const video = document.createElement('video');
+    Object.assign(video, { muted: true, loop: true, playsInline: true, autoplay: true, preload: 'none', className: 'dev-embed-video' });
+    video.src = `${import.meta.env.BASE_URL}media/develop/demo-${['priest', 'executive', 'random'][i]}.mp4`;
+    video.setAttribute('aria-label', 'A recording of this embed');
+    el.replaceWith(video);
+  }
+}
 for (const el of demo.querySelectorAll('ara-character')) el.setAttribute('assets-url', ASSETS);
-new IntersectionObserver((entries, observer) => {
+if (!recorded) new IntersectionObserver((entries, observer) => {
   if (!entries.some((e) => e.isIntersecting)) return;
   observer.disconnect();void import('../../packages/cli/src/embed');
 }, { rootMargin: '200px' }).observe(demo);
