@@ -39,7 +39,7 @@ Set `BASE_PATH=/sub/path/` when hosting under a sub-path, such as GitHub Pages.
 
 The Terms (`terms/index.html`) and Privacy Policy (`privacy/index.html`) name the operator of ara3dgen.com and its contact address. If you host your own copy, put your own details in them.
 
-The whole site is static files, and all the character work runs in each visitor's browser, so free static hosting scales with traffic. On Cloudflare Pages, static bandwidth is unmetered. `dist/` holds about 1,700 files, more than the dashboard's 1,000-file upload limit, so deploy it with Wrangler: `npx wrangler pages deploy dist --project-name <your-project>` (run `npx wrangler login` once first). Any other static host works too. Cache headers come with the build (`_headers`). A first visit downloads about 13 MB, and the browser caches it after that.
+The whole site is static files, and all the character work runs in each visitor's browser, so free static hosting scales with traffic. ara3dgen.com runs as a Cloudflare Worker that serves `dist/` as static files, and static-file requests are free and unmetered. `wrangler.site.jsonc` sets it up: change its `name` and `routes` to your own Worker and domain, run `npx wrangler login` once, then `npm run build && npm run deploy:site`. `dist/` holds about 1,700 files, more than the dashboard's 1,000-file upload accepts, so it deploys with Wrangler. Any other static host works too. Cache headers come with the build (`_headers`). A first visit downloads about 13 MB, and the browser caches it after that.
 
 ## Command line
 

@@ -1,0 +1,14 @@
+// The website (ara3dgen.com) as a Cloudflare Worker that serves the static files in dist/.
+//   npm run build && npm run deploy:site
+// dist/ holds about 1,700 files; a Worker takes up to 20,000, so it deploys with Wrangler rather than the
+// dashboard's upload, which stops at 1,000. dist/_headers sets the cache headers.
+{
+  "name": "ara3dgen",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./dist", "html_handling": "auto-trailing-slash", "not_found_handling": "none" },
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "ara3dgen.com", "custom_domain": true },
+    { "pattern": "*.ara3dgen.com/*", "zone_name": "ara3dgen.com" }
+  ]
+}
