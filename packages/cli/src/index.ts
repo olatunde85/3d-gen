@@ -10,19 +10,20 @@
  * Characters are built in a background worker, so the page stays responsive, and exported with the same exporter as
  * the Ara builder and the ara3d CLI. The character data loads from a free CDN by default.
  */
-import { LoopRepeat, type AnimationAction, type AnimationClip, type AnimationMixer, type Group } from 'three';
+import { LoopRepeat, type AnimationAction, type AnimationClip, type AnimationMixer, type Group, type Object3D, type Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import AraWorker from './library/worker?worker&inline';
 import type { CharacterInput, Generated, GenerateOptions } from './library/generate';
 import type { CharacterColors } from './library/colors';
 import { parseSteps, type SequenceStep } from './library/sequence';
+import { lipSync, locomotion, lookControls, type LipSync, type LipSyncSource, type Locomotion, type LocomotionOptions, type LookOptions } from './library/motion';
 import type { WorkerReply, WorkerRequest } from './library/worker';
 import type { HumanParams } from '../../../src/core/params';
 import DATA from '../../data/package.json';
 // Built from the generator's own lists at build time (see vite.lib.config.ts).
 import CATALOG from 'virtual:ara-catalog';
 
-export type { CharacterColors, CharacterInput, GenerateOptions, SequenceStep };
+export type { CharacterColors, CharacterInput, GenerateOptions, SequenceStep, LipSync, LipSyncSource, Locomotion, LocomotionOptions, LookOptions };
 
 /** Options for playSequence(). */
 export interface SequenceOptions {
@@ -91,7 +92,16 @@ export interface AraCharacter {
    * It moves on as you call mixer.update(), and takes over the mixer's other actions.
    */
   playSequence(mixer: AnimationMixer, steps: string | readonly SequenceStep[], options?: SequenceOptions): Sequence;
-  /** Runs blinking. Call it every frame, after mixer.update(), with the seconds since the last frame. */
+  /**
+   * Blends idle, walk and run on `mixer` by speed. Set the returned `speed` (metres per second) from your own movement
+   * every frame, and the steps keep pace with the ground. Load the clips first: animations: ['idle', 'walk', 'run'].
+   */
+  locomotion(mixer: AnimationMixer, options?: LocomotionOptions): Locomotion;
+  /** Turns the head and neck towards a point or an object (followed as it moves), within natural limits; null looks ahead. */
+  lookAt(target: Vector3 | Object3D | null, options?: LookOptions): void;
+  /** Moves the mouth with the sound of an <audio> or <video> element, a MediaStream (a microphone) or a Web Audio node. */
+  lipSync(source: LipSyncSource): LipSync;
+  /** Runs blinking, looking and lip-sync. Call it every frame, after mixer.update(), with the seconds since the last frame. */
   update(delta: number): void;
   /** Frees the GPU memory held by the character and its props. */
   dispose(): void;
@@ -242,12 +252,22 @@ export async function createCharacter(input: CharacterInput, options?: Character
   const [main, ...rest] = generated.files, character = await load(main.data);
   const props = await Promise.all(rest.map(async (f) => ({ name: f.name.replace(/\.glb$/, ''), ...(await load(f.data)) })));
   const byName = new Map(character.animations.map((a) => [a.name, a])), face = faceControls(character.scene, generated.params.expression);
+  const look = lookControls(character.scene);
+  let speech: ReturnType<typeof lipSync> | undefined;
   const hero: AraCharacter = {
     ...character, props, params: generated.params, colors: generated.colors, height: generated.height, glb: main.data,
     clip: (id) => byName.get(generated.clipNames[id] ?? id),
     setExpression: face.setExpression, setMouth: face.setMouth, setFace: face.setFace,
-    blinking: true, update: (delta) => face.update(delta, hero.blinking),
+    blinking: true,
+    update(delta) { face.update(delta, hero.blinking);look.update(delta);speech?.update(delta); },
     playSequence: (mixer, steps, options) => sequence(hero.clip, mixer, steps, options),
+    locomotion: (mixer, options) => locomotion(hero.clip, mixer, generated.height, options),
+    lookAt: look.lookAt,
+    lipSync(source) {
+      speech?.stop();
+      const next = lipSync(source, face.setMouth);speech = next;
+      return { stop() { next.stop();if (speech === next) speech = undefined; } };
+    },
     dispose() {
       for (const root of [character.scene, ...props.map((p) => p.scene)]) root.traverse((object) => {
         const mesh = object as { geometry?: { dispose(): void }; material?: unknown };

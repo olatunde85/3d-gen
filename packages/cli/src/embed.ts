@@ -19,7 +19,7 @@ import { ANIMATIONS, createCharacter, VEHICLE_CLIPS, type AraCharacter, type Seq
 /** Attributes that change the character itself, so it's rebuilt. */
 const BUILD = ['preset', 'random', 'share', 'src', 'clips', 'detail', 'weapon', 'carry', 'vehicle', 'colors', 'assets-url'];
 /** Attributes that apply at once. */
-const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background', 'margin'];
+const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background', 'margin', 'look-at'];
 
 /** A standing figure, used as a mask for the loading silhouette. */
 /** Real Ara characters as wireframes, standing relaxed (scripts/loading-figure.ts): the masks for the loading figure. */
@@ -93,6 +93,10 @@ export class AraCharacterElement extends HTMLElement {
   /** The clip playing on the character, for playClip()'s blends. */
   private active?: THREE.AnimationAction;
   private extentFor?: { hero: AraCharacter; animation: string; box: THREE.Box3 };
+  /** The pointer's last place on the page, for look-at="pointer". */
+  private pointer?: { x: number; y: number };
+  private readonly follow = (e: PointerEvent) => { this.pointer = { x: e.clientX, y: e.clientY }; };
+  private readonly gaze = new THREE.Vector3();
 
   constructor() {
     super();
@@ -126,12 +130,14 @@ export class AraCharacterElement extends HTMLElement {
     this.view = { renderer, scene, camera, controls, floor, water, mixers: [], last: 0, resize, seen };
     this.applyLive();this.fit();
     renderer.setAnimationLoop((time) => this.draw(time));
+    addEventListener('pointermove', this.follow, { passive: true });
     this.build();
   }
 
   disconnectedCallback() {
     const v = this.view;
     if (!v) return;
+    removeEventListener('pointermove', this.follow);
     v.renderer.setAnimationLoop(null);v.resize.disconnect();v.seen.disconnect();v.controls.dispose();
     this.character?.dispose();this.character = undefined;
     v.renderer.dispose();v.renderer.forceContextLoss();v.renderer.domElement.remove();
@@ -299,10 +305,27 @@ export class AraCharacterElement extends HTMLElement {
     v.last = time;
     if (!this.visible) return;
     for (const m of v.mixers) m.update(delta);
+    if (this.character) this.character.lookAt(this.gazeTarget());
     this.character?.update(delta);
     // The shade stays under a character that's been moved.
     if (this.character) v.floor.position.set(this.character.scene.position.x, 0, this.character.scene.position.z);
     v.controls.update();v.renderer.render(v.scene, v.camera);
+  }
+
+  /** Where the head looks: the viewer (look-at="camera"), the pointer anywhere on the page (look-at="pointer"), or ahead. */
+  private gazeTarget(): THREE.Vector3 | THREE.Object3D | null {
+    const mode = this.getAttribute('look-at'), v = this.view!;
+    if (mode === 'camera') return v.camera;
+    if (mode !== 'pointer' || !this.pointer) return null;
+    // The pointer, carried into the scene halfway between the camera and the head, so pointing at the face looks at
+    // the viewer; beyond the element, the head keeps turning towards it, up to its limits.
+    const rect = v.renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    const x = ((this.pointer.x - rect.left) / rect.width) * 2 - 1, y = -(((this.pointer.y - rect.top) / rect.height) * 2 - 1);
+    const head = this.character!.scene.getObjectByName('Head');
+    if (!head) return null;
+    const distance = v.camera.position.distanceTo(head.getWorldPosition(this.gaze));
+    return this.gaze.set(x, y, 0.5).unproject(v.camera).sub(v.camera.position).normalize().multiplyScalar(distance * 0.5).add(v.camera.position);
   }
 
   /** What to build, from the attributes. */
