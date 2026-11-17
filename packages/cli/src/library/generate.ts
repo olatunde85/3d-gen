@@ -11,6 +11,7 @@ import { decodeCharacter } from '../../../../src/app/share';
 import { CLIPS } from '../../../../src/core/anim/clips';
 import { characterExample, parseCharacterInput } from '../../../../src/app/character-assist';
 import { exportClipName, planExport, runExport, stemOf, type ExportSettings } from '../../../../src/export';
+import type { BakedClip } from '../../../../src/core/anim/evaluate';
 import { vehicleStyleForChoice } from '../../../../src/core/props/vehicles';
 import { applyColors, colorsOf, type CharacterColors } from './colors';
 
@@ -43,6 +44,12 @@ export interface Generated {
   height: number;
   /** Clip ID -> the animation's name inside the GLB. */
   clipNames: Record<string, string>;
+  /**
+   * The facial animation of each clip that moves the face (a wince, gritted teeth), by clip ID: frame times and, per
+   * face shape, the amount added to the expression at each frame. The GLB's own face tracks hold the same movement
+   * on top of the character's built expression and blinks.
+   */
+  faces: Record<string, { times: number[]; shapes: Record<string, number[]> }>;
 }
 
 /**
@@ -145,7 +152,13 @@ export async function generate(lib: AssetLibrary, input: CharacterInput, options
     format: 'glb', clips, packaging: 'embedded', clipMesh: false, rootMotion: !!options.rootMotion, loopSuffix: false, weaponFile: 'held', stageProps: false,
   };
   // Low and medium detail use textures up to 1024 pixels across, which look the same at web sizes; high keeps the full ones.
-  const file = await runExport(lib, character, planExport(character, settings), { onProgress: (label, fraction = 0) => onProgress?.(label, fraction), smallTextures: params.detail !== 'high' });
+  const faces: Generated['faces'] = {};
+  const onBaked = (id: string, { times, frames }: BakedClip) => {
+    const names = [...new Set(frames.flatMap((f) => Object.keys(f.face ?? {})))];
+    const shapes = Object.fromEntries(names.map((n) => [n, frames.map((f) => Math.round((f.face?.[n] ?? 0) * 1000) / 1000)]).filter(([, v]) => (v as number[]).some(Boolean)));
+    if (Object.keys(shapes).length) faces[id] = { times, shapes };
+  };
+  const file = await runExport(lib, character, planExport(character, settings), { onProgress: (label, fraction = 0) => onProgress?.(label, fraction), smallTextures: params.detail !== 'high', onBaked });
   // A character with props comes back as a zip: the character's GLB plus props/*.glb. The character comes first.
   const own = `${stemOf(params.name)}.glb`;
   const files: GeneratedFile[] = file.name.endsWith('.zip')
@@ -153,5 +166,5 @@ export async function generate(lib: AssetLibrary, input: CharacterInput, options
       .map(([path, data]) => ({ name: path.split('/').pop()!, data, main: !path.includes('/props/') && path.endsWith(`/${own}`) }))
       .sort((a, b) => Number(b.main) - Number(a.main)).map(({ name, data }) => ({ name, data }))
     : [{ name: file.name, data: file.data }];
-  return { files, params, colors: colorsOf(params), height: character.height, clipNames: Object.fromEntries(clips.map((id) => [id, exportClipName(id, settings)])) };
+  return { files, params, colors: colorsOf(params), height: character.height, clipNames: Object.fromEntries(clips.map((id) => [id, exportClipName(id, settings)])), faces };
 }

@@ -33,6 +33,8 @@ export interface Frame {
   scale?:Map<number,Vec3>;
   /** Facial blend-shape weights (0..1, in the character's face-shape order), when it has face shapes. */
   morph?: number[];
+  /** The clip's own facial animation at this frame: amounts added to the expression, before clamping and blinks. */
+  face?: Partial<Record<string, number>>;
 }
 
 // --- Face layer ------------------------------------------------------------------------------
@@ -363,7 +365,7 @@ export class Animator {
      if(m)this.rig.bones.forEach((bone,i)=>{if(bone.parent>=0)return;frame.rot[i]=qmul(m.rotation,frame.rot[i]);const p=qrot(m.rotation,frame.rootPos.get(i)??bone.head);frame.rootPos.set(i,p.map((v,d)=>v+m.translation[d])as Vec3);});}
     else{const drift=bailoutDrift(clip.id,time);if(drift)for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1],p[2]-drift]);}
     this.placeParachute(frame,clip,time);
-    if (this.face) frame.morph = this.faceWeights(s, clip, time, opts.faceTime);
+    if (this.face) { frame.morph = this.faceWeights(s, clip, time, opts.faceTime);if (s.face) frame.face = s.face; }
     return frame;
   }
 

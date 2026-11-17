@@ -61,6 +61,22 @@ window.faceTest = async (expression, mouth) => {
   const camera = new THREE.PerspectiveCamera(22, 9 / 7, 0.05, 20);camera.position.set(0, head, 0.85);camera.lookAt(0, head, 0);renderer.render(scene, camera);
   hero.dispose();return { ...after, blinkPeak, lidAfterOff, errors, shapes: meshes.length };
 };
+// An expression holds while clips play, and a clip that moves the face adds its movement on top.
+window.clipFaceTest = async () => {
+  const hero = await createCharacter('The Female Executive', { assetsUrl: '/assets/', animations: ['idle', 'laugh'], detail: 'low' });
+  const meshes = [];hero.scene.traverse((o) => { if (o.morphTargetDictionary) meshes.push(o); });
+  const value = (name) => Math.max(...meshes.map((m) => m.morphTargetDictionary[name] === undefined ? 0 : m.morphTargetInfluences[m.morphTargetDictionary[name]]));
+  const mixer = new THREE.AnimationMixer(hero.scene);
+  const play = (id, seconds, watch) => { mixer.stopAllAction();mixer.clipAction(hero.clip(id)).play();for (let t = 0; t < seconds; t += 0.05) { mixer.update(0.05);hero.update(0.05);watch(); } };
+  hero.setExpression('laughing');let smileLow = 1;play('idle', 10, () => { smileLow = Math.min(smileLow, value('mouthSmile')); });
+  // A close-up after 10 seconds of idle, for the eye.
+  const scene = new THREE.Scene();scene.background = new THREE.Color(0xcfd6dd);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x667788, 2.4));const sun = new THREE.DirectionalLight(0xffffff, 1.6);sun.position.set(1, 3, 4);scene.add(sun);scene.add(hero.scene);
+  const head = new THREE.Box3().setFromObject(hero.scene).max.y - 0.13;
+  const camera = new THREE.PerspectiveCamera(22, 9 / 7, 0.05, 20);camera.position.set(0, head, 0.85);camera.lookAt(0, head, 0);renderer.render(scene, camera);
+  hero.setExpression('neutral');let jawHigh = 0;play('laugh', 4.8, () => { jawHigh = Math.max(jawHigh, value('jawOpen')); });
+  hero.dispose();return { smileLow, jawHigh };
+};
 window.sequenceTest = async () => {
   const hero = await createCharacter('The Soldier', { assetsUrl: '/assets/', animations: ['walk', 'wave', 'cheer'], detail: 'low' });
   const mixer = new THREE.AnimationMixer(hero.scene), order = [];
@@ -208,6 +224,11 @@ try {
   assert.ok(face.lidAfterOff < 0.5, `blinking off (${face.lidAfterOff})`);
   assert.equal(face.errors.length, 2);
   await photo('face-surprised-O');console.log(`OK faces: expression ${face.expression.toFixed(2)}, mouth ${face.mouth}, blink peak ${face.blinkPeak.toFixed(2)}, errors: ${face.errors.join(' / ')}`);
+  const clipFace = await evaluate<any>(`window.clipFaceTest()`);
+  await photo('clip-face-laughing-after-idle');
+  assert.ok(clipFace.smileLow > 0.95, `the laughing expression holds through 10 s of idle (${clipFace.smileLow})`);
+  assert.ok(clipFace.jawHigh > 0.4, `the laugh clip moves the jaw (${clipFace.jawHigh})`);
+  console.log(`OK clip faces: expression held at ${clipFace.smileLow.toFixed(2)}, laugh clip opens the jaw to ${clipFace.jawHigh.toFixed(2)}`);
   const bad = await evaluate<any>(`window.run('Nope', {}, { play: 'walk', az: 0, dist: 4 })`);
   assert.match(bad.error ?? '', /Unknown preset "Nope"/);console.log('OK unknown preset:', bad.error);
   const seq = await evaluate<any>('window.sequenceTest()');

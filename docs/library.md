@@ -172,7 +172,7 @@ hero.update(delta);                  // runs blinking, looking and lip-sync; her
 - **Lip-sync from audio:** `hero.lipSync(audio)` moves the mouth with whatever plays through an `<audio>` or `<video>` element, a `MediaStream` (such as a microphone) or a Web Audio node. It reads loudness and the shape of the sound, so it suits voice-overs and live talking without any extra tools. It runs in `hero.update(delta)`, and `.stop()` closes the mouth. Browsers start audio only after a click or a key press, so start playback from one.
 - **Lip-sync from a tool:** `MOUTH_SHAPES` are the 14 Oculus viseme names (`viseme_aa`, `viseme_PP` and so on) that lip-sync tools output. Feed each viseme your tool reports to `setMouth()`. While a mouth shape shows, it moves the jaw and the expression's smile or frown eases off, so talking and expressions combine without over-stretching the mouth.
 - **Face shapes:** `FACE_SHAPES` lists every shape, with ARKit-style names (`eyeBlinkLeft`, `jawOpen`, `mouthSmile` and so on), so face-capture data can drive them directly.
-- A few clips animate the face themselves, such as talk and laugh. While one plays, three.js's mixer sets those shapes each frame; blinking still runs on top.
+- A few clips move the face themselves, such as talk, laugh and the hit reactions. `hero.update(delta)` adds their movements to the expression, so an expression you set stays while they play, and blinking runs on top.
 
 ## Lists
 
