@@ -97,8 +97,9 @@ body { margin: 0; background: radial-gradient(1100px 600px at 75% -10%, rgba(91,
 a { color: var(--accent-2); }
 .nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 24px; padding: 14px clamp(16px,4vw,48px);
   background: rgba(15,17,22,.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(38,45,59,.6); }
-.brand { color: var(--text); text-decoration: none; font-weight: 700; font-size: 19px; white-space: nowrap; }
-.brand span { color: var(--accent); }
+.brand { display: inline-flex; align-items: center; gap: 0.28em; color: var(--text); text-decoration: none; font-weight: 650; font-size: 19px; letter-spacing: -0.02em; white-space: nowrap; }
+.brand img { margin-right: 6px; }
+.brand span { color: var(--muted); }
 .nav nav { display: flex; gap: 20px; margin-left: auto; }
 .nav nav a { color: var(--muted); text-decoration: none; font-size: 15px; }
 .nav nav a:hover, .nav nav a.on { color: var(--text); }
@@ -233,7 +234,7 @@ function page(p: (typeof pages)[number]): string {
 </head>
 <body>
 <header class="nav">
-  <a class="brand" href="${BASE}"><span>Ara</span> 3D Gen</a>
+  <a class="brand" href="${BASE}"><img src="${BASE}logo.svg" alt="" width="24" height="24" />Ara <span>3D Gen</span></a>
   <nav><a href="${BASE}#features">Features</a><a href="${BASE}docs/" class="on">Docs</a><a href="https://github.com/olatunde85/3d-gen">GitHub</a></nav>
   <a class="btn" href="${BASE}app/">Open Builder</a>
 </header>

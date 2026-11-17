@@ -1,13 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#22345c"/>
-      <stop offset="1" stop-color="#0f1116"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <!-- A figure that is also an "A": head, legs forming the A, gold arms as the crossbar. -->
-  <circle cx="32" cy="14.5" r="6" fill="#5b8cff"/>
-  <path d="M19 53 L32 25 L45 53" fill="none" stroke="#5b8cff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M22.5 40.5 H41.5" fill="none" stroke="#e0b45a" stroke-width="5.5" stroke-linecap="round"/>
+<!-- The app icon: the Ara mark on a near-black rounded square. -->
+<rect width="64" height="64" rx="14" fill="#09090b"/>
+<g transform="translate(32 33) scale(0.74) translate(-32 -33)"><defs><mask id="ara-cut-i" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64"><rect width="64" height="64" fill="#fff"/><path d="M10.5 56.5C15 49.5 23 46.5 31 45.5S38.5 44 40.5 43.3" transform="translate(0 -1.6)" fill="none" stroke="#000" stroke-width="11.2" stroke-linecap="round"/></mask></defs>
+<g fill="none" stroke="#f4f4f5" stroke-linecap="round"><path d="M32 22L20.9 45.6" stroke-width="9" mask="url(#ara-cut-i)"/><path d="M10.5 56.5C15 49.5 23 46.5 31 45.5S38.5 44 40.5 43.3" stroke-width="8"/><path d="M32 22L48.5 57" stroke-width="9"/></g>
+<circle cx="32" cy="9.5" r="6.5" fill="#6d8dff"/></g>
 </svg>
