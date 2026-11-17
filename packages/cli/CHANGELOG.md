@@ -2,6 +2,10 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.7.3 — 2026-11-17 (with ara3d-data 1.1.0)
+
+- Loads ara3d-data 1.1.0 again, now that it's on npm, so the faster loading from 0.7.0 is back: the first character usually takes 2–4 MB.
+
 ## 0.7.2 — 2026-11-17
 
 - **Fixed:** characters build again from the default CDN. 0.7.0 and 0.7.1 ask for ara3d-data 1.1.0, which isn't available on npm yet. 0.7.2 loads ara3d-data 1.0.0, which has no web copy, so the first character downloads about 10 MB, as in 0.6.
