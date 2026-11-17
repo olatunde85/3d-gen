@@ -2,6 +2,7 @@
  * Landing page: the Studio reel and the Ara Play promo playing muted while on screen, either with sound in a lightbox, scroll
  * reveals and counting numbers.
  */
+import { lowMemory } from './device';
 import { siteMenu } from './nav';
 siteMenu();
 // Served with the site (CDN-cached), so viral traffic costs nothing extra.
@@ -141,6 +142,11 @@ $ claude mcp add ara3d -- npx -y ara3d mcp`,
   },
 };
 
+/** Captions for the recordings phones show instead of a live character. */
+const RECORDED: Record<string, string> = {
+  library: 'The character this code makes.', embed: 'The character this tag shows.',
+  cli: 'The character in those files, ready for Unity, Unreal, Godot or Blender.', mcp: 'What the assistant made, from one sentence.',
+};
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 /** Just enough colour for each kind of snippet: keywords, strings, comments, tags, prompts and speakers. */
 function highlight(code: string, lang: Tab['lang']) {
@@ -158,6 +164,15 @@ if (devx) {
   const tabs = [...devx.querySelectorAll<HTMLButtonElement>('[role="tab"]')], panel = devx.querySelector<HTMLElement>('[role="tabpanel"]')!;
   const code = document.getElementById('devx-code')!, file = document.getElementById('devx-file')!, caption = document.getElementById('devx-caption')!;
   const character = document.getElementById('devx-character')!, copy = document.getElementById('devx-copy') as HTMLButtonElement;
+  // Phones, tablets and low-memory devices show recordings of these characters (scripts/develop-clips.ts) instead.
+  const recorded = lowMemory;
+  let video: HTMLVideoElement | undefined;
+  if (recorded) {
+    video = document.createElement('video');
+    Object.assign(video, { muted: true, loop: true, playsInline: true, autoplay: true, preload: 'none', className: 'devx-video' });
+    video.setAttribute('aria-hidden', 'true');
+    character.replaceWith(video);
+  }
   const ATTRS = ['preset', 'animation', 'weapon', 'expression'];
   let current = 'library';
   const show = (name: string, focus = false) => {
@@ -165,6 +180,7 @@ if (devx) {
     for (const t of tabs) { const on = t.dataset.tab === name;t.setAttribute('aria-selected', String(on));t.tabIndex = on ? 0 : -1;if (on && focus) t.focus(); }
     panel.setAttribute('aria-labelledby', `devx-tab-${name}`);
     file.textContent = tab.file;code.innerHTML = highlight(tab.code, tab.lang);caption.textContent = tab.caption;
+    if (video) { video.src = `${import.meta.env.BASE_URL}media/develop/${name}.mp4`;caption.textContent = RECORDED[name];void video.play().catch(() => {});return; }
     for (const a of ATTRS) { const v = tab.character[a];if (v) character.setAttribute(a, v);else character.removeAttribute(a); }
   };
   tabs.forEach((t, i) => {
@@ -185,7 +201,7 @@ if (devx) {
   show('library');
   // The live character loads when the section comes near the screen, from the site's own copy of the data.
   character.setAttribute('assets-url', `${import.meta.env.BASE_URL}assets/`);
-  new IntersectionObserver((entries, observer) => {
+  if (!recorded) new IntersectionObserver((entries, observer) => {
     if (!entries.some((e) => e.isIntersecting)) return;
     observer.disconnect();void import('../../packages/cli/src/embed');
   }, { rootMargin: '400px 0px' }).observe(devx);
@@ -194,6 +210,11 @@ if (devx) {
 // --- The live character in the hero: drive them with the on-screen pad, the keyboard or a gamepad -----------------
 type Body = { position: { x: number; z: number; set(x: number, y: number, z: number): void }; rotation: { y: number } };
 type Driven = HTMLElement & { character?: { scene: Body; params: { name: string } }; playClip(id: string, fade?: number): boolean };
+// Phones and low-memory devices get no live stage: the hero is the copy and the cast, whose cards open the builder.
+if (lowMemory) {
+  document.querySelector('.hero-stage')?.remove();
+  for (const link of document.querySelectorAll('a[href$="#playground"]')) link.remove();
+}
 const drivenEl = document.getElementById('hero-character') as Driven | null;
 const stageEl = document.querySelector<HTMLElement>('.hero-stage');
 if (drivenEl && stageEl) {

@@ -46,12 +46,18 @@ try {
     await evaluate("document.getElementById('developers').scrollIntoView()");
     for (const tab of Object.keys(want)) {
       await evaluate(`document.querySelector('.devx [data-tab="${tab}"]').click()`);
-      await until(`document.getElementById('devx-character').character?.params.name === ${JSON.stringify(want[tab])} && document.getElementById('devx-character').shadowRoot.querySelector('.status').hidden`, tab);
+      // Desktop builds each tab's character live; phones play a recording of it instead.
+      if (mobile) await until(`(() => { const v = document.querySelector('.devx-video');return v && v.src.endsWith('/${tab}.mp4') && v.readyState >= 2 && !v.paused; })()`, `${tab} recording`);
+      else await until(`document.getElementById('devx-character').character?.params.name === ${JSON.stringify(want[tab])} && document.getElementById('devx-character').shadowRoot.querySelector('.status').hidden`, tab);
       await evaluate("document.querySelector('.devx').scrollIntoView({block:'center'})");await sleep(1500);
       await photo(`devx-${name}-${tab}`, await box('.devx'));
     }
     assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), `${name}: no sideways scroll`);
-    console.log(`OK ${name}: four developer tabs, each building its own character`);
+    // Phones have no live 3D at all; desktop has the hero's character and the Develop panel's.
+    const live = await evaluate<number>("document.querySelectorAll('ara-character, canvas').length");
+    assert.equal(live, mobile ? 0 : 2, `${name}: ${live} live 3D views`);
+    if (mobile) assert.ok(await evaluate("!document.querySelector('.hero-stage')"), 'no stage on a phone');
+    console.log(`OK ${name}: four developer tabs, each ${mobile ? 'playing its recording' : 'building its own character'}; ${mobile ? 'no live 3D' : 'the hero and Develop characters live'}`);
     await evaluate('scrollTo(0, 0)');await sleep(300);
     await photo(`top-${name}`, { x: 0, y: 0, width, height });
   }

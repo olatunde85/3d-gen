@@ -135,6 +135,24 @@
         </div>
       </section>
 
+      <section id="library" class="dev-embed dev-library" aria-labelledby="library-title" hidden>
+        <div>
+          <h2 id="library-title">Characters in your three.js app.</h2>
+          <p>One call builds a realistic, rigged and animated character on your users' devices: choose a preset, a random seed or a builder share link, add props, colours and animations, and drop it into your scene.</p>
+          <pre class="dev-terminal" aria-label="Library example"><code><span class="t">import</span> { createCharacter } <span class="t">from</span> <span class="s">'ara3d'</span>;
+
+<span class="t">const</span> hero = <span class="t">await</span> createCharacter(<span class="s">'The Soldier'</span>, {
+  animations: [<span class="s">'rifle_idle'</span>],
+  weapon: <span class="s">'rifle'</span>,
+});
+scene.add(hero.scene);</code></pre>
+          <a class="btn btn-ghost" href="../docs/library/">Library guide</a>
+        </div>
+        <div class="dev-library-media">
+          <video muted loop playsinline preload="none" aria-label="The character this code makes"></video>
+        </div>
+      </section>
+
       <section id="embed" class="dev-embed" aria-labelledby="embed-title">
         <div>
           <h2 id="embed-title">On any web page, with one tag.</h2>
@@ -232,6 +250,6 @@ See it and keep editing in the Ara builder:
       </nav>
       <p class="footer-credits">Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a></p>
     </footer>
-    <script type="module" src="/src/developers/developers.ts"></script>
+    <script type="module" src="/src/developers/page.ts"></script>
   </body>
 </html>

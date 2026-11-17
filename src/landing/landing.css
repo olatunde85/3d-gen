@@ -225,6 +225,7 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
 .tok-k { color: #c4b5fd; } .tok-s { color: #86efac; } .tok-c { color: #6b6b75; } .tok-f { color: #93c5fd; } .tok-t { color: #93c5fd; } .tok-a { color: #c4b5fd; } .tok-p { color: var(--faint); } .tok-u { color: var(--text); font-weight: 600; } .tok-o { color: #fcd34d; }
 .devx-preview { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; background: radial-gradient(80% 60% at 50% 40%, #1a1b22, #0f0f12 70%); }
 .devx-preview ara-character { width: 100%; height: 100%; aspect-ratio: auto; min-height: 340px; }
+.devx-video { display: block; width: 100%; height: 100%; min-height: 340px; object-fit: contain; background: radial-gradient(80% 60% at 50% 40%, #1a1b22, #0f0f12 70%); }
 .devx-caption { padding: 0 18px 16px; color: var(--faint); font-size: 12.5px; }
 .devx-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 24px; margin-top: 18px; }
 .install { padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); color: var(--text); font: 13.5px var(--mono); }
