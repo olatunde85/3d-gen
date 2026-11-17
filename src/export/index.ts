@@ -82,6 +82,8 @@ export interface ExportExtras {
   onProgress?: (label: string, frac: number) => void;
   /** Use the smaller web textures, where the data has them (see AssetLibrary.initWeb). */
   smallTextures?: boolean;
+  /** Called with each clip once it is baked, by clip ID. */
+  onBaked?: (id: string, clip: BakedClip) => void;
 }
 
 export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPlan, extras: ExportExtras = {}): Promise<ExportFile> {
@@ -105,7 +107,7 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
         progress(`Baking ${c.name}`);
         const vehicle=vehicleFor(ch.params.vehicle,id);
         b = { name: exportClipName(id, plan.settings), loop: c.loop, ...animator!.bake(c, 30, { rootMotion: plan.settings.rootMotion,vehicleLift:vehicle?vehicleLift(vehicle,riderScale):0 }) };
-        baked.set(id, b);
+        baked.set(id, b);extras.onBaked?.(id, b);
       }
       return b;
     });

@@ -10,7 +10,7 @@
  * Characters are built in a background worker, so the page stays responsive, and exported with the same exporter as
  * the Ara builder and the ara3d CLI. The character data loads from a free CDN by default.
  */
-import { LoopRepeat, type AnimationAction, type AnimationClip, type AnimationMixer, type Group, type Object3D, type Vector3 } from 'three';
+import { LoopRepeat, NumberKeyframeTrack, type AnimationAction, type AnimationClip, type AnimationMixer, type Group, type Object3D, type Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import AraWorker from './library/worker?worker&inline';
 import type { CharacterInput, Generated, GenerateOptions } from './library/generate';
@@ -149,53 +149,88 @@ const MOUTH_SHARE: Record<string, number> = { jawOpen: 0, mouthStretch: 0, mouth
 type Morphable = { morphTargetDictionary?: Record<string, number>; morphTargetInfluences?: number[] };
 
 /**
- * Face controls over the character's blend shapes. An expression sets the resting face; blinking and mouth shapes
- * play on top of it, so a smile keeps smiling while the character blinks and talks.
+ * Face controls over the character's blend shapes. An expression sets the resting face; the playing clip's own face
+ * movements (a wince, gritted teeth), blinking and mouth shapes play on top of it, so a smile keeps smiling while the
+ * character blinks, talks and moves.
+ *
+ * The clips move the face through `root.araFace` (one value per face shape, written by the mixer, see clipFaces) rather
+ * than the blend shapes themselves, so a clip never replaces the expression; each update() adds them together.
  */
-function faceControls(root: Group, resting: string) {
+function faceControls(root: Group & { araFace?: number[] }, resting: string) {
   const meshes: Morphable[] = [];
   root.traverse((o) => { const m = o as Morphable;if (m.morphTargetDictionary && m.morphTargetInfluences) meshes.push(m); });
-  const set = (name: string, value: number) => { for (const m of meshes) { const i = m.morphTargetDictionary![name];if (i !== undefined) m.morphTargetInfluences![i] = value; } };
-  const base: Record<string, number> = {}, lids = ['eyeBlinkLeft', 'eyeBlinkRight'];
-  let next = 1 + Math.random() * 3, phase = -1;
+  root.araFace = FACE_SHAPES.map(() => 0);
+  const base: Record<string, number> = {}, lids = new Set(['eyeBlinkLeft', 'eyeBlinkRight']);
+  let mouth: string | null = null, mouthWeight = 0, closed = 0, next = 1 + Math.random() * 3, phase = -1;
+  /** One shape's weight: expression (eased while a mouth shape shows) + the clip's movement + mouth shape, then a blink. */
+  const weight = (name: string, i: number) => {
+    const share = MOUTH_SHARE[name], expression = (base[name] ?? 0) * (share === undefined ? 1 : 1 - (1 - share) * mouthWeight);
+    let w = Math.min(1, Math.max(0, name.startsWith('viseme_') ? (name === mouth ? mouthWeight : 0) : expression + (root.araFace![i] ?? 0)));
+    if (closed) { if (lids.has(name)) w = Math.max(w, closed);else if (/^eye(Wide|Squint)/.test(name)) w *= 1 - closed; }
+    return w;
+  };
+  const apply = () => {
+    const weights = new Map(FACE_SHAPES.map((name, i) => [name, weight(name, i)]));
+    for (const m of meshes) for (const [name, i] of Object.entries(m.morphTargetDictionary!)) { const w = weights.get(name);if (w !== undefined) m.morphTargetInfluences![i] = w; }
+  };
   const controls = {
     setFace(weights: Record<string, number>) {
+      for (const name of Object.keys(weights)) if (!FACE_SHAPES.includes(name)) throw Error(`Unknown face shape "${name}". See FACE_SHAPES.`);
       for (const [name, value] of Object.entries(weights)) {
-        if (!FACE_SHAPES.includes(name)) throw Error(`Unknown face shape "${name}". See FACE_SHAPES.`);
-        base[name] = value;set(name, value);
+        if (name.startsWith('viseme_')) { if (value) { mouth = name;mouthWeight = value; } else if (mouth === name) mouth = null; }
+        else base[name] = value;
       }
+      apply();
     },
     setExpression(name: string, amount = 1) {
       const weights = CATALOG.expressions[name];
       if (!weights) throw Error(`Unknown expression "${name}". Use one of: ${EXPRESSIONS.join(', ')}.`);
       // Expressions own every shape except the mouth shapes, which belong to lip-sync.
-      const face: Record<string, number> = {};
-      for (const shape of FACE_SHAPES) if (!shape.startsWith('viseme_')) face[shape] = (weights[shape] ?? 0) * amount;
-      controls.setFace(face);
+      for (const shape of FACE_SHAPES) if (!shape.startsWith('viseme_')) base[shape] = (weights[shape] ?? 0) * amount;
+      apply();
     },
     setMouth(shape: string | null, weight = 1) {
       if (shape !== null && !MOUTH_SHAPES.includes(shape)) throw Error(`Unknown mouth shape "${shape}". Use one of: ${MOUTH_SHAPES.join(', ')}.`);
-      const w = shape === null ? 0 : weight;
-      for (const m of MOUTH_SHAPES) { base[m] = m === shape ? w : 0;set(m, base[m]); }
-      // While a mouth shape shows, it moves the jaw, and smiles and frowns ease off, so an open expression and a
-      // mouth shape don't add up to an over-stretched mouth. The expression's own values come back with null.
-      for (const [shape, keep] of Object.entries(MOUTH_SHARE)) set(shape, (base[shape] ?? 0) * (1 - (1 - keep) * w));
+      // While a mouth shape shows, it moves the jaw, and smiles and frowns ease off (MOUTH_SHARE), so an open
+      // expression and a mouth shape don't add up to an over-stretched mouth. null brings the expression back.
+      mouth = shape;mouthWeight = shape === null ? 0 : weight;
+      apply();
     },
     update(delta: number, blinking: boolean) {
       if (!meshes.length) return;
-      // Turned off mid-blink: open the eyes back to the expression's lids.
-      if (!blinking) { if (phase >= 0) { for (const lid of lids) set(lid, base[lid] ?? 0);phase = -1; } return; }
-      // A blink every 2-6 seconds, from whatever the expression holds: the lids close in 0.07 s, stay shut for 0.04 s
-      // (so they close fully at any frame rate) and open in 0.1 s.
-      if (phase < 0) { next -= delta;if (next <= 0) { phase = 0;next = 2 + Math.random() * 4; } return; }
-      phase += delta;
-      const closed = phase < 0.07 ? phase / 0.07 : phase < 0.11 ? 1 : phase < 0.21 ? 1 - (phase - 0.11) / 0.1 : 0;
-      for (const lid of lids) set(lid, Math.max(base[lid] ?? 0, closed));
-      if (phase >= 0.21) phase = -1;
+      // A blink every 2-6 seconds: the lids close in 0.07 s, stay shut for 0.04 s (so they close fully at any frame
+      // rate) and open in 0.1 s. Turned off mid-blink, the eyes open straight away.
+      closed = 0;
+      if (!blinking) phase = -1;
+      else if (phase < 0) { next -= delta;if (next <= 0) { phase = 0;next = 2 + Math.random() * 4; } }
+      if (phase >= 0) {
+        phase += delta;
+        closed = phase < 0.07 ? phase / 0.07 : phase < 0.11 ? 1 : phase < 0.21 ? 1 - (phase - 0.11) / 0.1 : 0;
+        if (phase >= 0.21) phase = -1;
+      }
+      apply();
     },
   };
-  if (CATALOG.expressions[resting]) for (const [shape, value] of Object.entries(CATALOG.expressions[resting])) base[shape] = value;
+  if (CATALOG.expressions[resting]) for (const [shape, value] of Object.entries(CATALOG.expressions[resting])) if (!shape.startsWith('viseme_')) base[shape] = value as number;
   return controls;
+}
+
+/**
+ * Hands the clips' face movements to the face controls. The GLB's face tracks set every blend shape (the built
+ * expression, the clip's movements and baked blinks), which would replace an expression set later, so they come off;
+ * clips that move the face get tracks on root.araFace instead, holding just the movement.
+ */
+function clipFaces(clips: AnimationClip[], faces: Generated['faces'], clipNames: Record<string, string>) {
+  const byName = new Map(clips.map((c) => [c.name, c]));
+  for (const clip of clips) clip.tracks = clip.tracks.filter((t) => !t.name.endsWith('.morphTargetInfluences'));
+  for (const [id, { times, shapes }] of Object.entries(faces)) {
+    const clip = byName.get(clipNames[id] ?? id);
+    if (!clip) continue;
+    for (const [shape, values] of Object.entries(shapes)) {
+      const i = FACE_SHAPES.indexOf(shape);
+      if (i >= 0) clip.tracks.push(new NumberKeyframeTrack(`.araFace[${i}]`, times, values));
+    }
+  }
 }
 
 const LOOPS = new Map(CATALOG.animations.map((a) => [a.id, a.loop]));
@@ -251,6 +286,7 @@ export async function createCharacter(input: CharacterInput, options?: Character
   };
   const [main, ...rest] = generated.files, character = await load(main.data);
   const props = await Promise.all(rest.map(async (f) => ({ name: f.name.replace(/\.glb$/, ''), ...(await load(f.data)) })));
+  clipFaces(character.animations, generated.faces, generated.clipNames);
   const byName = new Map(character.animations.map((a) => [a.name, a])), face = faceControls(character.scene, generated.params.expression);
   const look = lookControls(character.scene);
   let speech: ReturnType<typeof lipSync> | undefined;
