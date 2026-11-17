@@ -8,7 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "ara3d": "^0.6.0",
+    "ara3d": "^0.7.0",
     "three": "^0.186.0"
   },
   "devDependencies": {

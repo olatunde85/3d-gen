@@ -86,7 +86,11 @@ export function applyTargets(lib: AssetLibrary, weights: Map<string, number>): F
   const table = lib.targets.meta.targets;
   for (const [name, w] of weights) {
     const t = table[name];
-    if (!t) continue; // e.g. baby targets are not shipped
+    if (!t) {
+      // A target that the web copy has but nobody loaded would silently change the body: say so instead.
+      if (lib.targetFiles?.[name]) throw Error(`The body shape "${name}" isn't loaded: call loadTargets() first.`);
+      continue; // e.g. baby targets are not shipped
+    }
     const [off, n, scale] = t;
     const k = w * scale;
     let v = 0;
@@ -99,4 +103,15 @@ export function applyTargets(lib: AssetLibrary, weights: Map<string, number>): F
     }
   }
   return coords;
+}
+
+/**
+ * Every target that building this character can use: its body shape, plus the face's expression units (the face
+ * shapes blend them by ethnicity). Load them before building when the data loads on demand (AssetLibrary.loadTargets).
+ */
+export function neededTargets(lib: AssetLibrary, p: HumanParams): string[] {
+  const sliders = new Map(lib.catalog.sliders.flatMap((g) => g.sliders.map((s) => [s.id, s] as const)));
+  const names = new Set(targetWeights(p, sliders).keys());
+  for (const name of Object.keys(lib.targetFiles ?? lib.targets.meta.targets)) if (name.startsWith('expression/units/')) names.add(name);
+  return [...names];
 }

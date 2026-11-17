@@ -14,8 +14,9 @@ import { zipSync, type Zippable } from 'fflate';
 
 const root = resolve(import.meta.dirname, '..'), assets = join(root, 'public/assets'), cli = join(root, 'packages/cli');
 const versionFile = join(cli, 'src/data-version.json'), DATA = JSON.parse(readFileSync(versionFile, 'utf8'));
-// Interface thumbnails are only used by the website.
-const SKIP = new Set(['thumbs']);
+// Interface thumbnails are only used by the website, and the web copy (public/assets/web) only by the library.
+const SKIP = new Set(['thumbs', 'web']);
+execFileSync('npx', ['tsx', join(root, 'scripts/build-web-assets.ts')], { cwd: root, stdio: 'inherit' });
 
 function files(dir: string): string[] {
   return readdirSync(dir).sort().flatMap((name) => {
@@ -46,7 +47,10 @@ const dataPackage = join(root, 'packages/data'), dataManifest = JSON.parse(readF
 const hashFile = join(dataPackage, 'data-hash.json'), published = JSON.parse(readFileSync(hashFile, 'utf8'));
 rmSync(join(dataPackage, 'assets'), { recursive: true, force: true });
 cpSync(assets, join(dataPackage, 'assets'), { recursive: true, filter: (src) => !src.startsWith(join(assets, 'thumbs')) });
-const dataChanged = published.sha256 !== sha;
+// The package holds the web copy too, so its hash covers both.
+const webHash = createHash('sha256').update(sha);
+for (const file of files(join(assets, 'web'))) webHash.update(relative(assets, file)).update(readFileSync(file));
+const dataSha = webHash.digest('hex'), dataChanged = published.sha256 !== dataSha;
 if (dataChanged && published.version === dataManifest.version) throw Error(`The character data changed: raise the version in packages/data/package.json (now ${dataManifest.version}).`);
 console.log(`ara3d-data ${dataManifest.version}: ${dataChanged ? 'new data, to publish' : 'unchanged'}`);
 
@@ -55,7 +59,7 @@ execFileSync('npx', ['tsc', '-p', join(cli, 'tsconfig.types.json')], { cwd: root
 // npm requires two-factor authentication to publish: pass the current code from your authenticator app with --otp.
 const otp = process.argv[process.argv.indexOf('--otp') + 1], publish = (cwd: string) => execFileSync('npm', ['publish', '--access', 'public', ...(process.argv.includes('--otp') && otp ? [`--otp=${otp}`] : [])], { cwd, stdio: 'inherit' });
 if (process.argv.includes('--publish')) {
-  if (dataChanged) { publish(dataPackage);writeFileSync(hashFile, JSON.stringify({ version: dataManifest.version, sha256: sha }, null, 2) + '\n');console.log('Published ara3d-data; commit packages/data/data-hash.json'); }
+  if (dataChanged) { publish(dataPackage);writeFileSync(hashFile, JSON.stringify({ version: dataManifest.version, sha256: dataSha }, null, 2) + '\n');console.log('Published ara3d-data; commit packages/data/data-hash.json'); }
   publish(cli);
   // jsDelivr caches what "ara3d@0" means for up to 12 hours. Once npm shows the new version (it takes a minute or two),
   // ask jsDelivr to look again, so pages using @0 get this release.

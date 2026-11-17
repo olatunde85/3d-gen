@@ -90,6 +90,10 @@ try {
   const exec = await evaluate<{ carry: string; code: string; parts: string[] }>("({carry:document.getElementById('pg-carry').value,code:document.getElementById('pg-code').textContent,parts:[...document.querySelectorAll('#pg-colors span')].map(s=>s.textContent)})");
   assert.equal(exec.carry, 'handbag');assert.doesNotMatch(exec.code, /carry:/);assert.ok(exec.parts.includes('Handbag'), `colour parts: ${exec.parts}`);
   console.log('OK executive: carries her handbag; colours for', exec.parts.join(', '));
+  // Texting brings her phone in place of the bag, and another clip gives the bag back.
+  await set('#pg-clip', 'texting');await sleep(400);await until(`${ready} && document.getElementById('pg-carry').value === 'phone'`, 'texting with the phone');
+  await set('#pg-clip', 'walk');await sleep(400);await until(`${ready} && document.getElementById('pg-carry').value === 'handbag'`, 'the handbag back');
+  console.log('OK executive: texting brings the phone, walking brings the handbag back');
   await set('#pg-colors input[data-part=outfit]', '#1d2a44');await sleep(400);await until(ready, 'recolour');
   assert.match(await evaluate("document.getElementById('pg-code').textContent"), /colors: \{ outfit: '#1d2a44' \}/);
   await photo('playground-executive-navy', await box('#playground'));

@@ -34,9 +34,9 @@ Database (mocap.cs.cmu.edu; created with funding from NSF EIA-0196217). They may
 commercial and non-commercial products; the motion data itself may not be resold on its own.
 `;
 
-async function loadTextures(lib: AssetLibrary, ch: Character): Promise<Map<string, Uint8Array>> {
+async function loadTextures(lib: AssetLibrary, ch: Character, small = false): Promise<Map<string, Uint8Array>> {
   const files = textureFiles(ch.mesh);
-  const data = await Promise.all(files.map((f) => lib.texture(f)));
+  const data = await Promise.all(files.map((f) => lib.texture(f, small)));
   return new Map(files.map((f, i) => [f, data[i]]));
 }
 
@@ -80,6 +80,8 @@ export interface ExportExtras {
   previewPng?: Uint8Array;
   /** Progress: what is happening and the fraction done (0..1). */
   onProgress?: (label: string, frac: number) => void;
+  /** Use the smaller web textures, where the data has them (see AssetLibrary.initWeb). */
+  smallTextures?: boolean;
 }
 
 export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPlan, extras: ExportExtras = {}): Promise<ExportFile> {
@@ -91,7 +93,7 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
   const progress = (label: string) => extras.onProgress?.(label, Math.min(1, done++ / total));
   progress('Loading textures');
   done = 0;
-  const textures = await loadTextures(lib, ch);
+  const textures = await loadTextures(lib, ch, extras.smallTextures);
   const animator = ch.rig ? new Animator(ch.rig, ch.face) : null;
   const riderScale=ch.rig?Math.max(...ch.rig.bones.flatMap(b=>[b.head[1],b.tail[1]]))/1.8:1;
   const baked = new Map<string, BakedClip>();

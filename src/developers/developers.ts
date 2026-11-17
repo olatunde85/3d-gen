@@ -18,6 +18,9 @@ const clipName = new Map(ANIMATIONS.map((a) => [a.id, a.name]));
 const RIDER: Record<string, string> = Object.fromEntries(Object.entries(RIDE).map(([v, clip]) => [clip, v]));
 /** A clip the visitor picked from the full list; it's built alongside the popular ones. */
 let extraClip = '';
+/** Texting and phone calls bring the phone (in place of a bag) unless a carry is chosen, so they load only while one is picked. */
+const PHONE = new Set(['texting', 'phone_call']);
+let builtForPhone = false;
 const label = (id: string) => id === 'none' ? 'None' : id.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector(selector) as T;
@@ -109,7 +112,8 @@ function showStatus(text: string, fraction?: number, error = false) {
 async function build() {
   const id = ++building, chosen = input();
   if (source() === 'share' && !String(chosen).includes('c=')) { showStatus('Paste a link from the builder: open it, choose Share, then Copy link.', 0, true);return; }
-  const ride = RIDE[vehicle.value], clips = [...new Set([...PLAY, ...(ride ? [ride] : []), ...(extraClip ? [extraClip] : [])])];
+  const ride = RIDE[vehicle.value], menu = [...new Set([...PLAY, ...(ride ? [ride] : []), ...(extraClip ? [extraClip] : [])])];
+  const forPhone = PHONE.has(clipSelect.dataset.want ?? ''), clips = menu.filter((c) => forPhone || !PHONE.has(c));
   showStatus(hero ? 'Rebuilding…' : 'Loading the character data…', 0.02);
   const started = performance.now();
   try {
@@ -120,14 +124,14 @@ async function build() {
     });
     if (id !== building) { next.dispose();return; } // A newer build replaced this one.
     if (hero) { scene.remove(hero.scene);for (const p of hero.props) scene.remove(p.scene);hero.dispose(); }
-    hero = next;scene.add(hero.scene);for (const p of hero.props) scene.add(p.scene);
+    hero = next;builtForPhone = forPhone;scene.add(hero.scene);for (const p of hero.props) scene.add(p.scene);
     if (!propsChosen) {
       own = { weapon: hero.params.weapon, carry: hero.params.carry, vehicle: hero.params.vehicle === 'auto' ? 'none' : hero.params.vehicle };
       for (const k of Object.keys(propSelects) as PropSlot[]) propSelects[k].value = own[k];
     }
     renderColors();
     expression = picked || hero.params.expression;if (picked) hero.setExpression(picked);renderExpressions();
-    options(clipSelect, clips, (c) => clipName.get(c) ?? c);
+    options(clipSelect, menu, (c) => clipName.get(c) ?? c);
     const want = clipSelect.dataset.want ?? 'idle';
     clipSelect.value = clips.includes(want) ? want : ride ?? 'idle';
     play();frame([hero.scene, ...hero.props.map((p) => p.scene)]);
@@ -212,7 +216,7 @@ function pickClip(id: string) {
   // A riding clip brings its vehicle.
   const newVehicle = !!RIDER[id] && vehicle.value !== RIDER[id];
   if (newVehicle) { vehicle.value = RIDER[id];propsChosen = true;delete colorChoices.vehicle; }
-  if (!newVehicle && hero?.clip(id) && [...clipSelect.options].some((o) => o.value === id)) { clipSelect.value = id;play();return; }
+  if (!newVehicle && hero?.clip(id) && PHONE.has(id) === builtForPhone && [...clipSelect.options].some((o) => o.value === id)) { clipSelect.value = id;play();return; }
   extraClip = id;rebuild();
 }
 $<HTMLButtonElement>('#pg-all-clips').onclick = () => { clipSearch.value = '';renderClipList();clipDialog.showModal();clipSearch.focus(); };
@@ -319,7 +323,7 @@ function highlight(code: string) {
 function showSource() { for (const f of form.querySelectorAll<HTMLElement>('[data-for]')) f.hidden = f.dataset.for !== source(); }
 form.addEventListener('change', (event) => {
   const target = event.target as HTMLInputElement | HTMLSelectElement;
-  if (target === clipSelect) { clipSelect.dataset.want = clipSelect.value;play();return; }
+  if (target === clipSelect) { clipSelect.dataset.want = clipSelect.value;if (PHONE.has(clipSelect.value) !== builtForPhone) rebuild();else play();return; }
   if (target === talk) { writeCode();return; }
   if (target.dataset.part) { colorChoices[target.dataset.part as keyof CharacterColors] = target.value;rebuild();return; }
   if (target === preset || target === seed || target === share || target.name === 'source') { showSource();newCharacter();return; }

@@ -53,7 +53,7 @@ Unknown fields and out-of-range values are rejected with a message that says wha
 | Option | Meaning |
 |---|---|
 | `animations` | Clip IDs or categories, such as `['walk', 'run']` or `['locomotion', 'shooter']`; `'all'` (the default, 216 clips) or `'none'`. `ANIMATIONS` lists them |
-| `detail` | `'low'` (about 25–50k triangles dressed), `'medium'` (about 45–65k) or `'high'` (about 130–170k); see [Detail levels](characters.md#detail-levels) |
+| `detail` | `'low'` (about 25–50k triangles dressed), `'medium'` (about 45–65k) or `'high'` (about 130–170k); see [Detail levels](characters.md#detail-levels). Low and medium use textures up to 1024 pixels across, which look the same at web sizes and download faster; high uses the full 2048-pixel textures |
 | `rootMotion` | Walks, runs and strafes move the character forward instead of playing in place |
 | `weapon` | `'rifle'`, `'pistol'`, `'sword'`, `'knife'` or `'grenade'`, held in the hand |
 | `carry` | Something to carry, such as `'backpack'`, `'briefcase'` or `'phone'`. With the `texting` or `phone_call` clip in `animations`, the character carries the phone unless you choose something else |
@@ -180,7 +180,9 @@ hero.update(delta);                  // runs blinking, looking and lip-sync; her
 
 ## Hosting the data
 
-By default the character data (about 50 MB, loaded only as needed and cached by the browser) comes from jsDelivr, a free public CDN, through the [`ara3d-data`](https://www.npmjs.com/package/ara3d-data) npm package. `DEFAULT_ASSETS_URL` shows the exact address, which is pinned to the data version this release expects.
+By default the character data comes from jsDelivr, a free public CDN, through the [`ara3d-data`](https://www.npmjs.com/package/ara3d-data) npm package. `DEFAULT_ASSETS_URL` shows the exact address, which is pinned to the data version this release expects.
+
+A page downloads only what its characters use: the body shapes for that body, and the clothes, hair and textures they wear. The first character usually takes 2–4 MB, each different character after it adds well under 1 MB, and the browser keeps everything for later visits.
 
 To serve it yourself, for example for an offline app or a strict network:
 

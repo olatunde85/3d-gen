@@ -5,6 +5,7 @@
 import { unzipSync } from 'fflate';
 import { AssetLibrary } from '../../../../src/core/assets';
 import { buildHuman } from '../../../../src/core/human';
+import { neededTargets } from '../../../../src/core/morph';
 import { DEFAULT_PARAMS, PRESETS, randomParams, type HumanParams } from '../../../../src/core/params';
 import { decodeCharacter } from '../../../../src/app/share';
 import { CLIPS } from '../../../../src/core/anim/clips';
@@ -71,7 +72,7 @@ export function libraryAt(assetsUrl: string) {
   const base = assetsUrl.endsWith('/') ? assetsUrl : `${assetsUrl}/`;
   let lib = libraries.get(base);
   if (!lib) {
-    lib = new AssetLibrary({ read: (path) => download(base + path) }).init();
+    lib = new AssetLibrary({ read: (path) => download(base + path) }).initWeb();
     lib.catch(() => libraries.delete(base));libraries.set(base, lib);
   }
   return lib;
@@ -136,12 +137,15 @@ export async function generate(lib: AssetLibrary, input: CharacterInput, options
   };
   if (options.colors) params = applyColors(params, options.colors);
   onProgress?.('Building the character', 0);
+  // Only the body shapes this character uses are downloaded.
+  await lib.loadTargets(neededTargets(lib, params));
   const character = await buildHuman(lib, params);
   const settings: ExportSettings = {
     mode: !character.rig ? 'static' : params.animations && clips.length ? 'animated' : 'rigged',
     format: 'glb', clips, packaging: 'embedded', clipMesh: false, rootMotion: !!options.rootMotion, loopSuffix: false, weaponFile: 'held', stageProps: false,
   };
-  const file = await runExport(lib, character, planExport(character, settings), { onProgress: (label, fraction = 0) => onProgress?.(label, fraction) });
+  // Low and medium detail use textures up to 1024 pixels across, which look the same at web sizes; high keeps the full ones.
+  const file = await runExport(lib, character, planExport(character, settings), { onProgress: (label, fraction = 0) => onProgress?.(label, fraction), smallTextures: params.detail !== 'high' });
   // A character with props comes back as a zip: the character's GLB plus props/*.glb. The character comes first.
   const own = `${stemOf(params.name)}.glb`;
   const files: GeneratedFile[] = file.name.endsWith('.zip')
