@@ -1,6 +1,6 @@
 /**
- * Renders the embed's loading figure: a real Ara character (a bare body at low detail) as a wireframe on a transparent
- * background, written as a grayscale PNG to packages/cli/src/library/loading-figure.png. Needs the library built
+ * Renders the embed's loading figures: real Ara characters (a man and a woman at low detail, standing relaxed) as
+ * wireframes on a transparent background, written as grayscale PNGs to packages/cli/src/library/loading-figure-*.png. Needs the library built
  * (npx vite build --config packages/cli/vite.lib.config.ts) and the character data in public/assets.
  *   npx tsx scripts/loading-figure.ts
  */
@@ -12,8 +12,8 @@ import { extname, join, resolve } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 import sharp from 'sharp';
 
-const root = resolve(import.meta.dirname, '..'), target = join(root, 'packages/cli/src/library/loading-figure.png');
-const W = 440, H = 900;
+const root = resolve(import.meta.dirname, '..');
+const W = 360, H = 900;
 const PAGE = `<!doctype html><html><body style="margin:0;background:#000">
 <script type="importmap">{"imports":{"three":"/three/build/three.module.js","three/examples/jsm/":"/three/examples/jsm/","ara3d":"/ara3d/index.js"}}</script>
 <script type="module">
@@ -22,7 +22,9 @@ import { createCharacter } from 'ara3d';
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
 renderer.setSize(${W}, ${H});renderer.setPixelRatio(1);document.body.append(renderer.domElement);
 window.wire = async (input, detail) => {
-  const hero = await createCharacter(input, { assetsUrl: '/assets/', animations: 'none', detail });
+  const hero = await createCharacter(input, { assetsUrl: '/assets/', animations: ['idle'], detail });
+  // A relaxed stance: a moment of the idle clip rather than the arms-out bind pose.
+  const mixer = new THREE.AnimationMixer(hero.scene);mixer.clipAction(hero.clip('idle')).play();mixer.setTime(0.5);hero.scene.updateMatrixWorld(true);
   const scene = new THREE.Scene();
   hero.scene.traverse((o) => {
     if (!o.isMesh) return;
@@ -33,7 +35,7 @@ window.wire = async (input, detail) => {
   });
 
   scene.add(hero.scene);
-  const box = new THREE.Box3().setFromObject(hero.scene), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
+  const box = new THREE.Box3().setFromObject(hero.scene, true), size = box.getSize(new THREE.Vector3()), center = box.getCenter(new THREE.Vector3());
   const camera = new THREE.PerspectiveCamera(20, ${W} / ${H}, 0.05, 50);
   const distance = (Math.max(size.y, size.x / camera.aspect) * 1.05) / (2 * Math.tan((camera.fov * Math.PI) / 360));
   camera.position.set(center.x + Math.sin(0.28) * distance, center.y, center.z + Math.cos(0.28) * distance);camera.lookAt(center);
@@ -63,7 +65,10 @@ try {
   const { targetId } = await send('Target.createTarget', { url: `http://127.0.0.1:${port}/` }, false);
   session = (await send('Target.attachToTarget', { targetId, flatten: true }, false)).sessionId;
   for (let i = 0; i < 100 && !(await evaluate('!!window.ready').catch(() => false)); i++) await new Promise((r) => setTimeout(r, 100));
-  const data: string = await evaluate(`window.wire(${JSON.stringify({ preset: 'The Soldier', params: BARE })}, 'low')`);
-  await sharp(Buffer.from(data.split(',')[1], 'base64')).grayscale().png({ compressionLevel: 9 }).toFile(target);
-  console.log(`Wrote ${target}`);
+  // A man in briefs; a woman in a tank top and briefs.
+  for (const [body, character] of [['male', { preset: 'The Soldier', params: BARE }], ['female', { preset: 'The Adventurer', params: { ...BARE, top: 'tank_top' } }]] as const) {
+    const data: string = await evaluate(`window.wire(${JSON.stringify(character)}, 'low')`), target = join(root, `packages/cli/src/library/loading-figure-${body}.png`);
+    await sharp(Buffer.from(data.split(',')[1], 'base64')).grayscale().png({ compressionLevel: 9 }).toFile(target);
+    console.log(`Wrote ${target}`);
+  }
 } finally { chrome.kill();server.close();await new Promise((r) => { chrome.once('exit', r);setTimeout(r, 3000); });try { rmSync(profile, { recursive: true, force: true }); } catch {} }

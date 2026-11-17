@@ -6,6 +6,7 @@ declare module 'virtual:ara-catalog' {
     expressions: Record<string, Record<string, number>>;
     faceShapes: string[];
     rides: Record<string, string>;
+    women: string[];
   };
   export default catalog;
 }

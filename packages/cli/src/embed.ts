@@ -11,7 +11,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { parseSteps } from './library/sequence';
-import FIGURE_PNG from './library/loading-figure.png?inline';
+import FIGURE_MALE from './library/loading-figure-male.png?inline';
+import FIGURE_FEMALE from './library/loading-figure-female.png?inline';
+import CATALOG from 'virtual:ara-catalog';
 import { ANIMATIONS, createCharacter, VEHICLE_CLIPS, type AraCharacter, type Sequence, type CharacterColors, type CharacterInput, type CharacterOptions } from './index';
 
 /** Attributes that change the character itself, so it's rebuilt. */
@@ -20,8 +22,9 @@ const BUILD = ['preset', 'random', 'share', 'src', 'clips', 'detail', 'weapon', 
 const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background', 'margin'];
 
 /** A standing figure, used as a mask for the loading silhouette. */
-/** A real Ara character as a wireframe (scripts/loading-figure.ts), the mask for the loading figure. */
-const FIGURE = `url("${FIGURE_PNG}")`;
+/** Real Ara characters as wireframes, standing relaxed (scripts/loading-figure.ts): the masks for the loading figure. */
+const FIGURE = `url("${FIGURE_MALE}")`, FIGURE_F = `url("${FIGURE_FEMALE}")`;
+const WOMEN = new Set(CATALOG.women);
 
 const STYLE = `
 :host { display: block; position: relative; width: 100%; aspect-ratio: 3 / 4; min-height: 160px; overflow: hidden; contain: content; }
@@ -35,9 +38,10 @@ canvas { display: block; width: 100%; height: 100%; outline: none; touch-action:
 .status.error .status.error span { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
 /* While the first character loads: a quiet, translucent figure with a soft light passing over it, standing where the
    character will. Grey on any background, so it suits any page. */
-.figure { position: absolute; left: 50%; bottom: 12%; height: 76%; aspect-ratio: 440 / 900; transform: translateX(-50%); pointer-events: none; transition: opacity 0.5s; }
+.figure { position: absolute; left: 50%; bottom: 12%; height: 76%; aspect-ratio: 360 / 900; transform: translateX(-50%); pointer-events: none; transition: opacity 0.5s; }
 .figure i { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(150, 156, 170, 0.5) 40%, rgba(225, 230, 240, 0.95) 50%, rgba(150, 156, 170, 0.5) 60%) 0 0 / 300% 100%;
   -webkit-mask: ${FIGURE} center / contain no-repeat; mask: ${FIGURE} center / contain no-repeat; animation: shimmer 2.2s ease-in-out infinite; }
+.figure[data-body="female"] i { -webkit-mask-image: ${FIGURE_F}; mask-image: ${FIGURE_F}; }
 .figure[hidden] { display: block; opacity: 0; }
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .status, .figure { transition: none; } .figure i { animation: none; } }`;
@@ -338,6 +342,9 @@ export class AraCharacterElement extends HTMLElement {
     this.show('Loading…', 0.03);
     // While a new character builds, the loading figure stands in for the old one.
     if (this.character) { this.character.scene.visible = false;for (const p of this.character.props) p.scene.visible = false; }
+    // The figure matches who's coming: a preset's own body, otherwise the character being replaced.
+    const preset = this.getAttribute('preset'), coming = this.hasAttribute('src') || this.hasAttribute('share') || this.hasAttribute('random') ? undefined : preset;
+    this.figure.dataset.body = coming ? (WOMEN.has(coming) ? 'female' : 'male') : this.character && this.character.params.gender < 0.5 ? 'female' : this.figure.dataset.body ?? 'male';
     this.figure.hidden = false;
     try {
       const next = await createCharacter(await this.input(), { ...this.options(), onProgress: (_label, fraction) => { if (id === this.building) this.show('Loading…', 0.05 + fraction * 0.9); } });
