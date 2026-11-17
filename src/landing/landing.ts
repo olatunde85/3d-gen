@@ -2,6 +2,7 @@
  * Landing page: the Studio reel and the Ara Play promo playing muted while on screen, either with sound in a lightbox, scroll
  * reveals and counting numbers.
  */
+import { lowMemory } from './device';
 import { siteMenu } from './nav';
 siteMenu();
 // Served with the site (CDN-cached), so viral traffic costs nothing extra.
@@ -163,9 +164,8 @@ if (devx) {
   const tabs = [...devx.querySelectorAll<HTMLButtonElement>('[role="tab"]')], panel = devx.querySelector<HTMLElement>('[role="tabpanel"]')!;
   const code = document.getElementById('devx-code')!, file = document.getElementById('devx-file')!, caption = document.getElementById('devx-caption')!;
   const character = document.getElementById('devx-character')!, copy = document.getElementById('devx-copy') as HTMLButtonElement;
-  // Phones, tablets and low-memory devices show recordings of these characters: one live 3D character (in the hero) is
-  // as much as they comfortably hold. The recordings come from scripts/develop-clips.ts.
-  const recorded = matchMedia('(max-width: 860px), (pointer: coarse)').matches || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
+  // Phones, tablets and low-memory devices show recordings of these characters (scripts/develop-clips.ts) instead.
+  const recorded = lowMemory;
   let video: HTMLVideoElement | undefined;
   if (recorded) {
     video = document.createElement('video');
@@ -210,6 +210,11 @@ if (devx) {
 // --- The live character in the hero: drive them with the on-screen pad, the keyboard or a gamepad -----------------
 type Body = { position: { x: number; z: number; set(x: number, y: number, z: number): void }; rotation: { y: number } };
 type Driven = HTMLElement & { character?: { scene: Body; params: { name: string } }; playClip(id: string, fade?: number): boolean };
+// Phones and low-memory devices get no live stage: the hero is the copy and the cast, whose cards open the builder.
+if (lowMemory) {
+  document.querySelector('.hero-stage')?.remove();
+  for (const link of document.querySelectorAll('a[href$="#playground"]')) link.remove();
+}
 const drivenEl = document.getElementById('hero-character') as Driven | null;
 const stageEl = document.querySelector<HTMLElement>('.hero-stage');
 if (drivenEl && stageEl) {

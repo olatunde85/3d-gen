@@ -1,5 +1,5 @@
 /**
- * The developers page playground: builds characters with the ara3d library itself, shows them in a three.js view and
+ * The developers page playground (loaded by page.ts on devices with room for it): builds characters with the ara3d library itself, shows them in a three.js view and
  * writes the code that makes what you see. Changing the character, props or detail rebuilds it; animations and faces
  * change instantly, because the playground builds a set of popular clips once.
  */
@@ -7,8 +7,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ANIMATIONS, createCharacter, EXPRESSIONS, VEHICLE_CLIPS, MOUTH_SHAPES, PRESET_NAMES, PROPS, type AraCharacter, type CharacterColors, type CharacterOptions } from '../../packages/cli/src/index';
 import { encodeCharacter } from '../app/share';
-import { siteMenu } from '../landing/nav';
-siteMenu();
 
 const ASSETS = `${import.meta.env.BASE_URL}assets/`;
 /** Clips the playground builds once, so switching between them is instant. */
@@ -33,18 +31,6 @@ const options = (select: HTMLSelectElement, values: readonly string[], text = la
 options(preset, PRESET_NAMES, (v) => v);preset.value = 'The Soldier';
 options(weapon, ['none', ...PROPS.weapons]);options(carry, ['none', ...PROPS.carried]);
 options(vehicle, ['none', ...PROPS.vehicles.filter((v) => v !== 'auto')]);
-
-// --- Install tabs and copy buttons -----------------------------------------------------------------------------
-const INSTALL: Record<string, string> = { npm: 'npm install ara3d three', cli: 'npx ara3d export --preset "The Soldier"', mcp: 'claude mcp add ara3d -- npx -y ara3d mcp' };
-for (const tab of document.querySelectorAll<HTMLButtonElement>('[data-install]')) tab.onclick = () => {
-  for (const t of document.querySelectorAll('[data-install]')) t.setAttribute('aria-selected', String(t === tab));
-  $('#install-command').textContent = INSTALL[tab.dataset.install!];
-};
-for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) button.onclick = async () => {
-  await navigator.clipboard.writeText($(button.dataset.copy!).textContent ?? '');
-  button.dataset.copied = '';button.textContent = 'Copied';
-  setTimeout(() => { delete button.dataset.copied;button.textContent = 'Copy'; }, 1500);
-};
 
 // --- The 3D view -----------------------------------------------------------------------------------------------
 // Transparent, so the view's soft gradient shows behind the character.
@@ -355,25 +341,6 @@ $<HTMLButtonElement>('#pg-download').onclick = () => {
 };
 
 // The embed demos load when they come into view, after the playground's first character.
-const demo = $<HTMLDivElement>('#embed-demo');
-// Phones and low-memory devices play recordings of the demos (scripts/develop-clips.ts): with the playground running,
-// more live 3D views are more than they comfortably hold.
-const recorded = matchMedia('(max-width: 860px), (pointer: coarse)').matches || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
-if (recorded) {
-  for (const [i, el] of [...demo.querySelectorAll('ara-character')].entries()) {
-    const video = document.createElement('video');
-    Object.assign(video, { muted: true, loop: true, playsInline: true, autoplay: true, preload: 'none', className: 'dev-embed-video' });
-    video.src = `${import.meta.env.BASE_URL}media/develop/demo-${['priest', 'executive', 'random'][i]}.mp4`;
-    video.setAttribute('aria-label', 'A recording of this embed');
-    el.replaceWith(video);
-  }
-}
-for (const el of demo.querySelectorAll('ara-character')) el.setAttribute('assets-url', ASSETS);
-if (!recorded) new IntersectionObserver((entries, observer) => {
-  if (!entries.some((e) => e.isIntersecting)) return;
-  observer.disconnect();void import('../../packages/cli/src/embed');
-}, { rootMargin: '200px' }).observe(demo);
-
 let last = 0;
 renderer.setAnimationLoop((time) => {
   const delta = last ? Math.min((time - last) / 1000, 0.1) : 0;last = time;

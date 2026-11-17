@@ -53,10 +53,11 @@ try {
       await photo(`devx-${name}-${tab}`, await box('.devx'));
     }
     assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), `${name}: no sideways scroll`);
-    // Phones hold one live 3D character, the hero's; desktop has the Develop panel's too.
-    const live = await evaluate<number>("document.querySelectorAll('ara-character').length");
-    assert.equal(live, mobile ? 1 : 2, `${name}: ${live} live characters`);
-    console.log(`OK ${name}: four developer tabs, each ${mobile ? 'playing its recording' : 'building its own character'}; ${mobile ? 1 : 2} live 3D character${mobile ? '' : 's'}`);
+    // Phones have no live 3D at all; desktop has the hero's character and the Develop panel's.
+    const live = await evaluate<number>("document.querySelectorAll('ara-character, canvas').length");
+    assert.equal(live, mobile ? 0 : 2, `${name}: ${live} live 3D views`);
+    if (mobile) assert.ok(await evaluate("!document.querySelector('.hero-stage')"), 'no stage on a phone');
+    console.log(`OK ${name}: four developer tabs, each ${mobile ? 'playing its recording' : 'building its own character'}; ${mobile ? 'no live 3D' : 'the hero and Develop characters live'}`);
     await evaluate('scrollTo(0, 0)');await sleep(300);
     await photo(`top-${name}`, { x: 0, y: 0, width, height });
   }

@@ -121,13 +121,13 @@ try {
   await until("[...document.querySelectorAll('#embed-demo ara-character')].every((e) => e.character)", 'embed demos');await sleep(1500);
   await photo('embed-section', await box('#embed'));console.log('OK embed demos loaded');
   await photo('rest-desktop', { ...(await box('.dev-uses')), height: await evaluate<number>("document.querySelector('.footer').getBoundingClientRect().bottom + scrollY - document.querySelector('.dev-uses').getBoundingClientRect().top - scrollY") });
-  // A phone: no sideways scrolling, and the playground stacks with the view first.
+  // A phone: no live 3D at all (no playground, no live embeds) and no sideways scrolling.
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
-  await send('Page.reload');await until(ready, 'phone first character');await evaluate('scrollTo(0, 0)');await sleep(800);
+  await send('Page.reload');await sleep(2500);await evaluate('scrollTo(0, 0)');
+  assert.ok(await evaluate("!document.getElementById('playground') && !document.querySelector('canvas') && !document.querySelector('a[href=\"#playground\"]')"), 'no playground on a phone');
   assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), 'no sideways scroll on a phone');
+  console.log('OK phone: no playground and no live 3D');
   await photo('phone-top', { x: 0, y: 0, width: 390, height: 844 });
-  await evaluate("document.getElementById('playground').scrollIntoView()");await sleep(300);
-  await photo('phone-playground', await box('#playground'));
   await evaluate("document.getElementById('embed').scrollIntoView()");
   // A phone plays recordings of the demos instead of three more live 3D views.
   await until("document.querySelectorAll('#embed-demo ara-character').length === 0 && [...document.querySelectorAll('#embed-demo video')].length === 3 && [...document.querySelectorAll('#embed-demo video')].every((v) => v.readyState >= 2 && !v.paused)", 'phone embed recordings');await sleep(800);
