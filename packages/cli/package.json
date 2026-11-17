@@ -17,7 +17,7 @@
   },
   "types": "./dist/types/packages/cli/src/index.d.ts",
   "sideEffects": ["./dist/embed.js"],
-  "files": ["dist"],
+  "files": ["dist", "CHANGELOG.md"],
   "peerDependencies": { "three": ">=0.160.0" },
   "peerDependenciesMeta": { "three": { "optional": true } },
   "engines": { "node": ">=20" }

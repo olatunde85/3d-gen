@@ -1,0 +1,65 @@
+# Changelog
+
+Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
+
+## 0.7.1 — 2026-11-17
+
+- **Fixed:** an expression set with `hero.setExpression()` now holds while animations play. Before, the clip's own copy of the face replaced it at the clip's first blink.
+- Clips that move the face (laugh, talk, the hit reactions) add their movement on top of the expression in `hero.update(delta)`, so call it every frame after `mixer.update(delta)`. The GLB in `hero.glb` and from the command line keeps the full face animation.
+
+## 0.7.0 — 2026-11-17 (with ara3d-data 1.1.0)
+
+- **Faster loading:** the library downloads only the body shapes a character uses. The first character usually takes 2–4 MB instead of about 10 MB, and each different character after it adds well under 1 MB.
+- Low and medium detail use textures up to 1024 pixels across. High detail keeps the full-size ones.
+- ara3d-data 1.1.0 adds the web copy of the data these use (`assets/web/`). ara3d 0.7 needs ara3d-data 1.1 or later.
+
+## 0.6.0 — 2026-11-17
+
+- `hero.locomotion(mixer)` blends idle, walk and run by speed, with steps that keep pace with the ground.
+- `hero.lookAt(target)` turns the head and neck towards a point or an object. The embed gains `look-at="pointer"` and `look-at="camera"`.
+- `hero.lipSync(source)` moves the mouth with an `<audio>` or `<video>` element, a microphone or a Web Audio node.
+- Starter templates for three.js, React Three Fiber and plain HTML, each with a StackBlitz link.
+- Asking for the `texting` or `phone_call` clips brings the phone, unless a carried item is chosen. This applies to the library, embed, command line and MCP server.
+
+## 0.5.0 — 2026-11-17
+
+- Embed: the `clips` attribute loads extra clips, `playClip()` blends between them without rebuilding, and `snapshot()` and `restart()` were added.
+- Embed: a `margin` attribute for room around the character, a shade that follows a moving character, and framing based on the space the animations fill.
+- Embed: while loading, it shows a wireframe of a man or a woman to match the character, styleable as `::part(figure)` and `::part(status)`.
+
+## 0.4.0 — 2026-11-16
+
+- `ara3d mcp`: a Model Context Protocol server, so AI assistants can list presets, animations and props and build characters to GLB, FBX, OBJ or ZIP files. See the [MCP guide](https://ara3dgen.com/docs/mcp/).
+
+## 0.3.2 — 2026-11-16
+
+- Embed: a loading figure and progress line, and clearer error messages.
+- Data downloads that fail, stall or meet a busy server are retried up to four times.
+- Pages opened straight from disk explain that they need a web server.
+
+## 0.3.1 — 2026-11-16
+
+- **Fixed:** at low detail, skin no longer shows through coats and jackets as the character moves.
+
+## 0.3.0 — 2026-11-16
+
+- The `<ara-character>` embed: one script tag and one element put a live, animated character on any web page.
+- `hero.playSequence(mixer, "walk 3s, wave, cheer x2")` chains clips with blends between them. The embed's `animation` attribute takes the same lists.
+- `VEHICLE_CLIPS` lists the clip that shows each vehicle in use.
+
+## 0.2.0 — 2026-11-16 (with ara3d-data 1.0.0)
+
+- The browser library: `createCharacter()` builds rigged, animated three.js characters in a background worker, and `createCharacterGLB()` returns the GLB bytes. Types are included.
+- Accepts presets, random seeds, builder share links and character files.
+- Faces: `setExpression()`, `setMouth()`, `setFace()` and blinking.
+- `colors` recolours outfits, shoes, carried items and vehicles.
+- `PRESET_NAMES`, `ANIMATIONS` and `PROPS` lists.
+- ara3d-data 1.0.0: the character data, served by jsDelivr.
+
+## 0.1.0 — 2026-11-15
+
+- The `ara3d` command-line tool: `export`, `presets`, `animations`, `props`, `new` and `schema`.
+  - Characters from presets, seeds or `params.json` files, in GLB, FBX and OBJ.
+  - Choice of animations, root motion, per-clip files and props.
+- The character data downloads once on first run and is cached for offline use.
+- Published JSON schemas for character files and Studio films at `ara3dgen.com/schemas/`.

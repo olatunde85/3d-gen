@@ -55,4 +55,6 @@ The first run downloads the character data (about 50 MB) and caches it. Needs No
 - **In the browser:** random characters from a seed, characters designed in the [Ara builder](https://ara3dgen.com/app/) from their share link, new colours for clothes, bags and vehicles, and faces that change expression, blink and lip-sync (Oculus viseme names).
 - **Licence:** the code is MIT. Characters are built from CC0 MakeHuman data, with animations from the CMU Graphics Lab Motion Capture Database, so you can use them in commercial projects.
 
+What each release contains: [CHANGELOG.md](https://github.com/olatunde85/3d-gen/blob/main/packages/cli/CHANGELOG.md).
+
 Make characters in the browser at [ara3dgen.com](https://ara3dgen.com). Source: [github.com/olatunde85/3d-gen](https://github.com/olatunde85/3d-gen).
