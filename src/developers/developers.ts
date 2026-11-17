@@ -7,10 +7,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ANIMATIONS, createCharacter, EXPRESSIONS, VEHICLE_CLIPS, MOUTH_SHAPES, PRESET_NAMES, PROPS, type AraCharacter, type CharacterColors, type CharacterOptions } from '../../packages/cli/src/index';
 import { encodeCharacter } from '../app/share';
+import { siteMenu } from '../landing/nav';
+siteMenu();
 
 const ASSETS = `${import.meta.env.BASE_URL}assets/`;
 /** Clips the playground builds once, so switching between them is instant. */
-const PLAY = ['idle', 'walk', 'model_walk', 'run', 'jump', 'wave', 'cheer', 'dance_groove', 'dance_bounce', 'talk_gestures', 'phone_call', 'punch_combo', 'kick_roundhouse', 'rifle_idle', 'rifle_fire_auto', 'pistol_aim'];
+const PLAY = ['idle', 'walk', 'model_walk', 'run', 'jump', 'look_around', 'texting', 'vault_over', 'swim_freestyle', 'talk_gestures', 'phone_call', 'punch_combo', 'kick_roundhouse', 'rifle_idle', 'rifle_fire_auto', 'pistol_aim'];
 /** The riding clip that shows each vehicle in use. */
 const RIDE: Readonly<Record<string, string>> = VEHICLE_CLIPS;
 const clipName = new Map(ANIMATIONS.map((a) => [a.id, a.name]));
@@ -33,7 +35,7 @@ options(weapon, ['none', ...PROPS.weapons]);options(carry, ['none', ...PROPS.car
 options(vehicle, ['none', ...PROPS.vehicles.filter((v) => v !== 'auto')]);
 
 // --- Install tabs and copy buttons -----------------------------------------------------------------------------
-const INSTALL: Record<string, string> = { npm: 'npm install ara3d three', cli: 'npx ara3d export --preset "The Soldier"' };
+const INSTALL: Record<string, string> = { npm: 'npm install ara3d three', cli: 'npx ara3d export --preset "The Soldier"', mcp: 'claude mcp add ara3d -- npx -y ara3d mcp' };
 for (const tab of document.querySelectorAll<HTMLButtonElement>('[data-install]')) tab.onclick = () => {
   for (const t of document.querySelectorAll('[data-install]')) t.setAttribute('aria-selected', String(t === tab));
   $('#install-command').textContent = INSTALL[tab.dataset.install!];

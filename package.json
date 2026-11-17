@@ -39,6 +39,7 @@
     "test:library": "tsx scripts/library-check.ts",
     "test:embed": "tsx scripts/embed-check.ts",
     "test:mcp": "tsx scripts/mcp-check.ts",
+    "test:landing": "tsx scripts/landing-check.ts",
     "test:developers": "tsx scripts/developers-check.ts",
     "build-assets": "tsx scripts/build-assets.ts",
     "test:animations": "tsx scripts/animation-improvement-check.ts",

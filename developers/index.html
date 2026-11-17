@@ -16,33 +16,36 @@
     <meta property="og:description" content="createCharacter('The Soldier'): realistic, rigged, animated humans for three.js and your pipeline. Free and open source." />
     <meta property="og:image" content="https://ara3dgen.com/og.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#0f1116" />
+    <meta name="theme-color" content="#09090b" />
     <link rel="stylesheet" href="/src/landing/landing.css" />
     <link rel="stylesheet" href="/src/developers/developers.css" />
   </head>
   <body>
     <header class="nav">
       <a class="brand" href="../"><span class="brand-mark">Ara</span> 3D Gen</a>
-      <nav>
+      <nav id="site-nav" aria-label="Main">
         <a href="#playground">Playground</a>
         <a href="#embed">Embed</a>
         <a href="#cli">Command line</a>
+        <a href="#mcp">AI assistants</a>
         <a href="../docs/library/">Library docs</a>
         <a href="../docs/cli/">CLI docs</a>
         <a href="https://github.com/olatunde85/3d-gen">GitHub</a>
       </nav>
       <a class="btn btn-primary btn-sm" href="../app/">Open Builder</a>
+      <button type="button" class="nav-menu" aria-expanded="false" aria-controls="site-nav" aria-label="Menu"><span></span><span></span></button>
     </header>
 
     <main>
       <section class="dev-hero">
-        <p class="dev-eyebrow">ARA FOR DEVELOPERS</p>
+        <p class="dev-eyebrow">Ara for Developers</p>
         <h1>3D characters in <span class="grad">one line of code.</span></h1>
-        <p class="dev-lede">Realistic, rigged and animated humans, generated on your users' devices. A three.js library for your web app or game, and a command-line tool for your pipeline. Free and open source.</p>
+        <p class="dev-lede">Realistic, rigged and animated humans, generated on your users' devices. A three.js library for your web app or game, a command-line tool for your pipeline, and an MCP server for your AI assistant. Free and open source.</p>
         <div class="install" role="tablist" aria-label="Install">
           <div class="install-tabs">
             <button type="button" role="tab" aria-selected="true" data-install="npm">Library</button>
             <button type="button" role="tab" aria-selected="false" data-install="cli">Command line</button>
+            <button type="button" role="tab" aria-selected="false" data-install="mcp">AI assistant</button>
           </div>
           <div class="install-line"><code id="install-command">npm install ara3d three</code><button type="button" class="copy" data-copy="#install-command">Copy</button></div>
         </div>
@@ -58,7 +61,7 @@
 
       <section id="playground" class="playground" aria-label="Playground">
         <div class="pg-head">
-          <p class="dev-eyebrow">TRY IT LIVE</p>
+          <p class="dev-eyebrow">Try it live</p>
           <p>Change anything: it's rebuilt in your browser, and the code updates to match.</p>
         </div>
         <div class="pg-grid">
@@ -138,13 +141,13 @@
           <p>No build tools and no 3D code: paste two lines into plain HTML, WordPress, Webflow or any framework. In the builder, <b>Share</b> then <b>Copy embed code</b> gives you the tag for your own character.</p>
           <pre class="dev-terminal" aria-label="Embed code"><code>&lt;<span class="t">script</span> <span class="a">type</span>=<span class="s">"module"</span> <span class="a">src</span>=<span class="s">"https://cdn.jsdelivr.net/npm/ara3d@0/dist/embed.js"</span>&gt;&lt;/<span class="t">script</span>&gt;
 
-&lt;<span class="t">ara-character</span> <span class="a">preset</span>=<span class="s">"The Priest"</span> <span class="a">animation</span>=<span class="s">"walk 2s, wave, cheer"</span> <span class="a">expression</span>=<span class="s">"happy"</span>&gt;&lt;/<span class="t">ara-character</span>&gt;</code></pre>
+&lt;<span class="t">ara-character</span> <span class="a">preset</span>=<span class="s">"The Priest"</span> <span class="a">animation</span>=<span class="s">"walk 3s, look_around, talk_gestures"</span> <span class="a">expression</span>=<span class="s">"happy"</span>&gt;&lt;/<span class="t">ara-character</span>&gt;</code></pre>
           <a class="btn btn-ghost" href="../docs/embed/">Embed guide</a>
         </div>
         <div class="dev-embed-demo" id="embed-demo">
-          <ara-character preset="The Priest" animation="walk 2s, wave, cheer" expression="happy" detail="low"></ara-character>
+          <ara-character preset="The Priest" animation="walk 3s, look_around, talk_gestures" expression="happy" detail="low"></ara-character>
           <ara-character preset="The Female Executive" colors="outfit: #1d2a44; carry: #8a1c1c" animation="model_walk" detail="low"></ara-character>
-          <ara-character random="7" animation="dance_groove" expression="laughing" detail="low"></ara-character>
+          <ara-character random="7" animation="texting 4s, phone_call 4s" expression="happy" detail="low"></ara-character>
         </div>
       </section>
 
@@ -174,6 +177,27 @@
 <span class="p">$</span> npx ara3d new hero &amp;&amp; npx ara3d export --params hero.json --formats glb,fbx</code></pre>
       </section>
 
+      <section id="mcp" class="dev-cli dev-mcp" aria-labelledby="mcp-title">
+        <div>
+          <h2 id="mcp-title">Or just ask your AI assistant.</h2>
+          <p>Add Ara to Claude, Cursor or VS Code with one line, then ask for characters in plain words. The assistant designs them, builds them on your machine and hands back the files, with a link to keep editing in the builder.</p>
+          <div class="install-line mcp-line"><code id="mcp-command">claude mcp add ara3d -- npx -y ara3d mcp</code><button type="button" class="copy" data-copy="#mcp-command">Copy</button></div>
+          <a class="btn btn-ghost" href="../docs/mcp/">Setup for every assistant</a>
+        </div>
+        <pre class="dev-terminal dev-chat" aria-label="An example conversation"><code><span class="who">You</span>
+Make a cyberpunk hacker with a rifle, walking,
+as a GLB for my Godot game.
+
+<span class="who">Claude</span> <span class="c">· ara3d create_character</span>
+Made The Cyberpunk Hacker: 151 cm tall,
+44,660 triangles, 1 animation, in 1.5 s.
+
+  <span class="file">~/ara3d-characters/The_Cyberpunk_Hacker.glb</span>
+
+See it and keep editing in the Ara builder:
+<span class="c">https://ara3dgen.com/app/#c=…</span></code></pre>
+      </section>
+
       <section class="dev-next" aria-labelledby="next-title">
         <h2 id="next-title">Go further</h2>
         <div class="dev-next-grid">
@@ -197,9 +221,16 @@
     </dialog>
 
     <footer class="footer">
-      <div><b><span class="brand-mark">Ara</span> 3D Gen</b> · <i>Ara</i> is Yoruba for "body".</div>
-      <div>Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a></div>
-      <div><a href="../docs/">Docs</a> · <a href="https://github.com/olatunde85/3d-gen">GitHub</a> · <a href="../app/">Builder</a> · <a href="../studio/">Studio</a> · <a href="../play/">Play</a> · <a href="../terms/">Terms</a> · <a href="../privacy/">Privacy</a></div>
+      <div class="footer-brand">
+        <a class="brand" href="../"><span class="brand-mark">Ara</span> 3D Gen</a>
+        <p><i>Ara</i> is Yoruba for “body”.</p>
+      </div>
+      <nav class="footer-cols" aria-label="Footer">
+        <div><h3>Make</h3><a href="../app/">Builder</a><a href="../studio/">Studio</a><a href="../play/">Play</a></div>
+        <div><h3>Develop</h3><a href="./">Developers</a><a href="../docs/library/">Library</a><a href="../docs/embed/">Embed</a><a href="../docs/cli/">Command line</a><a href="../docs/mcp/">MCP</a></div>
+        <div><h3>Project</h3><a href="../docs/">Docs</a><a href="https://github.com/olatunde85/3d-gen">GitHub</a><a href="../terms/">Terms</a><a href="../privacy/">Privacy</a></div>
+      </nav>
+      <p class="footer-credits">Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a></p>
     </footer>
     <script type="module" src="/src/developers/developers.ts"></script>
   </body>

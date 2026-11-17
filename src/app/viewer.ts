@@ -58,7 +58,7 @@ export class Viewer {
     this.renderer.shadowMap.enabled = true;
     this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.toneMappingExposure = 1.1;
-    this.scene.background = new THREE.Color('#2b2f38');
+    this.scene.background = new THREE.Color('#18181b');
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.55;
@@ -77,11 +77,11 @@ export class Viewer {
 
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(4, 64).rotateX(-Math.PI / 2),
-      new THREE.MeshStandardMaterial({ color: '#363b46', roughness: 1 }),
+      new THREE.MeshStandardMaterial({ color: '#2a2a2f', roughness: 1 }),
     );
     ground.receiveShadow = true;
     this.scene.add(ground);
-    const grid = new THREE.GridHelper(8, 32, '#4c5262', '#3c414d');
+    const grid = new THREE.GridHelper(8, 32, '#45454d', '#35353c');
     (grid.material as THREE.Material).transparent = true;
     (grid.material as THREE.Material).opacity = 0.5;
     grid.position.y = 0.001;

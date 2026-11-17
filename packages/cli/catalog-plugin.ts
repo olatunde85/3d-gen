@@ -16,6 +16,8 @@ export function catalog(): Plugin {
     expressions: Object.fromEntries(EXPRESSIONS.map((e) => [e, EXPRESSION_WEIGHTS[e]])),
     faceShapes: FACE_SHAPE_NAMES,
     rides: VEHICLE_CLIP,
+    // Which presets are women, for the matching loading figure.
+    women: Object.entries(PRESETS).filter(([, p]) => (p.gender ?? 1) < 0.5).map(([name]) => name),
     props: { weapons: WEAPONS.filter((w) => w !== 'none'), carried: CARRIED.filter((c) => c !== 'none'), vehicles: VEHICLE_CHOICES.filter((v) => v !== 'none') },
   };
   return { name: 'ara-catalog', resolveId: (id) => (id === 'virtual:ara-catalog' ? '\0ara-catalog' : undefined), load: (id) => (id === '\0ara-catalog' ? `export default ${JSON.stringify(data)};` : undefined) };

@@ -5,7 +5,7 @@ Put a live, animated character on any web page with one script and one tag. It w
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/ara3d@0/dist/embed.js"></script>
 
-<ara-character preset="The Soldier" animation="wave" expression="happy"></ara-character>
+<ara-character preset="The Female Executive" animation="model_walk"></ara-character>
 ```
 
 The script includes three.js and the [ara3d library](library.md) (about 750 KB compressed), and the character data loads from jsDelivr. Visitors can drag to turn the character.
@@ -27,7 +27,7 @@ Use one of these:
 
 | Attribute | Example | |
 |---|---|---|
-| `animation` | `animation="dance_groove"` | The clip that plays (default `idle`), or several in a row, such as `walk 3s, wave, cheer` (see below). The [playground](https://ara3dgen.com/developers/#playground) lists all 216 with their IDs |
+| `animation` | `animation="texting"` | The clip that plays (default `idle`), or several in a row, such as `walk 3s, look_around, talk_gestures` (see below). The [playground](https://ara3dgen.com/developers/#playground) lists all 216 with their IDs |
 | `expression` | `expression="laughing"` | neutral, happy, laughing, angry, sad, crying, surprised, afraid or determined |
 | `weapon` | `weapon="rifle"` | rifle, pistol, sword, knife or grenade |
 | `carry` | `carry="briefcase"` | Something to carry; `none` takes away a preset's own bag |
@@ -45,14 +45,14 @@ Use one of these:
 List clips in `animation`, separated by commas, and they play one after another, blending into each other, then start again:
 
 ```html
-<ara-character preset="The Priest" animation="walk 3s, wave, cheer x2"></ara-character>
+<ara-character preset="The Adventurer" animation="run 2s, vault_over, run 2s, ledge_climb_up"></ara-character>
 ```
 
-A clip that loops (walk, idle, run) plays one cycle unless you give it a length, such as `walk 3s`. A one-off move (wave, jump, cheer) plays once, or as many times as you ask, such as `cheer x2`.
+A clip that loops (walk, idle, run) plays one cycle unless you give it a length, such as `walk 3s`. A one-off move (vault_over, jump, punch_combo) plays once, or as many times as you ask, such as `vault_over x2`.
 
 ## Updating
 
-While the first character loads, the element shows a quiet grey figure and a thin progress line. Change an attribute and the character updates. `expression` applies at once, and so does a new order of animations it has already loaded. A new character, props, colours or an animation it hasn't loaded rebuild it, which takes a second or two.
+While a character loads, the element shows a wireframe figure with a soft light passing over it, and it shows again whenever the character is rebuilt. Change an attribute and the character updates. `expression` applies at once, and so does a new order of animations it has already loaded. A new character, props, colours or an animation it hasn't loaded rebuild it, which takes a second or two.
 
 ## Size
 
@@ -72,7 +72,7 @@ const el = document.querySelector('ara-character');
 el.addEventListener('load', (event) => console.log('Ready:', event.detail.params.name));
 el.addEventListener('error', (event) => console.warn(event.detail.message));
 
-el.setAttribute('animation', 'cheer');
+el.setAttribute('animation', 'phone_call');
 el.character.setMouth('viseme_aa'); // the full library API, once loaded
 ```
 
@@ -87,4 +87,5 @@ With a bundler, `import 'ara3d/embed'` registers the element. TypeScript knows i
 - **Content-Security-Policy:** sites with a strict policy need to allow `https://cdn.jsdelivr.net` for scripts and connections, and `blob:` addresses for workers, images and connections.
 - **Phones:** a sideways swipe turns the character and an up-or-down swipe scrolls the page.
 - **Removing an element** frees its memory.
+- **Styling the loading figure:** it's exposed as `::part(figure)`, and the error message as `::part(status)`, for example `ara-character::part(status) { top: 12px; bottom: auto; }`.
 - **Testing on your computer:** open the page through a web server, such as `npx serve`, not by double-clicking the file. Browsers block the embed on pages opened as files, and it says so.
