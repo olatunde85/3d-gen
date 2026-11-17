@@ -2,6 +2,7 @@
 
 ```
 scripts/build-assets.ts   MakeHuman data -> public/assets (packs, textures, thumbnails, catalog.json)
+scripts/build-web-assets.ts  public/assets -> public/assets/web (one small file per body shape, 1024-px textures)
 scripts/build-mocap.ts    CMU motion capture -> src/core/anim/clips/mocap-data.ts
 scripts/build-docs.ts     docs/*.md -> dist/docs/ (these pages on the website)
 src/core/
@@ -28,7 +29,7 @@ src/landing/   the landing page
 
 ## How a character is built
 
-`buildHuman()` (`src/core/human.ts`) runs in a Web Worker in the app (`src/app/worker.ts`), and directly in Node for the command line and tests:
+`buildHuman()` (`src/core/human.ts`) runs in a Web Worker in the app (`src/app/worker.ts`), and directly in Node for the command line and tests. In the browser (the builder, Studio, Play and the ara3d library), the worker downloads only the body shapes each character uses, from `assets/web/`, before building it; Node reads the full `targets.pack`.
 
 1. Morph the base mesh from the parameters: macro controls plus detail sliders.
 2. Fit the proxies (eyes, brows, lashes, teeth, tongue, hair, outfits, shoes) and grow or wrap the procedural garments.
