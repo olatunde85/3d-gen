@@ -7,13 +7,13 @@
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
 import type { Material } from '../mesh';
-import { cm, noise3, REGION } from './body';
+import { cm, noise3, REGION, type Body, type VInfo } from './body';
 import {
   beads, briefsUnder, clamp, cloth, footSole, hplane, isTrunk, isUpper, leatherStyle, limbBand, limbRing, mat, points, ringAt, shell, shellPart,
   skirt, strapPlane, strapPoints, torsoY, GOLD, STEEL, Y, Z, type GarmentDef, type GarmentStyle, type GCtx, type GPart,
 } from './kit';
 import { along, card, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, roundedBox, solidBand, v3, type Plane } from './ring';
-import { buildShell } from './shell';
+import { buildShell, cutShell } from './shell';
 import { featherTexture, makePattern, palette, type Pattern } from './textures';
 import { BAGS } from './bags';
 import { BEACH, SLIDES } from './beach';
@@ -75,6 +75,46 @@ function uniformShirt(g: GCtx, st: GarmentStyle, long: boolean): GPart[] {
   ];
 }
 
+/**
+ * The shape of a sleeveless top or vest, as a field for cutShell (positive on the cloth): from `hem` (torso height,
+ * 0 at the hips and 1 at the neck) up to the chest line, with straps over the shoulders above it, and an armhole round
+ * each shoulder joint. All the lines are smooth, so the edges are clean at every detail level, and the armholes stop at
+ * the straps' outer edges instead of biting into them.
+ *   chest: the chest line's height at the sides; scoop: how much lower it dips in the middle of the neckline.
+ *   strap: the straps' middle and half-width, as fractions of the shoulder joint's distance from the midline.
+ */
+function upperField(b: Body, o: { hem: number; chest: number; scoop?: number; strap: [number, number] }) {
+  const sx = b.L.shoulderX, H = b.L.neckY - b.L.hipY, [mid, half] = o.strap;
+  const shoulder = { 1: b.joint('upperarm01.L____head'), [-1]: b.joint('upperarm01.R____head') } as Record<number, Vec3>;
+  const smax = (a: number, c: number, k: number) => Math.max(a, c) + k * Math.log1p(Math.exp(-Math.abs(a - c) / k));
+  const smin = (a: number, c: number, k: number) => -smax(-a, -c, k);
+  // The armhole's half-width: from the joint in to the strap's outer edge.
+  const rx = Math.max(0.25, 1 - mid - half) * sx;
+  return (v: VInfo, p: Vec3) => {
+    // Shape alone decides over the shoulders, where the body's region borders zigzag; the arm beyond the straps and the
+    // head get no cloth.
+    if (!(isTrunk(v) || v.region === REGION.neck || (v.region === REGION.upperarm && v.t < 0.3 && v.ax < (mid + half + 0.12) * sx))) return -1;
+    const hem = (v.tt - o.hem) * H;
+    // Armhole: an oval round the shoulder joint, down to just below the armpit and deep front to back.
+    const j = shoulder[p[0] >= 0 ? 1 : -1];
+    const arm = (Math.hypot((p[0] - j[0]) / rx, (p[1] - (j[1] - 0.25 * sx)) / (0.6 * sx), (p[2] - j[2]) / (0.5 * sx)) - 1) * 0.4 * sx;
+    // Above the chest line only the straps, which meet it in rounded corners.
+    const chest = o.chest - (o.scoop ?? 0) * (1 - Math.min(1, (v.ax / (0.45 * sx)) ** 2));
+    const top = smax((chest - v.tt) * H, half * sx - Math.abs(v.ax - mid * sx), cm(2));
+    return Math.min(hem, smin(arm, top, cm(1.5)));
+  };
+}
+
+/** Tank top: straps that sit in toward the neck, so raising the arms doesn't drag the shoulder's skin over them. */
+function tankTop(g: GCtx, st: GarmentStyle): GPart[] {
+  const r = cutShell(g.body, g.faceVerts, {
+    field: upperField(g.body, { hem: 0.16, chest: 0.76, scoop: 0.07, strap: [0.52, 0.13] }),
+    // Close-fitting on the body; the straps stand a little clear, over the skin that bunches up when the arms rise.
+    offset: (v) => cm(0.5) + cm(0.5) * clamp((v.tt - 0.66) / 0.1, 0, 1), tile: 0.2, relax: 4,
+  });
+  return r ? [{ mesh: r.mesh, material: cloth(g, 'Tank top', st), hides: r.covered, smooth: true }] : [];
+}
+
 // --- Garments ---------------------------------------------------------------------
 
 
@@ -82,14 +122,7 @@ export const GARMENTS: GarmentDef[] = [
   // ---------------- Tops
   {
     id: 'tank_top', label: 'Tank top', slot: 'top', patterns: ['solid', 'khaki', 'camo', 'tattered'], color: '#3f6b5a', color2: '#2a2a2a',
-    build: (g, st) => {
-      const sx = g.body.L.shoulderX;
-      return shellPart(g, {
-        // Body up to the chest line, plus two straps over the shoulders.
-        covers: (v) => isUpper(v) && v.tt >= 0.16 && (v.tt < 0.74 || Math.abs(v.ax - 0.6 * sx) < 0.2 * sx),
-        offset: cm(0.5), tile: 0.2, relax: 4,
-      }, cloth(g, 'Tank top', st));
-    },
+    build: (g, st) => tankTop(g, st),
   },
   {
     id: 'fatigue_shirt', label: 'Fatigue shirt', slot: 'top', patterns: ['camo', 'solid', 'khaki'], color: '#5b6b3a', color2: '#8a7d55',
@@ -380,10 +413,7 @@ export const GARMENTS: GarmentDef[] = [
     build: (g, st) => {
       const off = g.layered.top ? cm(2.4) : cm(1.2);
       const m = cloth(g, 'Leather armor', st, { roughness: 0.5 });
-      const chest = shell(g, {
-        covers: (v) => isUpper(v) && v.tt >= 0.42 && (v.tt < 0.76 || Math.abs(v.ax - 0.62 * g.body.L.shoulderX) < 0.2 * g.body.L.shoulderX),
-        offset: off, tile: 0.25, relax: 6,
-      });
+      const chest = cutShell(g.body, g.faceVerts, { field: upperField(g.body, { hem: 0.42, chest: 0.76, strap: [0.62, 0.2] }), offset: off, tile: 0.25, relax: 6 });
       const pauldron = shell(g, {
         covers: (v) => v.side > 0 && ((v.region === REGION.upperarm && v.t < 0.42) || (v.region === REGION.torso && v.t > 0.86 && Math.abs(v.theta) > 0.9 && Math.abs(v.theta) < 2.2)),
         offset: off + cm(1.2), tile: 0.2,
@@ -399,11 +429,8 @@ export const GARMENTS: GarmentDef[] = [
     build: (g, st) => {
       const b = g.body;
       const m = cloth(g, 'Tactical vest', st, { roughness: 0.8 });
-      const vest = shell(g, {
-        // Broaden the upper shoulder webbing so it overlaps the chest panel instead of leaving a gap.
-        covers: (v) => isUpper(v) && v.tt >= 0.2 && (v.tt < 0.76 || Math.abs(v.ax - 0.62 * b.L.shoulderX) < 0.3 * b.L.shoulderX),
-        offset: cm(2.4), tile: 0.3, relax: 8,
-      });
+      // Broad shoulder webbing, running on from the chest panel.
+      const vest = cutShell(b, g.faceVerts, { field: upperField(b, { hem: 0.2, chest: 0.76, strap: [0.62, 0.3] }), offset: cm(2.4), tile: 0.3, relax: 8 });
       const pouches: PolyMesh[] = [];
       for (const [t, angles] of [[0.42, [-0.5, 0, 0.5]], [0.32, [-1.5, 1.5]]] as const) {
         const ring = hullRing(points(b, isTrunk), hplane(b, torsoY(b, t)), { slab: cm(2.5), samples: 64, offset: cm(4.2) });
@@ -422,10 +449,7 @@ export const GARMENTS: GarmentDef[] = [
     id: 'reflective_vest', label: 'Reflective vest (hi-vis)', slot: 'acc', patterns: ['solid'], color: '#c6e82a', color2: '#d9dee4',
     build: (g, st) => {
       const b = g.body;
-      const vest = shell(g, {
-        covers: (v) => isUpper(v) && v.tt >= 0.22 && (v.tt < 0.72 || Math.abs(v.ax - 0.62 * b.L.shoulderX) < 0.2 * b.L.shoulderX),
-        offset: cm(1.8), tile: 0.3, relax: 8,
-      });
+      const vest = cutShell(b, g.faceVerts, { field: upperField(b, { hem: 0.22, chest: 0.72, strap: [0.62, 0.2] }), offset: cm(1.8), tile: 0.3, relax: 8 });
       // Two reflective bands around the body.
       const trunk = points(b, isTrunk);
       const bands = [0.4, 0.58].map((t) => solidBand(trunk, hplane(b, torsoY(b, t)), cm(4.5), cm(0.15), cm(1.95), { samples: 72, slab: cm(2) }));
