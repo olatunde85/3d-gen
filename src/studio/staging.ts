@@ -1,9 +1,10 @@
 /** Cast operations share one limit and deterministic, non-overlapping starting arrangements. */
 import type {Detail} from '../core/params';
-import { CAST, MAX_ACTORS, beat, durationOf, newActor, presetCode, type ActorTrack, type StudioProject } from './project';
-export const ARRANGEMENTS=['side','conversation','opposed'] as const;
+import { CAST, MAX_ACTIONS, MAX_ACTORS, MAX_DURATION, beat, durationOf, newActor, presetCode, trackDuration, type ActorTrack, type StudioProject } from './project';
+import { handshake, PAIRS } from '../core/anim/clips/partners';
+export const ARRANGEMENTS=['side','conversation','opposed','handshake'] as const;
 export type Arrangement=typeof ARRANGEMENTS[number];
-export const ARRANGEMENT_LABELS:Record<Arrangement,string>={side:'Side by side',conversation:'Conversation',opposed:'Facing each other'};
+export const ARRANGEMENT_LABELS:Record<Arrangement,string>={side:'Side by side',conversation:'Conversation',opposed:'Facing each other',handshake:'Handshake'};
 export function addCastActor(project:StudioProject,custom?:{code:string;detail:Detail}):ActorTrack|undefined{
   if(project.actors.length>=MAX_ACTORS)return;
   const id=Array.from({length:MAX_ACTORS},(_,i)=>`actor-${String.fromCharCode(97+i)}`).find(id=>!project.actors.some(a=>a.id===id))!;
@@ -19,12 +20,39 @@ export function addCastActor(project:StudioProject,custom?:{code:string;detail:D
 }
 export function arrangeCast(actors:ActorTrack[],kind:Arrangement){
   if(actors.length!==2)return;
+  if(kind==='handshake'){
+    // Face to face along X at the handshake spacing, each a little to the other's right so the right hands meet.
+    const {x,z}=PAIRS.handshake;
+    for(const [i,actor]of actors.entries()){const s=i?1:-1;actor.x=round(s*z/2);actor.y=0;actor.z=round(-s*x/2);actor.yaw=i?-90:90;}
+    return;
+  }
   for(const [i,actor]of actors.entries()){
     actor.x=i?.95:-.95;actor.y=0;actor.z=0;
     actor.yaw=kind==='side'?0:(i?-1:1)*(kind==='opposed'?90:35);
   }
 }
 const round=(n:number)=>Math.round(n*1000)/1000;
+
+/**
+ * Ends both timelines with a handshake that starts at the same moment: the shorter timeline waits in idle first. Both
+ * already ending with a handshake at the same moment leaves them as they are.
+ */
+export function addHandshake(actors:ActorTrack[]){
+  if(actors.length!==2)return;
+  const ends=actors.map(trackDuration),last=actors.map(a=>a.beats[a.beats.length-1]);
+  if(last.every(b=>b?.clip==='handshake')&&Math.abs(ends[0]-ends[1])<.01)return;
+  const start=Math.max(...ends),length=handshake.duration;
+  for(const [i,actor]of actors.entries()){
+    const wait=start-ends[i],added=1+(wait>.05?1:0);
+    if(actor.beats.length+added>MAX_ACTIONS)throw Error(`Make room for the handshake: a character can have up to ${MAX_ACTIONS} actions.`);
+    if(start+length>MAX_DURATION)throw Error(`Make room for the handshake: a film can be up to ${MAX_DURATION} seconds.`);
+  }
+  for(const [i,actor]of actors.entries()){
+    const wait=start-ends[i];
+    if(wait>.05)actor.beats.push(beat('idle',round(wait)));
+    actor.beats.push(beat('handshake',length));
+  }
+}
 
 /** Infer the actual placement, so edits/Undo/reloads never display a stale arrangement. */
 export function castArrangement(actors:ActorTrack[]):Arrangement|''{

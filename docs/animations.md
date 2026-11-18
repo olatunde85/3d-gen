@@ -1,6 +1,6 @@
 # Animations
 
-There are 216 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 218 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -10,9 +10,9 @@ There are 216 clips. The character loads playing **Idle**. The animation bar at 
 | Actions | Jump, Fall, Hit reaction; Jump start, Jump (in air) (loop), Jump land and Running jump for engine character controllers; Forward roll, Side dodge left/right; Running slide, Stumble and recover |
 | Combat | Fighting stance (loop), Punch, Low punch, Punch combo (jab, cross, hook), Front kick, Roundhouse kick, Block (unarmed); Sword idle (guard) (loop), Sword slash, Sword block, Sword combo (three cuts), Sword thrust; Shot in the head, Shot in the chest, Shot in the back, Shot in the stomach, Shot in the leg, Shot in the arm |
 | Reactions | Hit from front / back / left / right, Knockdown, Death (fall forward / backward), Get up (from back / front) |
-| Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push; Carry idle, Carry walk, Head-load idle, Head-load walk (loops) |
+| Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push, Handshake (two people); Carry idle, Carry walk, Head-load idle, Head-load walk (loops) |
 | Everyday | Talk with gestures, Phone call, Texting, Lean on wall, Look around, Sweep (loops) |
-| Emotes | Wave, Cheer, Laugh, Talk, Cry, Clap, Dance (groove), Dance (party bounce) (loops); Point, Thumbs up, Bow |
+| Emotes | Wave, Cheer, Laugh, Laugh hard, Talk, Cry, Clap, Dance (groove), Dance (party bounce) (loops); Point, Thumbs up, Bow |
 | Sitting & lying | Sit down, Sit idle, Stand up (on a chair); Lie down, Sleep (on the back) |
 | Swimming | Tread water, Swim forward (front crawl), Swim breaststroke, Swim backstroke (loops); Dive into water, Climb out of water |
 | Climbing | Climb ladder up / down, Ledge hang (loops); Vault over obstacle, Climb up ledge |
@@ -68,7 +68,11 @@ Interaction hands use chest-space IK; the pickup reach uses floor-space targets 
 
 **Talk with gestures**, **Phone call**, **Texting**, **Look around** and **Sweep** are loops for background characters. In **Phone call** the character talks in two bursts, with the mouth moving and the free hand gesturing, and listens in between. **Lean on wall** folds the arms, rests one foot on the wall and expects a wall about 20 cm behind the heels.
 
-**Clap**, **Dance (groove)** (a step-touch at 120 bpm) and **Dance (party bounce)** (alternating raised hands) loop. **Point** and **Thumbs up** raise the hand and hold; **Bow** goes down and back up. Wave keeps the head and eyes facing forward. Laugh loops every 4.8 seconds with matching facial timing.
+**Clap**, **Dance (groove)** (a step-touch at 120 bpm) and **Dance (party bounce)** (alternating raised hands) loop. **Point** and **Thumbs up** raise the hand and hold; **Bow** goes down and back up. Wave keeps the head and eyes facing forward. Cheer raises the fists to head height once every 0.8 seconds, with a soft bounce in the knees. Laugh loops every 4.8 seconds in two bouts that fade into a breath, with matching facial timing; **Laugh hard** is motion-captured, a bigger laugh that leans back and doubles over.
+
+## Two people
+
+**Handshake** is played by both characters at once, standing face to face 75 cm apart, each a little to the other's right so the right hands meet; they reach in, shake three times and let go (2.6 seconds). In Studio, **Stage the cast → Handshake** places the two and ends both timelines with the handshake, starting together. Elsewhere, stand the second character 0.75 m in front of the first and 0.1 m to their right, turned to face them (at 1.8 m height; scale with the characters), and start both clips together. The hands meet for characters of similar height.
 
 ## Swimming
 

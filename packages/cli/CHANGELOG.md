@@ -2,6 +2,14 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.9.0 — 2026-11-18
+
+- **Handshake:** a two-person clip. Both characters play it, standing face to face 0.75 m apart, each 0.1 m to the other's right; their right hands meet, shake three times and let go. See [Two people](https://ara3dgen.com/docs/animations/) in the animations guide.
+- **Laugh hard:** a new motion-captured laugh that leans back and doubles over.
+- **Cheer** raises the fists to head height once every 0.8 seconds with a soft bounce, instead of fast double pumps and hops.
+- **Laugh** is smoother: two bouts of rounded laughs that fade into a breath, with a slow sway.
+- 218 animations in all.
+
 ## 0.8.0 — 2026-11-18
 
 - **Films and games for AI assistants:** `ara3d mcp` gains `film_guide`, `create_film`, `game_guide` and `create_game`. An assistant writes an Ara Studio film or an Ara Play game; the tools check it as Studio and Play do, save it, and return a link that opens it. The guides come in topics, so each answer fits what assistants accept. See the [MCP guide](https://ara3dgen.com/docs/mcp/).

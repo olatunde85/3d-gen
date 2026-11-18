@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # A fixed version: the same character files always build the same models. Raise it to update.
-      ARA3D_VERSION: 0.8.0
+      ARA3D_VERSION: 0.9.0
       ARA3D_CACHE: ${{ github.workspace }}/.ara3d-cache
     steps:
       - uses: actions/checkout@v4
