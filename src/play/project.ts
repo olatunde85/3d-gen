@@ -74,7 +74,7 @@ export function arcadeSettings(p:{mode?:unknown;race?:unknown;runner?:unknown},e
 export function parseProject(text:string,catalog:Catalog,validateCampaignLinks=true):PlayProject {
  if(text.length>512_000)throw Error('Choose a setup smaller than 512 KB.');const p=JSON.parse(text);
  if(!p||p.kind!=='ara-play'||![1,2].includes(p.version)||p.template!=='escape-depot')throw Error('Choose an Ara Play game setup (version 1 or 2).');
- const allowed=p.version===1?['kind','version','template','story','identity','difficulty','character','enemy','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch']:['kind','version','template','mode','race','runner','story','identity','difficulty','character','enemies','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch','poses','theme','gameName','howToPlay'];
+ const allowed=p.version===1?['kind','version','template','story','identity','difficulty','character','enemy','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch']:['$schema','kind','version','template','mode','race','runner','story','identity','difficulty','character','enemies','mission','loadout','companion','progression','camera','music','vehicle','city','chapters','branch','poses','theme','gameName','howToPlay'];
  for(const key of Object.keys(p))if(!allowed.includes(key))throw Error(`Unsupported game setting: ${key}.`);
  // Older recipes split pursuit speed from aggression. Keep imports compatible,
  // but use one explicit aggression profile for new setups and live gameplay.

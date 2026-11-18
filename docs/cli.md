@@ -17,7 +17,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `ara3d animations` | Lists the 216 animation clips by group |
 | `ara3d props` | Lists the weapons, carried items and vehicles |
 | `ara3d new <name> [--preset P]` | Writes a starter character file to edit |
-| `ara3d schema [character\|film]` | Prints a JSON schema, for editors and AI tools |
+| `ara3d schema [character\|film\|game]` | Prints a JSON schema, for editors and AI tools |
 | `ara3d --help`, `ara3d --version` | Help and the installed version |
 
 ### Export options
@@ -105,8 +105,9 @@ The schemas are published at [ara3dgen.com/schemas/](https://ara3dgen.com/schema
 
 - `character.v1.json`: a character, as used by `--params`, the builder's LLM Assist and Ara Play casts
 - `studio-film.v2.json`: an Ara 3D Studio film
+- `play-game.v2.json`: an Ara Play game (`.ara-play.json`)
 
-`ara3d schema character` prints the schema for the installed version, with no network needed after the first run.
+`ara3d schema character` (or `film`, or `game`) prints the schema for the installed version, with no network needed after the first run. A file can name its schema in a `"$schema"` field, so editors check it and suggest values as you type.
 
 ## Settings
 

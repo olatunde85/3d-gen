@@ -10,6 +10,7 @@ import { CLIPS } from '../../../src/core/anim/clips';
 import { animationGroup } from '../../../src/core/anim/groups';
 import { characterExample, characterSchema, parseCharacterInput } from '../../../src/app/character-assist';
 import { assistSchema } from '../../../src/studio/assist';
+import { playSchema } from '../../../src/play/schema';
 import { loadLibrary } from './data';
 import { mcpCommand } from './mcp';
 import { needsPhone } from './library/generate';
@@ -30,7 +31,7 @@ Usage
   ara3d animations                List the animation clips and their groups
   ara3d props                     List the weapons, carried items and vehicles
   ara3d new <name> [--preset P]   Write a starter character file to edit
-  ara3d schema [character|film]   Print a JSON schema (for editors and AI tools)
+  ara3d schema [character|film|game]  Print a JSON schema (for editors and AI tools)
   ara3d mcp                       Run as an MCP server, so AI assistants can make characters
                                   (Claude Code: claude mcp add ara3d -- npx -y ara3d mcp)
 
@@ -200,9 +201,9 @@ function newCommand(args: string[]) {
 
 async function schemaCommand(args: string[]) {
   const which = args[0] ?? 'character';
-  if (which !== 'character' && which !== 'film') throw new UserError('ara3d schema takes character or film.');
+  if (which !== 'character' && which !== 'film' && which !== 'game') throw new UserError('ara3d schema takes character, film or game.');
   const { catalog } = await loadLibrary();finish();
-  console.log(JSON.stringify(which === 'character' ? characterSchema(catalog) : assistSchema(catalog), null, 2));
+  console.log(JSON.stringify(which === 'character' ? characterSchema(catalog) : which === 'film' ? assistSchema(catalog) : playSchema(catalog), null, 2));
 }
 
 async function main(argv: string[]) {
