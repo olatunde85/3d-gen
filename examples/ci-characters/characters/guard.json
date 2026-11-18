@@ -1,0 +1,10 @@
+{
+  "$schema": "https://ara3dgen.com/schemas/character.v1.json",
+  "kind": "ara-character",
+  "version": 1,
+  "preset": "The Soldier",
+  "params": {
+    "name": "Gate guard",
+    "expression": "determined"
+  }
+}

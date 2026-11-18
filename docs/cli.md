@@ -99,6 +99,24 @@ npx ara3d export --all-presets --out presets
 
 Keep the small character files in version control and rebuild the models when needed. A change to a character is a one-line change that's easy to review.
 
+## Building characters in CI
+
+A build server can make the models from the character files, so the repository holds a few hundred bytes per character instead of megabytes of 3D files. [`.github/workflows/characters.yml`](https://github.com/olatunde85/3d-gen/blob/main/.github/workflows/characters.yml) is a GitHub Actions workflow to copy: it builds every file in [`examples/ci-characters/characters/`](https://github.com/olatunde85/3d-gen/tree/main/examples/ci-characters) and attaches the models to the run as a download. The heart of it:
+
+```yaml
+env:
+  ARA3D_VERSION: 0.8.0                          # a fixed version: the same files always build the same models
+  ARA3D_CACHE: ${{ github.workspace }}/.ara3d-cache
+steps:
+  - uses: actions/cache@v4                      # keeps the 50 MB character data between runs
+    with: { path: .ara3d-cache, key: ara3d-data-${{ env.ARA3D_VERSION }} }
+  - run: npx -y "ara3d@$ARA3D_VERSION" export --params characters/hero.json --formats glb,fbx --animations idle,walk,run --out characters
+```
+
+- **When it runs:** the workflow starts by hand from the Actions tab, with a form for formats, detail and animations. Add a `push` trigger with `paths` to build whenever a character file changes.
+- **Speed:** the first run downloads the character data (about 50 MB); later runs of the same version reuse the cache, and two characters take a few seconds.
+- **Other CI services:** the same `npx` command runs anywhere with Node 20 or newer; cache the `ARA3D_CACHE` folder the way the service caches other downloads.
+
 ## Schemas
 
 The schemas are published at [ara3dgen.com/schemas/](https://ara3dgen.com/schemas/index.json) and generated from the same catalogues as the apps:
