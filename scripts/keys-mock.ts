@@ -128,6 +128,13 @@ async function answer(provider: string, path: string, req: IncomingMessage, res:
       }
       return res.end();
     }
+    if (path === '/interactions') {
+      const item = body?.input?.[0]?.content?.[0], voice = body?.generation_config?.speech_config?.[0]?.voice;
+      if (!item?.text || !voice || body?.response_format?.type !== 'audio') return json(res, 400, { error: { code: 'invalid_request', message: 'Bad speech request.' } });
+      const pcm = sine(1.1), head = Buffer.alloc(44);
+      head.write('RIFF', 0); head.writeUInt32LE(36 + pcm.length, 4); head.write('WAVE', 8); head.write('fmt ', 12); head.writeUInt32LE(16, 16); head.writeUInt16LE(1, 20); head.writeUInt16LE(1, 22); head.writeUInt32LE(24000, 24); head.writeUInt32LE(48000, 28); head.writeUInt16LE(2, 32); head.writeUInt16LE(16, 34); head.write('data', 36); head.writeUInt32LE(pcm.length, 40);
+      return json(res, 200, { id: 'int_mock', status: 'completed', steps: [{ type: 'user_input' }, { type: 'model_output', content: [{ type: 'audio', data: Buffer.concat([head, pcm]).toString('base64') }] }] });
+    }
     if (path.includes(':generateContent')) {
       if (scenario === 'quota') return e(429, 'RESOURCE_EXHAUSTED', 'Quota exceeded for metric: generate_content_free_tier_requests, per day.');
       const voice = body?.generationConfig?.speechConfig?.voiceConfig?.prebuiltVoiceConfig?.voiceName;

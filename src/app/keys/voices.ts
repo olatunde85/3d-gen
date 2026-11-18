@@ -3,7 +3,7 @@
  * is named "F1" … "M2" for Ara's, or "provider/voice" (such as "gemini/Kore" or "elevenlabs/<voice id>").
  */
 import { call, PROVIDERS, type ProviderId } from './providers';
-import { keySettings } from './store';
+import { keySettings, type SavedKey } from './store';
 import { ProviderError } from './http';
 
 export interface Voice { id: string; name: string; detail?: string; gender?: 'female' | 'male'; preview?: string }
@@ -168,9 +168,17 @@ async function geminiModel(signal?: AbortSignal) {
 }
 async function speakGemini(voice: string, text: string, delivery: string | undefined, signal?: AbortSignal): Promise<Spoken> {
   const saved = keySettings().keys.gemini!, model = await geminiModel(signal);
-  const words = delivery ? `Say this ${delivery}: ${text}` : text;
+  // Gemini's speech models read the text word for word, so direction goes in its own style field (Interactions API).
+  if (delivery) {
+    try { return await speakGeminiStyled(saved, model, voice, text, delivery, signal); }
+    catch (error) {
+      const e = error as ProviderError;
+      // Only a request Gemini doesn't understand falls back, to the line spoken plainly; key and allowance problems stand.
+      if (e.problem !== 'other' && e.problem !== 'model') throw error;
+    }
+  }
   const res = await call('gemini', saved, `/models/${encodeURIComponent(model)}:generateContent`, { signal, body: {
-    contents: [{ role: 'user', parts: [{ text: words }] }],
+    contents: [{ role: 'user', parts: [{ text }] }],
     generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
   } });
   const j = await res.json();
@@ -179,10 +187,43 @@ async function speakGemini(voice: string, text: string, delivery: string | undef
     const why = j.promptFeedback?.blockReason ?? j.candidates?.[0]?.finishReason;
     throw new ProviderError(why && why !== 'STOP' ? 'Gemini declined to speak this line. Try rewording it.' : 'Gemini sent no audio for this line. Try again.', why ? 'refused' : 'other');
   }
-  const mime: string = part.inlineData.mimeType ?? '', bytes = fromBase64(part.inlineData.data);
-  if (/wav|mpeg|mp3|ogg/.test(mime)) return { ...(await decode(bytes)), model: `gemini/${model}` };
-  const rate = Number(/rate=(\d+)/.exec(mime)?.[1] ?? 24000);
-  return { samples: pcm16(bytes), sampleRate: rate, model: `gemini/${model}` };
+  return { ...(await audioFrom(fromBase64(part.inlineData.data), part.inlineData.mimeType ?? '')), model: `gemini/${model}` };
+}
+/** A line with direction: the words in text, the direction in a speech_metadata style annotation. */
+async function speakGeminiStyled(saved: SavedKey, model: string, voice: string, text: string, style: string, signal?: AbortSignal): Promise<Spoken> {
+  const res = await call('gemini', saved, '/interactions', { signal, body: {
+    model,
+    input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] }] }],
+    response_format: { type: 'audio' },
+    generation_config: { speech_config: [{ voice }] },
+  } });
+  const j = await res.json();
+  const audio = (j.steps ?? []).filter((s: { type?: string }) => s.type === 'model_output').flatMap((s: { content?: { type?: string; data?: string; mime_type?: string }[] }) => s.content ?? []).filter((c: { type?: string; data?: string }) => c.type === 'audio' && c.data).pop();
+  if (!audio) throw new ProviderError('Gemini sent no audio for this line. Try again.', 'other');
+  return { ...(await audioFrom(fromBase64(audio.data), audio.mime_type ?? '')), model: `gemini/${model}` };
+}
+/** A 16-bit PCM WAV, read chunk by chunk (mono, or the first channel); undefined for anything else. */
+function pcmWav(bytes: Uint8Array): { samples: Float32Array; sampleRate: number } | undefined {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), tag = (at: number) => String.fromCharCode(...bytes.slice(at, at + 4));
+  let rate = 0, channels = 1, bits = 0;
+  for (let at = 12; at + 8 <= bytes.length;) {
+    const id = tag(at), size = view.getUint32(at + 4, true), body = at + 8;
+    if (id === 'fmt ') { if (view.getUint16(body, true) !== 1) return; channels = view.getUint16(body + 2, true); rate = view.getUint32(body + 4, true); bits = view.getUint16(body + 14, true); }
+    else if (id === 'data' && rate && bits === 16) {
+      // Streamed WAVs can give a placeholder size; read what's there.
+      const end = Math.min(bytes.length, size && size !== 0xffffffff ? body + size : bytes.length), frames = Math.floor((end - body) / (2 * channels)), out = new Float32Array(frames);
+      for (let i = 0; i < frames; i++) out[i] = view.getInt16(body + i * 2 * channels, true) / 32768;
+      return { samples: out, sampleRate: rate };
+    }
+    at = body + size + (size & 1);
+  }
+}
+/** WAV (or another container) is decoded; headerless 16-bit PCM is read directly at its stated rate. */
+async function audioFrom(bytes: Uint8Array, mime: string) {
+  const riff = bytes.length > 44 && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF';
+  if (riff) { const wav = pcmWav(bytes); if (wav) return wav; }
+  if (riff || /wav|mpeg|mp3|ogg/.test(mime)) return decode(bytes);
+  return { samples: pcm16(bytes), sampleRate: Number(/rate=(\d+)/.exec(mime)?.[1] ?? 24000) };
 }
 
 /** Speaks a line with a provider's voice. */

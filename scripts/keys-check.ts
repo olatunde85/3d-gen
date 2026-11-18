@@ -195,12 +195,18 @@ await check('voice menus, defaults and the Assist voice list follow what is conn
 await check('Gemini and ElevenLabs speak lines, with direction', async () => {
   await reset();
   const g = await speakCloud('gemini/Kore', 'Hello there.', 'whispered');
-  assert.equal(g.sampleRate, 24000); assert.ok(Math.abs(g.samples.length / 24000 - 1.2) < .01);
+  assert.equal(g.sampleRate, 24000);
   const e = await speakCloud('elevenlabs/21m00Tcm4TlvDq8ikWAM', 'Hello there.', 'excited');
   assert.ok(Math.abs(e.samples.length / 24000 - .9) < .01); assert.equal(e.model, 'elevenlabs/eleven_v4');
   const l = await logged();
-  const gem = l.find(x => x.path.includes(':generateContent'))!, el = l.find(x => x.path.startsWith('/v1/text-to-speech'))!;
-  assert.match(gem.path, /gemini-3\.8-flash-tts/); assert.equal(gem.body.contents[0].parts[0].text, 'Say this whispered: Hello there.');
+  const gem = l.find(x => x.path === '/interactions')!, el = l.find(x => x.path.startsWith('/v1/text-to-speech'))!;
+  assert.equal(gem.body.model, 'gemini-3.8-flash-tts');
+  assert.equal(gem.body.input[0].content[0].text, 'Hello there.', 'only the words are spoken');
+  assert.deepEqual(gem.body.input[0].content[0].annotations, [{ type: 'speech_metadata', style: 'whispered' }], 'direction goes as a style');
+  assert.ok(Math.abs(g.samples.length / 24000 - 1.1) < .01, 'the WAV reply is read');
+  const plain = await speakCloud('gemini/Kore', 'No direction.');
+  assert.ok(Math.abs(plain.samples.length / 24000 - 1.2) < .01);
+  assert.equal((await logged()).filter(x => x.path.includes(':generateContent')).pop()!.body.contents[0].parts[0].text, 'No direction.');
   assert.equal(el.body.text, '[excited] Hello there.'); assert.match(el.path, /output_format=pcm_24000/);
 });
 await check('voices explain a missing key, an old ElevenLabs plan and an empty allowance', async () => {
