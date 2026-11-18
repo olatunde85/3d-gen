@@ -207,13 +207,15 @@ await step('Ask Ara: the corner button opens a chat that offers to connect a key
   await e('window.dispatchEvent(new StorageEvent("storage",{key:"ara.keys.v1"}))');
   await queue('To add a line, open **Sound** and press **+ Line**. Then:\n- type what they say\n- pick *How it’s said*\n- press **Voice all lines**');
   await type('#ask-ara-input', 'How do I add dialogue?'); await click('#ask-ara-panel [data-r=send]');
-  await w('document.querySelector("#ask-ara-panel .ara-thinking")', 'thinking shown'); await pause(250); await shot('14-ask-ara-thinking');
+  await w('document.querySelector("#ask-ara-panel .ara-wait")', 'thinking shown'); await pause(250); await shot('14-ask-ara-thinking');
   await w('document.querySelectorAll("#ask-ara-panel .ask-msg.ara li").length===3&&document.querySelector("#ask-ara-panel .ask-meta")&&!document.querySelector("#ask-ara-panel [data-r=send]").hidden', 'answer with a list', 30000);
   const film = await e<string>(`(()=>{const p=structuredClone(studio.project);p.title='Rooftop chase';return JSON.stringify(p,null,2);})()`);
   await fetch(`${mock.url}/__reset`);
   await queue('[[lookup: highway]]', 'Here’s a rooftop chase for you:\n```json\n' + film + '\n```');
   await type('#ask-ara-input', 'Write a 20-second rooftop chase'); await click('#ask-ara-panel [data-r=send]');
-  await w('document.querySelector("#ask-ara-panel .ask-slot .ara-thinking")', 'writing card while the JSON streams', 30000); await pause(700); await shot('15-ask-ara-writing');
+  await w('document.querySelector("#ask-ara-panel .ask-slot .ara-wait")', 'writing card while the JSON streams', 30000);
+  await w('/The portrait/.test(document.querySelector("#ask-ara-panel .ask-slot .ara-facts")?.textContent??"")', 'facts about the film as it arrives', 30000);
+  await pause(400); await shot('15-ask-ara-writing');
   const before = await e<string>('studio.project.title');
   await w('document.querySelector("#ask-ara-panel .ask-card")', 'reply after the lookup', 60000);
   {
@@ -240,7 +242,7 @@ await step('Assist: the Ara animation shows while it writes', async () => {
   await queue(JSON.stringify(characterExample(), null, 2).repeat(1));
   await click('#character-assist-btn'); await w('document.getElementById("character-assist-dialog")?.open', 'Assist open');
   await type('#ca-brief', 'A desert explorer'); await click('#character-assist-dialog [data-r=write]');
-  await w('document.querySelector("#character-assist-dialog .ara-thinking .ara-figures")', 'loader shown'); await pause(600); await shot('18-assist-thinking');
+  await w('document.querySelector("#character-assist-dialog .ara-wait .ara-bar")', 'loader shown'); await pause(600); await shot('18-assist-thinking');
   await w('document.querySelector("#character-assist-dialog [data-r=result]").classList.contains("ok")', 'written', 60000);
 });
 

@@ -60,6 +60,10 @@ export interface AssistConfig<T> {
     write(value:T,json:string):string;
   };
   footnote: string;
+  /** Facts about the result while it's still arriving (see keys/peek.ts), shown while the visitor waits. */
+  peek?(partial: string): string[];
+  /** The button that opens the panel: it shows that Assist is writing, or has finished, while the panel is closed. */
+  launcher?: string;
   /** What's open now, so a result applied from Ask Ara can be undone (built again from this). */
   snapshot?(): T;
   /** Finishes a build made outside the panel, as closing the panel does after Build (Play's preview). */
@@ -297,8 +301,21 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     const e = estimate(refreshGuide().length, noun === 'character' ? 1200 : 6000);
     $('direct-estimate').textContent = e ? `Sends about ${tokens(e.input)} tokens of instructions with your description. ${e.free ? 'Covered by the free allowance, or about ' + (e.cost !== undefined ? money(e.cost) : 'a few cents') + ' without it.' : e.cost !== undefined ? `About ${money(e.cost)} a request, paid to ${w.providerName}.` : 'Priced by your provider.'}` : '';
   }
+  /** The launcher button's state while the panel is closed: writing, or a result ready to review. */
+  function launcher(state: '' | 'writing' | 'ready') {
+    const el = cfg.launcher ? document.getElementById(cfg.launcher) : null;
+    if (el) { if (state) el.dataset.assist = state; else delete el.dataset.assist; }
+  }
+  const title = document.title;
+  function finished() {
+    if (dialog.open && !document.hidden) { launcher(''); return; }
+    launcher(dialog.open ? '' : 'ready');
+    // The tab says it's ready until the visitor comes back.
+    if (document.hidden || !dialog.open) { document.title = `✓ ${title}`; const back = () => { document.title = title; document.removeEventListener('visibilitychange', back); dialog.removeEventListener('close', back); }; document.addEventListener('visibilitychange', back); }
+  }
   const phaseText = (p: WriteProgress, label: string) => {
     if (p.phase === 'sending') return `Sending your description to ${label}…`;
+    if (p.phase === 'thinking') return `${label} is thinking…`;
     if (p.phase === 'writing') return `${label} is writing your ${noun}… ${p.chars ? `${p.chars.toLocaleString()} characters` : ''}`;
     if (p.phase === 'checking') return `Checking the ${noun}…`;
     return p.problem ? `Ara found a problem: ${p.problem} Asking ${label} to fix it (try ${p.round} of 3)…` : `${label} is fixing the ${noun} (try ${p.round} of 3)… ${p.chars ? `${p.chars.toLocaleString()} characters` : ''}`;
@@ -311,11 +328,13 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     stopPreparation();
     const control = new AbortController(); writing = control;
     const started = performance.now(); let last: WriteProgress = { phase: 'sending', round: 1, chars: 0 };
-    const ara = thinking(noun, $('writing')); $('direct').classList.add('ara-glowing');
+    const ara = thinking(noun, $('writing'), { patience: `Large ${noun}s can take a few minutes. You can close Assist and keep working; its button shows when the ${noun} is ready.` });
     const show = () => {
-      ara.phase(last.phase === 'sending' ? 'thinking' : last.phase === 'writing' ? 'writing' : last.phase, last.chars ? `${tokens(last.chars)} characters` : last.phase === 'sending' ? w.label : '');
+      ara.phase(last.phase, last.chars ? `${tokens(last.chars)} characters` : last.phase === 'sending' ? w.label : '');
+      if (last.text && cfg.peek) ara.facts(cfg.peek(last.text));
       $('writing-text').textContent = phaseText(last, w.label);
     };
+    launcher('writing');
     $('writing').hidden = false; $('direct-error').hidden = true; $('direct-done').textContent = ''; $('direct-estimate').textContent = '';
     show(); renderMode(); lock();
     persist();
@@ -339,7 +358,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         $('direct-retry').hidden = ['key', 'blocked', 'workspace'].includes(e.problem);
       }
     } finally {
-      clearInterval(writeTimer); ara.stop(); $('direct').classList.remove('ara-glowing'); writing = undefined; $('writing').hidden = true; renderMode(); lock(); persist();
+      clearInterval(writeTimer); ara.stop(); writing = undefined; finished(); $('writing').hidden = true; renderMode(); lock(); persist();
     }
   }
   $('write').addEventListener('click', () => void writeHere());
@@ -427,13 +446,15 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   draft.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); build.click(); } });
 
   // ---- Open and close ----
-  $('close').addEventListener('click', () => { if (!building) { writing?.abort(); dialog.close(); } });
+  // Closing leaves a running write going; the launcher shows when it's done.
+  $('close').addEventListener('click', () => { if (!building) dialog.close(); });
   dialog.addEventListener('cancel', e => { if (building) e.preventDefault(); });
-  dialog.addEventListener('close',()=>{writing?.abort();stopPreparation();persist();});
+  dialog.addEventListener('close',()=>{stopPreparation();persist();});
   window.addEventListener('pagehide',()=>{stopPreparation();persist();});
 
   async function open() {
     if (!await cfg.canOpen()) return;
+    if (!writing) { launcher(''); document.title = title; }
     if(reference&&!referenceChosen)reference.value=cfg.reference!.current();
     renderReference();
     // A context-based guide reflects the current state, which may have changed since it was made.

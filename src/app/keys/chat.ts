@@ -23,6 +23,8 @@ export interface AskAra {
   /** Builds this JSON now, as Assist's Build does; resolves to a function that puts back what was there before. */
   apply(json: string, progress?: (p: { stage: string }) => void): Promise<() => Promise<void>>;
   suggestions: string[];
+  /** Facts about a result while its JSON is still arriving. */
+  peek?(partial: string): string[];
   /**
    * Reference the guide leaves out because it's large (Studio's location maps): what a message mentions is attached
    * to it, and the AI can ask for more itself, so it never has to ask the visitor.
@@ -91,6 +93,8 @@ export function mountAskAra(cfg: AskAra) {
   try { const saved = JSON.parse(sessionStorage.getItem(cfg.storageKey) || '[]'); if (Array.isArray(saved)) turns = saved.filter(t => t && (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string').slice(-40); } catch { /* Start fresh. */ }
   /** Undo for each reply built in this visit, by turn. */
   const undos = new Map<number, () => Promise<void>>();
+  /** The corner button while the chat is closed: Ara is working, or a reply is waiting. */
+  const fab = (state: '' | 'working' | 'ready') => { if (state) button.dataset.state = state; else delete button.dataset.state; };
   const save = () => { try { sessionStorage.setItem(cfg.storageKey, JSON.stringify(turns.slice(-40))); } catch { /* A convenience. */ } };
 
   // ---- Showing the conversation ----
@@ -112,7 +116,7 @@ export function mountAskAra(cfg: AskAra) {
           const value = cfg.parse(body);
           const Noun = cfg.noun[0].toUpperCase() + cfg.noun.slice(1), headline = html(cfg.describe(value).headline);
           const state = built?.state ?? (streaming ? 'building' : 'applied');
-          if (state === 'building') parts.push(`<div class="ask-card ok building"><span class="ask-card-kind">Building your ${cfg.noun}</span><b>${headline}</b><div class="ask-slot-loader" data-loader></div><p class="ask-note" data-progress></p></div>`);
+          if (state === 'building') parts.push(`<div class="ask-card ok building"><span class="ask-card-kind">Building your ${cfg.noun}</span><b>${headline}</b><div class="ask-slot-loader" data-loader></div></div>`);
           else if (state === 'applied') parts.push(`<div class="ask-card ok"><span class="ask-card-kind">${Noun} ready</span><b>${headline}</b>${undos.has(turn) ? `<button class="ask-undo" data-undo="${turn}">↶ Undo</button>` : '<p class="ask-note">Use Undo in the app to go back.</p>'}</div>`);
           else if (state === 'undone') parts.push(`<div class="ask-card"><span class="ask-card-kind">Undone</span><b>${headline}</b><button class="ask-undo" data-apply="${turn}">Apply again</button></div>`);
           else parts.push(`<div class="ask-card bad"><span class="ask-card-kind">Couldn’t build it</span><p>${html(built?.message ?? '')}</p><button class="ask-fix" data-apply="${turn}">Try again</button></div>`);
@@ -153,7 +157,7 @@ export function mountAskAra(cfg: AskAra) {
   }
   async function respond() {
     const w = writer()!;
-    const control = new AbortController(); busy = control;
+    const control = new AbortController(); busy = control; fab('working');
     const turn: Turn = { role: 'assistant', text: '' };
     turns.push(turn); render(); toBottom();
     const node = log.lastElementChild!.querySelector<HTMLElement>('.ask-body')!;
@@ -180,20 +184,29 @@ ${guide}`;
       }
       const history = (): Message[] => [{ role: 'user', text: context }, { role: 'assistant', text: 'Understood. I’m ready to help.' },
         ...turns.slice(0, -1).filter(t => !t.error).slice(-20).map(t => ({ role: t.role, text: t.attached ? `${t.text}\n\n${t.attached}` : t.text }))];
+      let streamedHead = '';
       let painted = 0, result: Awaited<ReturnType<typeof write>> | undefined, spent = 0;
       for (let round = 0; round < 3; round++) {
-        result = await write(w.provider, w.saved, { model: w.model, messages: history(), maxTokens: 16000, signal: control.signal, onText: (_chars, all) => {
+        result = await write(w.provider, w.saved, { model: w.model, messages: history(), maxTokens: 16000, signal: control.signal, onThinking: () => ara?.phase('thinking'), onText: (_chars, all) => {
           // A request for reference is between Ara and the AI; it isn't shown.
           if (/^\s*\[\[/.test(all)) return;
           turn.text = all;
+          // While the JSON block streams, only the writing card changes: keep the rest of the reply as it is.
+          const fence = all.indexOf('```'), open = fence >= 0 && all.indexOf('```', fence + 3) < 0;
+          if (open && slot?.element.isConnected && all.slice(0, fence) === streamedHead) {
+            const json = /```(?:json)?\n?([\s\S]*)$/.exec(all)?.[1] ?? '';
+            slot.phase('writing', `${(json.length / 1000).toFixed(1)}k characters`); if (cfg.peek) slot.facts(cfg.peek(json));
+            return;
+          }
           if (performance.now() - painted < 60) return; painted = performance.now();
+          streamedHead = open ? all.slice(0, fence) : '';
           const follow = atBottom();
           ara?.stop(); ara = undefined;
           // One animation for the whole reply, moved into each repaint, so it runs smoothly.
           slot?.element.remove();
           node.innerHTML = reply(all, true);
           const writing = node.querySelector<HTMLElement>('[data-slot="writing"]');
-          if (writing) { slot ??= thinking(cfg.noun, writing); writing.append(slot.element); const json = /```(?:json)?\n?([\s\S]*)$/.exec(all)?.[1] ?? ''; slot.phase('writing', `${json.length.toLocaleString()} characters`); }
+          if (writing) { slot ??= thinking(cfg.noun, writing); writing.append(slot.element); const json = /```(?:json)?\n?([\s\S]*)$/.exec(all)?.[1] ?? ''; slot.phase('writing', `${(json.length / 1000).toFixed(1)}k characters`); if (cfg.peek) slot.facts(cfg.peek(json)); }
           if (follow) toBottom();
         } });
         spent += costOf(result.usage as Usage, w.info?.price) ?? 0;
@@ -218,7 +231,7 @@ ${guide}`;
       if (e.problem === 'stopped') { if (!turn.text) turns.pop(); else turn.meta = 'Stopped'; }
       else { turn.text = turn.text || ''; turn.error = { message: e.message, keys: ['key', 'credit', 'permission', 'model', 'blocked', 'workspace'].includes(e.problem) }; }
     } finally {
-      ara?.stop(); slot?.stop(); busy = undefined; save(); input.focus();
+      ara?.stop(); slot?.stop(); busy = undefined; save(); input.focus(); fab(panel.hidden ? 'ready' : '');
       if (!turn.error && /```/.test(turn.text)) void build(turns.indexOf(turn)); else { render(); toBottom(); }
     }
   }
@@ -231,9 +244,9 @@ ${guide}`;
     if (!json) { render(); return; }
     turn.built = { state: 'building' }; render(); toBottom();
     const loader = log.querySelector<HTMLElement>(`[data-turn="${index}"] [data-loader]`);
-    const ara = loader ? thinking(cfg.noun, loader) : undefined;
-    const note = log.querySelector<HTMLElement>(`[data-turn="${index}"] [data-progress]`);
-    try { undos.set(index, await cfg.apply(json, p => { if (note) note.textContent = p.stage; })); turn.built = { state: 'applied' }; }
+    const ara = loader ? thinking(cfg.noun, loader, { patience: 'Building can take a minute while characters load. You can keep working.' }) : undefined;
+    ara?.phase('building');
+    try { undos.set(index, await cfg.apply(json, p => ara?.phase('building', p.stage.replace(/…$/, '')))); turn.built = { state: 'applied' }; }
     catch (error) { turn.built = { state: 'failed', message: (error as Error).message }; }
     finally { ara?.stop(); save(); render(); toBottom(); }
   }
@@ -249,7 +262,7 @@ ${guide}`;
   const close = () => { panel.hidden = true; button.hidden = !!cfg.visible && !cfg.visible(); button.setAttribute('aria-expanded', 'false'); button.focus(); };
   $('close').addEventListener('click', close);
   panel.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { e.stopPropagation(); close(); } });
-  button.addEventListener('click', () => { panel.hidden = false; button.hidden = true; button.setAttribute('aria-expanded', 'true'); render(); toBottom(); input.focus(); });
+  button.addEventListener('click', () => { fab(busy ? 'working' : ''); panel.hidden = false; button.hidden = true; button.setAttribute('aria-expanded', 'true'); render(); toBottom(); input.focus(); });
   log.addEventListener('click', async e => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('button');
     if (!el) return;

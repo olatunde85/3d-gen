@@ -15,6 +15,7 @@ import {ENEMY_ROLES,roleDefaults,type EnemyKind,type EnemyHealth} from './enemy-
 import './setup.css';
 import {assistPanel} from '../app/assist/panel';
 import {mountAskAra} from '../app/keys/chat';
+import {peekGame} from '../app/keys/peek';
 import {voiceGuide} from '../app/keys/voices';
 import {ARA_VOICE_GUIDE} from '../studio/audio/schema';
 import {generatePlayGuide,parsePlayInput,checkPlayPlacements,playExample,campaignExample,raceExample,runnerExample,describeGame} from './assist';
@@ -203,7 +204,7 @@ let assistedPreview:{project:PlayProject;cast:PlayCast}|undefined;
 let generateAssistAudio=true;
 let assistVoices=ARA_VOICE_GUIDE;
 const assist=assistPanel<PlayProject>({dialog:$<HTMLDialogElement>('play-assist-dialog'),id:'pa',name:'LLM Assist',app:'ARA PLAY',noun:'game',buildLabel:'Preview game',title:'An idea. A playable game.',intro:'Plan your game with Claude, ChatGPT or any assistant. Bring its JSON back here to review and play.',placeholder:'A military rescue with three aggressive guards, two grenades, a pickup getaway and spy music.',contextLabel:'Include my current setup to refine it',guideFile:'ara-play-llm-guide.txt',maxBytes:512_000,
- guide:(brief,current)=>generatePlayGuide(lib.catalog,brief,current?wholeDraft():undefined,assistVoices),parse:json=>parsePlayInput(json,lib.catalog),describe:describeGame,example:playExample,canOpen:async()=>{assistVoices=await voiceGuide().catch(()=>assistVoices);return !loading&&!applying;},storageKey:'ara.play.assist.v1',snapshot:()=>structuredClone(wholeDraft()),commit:()=>commitPreview(),footnote:'The guide includes supported missions, equipment and custom character recipes. Ara arranges the map and routes. Preview first; download the game from Game setup.',recoveryNote:'Your current game stays available if preparation fails.',
+ guide:(brief,current)=>generatePlayGuide(lib.catalog,brief,current?wholeDraft():undefined,assistVoices),parse:json=>parsePlayInput(json,lib.catalog),describe:describeGame,example:playExample,canOpen:async()=>{assistVoices=await voiceGuide().catch(()=>assistVoices);return !loading&&!applying;},storageKey:'ara.play.assist.v1',snapshot:()=>structuredClone(wholeDraft()),peek:peekGame,launcher:'play-assist-open',commit:()=>commitPreview(),footnote:'The guide includes supported missions, equipment and custom character recipes. Ara arranges the map and routes. Preview first; download the game from Game setup.',recoveryNote:'Your current game stays available if preparation fails.',
  async build(nextProject,progress){stopMusicPreview();applying=true;$<HTMLFieldSetElement>('setup-fields').disabled=true;try{progress({stage:'Preparing dialogue and cast…'});const voices=generateAssistAudio?await generateImportedVoices(nextProject,text=>progress({stage:text})):undefined,next=await prepareGame(nextProject,text=>progress({stage:text}));assistedPreview={project:nextProject,cast:next};progress({stage:voices?.failed?`Game ready. ${voices.failed} voiced lines will use device speech: ${voices.error}`:generateAssistAudio?'Your game and dialogue are ready.':'Game ready. Missing recordings will use device speech.',fraction:1});}finally{applying=false;$<HTMLFieldSetElement>('setup-fields').disabled=false;}}
 });
 const audioChoice=document.createElement('label');audioChoice.className='ai-check ai-audio-choice';const audioToggle=document.createElement('input');audioToggle.type='checkbox';audioToggle.id='pa-generate-audio';audioToggle.checked=true;audioToggle.onchange=()=>generateAssistAudio=audioToggle.checked;audioChoice.append(audioToggle,document.createTextNode('Generate missing dialogue audio during preview'));assist.dialog.querySelector('.ai-review .ai-row')!.append(audioChoice);
@@ -213,7 +214,8 @@ const placementCheck=document.createElement('button');placementCheck.type='butto
 mountAskAra({appName:'Play',noun:'game',storageKey:'ara.chat.play.v1',
  primer:()=>{const p=wholeDraft();return `Play makes small 3D games with Ara characters: missions (rescue, extraction, escape and more) on city and themed locations, races, runners, campaigns with chapters, enemies, vehicles, story films and voiced radio, downloadable or published as a web page. The game being set up now is "${p.gameName??'Untitled'}".`;},
  guide:async()=>{assistVoices=await voiceGuide().catch(()=>assistVoices);return generatePlayGuide(lib.catalog,'(See the conversation.)',wholeDraft(),assistVoices);},
- parse:json=>parsePlayInput(json,lib.catalog),describe:value=>describeGame(value as PlayProject),apply:async json=>{
+ parse:json=>parsePlayInput(json,lib.catalog),describe:value=>describeGame(value as PlayProject),peek:peekGame,
+ apply:async json=>{
   // Built from Ask Ara: voice the story only when every line to voice uses a connected provider voice; Ara's own voices need a large download, so they're left for the story editor.
   const keep=generateAssistAudio,game=parsePlayInput(json,lib.catalog);
   generateAssistAudio=keep&&gameProjects(game).every(c=>(c.story?.cues??[]).every(q=>!q.voice||!q.text.trim()||!!q.audio||/\//.test(q.voiceId??'')));

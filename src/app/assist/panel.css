@@ -187,3 +187,11 @@ dialog.ai-assist.is-building { overflow: hidden; }
 .ai-assist .ai-chat { margin-top: 12px; }
 .ai-assist .ai-chat > summary { cursor: pointer; font-size: 12px; color: var(--ai-muted); }
 .ai-assist [data-r="write"][hidden], .ai-assist [data-r="stop-write"][hidden], .ai-assist [data-r="copy"][hidden], .ai-assist [data-r="save"][hidden] { display: none; }
+
+/* The button that opens Assist, while Assist writes in the background or has a result waiting. */
+[data-assist] { position: relative; }
+[data-assist]::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; pointer-events: none; }
+[data-assist="writing"]::after { background: #6d8dff; box-shadow: 0 0 0 0 rgba(109, 141, 255, .6); animation: ai-ping 1.4s ease-out infinite; }
+[data-assist="ready"]::after { background: #7fc99a; }
+@keyframes ai-ping { to { box-shadow: 0 0 0 7px rgba(109, 141, 255, 0); } }
+@media (prefers-reduced-motion: reduce) { [data-assist="writing"]::after { animation: none; } }

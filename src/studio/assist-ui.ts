@@ -6,6 +6,7 @@ import { prepareExampleDialogue } from './audio/example';
 import { hasScriptedSpeech } from './audio/prepare';
 import { assistPanel, type BuildProgress } from '../app/assist/panel';
 import { mountAskAra } from '../app/keys/chat';
+import { peekFilm } from '../app/keys/peek';
 import type { Catalog } from '../core/assets';
 import type { StudioProject } from './project';
 import {SETS,type SetId} from './catalog';
@@ -62,6 +63,7 @@ export function setupAssist(editor: AssistEditor) {
     },
     build: async (project, progress) => { if (!await editor.load(project, progress)) throw Error('The film could not be loaded. Your previous film has been kept.'); },
     snapshot: () => structuredClone(editor.project()),
+    peek: text => peekFilm(text, id => SETS.find(s => s.id === id)?.name), launcher: 'open-assist',
     canOpen: async () => { voices = await voiceGuide().catch(() => voices); return editor.canEdit(); },
     footnote: 'Building replaces the current film. Undo brings it back. Use Check staging in the left panel to review paths with your loaded characters before exporting.',
   });
@@ -71,6 +73,7 @@ export function setupAssist(editor: AssistEditor) {
     primer: () => { const p = editor.project(); return `Studio directs short 3D films (up to 60 seconds) with Ara characters on ${SETS.length} locations: actions on a timeline, camera shots, dialogue with voices, music, sound effects and on-screen text, exported as MP4. The film open now is "${p.title}" at ${SETS.find(s => s.id === p.template)?.name ?? p.template}, with ${p.actors.length} character${p.actors.length === 1 ? '' : 's'} and ${p.audio.speech.length} lines of dialogue. Voices: Sound › Dialogue. Keys (your own AI and voice accounts) is under Ask Ara's model button.`; },
     guide: async () => { voices = await voiceGuide().catch(() => voices); return generateAssistGuide(editor.catalog(), '(See the conversation.)', editor.project(), editor.project().template, filmContext(), voices); },
     parse: json => parseStudioInput(json, editor.catalog()), describe: value => describeAssistProject(value as StudioProject),
+    peek: text => peekFilm(text, id => SETS.find(s => s.id === id)?.name),
     apply: json => panel.apply(json),
     lookup: {
       describe: 'The guide has the full staging map of the location open now and a compact index of every location; full maps of other locations are attached by Ara, by location id.',

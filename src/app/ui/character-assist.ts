@@ -1,6 +1,7 @@
 import { generateCharacterGuide, parseCharacterInput, characterExample } from '../character-assist';
 import { assistPanel } from '../assist/panel';
 import { mountAskAra } from '../keys/chat';
+import { peekCharacter } from '../keys/peek';
 import { ageToYears, type HumanParams } from '../../core/params';
 import type { Ctx } from './context';
 import { $ } from './dom';
@@ -51,6 +52,7 @@ export function characterAssist(ctx: Ctx) {
     footnote: 'Characters only; for scenes and films, use Assist in Ara Studio. Undo restores your previous character.',
     storageKey: 'ara.character.assist.v1',
     snapshot: () => structuredClone(ctx.store.params),
+    peek: peekCharacter, launcher: 'character-assist-btn',
   });
   $('#character-assist-btn').addEventListener('click', () => void panel.open());
   mountAskAra({
@@ -58,6 +60,7 @@ export function characterAssist(ctx: Ctx) {
     primer: () => `The builder makes realistic, rigged and animated 3D people: body, face, skin, hair, clothes, accessories, carried items, weapons and vehicles, with 200+ animations, exported as GLB, FBX, OBJ or ZIP for games and films. The person on screen now is ${ctx.store.params.name || 'unnamed'}. Characters go on to Ara Studio (films) and Ara Play (games).`,
     guide: () => generateCharacterGuide(ctx.cat, '(See the conversation.)', ctx.store.params),
     parse: json => parseCharacterInput(json, ctx.cat), describe: value => describe(value as HumanParams),
+    peek: peekCharacter,
     apply: json => panel.apply(json),
     suggestions: ['Make them ten years older, with grey stubble', 'Design a cyberpunk courier with a backpack', 'How do I export for Unity?', 'Which animations suit a stealth game?'],
   });

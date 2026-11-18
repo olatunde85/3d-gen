@@ -11,7 +11,7 @@ export interface Usage { input: number; cached: number; output: number; cost?: n
 export interface Message { role: 'user' | 'assistant'; text: string }
 export interface Written { text: string; usage: Usage; stop: 'end' | 'length' | 'refused' }
 
-interface StreamOptions { model: string; messages: Message[]; maxTokens: number; signal?: AbortSignal; onText(chars: number, text: string): void }
+interface StreamOptions { model: string; messages: Message[]; maxTokens: number; signal?: AbortSignal; onText(chars: number, text: string): void; /** The model is reasoning before it writes. */ onThinking?(): void }
 
 const parse = (data: string) => { try { return JSON.parse(data); } catch { return undefined; } };
 
@@ -27,6 +27,8 @@ async function anthropic(saved: SavedKey, o: StreamOptions): Promise<Written> {
   for await (const { data } of events(res, o.signal)) {
     const e = parse(data); if (!e) continue;
     if (e.type === 'message_start') { const u = e.message?.usage ?? {}; usage.input = (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0); usage.cached = u.cache_read_input_tokens ?? 0; }
+    else if (e.type === 'content_block_start' && /thinking/.test(e.content_block?.type ?? '')) o.onThinking?.();
+    else if (e.type === 'content_block_delta' && /thinking/.test(e.delta?.type ?? '')) o.onThinking?.();
     else if (e.type === 'content_block_delta' && e.delta?.type === 'text_delta') { text += e.delta.text; o.onText(text.length, text); }
     else if (e.type === 'message_delta') { if (e.usage?.output_tokens) usage.output = e.usage.output_tokens; if (e.delta?.stop_reason === 'max_tokens') stop = 'length'; if (e.delta?.stop_reason === 'refusal') stop = 'refused'; }
     else if (e.type === 'error') throw midStream('anthropic', e.error?.type, e.error?.message);
@@ -45,6 +47,7 @@ async function openai(saved: SavedKey, o: StreamOptions): Promise<Written> {
     const e = parse(data); if (!e) continue;
     const type = e.type ?? event;
     if (type === 'response.output_text.delta') { text += e.delta ?? ''; o.onText(text.length, text); }
+    else if (/^response\.reasoning/.test(type)) o.onThinking?.();
     else if (type === 'response.refusal.delta' || type === 'response.refusal.done') stop = 'refused';
     else if (type === 'response.completed' || type === 'response.incomplete') {
       const u = e.response?.usage ?? {}, cached = u.input_tokens_details?.cached_tokens ?? 0;
@@ -70,6 +73,7 @@ async function gemini(saved: SavedKey, o: StreamOptions): Promise<Written> {
     if (e.error) throw midStream('gemini', e.error.status, e.error.message);
     if (e.promptFeedback?.blockReason) stop = 'refused';
     const candidate = e.candidates?.[0];
+    if ((candidate?.content?.parts ?? []).some((p: { thought?: boolean }) => p.thought)) o.onThinking?.();
     for (const part of candidate?.content?.parts ?? []) if (typeof part.text === 'string' && !part.thought) { text += part.text; o.onText(text.length, text); }
     const why = candidate?.finishReason;
     if (why === 'MAX_TOKENS') stop = 'length';
@@ -92,6 +96,7 @@ async function openrouter(saved: SavedKey, o: StreamOptions): Promise<Written> {
     const e = parse(data); if (!e) continue;
     if (e.error) throw midStream('openrouter', String(e.error.code ?? ''), e.error.message);
     const choice = e.choices?.[0];
+    if (choice?.delta?.reasoning || choice?.delta?.reasoning_details) o.onThinking?.();
     if (choice?.delta?.content) { text += choice.delta.content; o.onText(text.length, text); }
     if (choice?.finish_reason === 'length') stop = 'length';
     else if (choice?.finish_reason === 'content_filter') stop = 'refused';
@@ -145,8 +150,8 @@ export function estimate(guideChars: number, replyTokens: number) {
   return { input, cost, free: !!w.info?.free };
 }
 
-export type Phase = 'sending' | 'writing' | 'checking' | 'fixing';
-export interface Progress { phase: Phase; round: number; chars: number; problem?: string }
+export type Phase = 'sending' | 'thinking' | 'writing' | 'checking' | 'fixing';
+export interface Progress { phase: Phase; round: number; chars: number; problem?: string; /** The reply so far. */ text?: string }
 
 export class StillWrong extends Error {
   constructor(message: string, readonly json: string, readonly usage: Usage) { super(message); }
@@ -179,11 +184,10 @@ export async function writeJson<T>(r: JsonRequest<T>): Promise<{ value: T; json:
   let reportedCost = 0, anyCost = false;
   for (let round = 1; ; round++) {
     r.onProgress({ phase: round > 1 ? 'fixing' : 'sending', round, chars: 0 });
-    let first = true;
-    const reply = await write(w.provider, w.saved, { model: w.model, messages, maxTokens, signal: r.signal, onText: chars => {
-      if (first) first = false;
-      r.onProgress({ phase: round > 1 ? 'fixing' : 'writing', round, chars });
-    } });
+    let wrote = false;
+    const reply = await write(w.provider, w.saved, { model: w.model, messages, maxTokens, signal: r.signal,
+      onThinking: () => { if (!wrote) r.onProgress({ phase: round > 1 ? 'fixing' : 'thinking', round, chars: 0 }); },
+      onText: (chars, text) => { wrote = true; r.onProgress({ phase: round > 1 ? 'fixing' : 'writing', round, chars, text }); } });
     total.input += reply.usage.input; total.cached += reply.usage.cached; total.output += reply.usage.output;
     if (reply.usage.cost !== undefined) { reportedCost += reply.usage.cost; anyCost = true; }
     const cost = anyCost ? reportedCost : costOf(total, w.info?.price);

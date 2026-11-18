@@ -40,7 +40,7 @@ Ara explains each problem in plain words, with what to do next:
 
 ## Writing in Assist
 
-With a key connected, step 2 of Assist becomes **Write the film** (or character, or game). Press the button and Ara sends your description with the guide to your AI and shows its progress. When the reply arrives, Ara checks it. If something is wrong, Ara sends the problem back to the AI to fix, up to twice, before showing you the result. The review card then works as usual: check it, then **Build**. **Stop** cancels at any time. The cost of each request is shown when it finishes.
+With a key connected, step 2 of Assist becomes **Write the film** (or character, or game). Press the button and Ara sends your description with the guide to your AI. While it works, a progress bar shows whether it's thinking or writing and for how long, and facts about the result appear as they arrive, such as the location and how many characters, actions and lines it has. A large film can take a few minutes: you can close Assist and keep working, and its button shows a blue dot while it writes and a green one when the result is ready to review. When the reply arrives, Ara checks it. If something is wrong, Ara sends the problem back to the AI to fix, up to twice, before showing you the result. The review card then works as usual: check it, then **Build**. **Stop** cancels at any time. The cost of each request is shown when it finishes.
 
 **Or use any AI chat instead** keeps the copy-and-paste route.
 
