@@ -2,6 +2,13 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.8.0 — 2026-11-18
+
+- **Films and games for AI assistants:** `ara3d mcp` gains `film_guide`, `create_film`, `game_guide` and `create_game`. An assistant writes an Ara Studio film or an Ara Play game; the tools check it as Studio and Play do, save it, and return a link that opens it. The guides come in topics, so each answer fits what assistants accept. See the [MCP guide](https://ara3dgen.com/docs/mcp/).
+- **Game schema:** `ara3d schema game` prints the Ara Play game schema, also published at `ara3dgen.com/schemas/play-game.v2.json`. Game files may name it in a `$schema` field.
+- **Fixed:** the hi-vis vest's reflective bands stay on the chest when an arm rises, and the vest no longer shows through them.
+- **Fixed:** laughing lifts the upper lip far enough to show the upper teeth.
+
 ## 0.7.4 — 2026-11-18
 
 - **Fixed:** the tank top, tactical vest, hi-vis vest and leather armour have clean strap edges at every detail level, and the straps stay clean when the arms rise (waving, cheering).

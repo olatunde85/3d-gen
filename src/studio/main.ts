@@ -17,6 +17,7 @@ import { orbitControls } from './orbit';
 import {timelineHandles} from './timeline-handles';
 import {clipWindow} from './timeline-resize';
 import { parseStudioInput } from './assist';
+import { clearLinkedFile, hasLinkedFile, linkedFile } from '../app/links';
 import { resolveTextActor } from './text';
 import { setupTextEditor } from './text-ui';
 import { setupSoundEditor } from './audio/ui';
@@ -662,6 +663,8 @@ async function start() {
   renderUI();
   try{
     const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();seatCharacters(false);loading=false;renderUI();
+    // A link can carry a film (#film=…, or #src= for a hosted file): it opens like a file from disk.
+    if(hasLinkedFile(location.hash,'film')){try{const text=await linkedFile(location.hash,'film');if(text&&await importStudioProject(text)){clearLinkedFile('film');notify('Opened the film from the link.');}}catch(e){notify((e as Error).message);}}
     if(resume){
       document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
       if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open){if(resume.sound.tab==='effects')soundEditor.openEffects(resume.sound.selectedEffect);else soundEditor.open(resume.sound.selected);}

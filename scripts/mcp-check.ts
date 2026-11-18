@@ -11,6 +11,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { decodeCharacter } from '../src/app/share';
+import { linkedFile } from '../src/app/links';
+import { assistExample } from '../src/studio/assist';
+import { playExample } from '../src/play/assist';
 
 const root = resolve(import.meta.dirname, '..'), cli = join(root, 'packages/cli/dist/cli.js');
 if (!existsSync(cli)) throw Error('Build the CLI first: npx vite build --config packages/cli/vite.config.ts');
@@ -34,7 +37,7 @@ try {
   assert.equal(init.result.protocolVersion, '2025-06-18');assert.equal(init.result.serverInfo.name, 'ara3d');assert.ok(init.result.capabilities.tools);
   server.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
   const tools = (await request('tools/list')).result.tools.map((t: any) => t.name);
-  assert.deepEqual(tools, ['list_presets', 'list_animations', 'list_props', 'character_schema', 'create_character']);
+  assert.deepEqual(tools, ['list_presets', 'list_animations', 'list_props', 'character_schema', 'create_character', 'film_guide', 'create_film', 'game_guide', 'create_game']);
   console.log('OK handshake and tools:', tools.join(', '));
 
   assert.match((await call('list_presets')).content[0].text, /^The Soldier$/m);
@@ -67,6 +70,33 @@ try {
     const r = await call('create_character', { ...args, formats: ['glb'] });
     assert.equal(r.isError, true);assert.match(r.content[0].text, expected);
   }
+  // Films and games: guides in parts small enough for one tool answer, then files checked, saved and linked.
+  const LIMIT = 90_000; // about 25k tokens, which some assistants cap a tool answer at
+  for (const tool of ['film_guide', 'game_guide']) {
+    const overview = (await call(tool, { brief: 'A short chase' })).content[0].text;
+    const topics = [...overview.matchAll(/^- ([a-z0-9-]+): /gm)].map((m) => m[1]);
+    assert.ok(overview.length < LIMIT && topics.length >= 5, `${tool} overview: ${overview.length} characters, ${topics.length} topics`);
+    for (const topic of topics) { const t = (await call(tool, { topic })).content[0].text;assert.ok(t.length < LIMIT, `${tool} ${topic}: ${t.length} characters`); }
+    const wrong = await call(tool, { topic: 'nope' });assert.equal(wrong.isError, true);assert.match(wrong.content[0].text, /Unknown topic/);
+    console.log(`OK ${tool}: overview ${Math.round(overview.length / 1000)}k characters, topics ${topics.join(', ')}`);
+  }
+  const film = await call('create_film', { film: assistExample() });
+  assert.equal(film.isError, false, film.content[0].text);
+  const filmText = film.content[0].text, filmFile = /Saved: (.+)$/m.exec(filmText)![1], filmLink = /(https:\/\/ara3dgen\.com\/studio\/#film=[\w-]+)/.exec(filmText)![1];
+  assert.ok(filmFile.startsWith(out) && existsSync(filmFile) && filmFile.endsWith('.ara-studio.json'));
+  assert.deepEqual(JSON.parse((await linkedFile(new URL(filmLink).hash, 'film'))!), assistExample());
+  console.log('OK create_film:', filmText.split('\n')[0]);
+  const game = await call('create_game', { game: playExample() });
+  assert.equal(game.isError, false, game.content[0].text);
+  const gameText = game.content[0].text, gameLink = /(https:\/\/ara3dgen\.com\/play\/#game=[\w-]+)/.exec(gameText)![1];
+  assert.ok(existsSync(/Saved: (.+)$/m.exec(gameText)![1]));assert.deepEqual(JSON.parse((await linkedFile(new URL(gameLink).hash, 'game'))!), playExample());
+  console.log('OK create_game:', gameText.split('\n')[0]);
+  const badGame = await call('create_game', { game: { ...playExample(), mission: { ...playExample().mission, story: 'flee' } } });
+  assert.equal(badGame.isError, true);assert.match(badGame.content[0].text, /Escape|story/);
+  const badFilm = await call('create_film', { film: { ...assistExample(), template: 'the-moon' } });
+  assert.equal(badFilm.isError, true);
+  console.log('OK film and game mistakes reported as tool errors:', badGame.content[0].text.split('\n')[0], '/', badFilm.content[0].text.split('\n')[0]);
+
   assert.equal((await request('nope/method')).error.code, -32601);
   console.log('OK mistakes reported as tool errors');
   assert.ok(lines.every((l) => { try { JSON.parse(l);return true; } catch { return false; } }), 'stdout carries only JSON-RPC');

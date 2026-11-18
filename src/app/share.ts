@@ -18,12 +18,12 @@ function diff(p: HumanParams): Partial<HumanParams> {
   return out as Partial<HumanParams>;
 }
 
-const toB64Url = (b: Uint8Array) => {
+export const toB64Url = (b: Uint8Array) => {
   let s = '';
   for (const x of b) s += String.fromCharCode(x);
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 };
-const fromB64Url = (s: string) => {
+export const fromB64Url = (s: string) => {
   const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 };
