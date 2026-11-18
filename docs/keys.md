@@ -48,6 +48,8 @@ With a key connected, step 2 of Assist becomes **Write the film** (or character,
 
 **Ask Ara**, in the bottom-right corner of the builder, Studio and Play, is a chat with your AI. It knows which app you are in and what is open: the character, the film or the game. Ask it how to do something, or describe what you want.
 
+In Studio, Ara has the full map of the location that's open. When a message names other locations ("a rooftop chase"), their maps go with it, and the AI can ask Ara for any other location's map itself; the reply notes which maps it looked at.
+
 When Ara writes a character, film or game, it is checked and built straight away, and its card offers **Undo** to put back what you had. If it can't be built, the card says why and offers **Ask Ara to fix it**.
 
 Dialogue in Ara's own voices isn't voiced automatically from the chat, because it needs the first-time voice download. Use **Voice all lines** in Sound (or **Generate all speech** in Play) for those lines.

@@ -20,6 +20,17 @@ interface AssistEditor {
   load(project: StudioProject, progress: (p: BuildProgress) => void): Promise<boolean>;
 }
 
+const SKIP = new Set(['the', 'and', 'with', 'city', 'night', 'day', 'small', 'big', 'old', 'new', 'room', 'area', 'place']);
+/** Locations a message names (other than the open one), best match first: "rooftop" finds City rooftop and Rooftop bar. */
+export function mentionedLocations(text: string, open: string): string[] {
+  const words = new Set(text.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).map(w => w.replace(/s$/, '')));
+  const said = text.toLowerCase();
+  return SETS.filter(s => s.id !== open).map(s => {
+    const name = s.name.toLowerCase(), parts = name.replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).map(w => w.replace(/s$/, '')).filter(w => w.length > 2 && !SKIP.has(w));
+    return { id: s.id, score: (said.includes(name) ? 10 : 0) + parts.filter(w => words.has(w)).length };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 2).map(x => x.id);
+}
+
 export function setupAssist(editor: AssistEditor) {
   let contextKey='',contextReport:StagingReport|undefined,voices=ARA_VOICE_GUIDE;
   const filmContext=()=>{const project=editor.project(),key=JSON.stringify(project);if(key!==contextKey){contextReport=stagingReport(project,editor.bodies());contextKey=key;}return contextReport;};
@@ -61,6 +72,11 @@ export function setupAssist(editor: AssistEditor) {
     guide: async () => { voices = await voiceGuide().catch(() => voices); return generateAssistGuide(editor.catalog(), '(See the conversation.)', editor.project(), editor.project().template, filmContext(), voices); },
     parse: json => parseStudioInput(json, editor.catalog()), describe: value => describeAssistProject(value as StudioProject),
     apply: json => panel.apply(json),
+    lookup: {
+      describe: 'The guide has the full staging map of the location open now and a compact index of every location; full maps of other locations are attached by Ara, by location id.',
+      find: text => mentionedLocations(text, editor.project().template),
+      fetch: ids => { const sets = ids.map(id => SETS.find(s => s.id === id)).filter((s): s is (typeof SETS)[number] => !!s); return { names: sets.map(s => s.name), text: sets.map(s => `FULL STAGING MAP: ${s.name} (${s.id})\n${JSON.stringify(locationMapFile(s.id as SetId))}`).join('\n\n') }; },
+    },
     suggestions: ['Write a 20-second rooftop chase with two characters', 'Add a tense conversation to this film', 'Give my characters better voices', 'How do I export a vertical video?'],
   });
   return panel;

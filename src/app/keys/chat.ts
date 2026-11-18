@@ -23,6 +23,18 @@ export interface AskAra {
   /** Builds this JSON now, as Assist's Build does; resolves to a function that puts back what was there before. */
   apply(json: string, progress?: (p: { stage: string }) => void): Promise<() => Promise<void>>;
   suggestions: string[];
+  /**
+   * Reference the guide leaves out because it's large (Studio's location maps): what a message mentions is attached
+   * to it, and the AI can ask for more itself, so it never has to ask the visitor.
+   */
+  lookup?: {
+    /** One line telling the AI what it can ask for, by ID. */
+    describe: string;
+    /** IDs a message mentions. */
+    find(text: string): string[];
+    /** The reference for these IDs, with a name for each. */
+    fetch(ids: string[]): { names: string[]; text: string };
+  };
   /** Whether the button should show right now (Play hides it during a game). */
   visible?(): boolean;
   storageKey: string;
@@ -30,7 +42,7 @@ export interface AskAra {
 
 /** What happened to the result in a reply: being built, built (Undo offered), undone, or failed. */
 type Built = { state: 'building' | 'applied' | 'undone' | 'failed'; message?: string };
-interface Turn { role: 'user' | 'assistant'; text: string; meta?: string; error?: { message: string; keys: boolean }; built?: Built }
+interface Turn { role: 'user' | 'assistant'; text: string; /** Reference attached to a message, sent to the AI but not shown. */ attached?: string; seen?: string[]; meta?: string; error?: { message: string; keys: boolean }; built?: Built }
 
 const html = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 function inline(s: string) {
@@ -155,29 +167,52 @@ How to answer:
 - To explain how to do something, name Ara's buttons and panels as they appear on screen.
 - When the user asks you to make, change or write a ${cfg.noun}, reply with one short sentence, then ONE complete ${cfg.noun} JSON in a \`\`\`json block that follows the guide below exactly (keep everything the user didn't ask to change). Ara checks it and builds it straight away, and the user can undo it, so say what you made in one short sentence before the JSON.
 - If something isn't possible in Ara, say so plainly and suggest the closest thing that is.
+- Never ask the user to fetch, save, paste or attach maps, files or IDs.${cfg.lookup ? ` ${cfg.lookup.describe} If you need one that isn't attached, reply with exactly [[lookup: id1, id2]] (up to three IDs) and nothing else; Ara attaches them and asks you again.` : ''}
 
 THE ${cfg.noun.toUpperCase()} GUIDE (for writing JSON; it includes what is open now)
 ${guide}`;
-      const history: Message[] = [{ role: 'user', text: context }, { role: 'assistant', text: 'Understood. I’m ready to help.' },
-        ...turns.slice(0, -1).filter(t => !t.error).slice(-20).map(t => ({ role: t.role, text: t.text }))];
-      let painted = 0;
-      const result = await write(w.provider, w.saved, { model: w.model, messages: history, maxTokens: 16000, signal: control.signal, onText: (_chars, all) => {
-        turn.text = all;
-        if (performance.now() - painted < 60) return; painted = performance.now();
-        const follow = atBottom();
-        ara?.stop(); ara = undefined;
-        // One animation for the whole reply, moved into each repaint, so its phrases and glow run smoothly.
-        slot?.element.remove();
-        node.innerHTML = reply(all, true);
-        const writing = node.querySelector<HTMLElement>('[data-slot="writing"]');
-        if (writing) { slot ??= thinking(cfg.noun, writing); writing.append(slot.element); const json = /```(?:json)?\n?([\s\S]*)$/.exec(all)?.[1] ?? ''; slot.phase('writing', `${json.length.toLocaleString()} characters`); }
-        if (follow) toBottom();
-      } });
+      const asked = turns[turns.length - 2];
+      // Attach what the message mentions (once per message), without what's already attached earlier.
+      const already = new Set(turns.flatMap(t => t.seen ?? []));
+      if (cfg.lookup && asked?.role === 'user' && !asked.seen) {
+        const ids = cfg.lookup.find(asked.text).filter(id => !already.has(id)).slice(0, 2);
+        if (ids.length) { const got = cfg.lookup.fetch(ids); asked.seen = ids; asked.attached = `ATTACHED BY ARA: ${got.names.join(', ')}\n${got.text}`; }
+      }
+      const history = (): Message[] => [{ role: 'user', text: context }, { role: 'assistant', text: 'Understood. I’m ready to help.' },
+        ...turns.slice(0, -1).filter(t => !t.error).slice(-20).map(t => ({ role: t.role, text: t.attached ? `${t.text}\n\n${t.attached}` : t.text }))];
+      let painted = 0, result: Awaited<ReturnType<typeof write>> | undefined, spent = 0;
+      for (let round = 0; round < 3; round++) {
+        result = await write(w.provider, w.saved, { model: w.model, messages: history(), maxTokens: 16000, signal: control.signal, onText: (_chars, all) => {
+          // A request for reference is between Ara and the AI; it isn't shown.
+          if (/^\s*\[\[/.test(all)) return;
+          turn.text = all;
+          if (performance.now() - painted < 60) return; painted = performance.now();
+          const follow = atBottom();
+          ara?.stop(); ara = undefined;
+          // One animation for the whole reply, moved into each repaint, so it runs smoothly.
+          slot?.element.remove();
+          node.innerHTML = reply(all, true);
+          const writing = node.querySelector<HTMLElement>('[data-slot="writing"]');
+          if (writing) { slot ??= thinking(cfg.noun, writing); writing.append(slot.element); const json = /```(?:json)?\n?([\s\S]*)$/.exec(all)?.[1] ?? ''; slot.phase('writing', `${json.length.toLocaleString()} characters`); }
+          if (follow) toBottom();
+        } });
+        spent += costOf(result.usage as Usage, w.info?.price) ?? 0;
+        const wants = /^\s*\[\[\s*lookup\s*:\s*([^\]]+)\]\]\s*$/i.exec(result.text);
+        if (!wants || !cfg.lookup || !asked) break;
+        const ids = wants[1].split(',').map(x => x.trim()).filter(Boolean).slice(0, 3);
+        const got = cfg.lookup.fetch(ids);
+        if (!got.names.length) { asked.attached = `${asked.attached ?? ''}\n\nARA: none of ${ids.join(', ')} exist. Use the IDs in the guide.`; continue; }
+        asked.seen = [...(asked.seen ?? []), ...ids];
+        asked.attached = `${asked.attached ? `${asked.attached}\n\n` : ''}ATTACHED BY ARA: ${got.names.join(', ')}\n${got.text}`;
+        if (!ara && !slot) ara = thinking('chat', node);
+      }
+      if (!result) throw new ProviderError('No reply.', 'other');
       turn.text = result.text;
       if (!result.text.trim()) throw new ProviderError(`${w.label} sent an empty reply. Try again, or rephrase.`, result.stop === 'refused' ? 'refused' : 'other');
       if (result.stop === 'length') turn.text += '\n\n*(The reply was cut off at its length limit.)*';
-      const cost = costOf(result.usage as Usage, w.info?.price);
-      turn.meta = `${w.label}${cost !== undefined ? ` · ${money(cost)}` : ''}`;
+      if (/^\s*\[\[/.test(result.text)) throw new ProviderError(`${w.label} kept asking for more reference. Try rephrasing.`, 'other');
+      const looked = asked?.seen?.length ? cfg.lookup?.fetch(asked.seen).names : undefined;
+      turn.meta = [w.label, spent ? money(spent) : '', looked?.length ? `looked at ${looked.join(', ')}` : ''].filter(Boolean).join(' · ');
     } catch (error) {
       const e = error as ProviderError;
       if (e.problem === 'stopped') { if (!turn.text) turns.pop(); else turn.meta = 'Stopped'; }

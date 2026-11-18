@@ -210,10 +210,20 @@ await step('Ask Ara: the corner button opens a chat that offers to connect a key
   await w('document.querySelector("#ask-ara-panel .ara-thinking")', 'thinking shown'); await pause(250); await shot('14-ask-ara-thinking');
   await w('document.querySelectorAll("#ask-ara-panel .ask-msg.ara li").length===3&&document.querySelector("#ask-ara-panel .ask-meta")&&!document.querySelector("#ask-ara-panel [data-r=send]").hidden', 'answer with a list', 30000);
   const film = await e<string>(`(()=>{const p=structuredClone(studio.project);p.title='Rooftop chase';return JSON.stringify(p,null,2);})()`);
-  await queue('Here’s a rooftop chase for you:\n```json\n' + film + '\n```\nReview it in Assist, then build.');
+  await fetch(`${mock.url}/__reset`);
+  await queue('[[lookup: highway]]', 'Here’s a rooftop chase for you:\n```json\n' + film + '\n```');
   await type('#ask-ara-input', 'Write a 20-second rooftop chase'); await click('#ask-ara-panel [data-r=send]');
   await w('document.querySelector("#ask-ara-panel .ask-slot .ara-thinking")', 'writing card while the JSON streams', 30000); await pause(700); await shot('15-ask-ara-writing');
   const before = await e<string>('studio.project.title');
+  await w('document.querySelector("#ask-ara-panel .ask-card")', 'reply after the lookup', 60000);
+  {
+    const calls = (await (await fetch(`${mock.url}/__log`)).json() as { path: string; body: { contents?: { parts: { text: string }[] }[] } }[]).filter(c => c.path.includes(':streamGenerateContent'));
+    const bodyOf = (i: number) => JSON.stringify(calls[i]?.body ?? '');
+    if (calls.length !== 2) throw Error(`Expected a lookup round trip, got ${calls.length} requests`);
+    if (!/FULL STAGING MAP: City rooftop/.test(bodyOf(0)) || !/FULL STAGING MAP: Rooftop bar/.test(bodyOf(0))) throw Error('The rooftop maps were not attached to the message');
+    if (!/FULL STAGING MAP: Highway/.test(bodyOf(1))) throw Error('The map the AI asked for was not attached');
+    if (/\[\[lookup/.test(await text('#ask-ara-panel'))) throw Error('The lookup request was shown to the visitor');
+  }
   await w('document.querySelector("#ask-ara-panel .ask-card.ok .ask-undo")&&studio.project.title==="Rooftop chase"', 'film built automatically with Undo', 120000);
   if (!/Film ready/.test(await text('#ask-ara-panel .ask-card.ok'))) throw Error('Card does not say the film is ready');
   await shot('16-ask-ara-film-ready');
