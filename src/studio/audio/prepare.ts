@@ -1,6 +1,8 @@
 /** One queue and one local engine for every character's dialogue. */
 import { parseProject, type StudioProject } from '../project';
 import { getAsset, type AudioAsset } from './assets';
+import { generateSoundEffect, composeMusic, canGenerate } from './generate';
+import { durationOf } from '../project';
 import { generateSpeech, releaseSpeechEngine, speechIsCurrent, speechModel } from './tts';
 
 export interface SpeechPreparation {
@@ -10,6 +12,8 @@ export interface SpeechPreparation {
 }
 const takes=new Map<string,string>();
 let queue:Promise<void>=Promise.resolve();
+/** Described sounds and composed music not made yet; they're made when an ElevenLabs key is connected. */
+export const hasUnmadeSound=(project:StudioProject)=>!project.audio.muted&&canGenerate()&&(project.audio.effects.some(c=>c.sound==='generated'&&!c.asset)||project.audio.music.track==='generated'&&!project.audio.music.asset);
 export const hasScriptedSpeech=(project:StudioProject)=>!project.audio.muted&&project.audio.speech.some(c=>c.source==='tts'&&!!c.text.trim());
 
 /** Preserve authored windows; lengthen a short window so automatic generation never cuts off words. */
@@ -36,6 +40,22 @@ export async function prepareDialogue(project:StudioProject,options:SpeechPrepar
       if(cue.start+duration>60)throw Error(`“${cue.name}” needs ${(asset.duration/cue.speed).toFixed(1)} seconds. Move it earlier or shorten its script to fit the 60-second film.`);
       Object.assign(cue,{asset:asset.id,offset:0,duration});
       await options.updated?.(structuredClone(next));
+    }
+    // Then the sounds and music the film describes, with ElevenLabs.
+    if(canGenerate()&&!next.audio.muted){
+      const sounds=next.audio.effects.filter(c=>c.sound==='generated'&&!c.asset&&c.prompt);
+      for(const [index,cue]of sounds.entries()){
+        signal.throwIfAborted();progress(`Sound ${index+1} of ${sounds.length} · ${cue.name}…`);
+        const asset=await generateSoundEffect(cue.prompt!,{seconds:Math.min(30,Math.max(.5,cue.duration*cue.speed)),loop:cue.loop},signal);
+        Object.assign(cue,{asset:asset.id,offset:0,duration:Math.min(cue.duration,asset.duration/cue.speed,60-cue.start)});
+        await options.updated?.(structuredClone(next));
+      }
+      const music=next.audio.music;
+      if(music.track==='generated'&&!music.asset&&music.prompt){
+        signal.throwIfAborted();progress('Composing the music…');
+        const asset=await composeMusic(music.prompt,{seconds:music.duration??durationOf(next),instrumental:music.instrumental!==false},signal);
+        music.asset=asset.id;await options.updated?.(structuredClone(next));
+      }
     }
     return parseProject(JSON.stringify(next));
   }finally{releaseSpeechEngine();release();}

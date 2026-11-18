@@ -3,7 +3,7 @@ import { voiceGuide, voiceProvider } from '../app/keys/voices';
 import { keySettings } from '../app/keys/store';
 import { WAREHOUSE_BRIEF } from './examples/warehouse';
 import { prepareExampleDialogue } from './audio/example';
-import { hasScriptedSpeech } from './audio/prepare';
+import { hasScriptedSpeech, hasUnmadeSound } from './audio/prepare';
 import { assistPanel, type BuildProgress } from '../app/assist/panel';
 import { mountAskAra } from '../app/keys/chat';
 import { peekFilm } from '../app/keys/peek';
@@ -55,7 +55,7 @@ export function setupAssist(editor: AssistEditor) {
     prepare:{
       note:'Dialogue is voiced automatically once the film checks out. Ara’s own voices run on your device (about 265 MB the first time); Gemini and ElevenLabs voices use your key. The warehouse example includes its recorded dialogue.',
       // Provider voices use the visitor's allowance, so they're voiced automatically only when Keys allows it.
-      needed:project=>hasScriptedSpeech(project)&&(keySettings().autoVoices||!project.audio.speech.some(c=>c.source==='tts'&&!!voiceProvider(c.voice))),
+      needed:project=>(hasScriptedSpeech(project)||hasUnmadeSound(project))&&(keySettings().autoVoices||!hasUnmadeSound(project)&&!project.audio.speech.some(c=>c.source==='tts'&&!c.asset&&!!voiceProvider(c.voice))),
       // Lines in Ara's own voices need the 265 MB voice download, so Ask Ara leaves them for Sound.
       quick:project=>project.audio.speech.every(c=>c.source!=='tts'||!c.text.trim()||!!c.asset||!!voiceProvider(c.voice)),
       run:(project,options)=>prepareExampleDialogue(project,editor.catalog(),options),

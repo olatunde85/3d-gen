@@ -160,6 +160,17 @@
       </section>
     </section>
     <section id="sound-music-panel" role="tabpanel" aria-labelledby="sound-tab-music" hidden>
+      <section class="sound-make" id="sound-compose" aria-labelledby="sound-compose-title">
+        <div class="sound-head"><h3 id="sound-compose-title">Compose music</h3><span class="setting-hint">With ElevenLabs</span></div>
+        <div id="sound-compose-off"><p class="setting-hint">Describe the music, such as “tense orchestral spy theme with low strings”, and ElevenLabs composes it for the length of your film. Uses your own ElevenLabs key.</p><div class="sound-line-actions"><button id="sound-compose-keys">Connect ElevenLabs</button></div></div>
+        <div id="sound-compose-on" hidden>
+          <label for="sound-compose-prompt">Describe the music</label><textarea id="sound-compose-prompt" rows="2" maxlength="400" placeholder="Tense orchestral spy theme with low strings and a steady pulse"></textarea>
+          <label class="check-label"><input id="sound-compose-instrumental" type="checkbox" checked /><span>Instrumental only (no singing)</span></label>
+          <div class="sound-line-actions"><button id="sound-compose-go" class="export-button">Compose</button><button id="sound-compose-play" hidden>▶ Play</button><button id="sound-compose-use" hidden>Use as background music</button></div>
+          <div id="sound-compose-wait"></div>
+          <p class="setting-hint">Made at the film’s length, up to 60 seconds. Uses your ElevenLabs allowance, and some plans don’t include music. Your ElevenLabs plan decides how you may use what it makes; its free plan doesn’t include commercial use.</p>
+        </div>
+      </section>
       <div class="sound-music">
         <label for="sound-music">Background music</label><select id="sound-music"></select><p id="sound-music-credit" class="setting-hint"></p>
         <div class="form-row"><div><label for="sound-music-volume">Volume %</label><input id="sound-music-volume" type="number" min="0" max="100" step="1" /></div><div><label for="sound-fade-in">Fade in (s)</label><input id="sound-fade-in" type="number" min="0" max="10" step="0.1" /></div><div><label for="sound-fade-out">Fade out (s)</label><input id="sound-fade-out" type="number" min="0" max="10" step="0.1" /></div></div>
@@ -176,6 +187,17 @@
       </div>
     </section>
     <section id="sound-effects-panel" role="tabpanel" aria-labelledby="sound-tab-effects" hidden>
+      <section class="sound-make" id="fx-make" aria-labelledby="fx-make-title">
+        <div class="sound-head"><h3 id="fx-make-title">Make a sound</h3><span class="setting-hint">With ElevenLabs</span></div>
+        <div id="fx-make-off"><p class="setting-hint">Describe any sound, such as “a helicopter landing on gravel” or “rain on a tin roof”, and ElevenLabs makes it. Uses your own ElevenLabs key.</p><div class="sound-line-actions"><button id="fx-make-keys">Connect ElevenLabs</button></div></div>
+        <div id="fx-make-on" hidden>
+          <label for="fx-make-prompt">Describe the sound</label><textarea id="fx-make-prompt" rows="2" maxlength="300" placeholder="A helicopter landing on gravel, rotors slowing down"></textarea>
+          <div class="form-row"><div><label for="fx-make-length">Length</label><select id="fx-make-length"><option value="">Auto</option><option value="1">1 s</option><option value="2">2 s</option><option value="3">3 s</option><option value="5">5 s</option><option value="10">10 s</option><option value="20">20 s</option><option value="30">30 s</option></select></div><div><label class="check-label"><input id="fx-make-loop" type="checkbox" /><span>Seamless loop</span></label></div></div>
+          <div class="sound-line-actions"><button id="fx-make-go" class="export-button">Make sound</button><button id="fx-make-play" hidden>▶ Play</button><button id="fx-make-add" hidden>Add at playhead</button></div>
+          <div id="fx-make-wait"></div>
+          <p class="setting-hint">Each sound uses some of your ElevenLabs allowance. Your ElevenLabs plan decides how you may use what it makes; its free plan doesn’t include commercial use.</p>
+        </div>
+      </section>
       <div class="effects-columns">
         <section><h3>Sound library</h3><label class="sr-only" for="fx-library">Choose a sound effect</label><select id="fx-library"></select><p id="fx-description" class="setting-hint"></p>
           <div class="sound-actions"><button id="fx-add" class="export-button">Add at playhead</button><button id="fx-audition">Listen</button></div>

@@ -1,5 +1,6 @@
 /** Lazy recorded music. Cache only one film-length PCM excerpt, independent of cast size. */
 import { MUSIC_TRACKS, type MusicId } from './tracks';
+import { decodeAsset } from './assets';
 let cached:{id:MusicId;buffer:AudioBuffer;rate:number}|undefined;
 async function musicBuffer(ctx:BaseAudioContext,id:MusicId,signal?:AbortSignal){
   signal?.throwIfAborted();if(cached?.id===id&&cached.rate===ctx.sampleRate)return cached.buffer;
@@ -12,7 +13,7 @@ async function musicBuffer(ctx:BaseAudioContext,id:MusicId,signal?:AbortSignal){
   for(let c=0;c<buffer.numberOfChannels;c++)buffer.copyToChannel(full.getChannelData(c).subarray(0,frames),c);
   cached={id,buffer,rate:ctx.sampleRate};return buffer;
 }
-export async function addMusic(ctx:BaseAudioContext,id:MusicId,duration:number,destination:AudioNode,signal?:AbortSignal,start=0){
-  if(id==='none')return;const buffer=await musicBuffer(ctx,id,signal);signal?.throwIfAborted();
+export async function addMusic(ctx:BaseAudioContext,id:MusicId|'generated',duration:number,destination:AudioNode,signal?:AbortSignal,start=0,asset?:string){
+  if(id==='none'||id==='generated'&&!asset)return;const buffer=id==='generated'?await decodeAsset(asset!,ctx):await musicBuffer(ctx,id,signal);signal?.throwIfAborted();
   const source=ctx.createBufferSource();source.buffer=buffer;source.loop=true;source.connect(destination);source.start(start);source.stop(start+duration);
 }

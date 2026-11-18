@@ -9,6 +9,8 @@ import { AudioPlayback, renderSoundtrack } from './mix';
 import { generateSpeech, releaseSpeechEngine } from './tts';
 import { setupEffectsEditor } from './effects-ui';
 import { audioProjectBundle } from './bundle';
+import { composeMusic, canGenerate } from './generate';
+import { thinking, type Thinking } from '../../app/keys/thinking';
 import { decodeCharacter } from '../../app/share';
 import { DELIVERY_PRESETS, presetFor, voiceMenu, voiceName, supportsDelivery, deliveryHint, defaultVoice, playVoiceSample, generationNote, type VoiceGroup } from '../../app/keys/voices';
 import { openKeys } from '../../app/keys/dialog';
@@ -169,11 +171,41 @@ export function setupSoundEditor(editor:SoundEditor){
   // ---- Music ----
   function renderMusic(){
     const audio=project().audio;
-    select('music').value=audio.music.track;const track=MUSIC_TRACKS.find(t=>t.id===audio.music.track);$('sound-music-credit').textContent=track?.artist?`${track.artist} · ${Math.floor(track.duration/60)}:${Math.floor(track.duration%60).toString().padStart(2,'0')}`:'';
+    const composedOption=select('music').querySelector<HTMLOptionElement>('option[value="generated"]');
+    if(audio.music.track==='generated'){const label=`✦ Composed: ${(audio.music.prompt??'').slice(0,50)}`;if(composedOption)composedOption.textContent=label;else{const none=select('music').querySelector('option[value="none"]');select('music').insertBefore(new Option(label,'generated'),none?.nextSibling??null);}}else composedOption?.remove();
+    select('music').value=audio.music.track;const track=MUSIC_TRACKS.find(t=>t.id===audio.music.track);$('sound-music-credit').textContent=audio.music.track==='generated'?(audio.music.asset?'Composed with ElevenLabs for this film.':'Not composed yet: press Compose below, or Voice all lines in Assist.'):track?.artist?`${track.artist} · ${Math.floor(track.duration/60)}:${Math.floor(track.duration%60).toString().padStart(2,'0')}`:'';
+    renderCompose();
     input('music-window').checked=audio.music.duration!==undefined||audio.music.start!==undefined;$('sound-music-timing').hidden=!input('music-window').checked;
     input('music-start').value=String(audio.music.start??0);input('music-duration').value=String(audio.music.duration??Math.max(.1,durationOf(project())-(audio.music.start??0)));
     input('music-volume').value=String(Math.round(audio.music.volume*100));input('ducking').checked=audio.music.ducking;input('muted').checked=audio.muted;input('fade-in').value=String(audio.music.fadeIn);input('fade-out').value=String(audio.music.fadeOut);
   }
+
+  // ---- Composing music with ElevenLabs ----
+  let composed:AudioAsset|undefined,composing:AbortController|undefined,composeWait:Thinking|undefined;
+  function renderCompose(){const on=canGenerate();$('sound-compose-off').hidden=on;$('sound-compose-on').hidden=!on;button('compose-play').hidden=!composed;button('compose-use').hidden=!composed;button('compose-go').textContent=composing?'Stop':composed?'Compose again':'Compose';}
+  button('compose-keys').addEventListener('click',()=>openKeys({focus:'voice',then:renderCompose}));
+  button('compose-go').addEventListener('click',async()=>{
+    if(composing){composing.abort();return;}
+    const prompt=$<HTMLTextAreaElement>('sound-compose-prompt').value.trim();if(!prompt){$('sound-compose-prompt').focus();status('Describe the music first.');return;}
+    stopPreview();composing=new AbortController();composed=undefined;renderCompose();status('');
+    const seconds=Math.max(3,Math.min(60,durationOf(project())));
+    composeWait=thinking('music',$('sound-compose-wait'),{patience:'Music can take a minute or two. You can keep working in Studio.'});composeWait.phase('writing',`Composing ${Math.round(seconds)} s of music`);
+    try{composed=await composeMusic(prompt,{seconds,instrumental:input('compose-instrumental').checked},composing.signal);status(`Composed ${composed.duration.toFixed(0)} s of music. Play it, then use it as the background music.`);void playComposed();}
+    catch(error){status((error as Error).message);}
+    finally{composeWait?.stop();composeWait=undefined;composing=undefined;renderCompose();}
+  });
+  async function playComposed(){
+    if(!composed)return;if(preview.active){stopPreview();return;}
+    const p=structuredClone(project());p.audio.speech=[];p.audio.effects=[];p.audio.muted=false;p.audio.music={...p.audio.music,track:'generated',prompt:composed.name,asset:composed.id,start:0,duration:composed.duration};
+    button('compose-play').textContent='■ Stop';try{await preview.play(p,0,()=>{button('compose-play').textContent='▶ Play';},composed.duration);}catch(error){status((error as Error).message);button('compose-play').textContent='▶ Play';}
+  }
+  button('compose-play').addEventListener('click',()=>void playComposed());
+  button('compose-use').addEventListener('click',async()=>{
+    if(!composed)return;const prompt=$<HTMLTextAreaElement>('sound-compose-prompt').value.trim()||composed.name;
+    await musicEdit(p=>{p.audio.music={...p.audio.music,track:'generated',prompt:prompt.slice(0,400),instrumental:input('compose-instrumental').checked,asset:composed!.id};delete p.audio.music.start;delete p.audio.music.duration;});
+    status('Your composed music is the film’s background music.');
+  });
+  onKeysChange(()=>{if(dialog.open)renderCompose();});
 
   // ---- Tabs, opening and closing ----
   function stopPreview(){effects.stop();preview.stop();field('preview').textContent='▶ Play line';button('music-preview').textContent='▶ Play music';}
@@ -323,7 +355,7 @@ export function setupSoundEditor(editor:SoundEditor){
   const musicEdit=async(fn:(p:StudioProject)=>void)=>{stopPreview();await commit(fn);editor.changed();render();};
   input('music-window').addEventListener('change',()=>void musicEdit(p=>{if(input('music-window').checked){p.audio.music.start=0;p.audio.music.duration=durationOf(p);}else{delete p.audio.music.start;delete p.audio.music.duration;}}));
   for(const key of ['start','duration']as const)input(`music-${key}`).addEventListener('change',()=>void musicEdit(p=>p.audio.music[key]=Number(input(`music-${key}`).value)));
-  select('music').addEventListener('change',()=>void musicEdit(p=>p.audio.music.track=select('music').value as typeof p.audio.music.track));input('music-volume').addEventListener('change',()=>void musicEdit(p=>p.audio.music.volume=Number(input('music-volume').value)/100));input('ducking').addEventListener('change',()=>void musicEdit(p=>p.audio.music.ducking=input('ducking').checked));input('muted').addEventListener('change',()=>void musicEdit(p=>p.audio.muted=input('muted').checked));
+  select('music').addEventListener('change',()=>void musicEdit(p=>{const track=select('music').value as typeof p.audio.music.track;if(track==='generated')return;p.audio.music.track=track;delete p.audio.music.prompt;delete p.audio.music.asset;delete p.audio.music.instrumental;}));input('music-volume').addEventListener('change',()=>void musicEdit(p=>p.audio.music.volume=Number(input('music-volume').value)/100));input('ducking').addEventListener('change',()=>void musicEdit(p=>p.audio.music.ducking=input('ducking').checked));input('muted').addEventListener('change',()=>void musicEdit(p=>p.audio.muted=input('muted').checked));
   for(const [id,key]of [['fade-in','fadeIn'],['fade-out','fadeOut']]as const)input(id).addEventListener('change',()=>void musicEdit(p=>p.audio.music[key]=Number(input(id).value)));
   button('music-preview').addEventListener('click',async()=>{if(preview.active){stopPreview();return;}try{const p=structuredClone(project());p.audio.speech=[];p.audio.effects=[];p.audio.muted=false;if(p.audio.music.track==='none')throw Error('Choose a track first.');button('music-preview').textContent='…';await preview.play(p,p.audio.music.start??0,()=>{button('music-preview').textContent='▶ Play music';},p.audio.music.duration);button('music-preview').textContent='■ Stop';}catch(error){stopPreview();status((error as Error).message);}});button('stop').addEventListener('click',stopPreview);
   button('wav').addEventListener('click',async()=>{busy=true;lock();try{status('Mixing the soundtrack…');const buffer=await renderSoundtrack(project());if(!buffer)throw Error('There’s no sound to save. Add some and unmute the film.');editor.download(wavBlob(Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i)),buffer.sampleRate),'ara-soundtrack.wav');status('Soundtrack saved.');}catch(error){status((error as Error).message);}finally{busy=false;render();}});

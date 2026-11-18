@@ -10,7 +10,7 @@ Ara can use your own AI and voice accounts. With a key connected, Assist writes 
 | Anthropic Claude | Assist and Ask Ara | `sk-ant-…` | — |
 | OpenAI | Assist and Ask Ara | `sk-…` | — |
 | OpenRouter | Assist and Ask Ara (one key for many models) | `sk-or-…` | Some free models |
-| ElevenLabs | Voices, including your own cloned voices | `sk_…` | A monthly allowance |
+| ElevenLabs | Voices (including your own cloned voices), sound effects and music | `sk_…` | A monthly allowance |
 
 One Gemini key covers both writing and voices.
 
@@ -61,5 +61,7 @@ Conversations last until the browser closes; **＋** starts a new one. In Play, 
 Sound's voice menus list Ara's four free voices, Gemini's 30 voices and the voices in your ElevenLabs account, your own voices first. **▶** plays a sample: ElevenLabs' own preview, or a short sentence in the voice.
 
 **How it's said** directs Gemini and ElevenLabs voices. Pick a preset (**Whispered**, **Shouting**, **Excited**, **Nervous**, **Sad**, **Angry**, **Laughing**, **Sarcastic**, **Calm**, **Out of breath**) or describe it in your own words. ElevenLabs works best with a word or two, such as *whispers* or *excited*; Gemini understands phrases such as *warm and slow*. Ara's own voices don't take direction.
+
+**Sound effects and music:** with ElevenLabs, Studio's **Make a sound** and **Compose music** make them from a description (see [Studio](studio.md#speech)).
 
 Voiced lines are saved as audio in this browser and included in exports, so a film plays the same everywhere. A film that uses a provider's voices can be opened without that key; only voicing new or changed lines needs it.

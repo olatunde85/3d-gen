@@ -276,6 +276,7 @@ export async function voiceGuide(): Promise<string> {
     } catch { /* Leave ElevenLabs out of the guide if its voices can't load. */ }
   }
   if (s.keys.gemini || s.keys.elevenlabs) lines.push('- Prefer the connected provider voices: they sound far more natural. Match each voice to the character (gender, age, mood) and give lines a delivery where it helps the scene.');
+  if (s.keys.elevenlabs) lines.push('SOUNDS AND MUSIC (ElevenLabs is connected)\n- A sound effect not in the library can be made from a description: {"sound":"generated","prompt":"a helicopter landing on gravel","start":4,"duration":5}. Describe one sound per cue, 0.5–30 seconds; set loop true for a steady bed such as rain. Prefer the library when it has the sound.\n- Music can be composed for the film: "music":{"track":"generated","prompt":"tense orchestral spy theme with low strings","instrumental":true}. Describe genre, mood, instruments and tempo; it is made at the film length.\n- Never invent asset IDs; Ara makes the audio.');
   return lines.join('\n');
 }
 

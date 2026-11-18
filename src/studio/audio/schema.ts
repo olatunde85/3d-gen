@@ -16,8 +16,10 @@ export const VOICE_LABELS={F1:'Studio voice · F1',F2:'Studio voice · F2',M1:'S
 export const speechActor=(id:string)=>id==='narrator'?'actor:narrator':id;
 export const resolveSpeechActor=(id:string)=>id==='actor:narrator'?'narrator':id;
 export interface SpeechCue {source:'tts'|'file'|'recording';id:string;name:string;actor:string;text:string;voice:SpeechVoice;delivery?:string;asset?:string;start:number;duration:number;offset:number;speed:number;volume:number;pan:number;effect:VoiceEffect}
-export interface MusicSettings {start?:number;duration?:number;track:MusicId;volume:number;ducking:boolean;fadeIn:number;fadeOut:number}
-export interface SoundEffectCue {loop?:boolean;id:string;name:string;sound:SoundEffectId;actor?:string;start:number;duration:number;offset:number;speed:number;volume:number;pan:number}
+/** Music is a library track, or music composed from a description (track 'generated', with its audio in asset once made). */
+export interface MusicSettings {start?:number;duration?:number;track:MusicId|'generated';prompt?:string;instrumental?:boolean;asset?:string;volume:number;ducking:boolean;fadeIn:number;fadeOut:number}
+/** A library sound, or one made from a description (sound 'generated', with its audio in asset once made). */
+export interface SoundEffectCue {loop?:boolean;id:string;name:string;sound:SoundEffectId|'generated';prompt?:string;asset?:string;actor?:string;start:number;duration:number;offset:number;speed:number;volume:number;pan:number}
 export interface FilmAudio {speech:SpeechCue[];effects:SoundEffectCue[];music:MusicSettings;muted:boolean}
 export const defaultAudio=():FilmAudio=>({speech:[],effects:[],music:{track:'none',volume:.22,ducking:true,fadeIn:.6,fadeOut:1.2},muted:false});
 export const hasAudio=(audio?:FilmAudio)=>!!audio&&!audio.muted&&(audio.music.track!=='none'&&audio.music.volume>0||audio.speech.some(c=>c.volume>0)||audio.effects.some(c=>c.volume>0));
@@ -48,17 +50,23 @@ export function parseAudio(raw:unknown,actors:Set<string>):FilmAudio{
   const effects=raw.effects??[];if(!Array.isArray(effects)||effects.length>MAX_SOUND_EFFECTS)throw Error(`Use at most ${MAX_SOUND_EFFECTS} sound-effect cues.`);
   const effectIds=new Set<string>(),effectCues=effects.map((value,i):SoundEffectCue=>{
     if(!object(value))throw Error(`Invalid sound effect ${i+1}.`);const label=`Sound effect ${i+1}`;
-    fields(value,['id','name','sound','actor','start','duration','offset','speed','volume','pan','loop'],label);
+    fields(value,['id','name','sound','actor','start','duration','offset','speed','volume','pan','loop','prompt','asset'],label);
     const id=str(value.id,50,label,`fx-${i}`);if(!/^[a-zA-Z0-9_-]+$/.test(id)||effectIds.has(id))throw Error('Sound-effect IDs must be unique.');effectIds.add(id);
-    if(typeof value.sound!=='string'||!soundEffectById(value.sound))throw Error(`${label}: choose a sound from the effects library.`);const sound=soundEffectById(value.sound)!;
+    const made=value.sound==='generated';
+    if(!made&&(typeof value.sound!=='string'||!soundEffectById(value.sound)))throw Error(`${label}: choose a sound from the effects library, or "generated" with a prompt.`);
+    const prompt=made?str(value.prompt,300,`${label} prompt`).trim():undefined;if(made&&!prompt)throw Error(`${label}: describe the sound to make in prompt.`);if(!made&&value.prompt!==undefined)throw Error(`${label}: prompt is only for generated sounds.`);
+    const asset=value.asset===undefined?undefined:str(value.asset,64,label);if(asset!==undefined&&(!made||!/^[a-f0-9]{64}$/.test(asset)))throw Error(`${label}: invalid audio asset ID.`);
+    const sound=made?{id:'generated' as const,name:prompt!.slice(0,60),duration:30}:soundEffectById(value.sound as string)!;
     const actor=value.actor===undefined?undefined:str(value.actor,50,label);if(actor!==undefined&&!actors.has(actor))throw Error(`${label}: choose an existing actor or omit actor for a scene sound.`);
     const offset=num(value.offset,0,sound.duration,label,0);if(offset>=sound.duration)throw Error(`${label}: trim starts beyond the end of the recording.`);
     const speed=num(value.speed,.5,2,label,1),start=num(value.start,0,59.9,label,0),duration=num(value.duration,.01,60,label,(sound.duration-offset)/speed);
     if(start+duration>60+1e-7)throw Error(`${label}: finish within 60 seconds.`);
-    return{...(value.loop===undefined?{}:{loop:bool(value.loop,false,label)}),id,name:str(value.name,80,label,sound.name),sound:sound.id,...(actor===undefined?{}:{actor}),start,duration,offset,speed,volume:num(value.volume,0,2,label,1),pan:num(value.pan,-1,1,label,0)};
+    return{...(value.loop===undefined?{}:{loop:bool(value.loop,false,label)}),id,name:str(value.name,80,label,sound.name),sound:sound.id,...(prompt?{prompt}:{}),...(asset?{asset}:{}),...(actor===undefined?{}:{actor}),start,duration,offset,speed,volume:num(value.volume,0,2,label,1),pan:num(value.pan,-1,1,label,0)};
   });
-  const music=raw.music??{};if(!object(music))throw Error('Music must be an object.');fields(music,['track','volume','ducking','fadeIn','fadeOut','start','duration'],'Music');
-  const track=migrateMusic(music.track??'none');if(!MUSIC_TRACKS.some(t=>t.id===track))throw Error('Choose a music track from the library.');
+  const music=raw.music??{};if(!object(music))throw Error('Music must be an object.');fields(music,['track','volume','ducking','fadeIn','fadeOut','start','duration','prompt','instrumental','asset'],'Music');
+  const track=migrateMusic(music.track??'none'),composed=track==='generated';if(!composed&&!MUSIC_TRACKS.some(t=>t.id===track))throw Error('Choose a music track from the library, or "generated" with a prompt.');
+  const musicPrompt=composed?str(music.prompt,400,'Music prompt').trim():undefined;if(composed&&!musicPrompt)throw Error('Music: describe the music to compose in prompt.');if(!composed&&(music.prompt!==undefined||music.asset!==undefined))throw Error('Music: prompt and asset are only for generated music.');
+  const musicAsset=music.asset===undefined?undefined:str(music.asset,64,'Music asset');if(musicAsset!==undefined&&!/^[a-f0-9]{64}$/.test(musicAsset))throw Error('Music: invalid audio asset ID.');
   const musicStart=num(music.start,0,59.9,'Music start',0),musicDuration=music.duration===undefined?undefined:num(music.duration,.1,60,'Music duration',3);if(musicDuration!==undefined&&musicStart+musicDuration>60+1e-7)throw Error('Music must finish within 60 seconds.');
-  return{speech:cues,effects:effectCues,music:{...(music.start===undefined?{}:{start:musicStart}),...(musicDuration===undefined?{}:{duration:musicDuration}),track:track as MusicId,volume:num(music.volume,0,1,'Music volume',.22),ducking:bool(music.ducking,true,'Music ducking'),fadeIn:num(music.fadeIn,0,10,'Music fade in',.6),fadeOut:num(music.fadeOut,0,10,'Music fade out',1.2)},muted:bool(raw.muted,false,'Audio muted')};
+  return{speech:cues,effects:effectCues,music:{...(music.start===undefined?{}:{start:musicStart}),...(musicDuration===undefined?{}:{duration:musicDuration}),track:track as MusicId|'generated',...(composed?{prompt:musicPrompt,instrumental:bool(music.instrumental,true,'Music instrumental'),...(musicAsset?{asset:musicAsset}:{})}:{}),volume:num(music.volume,0,1,'Music volume',.22),ducking:bool(music.ducking,true,'Music ducking'),fadeIn:num(music.fadeIn,0,10,'Music fade in',.6),fadeOut:num(music.fadeOut,0,10,'Music fade out',1.2)},muted:bool(raw.muted,false,'Audio muted')};
 }

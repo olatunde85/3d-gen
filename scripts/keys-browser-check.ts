@@ -169,6 +169,37 @@ await step('Studio: Assist writes a film with Gemini, casts Gemini voices and vo
   await w('!document.getElementById("assist-dialog").open&&studio.project.title==="Harbour night"&&studio.project.audio.speech.every(c=>c.asset)', 'film built with voiced lines', 120000);
 });
 
+await step('Studio: Make a sound and Compose music with ElevenLabs, and an Ask Ara film that asks for both', async () => {
+  await viewport(1400, 1000);
+  await e(`localStorage.setItem('ara.keys.v1',JSON.stringify({keys:{elevenlabs:{key:${JSON.stringify(KEYS.elevenlabs)}},gemini:{key:${JSON.stringify(KEYS.gemini)}}},ai:{provider:'gemini',model:'gemini-4-hydrogen'},autoVoices:true,remember:true}))`);
+  await go('/studio/#demo'); await w('window.studio?.ready', 'Studio ready', 180000);
+  await e('window.dispatchEvent(new StorageEvent("storage",{key:"ara.keys.v1"}))');
+  await e('document.querySelectorAll("dialog[open]").forEach(d=>d.close())');
+  await e(`(async()=>{const p=structuredClone(studio.project);p.audio.speech=[];p.audio.effects=[];p.audio.music={track:'none',volume:.22,ducking:true,fadeIn:.6,fadeOut:1.2};await studio.setProject(p);})()`);
+  await click('#open-effects'); await w('!document.getElementById("sound-effects-panel").hidden&&!document.getElementById("fx-make-on").hidden', 'Make a sound ready');
+  await type('#fx-make-prompt', 'A helicopter landing on gravel'); await e('document.getElementById("fx-make-length").value="3"');
+  await click('#fx-make-go'); await w('!document.getElementById("fx-make-add").hidden', 'sound made', 30000);
+  await shot('21-make-sound');
+  await click('#fx-make-add'); await w('studio.project.audio.effects.some(c=>c.sound==="generated"&&c.asset&&c.prompt==="A helicopter landing on gravel")', 'made sound added');
+  await click('#sound-tab-music'); await w('!document.getElementById("sound-compose-on").hidden', 'Compose ready');
+  await type('#sound-compose-prompt', 'Tense orchestral spy theme'); await click('#sound-compose-go');
+  await w('!document.getElementById("sound-compose-use").hidden', 'music composed', 30000);
+  await click('#sound-compose-use'); await w('studio.project.audio.music.track==="generated"&&!!studio.project.audio.music.asset', 'composed music in use');
+  await shot('22-compose-music');
+  const rendered = await e<boolean>('(async()=>{const s=await studio.audio.playback.play(studio.project,0,()=>{},1);studio.audio.playback.stop();return s;})()');
+  if (!rendered) throw Error('The film with made audio did not play');
+  await e('document.getElementById("sound-dialog").close()');
+  // Ask Ara: a film whose JSON describes a sound and music is made before it's built.
+  const film = await e<string>(`(()=>{const p=structuredClone(studio.project);p.title='Base briefing';p.audio.effects=[{id:'heli',name:'Helicopter',sound:'generated',prompt:'a helicopter landing',start:0,duration:3,offset:0,speed:1,volume:1,pan:0}];p.audio.music={track:'generated',prompt:'military briefing theme',instrumental:true,volume:.2,ducking:true,fadeIn:.6,fadeOut:1.2};return JSON.stringify(p);})()`);
+  await e('sessionStorage.removeItem("ara.chat.studio.v1")');
+  await queue('Here it is:\n```json\n' + film + '\n```');
+  await click('#ask-ara'); await w('!document.getElementById("ask-ara-panel").hidden', 'chat');
+  await click('#ask-ara-panel [data-r=new]');
+  await type('#ask-ara-input', 'A briefing at the base with a helicopter and music'); await click('#ask-ara-panel [data-r=send]');
+  await w('studio.project.title==="Base briefing"&&studio.project.audio.effects[0]?.asset&&studio.project.audio.music.asset', 'sound and music made before building', 60000);
+  await e('document.getElementById("ask-ara-panel").hidden=true');
+});
+
 await step('Keys: “Remember” off keeps keys for this visit only', async () => {
   await go('/app/'); await w('document.getElementById("character-assist-btn")', 'builder');
   await e(`localStorage.setItem('ara.keys.v1',JSON.stringify({keys:{gemini:{key:${JSON.stringify(KEYS.gemini)}}},autoVoices:true,remember:true}))`);
@@ -198,9 +229,11 @@ await step('Ask Ara: the corner button opens a chat that offers to connect a key
   await viewport(1400, 1000);
   await e('localStorage.removeItem("ara.keys.v1");sessionStorage.removeItem("ara.chat.studio.v1")');
   await go('/studio/#demo'); await w('window.studio?.ready&&document.getElementById("ask-ara")', 'Studio ready', 180000);
+  await e('window.dispatchEvent(new StorageEvent("storage",{key:"ara.keys.v1"}))');
   await e('document.querySelectorAll("dialog[open]").forEach(d=>d.close())'); await pause(300);
   await shot('12b-studio-ask-button');
   await click('#ask-ara'); await w('!document.getElementById("ask-ara-panel").hidden', 'chat open');
+  await click('#ask-ara-panel [data-r=new]');
   if (!/Connect a key/.test(await text('#ask-ara-panel'))) throw Error('No connect prompt');
   await shot('13-ask-ara-hello');
   await e(`localStorage.setItem('ara.keys.v1',JSON.stringify({keys:{gemini:{key:${JSON.stringify(KEYS.gemini + '-slow')}}},ai:{provider:'gemini',model:'gemini-4-hydrogen'},autoVoices:true,remember:true}))`);

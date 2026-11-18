@@ -1,6 +1,7 @@
 /** Recorded one-shot and looping cues share a bounded decoded cache; timing is deterministic in every output. */
 import { soundEffectById, type SoundEffectId } from './effects-catalog';
 import type { SoundEffectCue } from './schema';
+import { decodeAsset } from './assets';
 const buffers=new Map<string,AudioBuffer>();
 export async function effectBuffer(ctx:BaseAudioContext,id:SoundEffectId,signal?:AbortSignal){
   signal?.throwIfAborted();const key=`${id}:${ctx.sampleRate}`,cached=buffers.get(key);if(cached)return cached;
@@ -12,7 +13,8 @@ export async function effectBuffer(ctx:BaseAudioContext,id:SoundEffectId,signal?
 }
 export async function addSoundEffects(ctx:BaseAudioContext,cues:SoundEffectCue[],destination:AudioNode,signal?:AbortSignal){
   for(const cue of cues){
-    if(cue.volume<=0)continue;signal?.throwIfAborted();const buffer=await effectBuffer(ctx,cue.sound,signal);
+    // A described sound that hasn't been made yet is silent until it is (Sound effects shows it as waiting).
+    if(cue.volume<=0||cue.sound==='generated'&&!cue.asset)continue;signal?.throwIfAborted();const buffer=cue.sound==='generated'?await decodeAsset(cue.asset!,ctx):await effectBuffer(ctx,cue.sound,signal);
     if(cue.offset>=buffer.duration)throw Error(`“${cue.name}” starts beyond its recording. Adjust its trim.`);
     const source=ctx.createBufferSource(),gain=ctx.createGain(),pan=ctx.createStereoPanner();source.buffer=buffer;source.loop=cue.loop===true;source.loopStart=cue.offset;source.loopEnd=buffer.duration;source.playbackRate.value=cue.speed;pan.pan.value=cue.pan;
     const end=cue.start+cue.duration,fade=Math.min(.002,cue.duration/3);

@@ -179,6 +179,14 @@ async function answer(provider: string, path: string, req: IncomingMessage, res:
       ], has_more: false, total_count: 3 });
     }
     if (path === '/v1/user/subscription') return json(res, 200, { tier: 'free', character_count: 1500, character_limit: 10000, status: 'free' });
+    if (path.startsWith('/v1/sound-generation') || path.startsWith('/v1/music')) {
+      if (scenario === 'nocredit') return e(402, 'payment_required', 'insufficient_credits', 'You do not have enough credits to complete this request.');
+      const music = path.startsWith('/v1/music');
+      if (music && !body?.prompt || !music && !body?.text) return e(422, 'validation_error', 'missing', 'Missing prompt.');
+      const seconds = music ? (body.music_length_ms ?? 10000) / 1000 : body.duration_seconds ?? 2, pcm = sine(seconds, 44100), head = Buffer.alloc(44);
+      head.write('RIFF', 0); head.writeUInt32LE(36 + pcm.length, 4); head.write('WAVE', 8); head.write('fmt ', 12); head.writeUInt32LE(16, 16); head.writeUInt16LE(1, 20); head.writeUInt16LE(1, 22); head.writeUInt32LE(44100, 24); head.writeUInt32LE(88200, 28); head.writeUInt16LE(2, 32); head.writeUInt16LE(16, 34); head.write('data', 36); head.writeUInt32LE(pcm.length, 40);
+      res.statusCode = 200; res.setHeader('content-type', 'audio/wav'); res.end(Buffer.concat([head, pcm])); return;
+    }
     if (path.startsWith('/v1/text-to-speech/')) {
       if (scenario === 'nocredit') return e(402, 'payment_required', 'insufficient_credits', 'You do not have enough credits to complete this request.');
       if (scenario === 'eleven-old' && body.model_id !== 'eleven_multilingual_v2') return e(403, 'authorization_error', 'model_access_denied', `Your subscription does not have access to the model ${body.model_id}.`);

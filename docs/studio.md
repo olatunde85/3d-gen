@@ -107,6 +107,8 @@ There are three ways to add a line, all starting at the playhead:
 
 A voiced line is fitted to the length of its audio. Dialogue still waiting for a voice shows **Add speech audio** under the preview and in the export dialog.
 
+**Make a sound** (Sound effects tab) and **Compose music** (Music tab) use your own ElevenLabs key ([Your own AI and voices](keys.md)). Describe a sound, choose a length (or **Auto**) and whether it loops, press **Make sound**, listen, then **Add at playhead**. Describe the music and press **Compose**: it is made at the film's length, instrumental unless you untick **Instrumental only**, and **Use as background music** puts it in the film. Made sounds and composed music are saved in this browser and go into exports and **Save film with its audio**. With ElevenLabs connected, Assist and Ask Ara can also describe sounds and music in a film, and they are made before it is built. Each one uses some of your ElevenLabs allowance; some plans don't include music, and your plan decides how you may use what it makes.
+
 **Music** holds the background track, its volume and fades, **Lower the music while someone speaks**, an optional part-of-the-film window, **Mute all film sound**, **Save soundtrack (.wav)** and **Save film with its audio (.zip)**.
 
 ## Assist
