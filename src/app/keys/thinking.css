@@ -1,0 +1,22 @@
+/* Ara at work: a row of wireframe figures across the width, a soft light passing through them one after another. */
+.ara-thinking { display: block; width: 100%; min-height: 48px; }
+.ara-thinking .ara-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ara-figures { --step: .09s; display: flex; align-items: flex-end; justify-content: space-between; gap: 3px; width: 100%; height: 48px; }
+.ara-figures i { display: block; flex: none; height: 100%; aspect-ratio: 360 / 900;
+  background: linear-gradient(100deg, rgba(150, 156, 170, .32) 38%, rgba(214, 222, 255, 1) 50%, rgba(150, 156, 170, .32) 62%) 0 0 / 300% 100%;
+  background-position: 100% 0;
+  -webkit-mask: var(--ara-male) center / contain no-repeat; mask: var(--ara-male) center / contain no-repeat;
+  /* One cycle: the light crosses the whole row, then rests briefly before starting again. */
+  animation: ara-light calc(var(--n, 8) * var(--step) + 1.1s) linear infinite; animation-delay: calc(var(--i, 0) * var(--step)); }
+.ara-figures i.f { -webkit-mask-image: var(--ara-female); mask-image: var(--ara-female); }
+/* Writing and fixing: the light runs a little quicker, with a faint blue cast. */
+.ara-thinking[data-stage="writing"] .ara-figures, .ara-thinking[data-stage="fixing"] .ara-figures { --step: .07s; }
+.ara-thinking[data-stage="writing"] .ara-figures i, .ara-thinking[data-stage="fixing"] .ara-figures i {
+  background-image: linear-gradient(100deg, rgba(150, 156, 170, .32) 38%, rgba(169, 188, 255, 1) 50%, rgba(150, 156, 170, .32) 62%); }
+/* Each figure's own pass takes the first part of the cycle; the delays chain them across the row. */
+@keyframes ara-light { 0% { background-position: 100% 0; } 35% { background-position: 0 0; } 100% { background-position: 0 0; } }
+/* A soft glow round a panel while Ara works. */
+.ara-glowing { position: relative; }
+.ara-glowing::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; box-shadow: 0 0 0 1px rgba(109, 141, 255, .4), 0 0 24px rgba(109, 141, 255, .18); animation: ara-ring 2.4s ease-in-out infinite; }
+@keyframes ara-ring { 50% { box-shadow: 0 0 0 1px rgba(169, 188, 255, .6), 0 0 34px rgba(109, 141, 255, .28); } }
+@media (prefers-reduced-motion: reduce) { .ara-figures i, .ara-glowing::after { animation: none; } }

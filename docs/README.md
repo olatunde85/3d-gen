@@ -29,6 +29,10 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 - [Hosting your game](hosting-games.md): Publish online and its limits, and other places to host a downloaded game
 - [Publishing service](publishing.md): the Cloudflare Worker behind Publish online, its guardrails and how to deploy it
 
+**AI and voices**
+
+- [Your own AI and voices](keys.md): connect your own Gemini, Claude, OpenAI, OpenRouter or ElevenLabs key for Assist, Ask Ara and natural voices
+
 **Under the hood**
 
 - [Architecture](architecture.md): how the code is organised and how a character is built

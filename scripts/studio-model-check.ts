@@ -124,9 +124,12 @@ for(const music of [{track:'invented'},{volume:-1},{fadeIn:11},{ducking:'yes'},{
 assert.throws(()=>parseAudio({speech:[dialogue,dialogue]},actors));assert.throws(()=>parseAudio({speech:Array.from({length:MAX_SPEECH+1},()=>dialogue)},actors));
 assert.throws(()=>parseAudio({muted:'yes'},actors));assert.equal(parseAudio({speech:[{text:'',source:'tts'}]},actors).speech.length,1);
 assert.deepEqual(schema.properties.audio.properties.music.properties.track.enum,MUSIC_TRACKS.map(t=>t.id));assert.deepEqual(schema.properties.audio.properties.speech.items.properties.effect.enum,VOICE_EFFECTS);
-assert.ok(guide.includes('Generate all speech'));assert.ok(guide.includes('Never invent asset hashes'));assert.ok(guide.includes('MUSIC LIBRARY'));
-const audioRecovery=readEditorSession(JSON.stringify({version:1,project:audioFilm,editor:{sound:{open:true,selected:'take',rate:1.3,pitch:.7,deviceVoice:'test',fit:false}}}));
-assert.equal(audioRecovery?.editor.sound.selected,'take');assert.equal(audioRecovery?.editor.sound.rate,1.3);assert.equal(audioRecovery?.editor.sound.fit,false);
+assert.ok(guide.includes('voiced automatically'));assert.ok(guide.includes('VOICES'));
+for(const voice of ['gemini/Kore','elevenlabs/21m00Tcm4TlvDq8ikWAM','F2'])assert.equal(parseAudio({speech:[{text:'Hi',voice,delivery:'whispered'}]},actors).speech[0].voice,voice);
+for(const voice of ['openai/coral','gemini/','elevenlabs/x','F3','gemini/Kore; drop'])assert.throws(()=>parseAudio({speech:[{text:'Hi',voice}]},actors),voice);
+assert.equal(parseAudio({speech:[{text:'Hi',voice:'gemini/Kore',delivery:'  warm  '}]},actors).speech[0].delivery,'warm');assert.throws(()=>parseAudio({speech:[{text:'Hi',delivery:'x'.repeat(201)}]},actors));assert.ok(guide.includes('Never invent asset hashes'));assert.ok(guide.includes('MUSIC LIBRARY'));
+const audioRecovery=readEditorSession(JSON.stringify({version:1,project:audioFilm,editor:{sound:{open:true,selected:'take',tab:'music',rate:1.3,pitch:.7,deviceVoice:'test',fit:false}}}));
+assert.equal(audioRecovery?.editor.sound.selected,'take');assert.equal(audioRecovery?.editor.sound.tab,'music');
 console.log('Audio: defaults/legacy migration, actor aliases, timing, limits, validation, live LLM contract and editor recovery passed.');
 
 // Seated characters move onto the set's own furniture: nearest free seat, facing the seat, never shared.

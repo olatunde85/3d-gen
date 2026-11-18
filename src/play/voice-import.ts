@@ -1,4 +1,5 @@
 import {gameProjects,type PlayProject} from './project';
+import {voiceName} from '../app/keys/voices';
 import type {MediaRef,StoryCue} from './story';
 
 type VoiceId=NonNullable<StoryCue['voiceId']>;
@@ -19,7 +20,7 @@ export async function generateImportedVoices(project:PlayProject,progress:(messa
   if(!synthesize){const speech=await import('../studio/audio/tts');synthesize=(text,voice,report)=>speech.generateSpeech(text,voice,report);release=speech.releaseSpeechEngine;}
   let generated=0;
   for(const {cue,chapter}of lines){
-   const voice=cueVoice(cue,chapter);progress(`Generating ${voice.startsWith('M')?'male':'female'} voice ${generated+1} of ${lines.length}…`);
+   const voice=cueVoice(cue,chapter);progress(`Voicing line ${generated+1} of ${lines.length} · ${voiceName(voice)}…`);
    try{const audio=await synthesize(cue.text,voice,progress);cue.voiceId=voice;cue.audio={id:audio.id,name:audio.name,mime:'audio/wav',duration:audio.duration};generated++;}
    catch(error){return {generated,failed:lines.length-generated,error:(error as Error).message};}
   }

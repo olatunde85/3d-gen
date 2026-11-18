@@ -52,7 +52,7 @@ export async function checkStudioNewProject(h:Harness){
   const recorded=await e<string>('JSON.stringify(studio.project)');rmSync(join(h.folder,'film-to-keep.ara-studio.zip'),{force:true});await start(true);
   const files=unzipSync(await savedFile('film-to-keep.ara-studio.zip'));assert.deepEqual(JSON.parse(strFromU8(files['project.json'])),JSON.parse(recorded));assert.deepEqual(files[`audio/${id}.wav`],wav);
   await reload();await click('undo');await ready();assert.equal(await e<string>('JSON.stringify(studio.project)'),recorded);
-  await click('open-sound');await w('document.getElementById("sound-asset-status").textContent.includes("Voice ready")','recording retained after Undo');await click('sound-close');
+  await click('open-sound');await w('!!document.querySelector(".sound-line.ready")','recording retained after Undo');await click('sound-close');
  });
  await step('New project keeps the current film when saving its audio fails',async()=>{
   await e(`(async()=>{const p=structuredClone(studio.project);p.audio.speech[0].asset='${'f'.repeat(64)}';await studio.setProject(p);})()`);await ready();const before=await e<string>('JSON.stringify(studio.project)');

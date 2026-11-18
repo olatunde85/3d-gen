@@ -1,5 +1,5 @@
 /** Local, content-addressed audio. JSON holds IDs; ZIP project bundles carry the actual WAV files. */
-export interface SpeechOrigin {text:string;voice:string;model:string}
+export interface SpeechOrigin {text:string;voice:string;model:string;delivery?:string}
 export interface AudioAsset {id:string;name:string;blob:Blob;duration:number;sampleRate:number;channels:number;speech?:SpeechOrigin}
 let database:Promise<IDBDatabase>|undefined;
 const cache=new Map<string,AudioAsset>();

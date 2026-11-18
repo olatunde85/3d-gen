@@ -1,7 +1,7 @@
 /** One queue and one local engine for every character's dialogue. */
 import { parseProject, type StudioProject } from '../project';
 import { getAsset, type AudioAsset } from './assets';
-import { generateSpeech, MODEL_REVISION, releaseSpeechEngine } from './tts';
+import { generateSpeech, releaseSpeechEngine, speechIsCurrent, speechModel } from './tts';
 
 export interface SpeechPreparation {
   signal:AbortSignal;
@@ -23,14 +23,14 @@ export async function prepareDialogue(project:StudioProject,options:SpeechPrepar
     const cues:StudioProject['audio']['speech']=[];
     for(const cue of next.audio.speech){
       signal.throwIfAborted();if(cue.source!=='tts'||!cue.text.trim())continue;
-      const asset=cue.asset?await getAsset(cue.asset):undefined,origin=asset?.speech;
-      if(!asset||origin&&(origin.text!==cue.text||origin.voice!==cue.voice||origin.model!==MODEL_REVISION))cues.push(cue);
+      const asset=cue.asset?await getAsset(cue.asset):undefined;
+      if(!asset||!speechIsCurrent(asset,cue))cues.push(cue);
     }
     for(const [index,cue]of cues.entries()){
       signal.throwIfAborted();
-      const key=JSON.stringify([MODEL_REVISION,cue.voice,cue.text]),cached=takes.get(key);
+      const key=JSON.stringify([speechModel(cue.voice),cue.voice,cue.text,cue.delivery??'']),cached=takes.get(key);
       let asset:AudioAsset|undefined=cached?await getAsset(cached):undefined;
-      if(!asset){asset=await generateSpeech(cue.text,cue.voice,message=>progress(`Speech ${index+1} of ${cues.length} · ${cue.name} · ${message}`),signal);takes.set(key,asset.id);if(takes.size>128)takes.delete(takes.keys().next().value!);}
+      if(!asset){asset=await generateSpeech(cue.text,cue.voice,message=>progress(`Line ${index+1} of ${cues.length} · ${cue.name} · ${message}`),signal,cue.delivery);takes.set(key,asset.id);if(takes.size>128)takes.delete(takes.keys().next().value!);}
       signal.throwIfAborted();
       const duration=Math.max(cue.duration,asset.duration/cue.speed);
       if(cue.start+duration>60)throw Error(`“${cue.name}” needs ${(asset.duration/cue.speed).toFixed(1)} seconds. Move it earlier or shorten its script to fit the 60-second film.`);

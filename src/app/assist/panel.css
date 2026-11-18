@@ -167,3 +167,23 @@ dialog.ai-assist.is-building { overflow: hidden; }
   .ai-assist .ai-meter > span { transition: none; }
   .ai-assist .ai-meter.unknown > span, .ai-assist .active .ai-state { animation: none; }
 }
+
+/* Writing here with the visitor's own AI key. */
+.ai-assist .ai-direct { padding: 14px; border: 1px solid var(--ai-line); border-radius: 10px; background: var(--ai-raised); }
+.ai-assist .ai-direct[hidden], .ai-assist .ai-connect[hidden], .ai-assist [data-r="chat-actions"][hidden] { display: none; }
+.ai-assist .ai-direct-model { margin: 0; font-size: 13px; }
+.ai-assist .ai-direct .ai-note { margin: 6px 0 0; }
+.ai-assist .ai-direct-done:empty { display: none; }
+.ai-assist .ai-writing { margin-top: 12px; }
+.ai-assist .ai-writing[hidden] { display: none; }
+.ai-assist .ai-writing p { margin: 8px 0 0; font-size: 12px; line-height: 1.5; }
+.ai-assist .ai-direct-error { margin-top: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--ai-bad) 45%, var(--ai-line)); background: color-mix(in srgb, var(--ai-bad) 7%, transparent); }
+.ai-assist .ai-direct-error[hidden], .ai-assist .ai-direct-error [hidden] { display: none; }
+.ai-assist .ai-direct-error p { margin: 0; font-size: 12px; line-height: 1.55; }
+.ai-assist .ai-direct-error .ai-row { margin: 8px 0 0; }
+.ai-assist .ai-connect { padding: 12px 14px; border: 1px dashed var(--ai-line); border-radius: 10px; margin-bottom: 10px; }
+.ai-assist .ai-connect p { margin: 0 0 10px; font-size: 12px; line-height: 1.55; color: var(--ai-muted); }
+.ai-assist .ai-connect b { color: var(--ai-text); }
+.ai-assist .ai-chat { margin-top: 12px; }
+.ai-assist .ai-chat > summary { cursor: pointer; font-size: 12px; color: var(--ai-muted); }
+.ai-assist [data-r="write"][hidden], .ai-assist [data-r="stop-write"][hidden], .ai-assist [data-r="copy"][hidden], .ai-assist [data-r="save"][hidden] { display: none; }

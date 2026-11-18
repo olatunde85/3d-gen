@@ -152,7 +152,7 @@ export function playSchema(catalog:Catalog){
    text:{type:'string',maxLength:500},duration:num(1,30,'Seconds on screen.'),
    speaker:{type:'string',description:'"radio", "player", "companion" or the ID of an enemy in this chapter.'},
    style:choice(['subtitle','caption','speech','thought'],'Speech and thought bubbles need a character speaker, not "radio".'),
-   voice:flag('Speak the text.'),voiceId:choice(['F1','F2','M1','M2'],'F1 and F2 are female voices, M1 and M2 male.'),
+   voice:flag('Speak the text.'),voiceId:{type:'string',pattern:'^(F1|F2|M1|M2|gemini/[A-Za-z]{2,40}|elevenlabs/[A-Za-z0-9]{8,64})$',description:'F1 and F2 are female voices, M1 and M2 male (Ara voices, free). gemini/<voice> and elevenlabs/<voice id> are spoken with the player\'s own key.'},
    audio:media(['audio/wav'],'Recorded or generated speech for this cue.'),
    sound:choice(SOUND_EFFECTS.map(s=>s.id),'A library sound effect.'),
   },{required:['id','trigger','text','duration','speaker','style','voice'],allOf:[

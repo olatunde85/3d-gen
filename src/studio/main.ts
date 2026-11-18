@@ -73,7 +73,7 @@ function editorState(): EditorState {
     sceneSearch:input('scene-search').value,sceneCategory:select('scene-category').value,
     animationSearch:input('animation-search').value,animationCategory:select('animation-category').value,resolution:select('resolution').value as '720'|'1080',
     text:{open:$<HTMLDialogElement>('text-dialog').open,selected:select('text-cue').value},
-    sound:{open:$<HTMLDialogElement>('sound-dialog').open,selected:select('sound-cue').value,deviceVoice:soundEditor.deviceVoice(),rate:Number(input('sound-device-rate').value),pitch:Number(input('sound-device-pitch').value),fit:input('sound-fit-generated').checked,tab:soundEditor.tab(),selectedEffect:soundEditor.selectedEffect()},
+    sound:{open:$<HTMLDialogElement>('sound-dialog').open,selected:soundEditor.selected(),tab:soundEditor.tab(),selectedEffect:soundEditor.selectedEffect()},
     assist:assist.state(),
     scroll:{library:document.querySelector('.library')!.scrollTop,inspector:document.querySelector('.inspector')!.scrollTop,sets:$('set-list').scrollTop,page:window.scrollY}};
 }
@@ -668,7 +668,7 @@ async function start() {
     if(hasLinkedFile(location.hash,'film')){try{const text=await linkedFile(location.hash,'film');if(text&&await importStudioProject(text)){clearLinkedFile('film');notify('Opened the film from the link.');}}catch(e){notify((e as Error).message);}}
     if(resume){
       document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
-      if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open){if(resume.sound.tab==='effects')soundEditor.openEffects(resume.sound.selectedEffect);else soundEditor.open(resume.sound.selected);}
+      if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open){if(resume.sound.tab==='effects')soundEditor.openEffects(resume.sound.selectedEffect);else{soundEditor.open(resume.sound.selected);if(resume.sound.tab==='music')soundEditor.restore({tab:'music'});}}
     }
     const saved=save();
     if(acceptedLink&&saved){

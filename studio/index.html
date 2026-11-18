@@ -124,52 +124,56 @@
   </dialog>
   <dialog id="sound-dialog" aria-labelledby="sound-title">
     <div class="dialog-top"><span class="eyebrow">THE SOUNDTRACK</span><button id="sound-close" class="icon-button" aria-label="Close sound editor">✕</button></div>
-    <h2 id="sound-title">Speech, music &amp; effects</h2><p class="export-description">Direct dialogue, choose music, and time sound effects to the action. The mix is included in your film.</p>
-    <div class="sound-tabs" role="tablist" aria-label="Sound editor"><button id="sound-tab-dialogue" role="tab" aria-controls="sound-dialogue-panel" aria-selected="true">Dialogue &amp; music</button><button id="sound-tab-effects" role="tab" aria-controls="sound-effects-panel" aria-selected="false" tabindex="-1">Sound effects</button></div>
+    <h2 id="sound-title">Sound</h2><p class="export-description">Give your characters voices, choose music and time sound effects. Everything here plays in the preview and goes into your exported film.</p>
+    <div class="sound-tabs" role="tablist" aria-label="Sound"><button id="sound-tab-dialogue" role="tab" aria-controls="sound-dialogue-panel" aria-selected="true">Dialogue</button><button id="sound-tab-music" role="tab" aria-controls="sound-music-panel" aria-selected="false" tabindex="-1">Music</button><button id="sound-tab-effects" role="tab" aria-controls="sound-effects-panel" aria-selected="false" tabindex="-1">Sound effects</button></div>
     <section id="sound-dialogue-panel" role="tabpanel" aria-labelledby="sound-tab-dialogue">
-    <section class="sound-generation" aria-label="Generate the film’s speech">
-      <div><h3>Generate the whole dialogue</h3><p id="sound-generation-summary" class="setting-hint"></p><p class="setting-hint">Runs on your device · about 265 MB on first use. <a href="../third-party/speech/MODEL-LICENSE.txt" target="_blank" rel="noopener">Model terms</a>.</p></div>
-      <button id="sound-generate-all" class="export-button">Generate all speech</button>
-    </section>
-    <div class="sound-columns">
-      <section class="sound-library"><div class="sound-speech-library"><div class="sound-actions"><button id="sound-add">+ Dialogue</button><button id="sound-upload">Upload speech</button><button id="sound-record">Record speech</button></div>
-        <label for="sound-cue">Speech clips <span id="sound-count"></span></label><select id="sound-cue" size="6"></select>
-        </div>
-        <div class="sound-music-library">
-        <h3>Background music</h3><label class="sr-only" for="sound-music">Music track</label><select id="sound-music"></select><p id="sound-music-credit" class="setting-hint"></p>
-        <label class="check-label"><input id="sound-music-window" type="checkbox" /><span>Custom music timing</span></label><div id="sound-music-timing" class="form-row" hidden><div><label for="sound-music-start">Start (seconds)</label><input id="sound-music-start" type="number" min="0" max="59.9" step="0.01" /></div><div><label for="sound-music-duration">Duration (seconds)</label><input id="sound-music-duration" type="number" min="0.1" max="60" step="0.01" /></div></div>
-        <label for="sound-music-volume">Music volume %</label><input id="sound-music-volume" type="number" min="0" max="100" step="1" />
-        <div class="form-row"><div><label for="sound-fade-in">Fade in (s)</label><input id="sound-fade-in" type="number" min="0" max="10" step="0.1" /></div><div><label for="sound-fade-out">Fade out (s)</label><input id="sound-fade-out" type="number" min="0" max="10" step="0.1" /></div></div>
-        <label class="check-label"><input id="sound-ducking" type="checkbox" checked /><span>Lower music while someone speaks</span></label>
-        <div class="sound-actions"><button id="sound-music-preview">Preview music</button><button id="sound-stop">Stop</button></div>
-        <label class="check-label"><input id="sound-muted" type="checkbox" /><span>Mute film audio</span></label>
-        <div class="sound-actions"><button id="sound-wav">Save soundtrack WAV</button><button id="sound-bundle">Save project + audio</button></div></div>
+      <section class="sound-cast" aria-labelledby="sound-cast-title">
+        <div class="sound-head"><h3 id="sound-cast-title">Voices</h3><button id="sound-keys" class="sound-quiet ak-chip"><span class="ak-dot" aria-hidden="true"></span><span id="sound-keys-label">More voices</span></button></div>
+        <p class="setting-hint">Each speaker keeps one voice for all their lines. Change it here and their lines are voiced again.</p>
+        <ul id="sound-cast" class="sound-cast-list"></ul>
       </section>
-      <p id="sound-empty" class="setting-hint">Add dialogue, upload a voice clip, or record yourself. Music works without any voice download.</p>
-      <section id="sound-fields" hidden>
-        <div class="form-row"><div><label for="sound-name">Clip name</label><input id="sound-name" type="text" maxlength="80" /></div><div><label for="sound-actor">Speaker</label><select id="sound-actor"></select></div></div>
-        <label for="sound-script">Dialogue / transcript</label><textarea id="sound-script" rows="3" maxlength="600" placeholder="What does this person say?"></textarea>
-        <section class="sound-take" aria-label="Generate or attach speech">
-          <div class="sound-take-toolbar"><div><label for="sound-voice">Voice · English</label><select id="sound-voice"></select></div>
-            <div class="sound-take-actions"><button id="sound-generate">Generate this clip</button><button id="sound-attach">Attach audio</button></div>
-          </div>
+      <section class="sound-script" aria-labelledby="sound-script-title">
+        <div class="sound-head"><h3 id="sound-script-title">Script <span id="sound-count" class="sound-count"></span></h3>
+          <div class="sound-add"><button id="sound-add">+ Line</button><button id="sound-record">Record</button><button id="sound-upload">Upload</button></div></div>
+        <p id="sound-empty" class="sound-empty">No dialogue yet. Add a line and type what someone says, record yourself, or upload a voice clip. Lines start at the playhead.</p>
+        <ol id="sound-lines" class="sound-lines"></ol>
+      </section>
+      <template id="sound-line-editor">
+        <div class="sound-line-editor">
+          <div class="form-row"><div><label for="sound-actor">Speaker</label><select id="sound-actor"></select></div><div><label for="sound-start">Starts at (seconds)</label><input id="sound-start" type="number" min="0" max="59.9" step="0.1" /></div></div>
+          <label for="sound-script">What they say</label><textarea id="sound-script" rows="2" maxlength="600" placeholder="Type the line"></textarea>
+          <div id="sound-delivery-row"><label for="sound-delivery">How it’s said <span class="sound-optional">optional</span></label><div id="sound-delivery-presets" class="sound-presets" role="group" aria-label="Ready-made directions"></div><input id="sound-delivery" type="text" maxlength="200" placeholder="Or describe it in your own words" /><p id="sound-delivery-hint" class="setting-hint"></p></div>
+          <canvas id="sound-waveform" width="600" height="46" aria-label="Waveform of this line"></canvas>
           <p id="sound-asset-status" class="setting-hint" role="status"></p>
-        </section>
-        <canvas id="sound-waveform" width="600" height="58" aria-label="Speech waveform"></canvas>
-        <div class="sound-actions sound-preview-actions"><button id="sound-preview">Preview voice</button><button id="sound-fit">Fit duration to audio</button><button id="sound-delete">Delete clip</button></div>
-        <div class="form-row"><div><label for="sound-effect">Voice effect</label><select id="sound-effect"></select></div><div><label for="sound-volume">Voice volume %</label><input id="sound-volume" type="number" min="0" max="150" step="5" /></div></div>
-        <div class="form-row"><div><label for="sound-start">Start (seconds)</label><input id="sound-start" type="number" min="0" max="59.9" step="0.1" /></div><div><label for="sound-duration">Duration (seconds)</label><input id="sound-duration" type="number" min="0.1" max="60" step="0.1" /></div><div><label for="sound-offset">Trim start (seconds)</label><input id="sound-offset" type="number" min="0" max="59.9" step="0.1" /></div></div>
-        <div class="form-row"><div><label for="sound-speed">Playback speed ×</label><input id="sound-speed" type="number" min="0.5" max="1.5" step="0.05" /></div><div><label for="sound-pan">Pan −100 L / +100 R</label><input id="sound-pan" type="number" min="-100" max="100" step="5" /></div></div>
-        <details class="sound-device"><summary>Quick read-through with a device voice · no download</summary><label for="sound-device-voice">Device voice</label><select id="sound-device-voice"></select>
-          <div class="form-row"><div><label for="sound-device-rate">Native rate</label><input id="sound-device-rate" type="number" min="0.1" max="10" step="0.1" value="1" /></div><div><label for="sound-device-pitch">Native pitch</label><input id="sound-device-pitch" type="number" min="0" max="2" step="0.1" value="1" /></div></div>
-          <div class="sound-actions"><button id="sound-device-read">Read with device voice</button><button id="sound-device-stop">Stop read-through</button></div><p class="setting-hint">Device voices use your browser’s voice service. Read-throughs cannot use these audio effects or be exported; generate or attach audio for the film.</p>
-        </details>
-        <details class="sound-tts"><summary>Generation settings &amp; licences</summary>
-          <label class="check-label"><input id="sound-fit-generated" type="checkbox" checked /><span>Fit clip duration to the generated take</span></label>
-          <p class="setting-hint">Your script stays on this device. Later generations use the cached model. <a href="../third-party/speech/NOTICE.txt" target="_blank" rel="noopener">Voice engine and model licences</a>.</p>
-        </details>
+          <div class="sound-line-actions"><button id="sound-preview">▶ Play line</button><button id="sound-generate">Voice this line</button><button id="sound-attach">Use a recording…</button><button id="sound-delete" class="sound-danger">Delete line</button></div>
+          <details class="sound-more"><summary>Timing, effect and mix</summary>
+            <div class="form-row"><div><label for="sound-name">Line name</label><input id="sound-name" type="text" maxlength="80" /></div><div><label for="sound-effect">Voice effect</label><select id="sound-effect"></select></div></div>
+            <div class="form-row"><div><label for="sound-duration">Length (seconds)</label><input id="sound-duration" type="number" min="0.1" max="60" step="0.1" /></div><div><label for="sound-offset">Trim start (seconds)</label><input id="sound-offset" type="number" min="0" max="59.9" step="0.1" /></div><div><label for="sound-speed">Speed ×</label><input id="sound-speed" type="number" min="0.5" max="1.5" step="0.05" /></div></div>
+            <div class="form-row"><div><label for="sound-volume">Volume %</label><input id="sound-volume" type="number" min="0" max="150" step="5" /></div><div><label for="sound-pan">Pan −100 L / +100 R</label><input id="sound-pan" type="number" min="-100" max="100" step="5" /></div></div>
+            <div class="sound-line-actions"><button id="sound-fit">Fit length to the audio</button></div>
+          </details>
+        </div>
+      </template>
+      <section class="sound-generation" aria-label="Voice the script">
+        <div><p id="sound-generation-summary" class="sound-generation-title"></p><p id="sound-generation-detail" class="setting-hint"></p></div>
+        <button id="sound-generate-all" class="export-button">Voice all lines</button>
       </section>
-    </div>
+    </section>
+    <section id="sound-music-panel" role="tabpanel" aria-labelledby="sound-tab-music" hidden>
+      <div class="sound-music">
+        <label for="sound-music">Background music</label><select id="sound-music"></select><p id="sound-music-credit" class="setting-hint"></p>
+        <div class="form-row"><div><label for="sound-music-volume">Volume %</label><input id="sound-music-volume" type="number" min="0" max="100" step="1" /></div><div><label for="sound-fade-in">Fade in (s)</label><input id="sound-fade-in" type="number" min="0" max="10" step="0.1" /></div><div><label for="sound-fade-out">Fade out (s)</label><input id="sound-fade-out" type="number" min="0" max="10" step="0.1" /></div></div>
+        <label class="check-label"><input id="sound-ducking" type="checkbox" checked /><span>Lower the music while someone speaks</span></label>
+        <label class="check-label"><input id="sound-music-window" type="checkbox" /><span>Play the music for part of the film</span></label>
+        <div id="sound-music-timing" class="form-row" hidden><div><label for="sound-music-start">Start (seconds)</label><input id="sound-music-start" type="number" min="0" max="59.9" step="0.01" /></div><div><label for="sound-music-duration">Length (seconds)</label><input id="sound-music-duration" type="number" min="0.1" max="60" step="0.01" /></div></div>
+        <div class="sound-line-actions"><button id="sound-music-preview">▶ Play music</button><button id="sound-stop">Stop</button></div>
+      </div>
+      <div class="sound-music sound-whole">
+        <h3>The whole soundtrack</h3>
+        <label class="check-label"><input id="sound-muted" type="checkbox" /><span>Mute all film sound</span></label>
+        <div class="sound-line-actions"><button id="sound-wav">Save soundtrack (.wav)</button><button id="sound-bundle">Save film with its audio (.zip)</button></div>
+        <p class="setting-hint">Voices and recordings are kept in this browser. To move a film to another device with its audio, save it with its audio.</p>
+      </div>
     </section>
     <section id="sound-effects-panel" role="tabpanel" aria-labelledby="sound-tab-effects" hidden>
       <div class="effects-columns">
