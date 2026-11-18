@@ -159,10 +159,19 @@ export function projectForAssist(project:StudioProject){
     return {...actor,character:params?{kind:'ara-character',version:1,params}:character};
   })};
 }
-export function generateAssistGuide(catalog:Catalog,brief = '', current?: StudioProject,location?:SetId,currentStaging?:StagingReport,voiceList=ARA_VOICE_GUIDE): string {
+/** Words that mean a film may involve boats or water, so the boat boarding rules are worth sending. */
+const WATER=/\b(boats?|ship|yacht|ferry|dinghy|kayak|canoe|row ?boat|motorboat|jet ?ski|harbou?r|marina|pier|dock|jetty|lake|river|sea|ocean|beach|pool|swim|water|shore)\b/i;
+const BOAT_CLIPS=/boat|canoe|kayak|paddle|row/;
+/** Whether the boat boarding contract belongs in a guide: the location has water, or boats come up. */
+export function needsBoats(location:SetId,text:string,current?:StudioProject){
+  const water=(locationMapFile(location).location as {water?:unknown[]}).water;
+  return !!water?.length||WATER.test(text)||!!current?.actors.some(a=>a.beats.some(b=>BOAT_CLIPS.test(b.clip)));
+}
+export function generateAssistGuide(catalog:Catalog,brief = '', current?: StudioProject,location?:SetId,currentStaging?:StagingReport,voiceList=ARA_VOICE_GUIDE,options:{boats?:boolean}={}): string {
   const voices=voiceList;
   const json = (value: unknown) => JSON.stringify(value);
   const selected=location??current?.template??'portrait';
+  const boats=options.boats??needsBoats(selected,brief,current);
   return `ARA STUDIO — LLM ASSIST GUIDE (project version 2)
 You are directing a short 3D film in Ara Studio. Turn the user's brief into ONE complete JSON project that can be pasted or opened in Studio. Return only the JSON object: no code, comments, ellipses or invented capabilities. Use the exact IDs below. If the brief requires an unsupported capability, explain the limitation and suggest an achievable alternative before generating the project.
 
@@ -182,10 +191,10 @@ Actor x/z are the CENTRE of the complete enabled local travel, NOT the start. Fo
 
 Vehicle/doorway offsets then modify that nominal path: boardingStand is measured in anatomical boardingScale b (distinct from rig scale s), and passengers use the OPERATOR's vehicle transform. A first board starts at the vehicle origin + R(a)*boardingStand*b. An alight ends at that same doorway offset from the last vehicle origin; that offset is carried into the following ground span. For the next NEW vehicle, Studio places its waiting origin at the end of the preceding ground span minus R(a)*boardingStand*b. It exists there from time zero. Reusing a vehicleId returns to its last parked position; ground spans are adjusted to connect the real doorways, so their direction can differ from nominal travel. Passengers inherit the host's full motion; do not apply their own centred path or offset them by hand. These offsets require re-evaluating the whole track after edits. Use Check staging in Studio to export actual fitted-body transition positions and issues; a reference-scale calculation is provisional until reviewed with the loaded cast.
 
-BOAT BOARDING CONTRACT
+${boats?`BOAT BOARDING CONTRACT
 Motorboat operator boardingStand=[1.62,-0.42] in local X/Z, scaled by b. The map's harbour anchor has an on-land approach, exact standing gate pose, a separate waiting boat origin and a verified water departure. Follow all four. Reference anchors/vehicle envelopes use s=b=1; custom bodies require re-checking dock reach and footprint. The harbour shoreline is z=-7.5 (land toward +Z, water toward -Z); its pier extends into water and is the only verified boarding anchor. For the east-pier anchor, yaw=180, stand=(0.85,0,-11.5), waiting motorboat origin=(2.47,0,-11.92), departure=(2.47,0,-45). Solve actor origin from its full timeline: do not paste the stand coordinate into actor.x/z. A motorcycle → alight → run → board_motorboat sequence must leave the motorcycle on land, end its run at the pier gate, keep the future boat fully in water from frame zero, and depart along the verified water lane. Add drive_boat move:false if another passenger is still boarding; shared entries use the same gate and must be staggered. No automatic docking, turning, shoreline following or bank-to-bank route is supplied.
 
-ALL LOCATION MAP INDEX (compact JSON; seats=[x,y,z,yaw]; full obstacles and verified lane endpoints are in the selected map/file)
+`:'BOATS\nThis film has no boats, so the boat boarding rules are left out. If the brief needs a boat, use a location with water.\n\n'}ALL LOCATION MAP INDEX (compact JSON; seats=[x,y,z,yaw]; full obstacles and verified lane endpoints are in the selected map/file)
 ${JSON.stringify(locationMapIndex())}
 
 SELECTED LOCATION STAGING MAP — reference data only, do not add it to film JSON
@@ -269,7 +278,7 @@ Additional constraints: actor ids are unique; shot targets must be all or an act
 VALID EXAMPLE (replace it with the requested film)
 ${json(assistExample())}${current ? `\n\nCURRENT FILM — use this as the starting point and preserve details not changed by the brief\n${JSON.stringify(projectForAssist(current),null,2)}` : ''}
 
-Now create the complete importable JSON for the user's brief using only these capabilities.`;
+Now create the complete importable JSON for the user's brief using only these capabilities. Write the JSON compactly (no indentation or line breaks) and leave out optional fields that keep their defaults: it arrives faster and costs less.`;
 }
 
 /** Headline and facts for the review card. */

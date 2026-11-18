@@ -563,7 +563,7 @@ const soundEditor=setupSoundEditor({project:()=>project,time:()=>time,actor:()=>
 const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
-const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,bodies:()=>fittedSpatialBodies(scene.actors),canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
+const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,update:next=>apply(next),bodies:()=>fittedSpatialBodies(scene.actors),canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
   load:(next,progress)=>{castProgress=progress;return importStudioProject(JSON.stringify(next)).finally(()=>castProgress=undefined);}});
 setupSpatialReview({project:()=>project,actors:()=>scene.actors,canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,pause:()=>setPlaying(false),seek:t=>{time=t;renderPosition();dirty=true;},download});
 const tour=setupStudioTour({canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,begin:()=>{

@@ -216,6 +216,8 @@ mountAskAra({appName:'Play',noun:'game',storageKey:'ara.chat.play.v1',
  guide:async()=>{assistVoices=await voiceGuide().catch(()=>assistVoices);return generatePlayGuide(lib.catalog,'(See the conversation.)',wholeDraft(),assistVoices);},
  parse:json=>parsePlayInput(json,lib.catalog),describe:value=>describeGame(value as PlayProject),peek:peekGame,
  apply:async json=>{
+  // A build waits for Play to finish loading its first game.
+  while(loading)await new Promise(resolve=>setTimeout(resolve,200));
   // Built from Ask Ara: voice the story only when every line to voice uses a connected provider voice; Ara's own voices need a large download, so they're left for the story editor.
   const keep=generateAssistAudio,game=parsePlayInput(json,lib.catalog);
   generateAssistAudio=keep&&gameProjects(game).every(c=>(c.story?.cues??[]).every(q=>!q.voice||!q.text.trim()||!!q.audio||/\//.test(q.voiceId??'')));
@@ -226,7 +228,10 @@ mountAskAra({appName:'Play',noun:'game',storageKey:'ara.chat.play.v1',
 });
 button('play-assist-open').onclick=()=>{stopMusicPreview();void assist.open();};
 /** Puts a game previewed in Assist (or built from Ask Ara) in place and plays its preview. */
-function commitPreview(){if(!assistedPreview)return;project=assistedPreview.project;resetDraft(project);pendingCast=assistedPreview.cast;assistedPreview=undefined;try{localStorage.setItem(storage,JSON.stringify(project));clearLinkedFile('game');}catch{/* optional persistence */}restartAfterSetup=true;setup.close();}
+function commitPreview(){if(!assistedPreview)return;project=assistedPreview.project;resetDraft(project);pendingCast=assistedPreview.cast;assistedPreview=undefined;try{localStorage.setItem(storage,JSON.stringify(project));clearLinkedFile('game');}catch{/* optional persistence */}
+ if(setup.open){restartAfterSetup=true;setup.close();return;}
+ // Built from Ask Ara with setup closed: put the new game in place now, as closing setup does.
+ stopMusicPreview();applyTheme(project.theme);applyHowToPlay(project.howToPlay);if(pendingCast){player.replace(project,pendingCast);gameCast=pendingCast;pendingCast=undefined;}}
 assist.dialog.addEventListener('close',commitPreview);
 const applyLabel=button('apply').innerHTML;
 button('apply').onclick=async()=>{

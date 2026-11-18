@@ -41,6 +41,7 @@ fromChrome.on('data', (c: Buffer) => {
     const m = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1);
     if (m.id !== undefined) pending.get(m.id)?.(m);
     else if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text);
+    else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error' && String(m.params.args?.[0]?.value).startsWith('ASKARA')) console.log(m.params.args.map((a: { value?: unknown }) => a.value).join(' '));
   }
 });
 function send<T = Record<string, unknown>>(method: string, params: object = {}, withSession = true): Promise<T> {
@@ -303,6 +304,59 @@ await step('Play: Ask Ara is on the setup screen', async () => {
   await e('Object.defineProperty(document,"fullscreenElement",{get:()=>document.body,configurable:true})'); await pause(1200);
   if (!await e('document.getElementById("ask-ara").hidden')) throw Error('Ask Ara still showing in full screen');
   await e('delete document.fullscreenElement');
+});
+
+await step('Ask Ara: a film whose voices can’t be made is still built, with fixes that need no AI', async () => {
+  await viewport(1400, 1000);
+  await e(`localStorage.setItem('ara.keys.v1',JSON.stringify({keys:{elevenlabs:{key:${JSON.stringify(KEYS.elevenlabs + '-nocredit')}},gemini:{key:${JSON.stringify(KEYS.gemini)}}},ai:{provider:'gemini',model:'gemini-4-hydrogen'},autoVoices:true,remember:true}));sessionStorage.removeItem('ara.chat.studio.v1')`);
+  await go('/studio/#demo'); await w('window.studio?.ready', 'Studio ready', 180000);
+  await e('window.dispatchEvent(new StorageEvent("storage",{key:"ara.keys.v1"}));document.querySelectorAll("dialog[open]").forEach(d=>d.close())');
+  const film = await e<string>(`(()=>{const p=structuredClone(studio.project);const a=p.actors[0].id;p.title='Out of credit';p.audio.effects=[];p.audio.music={track:'none',volume:.22,ducking:true,fadeIn:.6,fadeOut:1.2};p.audio.speech=[{source:'tts',id:'x1',name:'Line',actor:a,text:'We move at dawn.',voice:'elevenlabs/21m00Tcm4TlvDq8ikWAM',start:.5,duration:2,offset:0,speed:1,volume:1,pan:0,effect:'natural'}];return JSON.stringify(p);})()`);
+  await queue('Here it is:\n```json\n' + film + '\n```');
+  await click('#ask-ara'); await w('!document.getElementById("ask-ara-panel").hidden', 'chat'); await click('#ask-ara-panel [data-r=new]');
+  await type('#ask-ara-input', 'A short briefing'); await click('#ask-ara-panel [data-r=send]');
+  await w('studio.project.title==="Out of credit"&&document.querySelector("#ask-ara-panel .ask-card.partly")', 'built anyway, with a note', 60000);
+  const card = await text('#ask-ara-panel .ask-card.partly');
+  if (!/allowance is used up/.test(card) || !/Use Ara’s voices/.test(card) || !/Try again/.test(card)) throw Error(`Card: ${card}`);
+  await shot('23-partly-built');
+  await e(`[...document.querySelectorAll('#ask-ara-panel [data-repair]')].find(b=>/Ara’s voices/.test(b.textContent)).click()`);
+  await w('studio.project.audio.speech[0].voice==="M1"||studio.project.audio.speech[0].voice==="F1"||studio.project.audio.speech[0].voice==="M2"||studio.project.audio.speech[0].voice==="F2"', 'switched to an Ara voice');
+  await e('document.getElementById("sound-cancel")?.click();document.querySelectorAll("dialog[open]").forEach(d=>d.close())');
+  await e('document.getElementById("ask-ara-panel").hidden=true');
+});
+
+await step('Play: a keke-and-bus race from Ask Ara loads straight away, without opening Game setup', async () => {
+  const { raceExample } = await import('../src/play/assist');
+  const game = { ...raceExample(), identity: { title: 'Keke City Loop', briefing: 'Kekes against buses.' }, race: { ...raceExample().race, car: { model: 'keke', color: '#f2c22e' }, rivals: ['keke', 'bus'] }, chapters: undefined };
+  await e(`localStorage.setItem('ara.keys.v1',JSON.stringify({keys:{gemini:{key:${JSON.stringify(KEYS.gemini)}}},ai:{provider:'gemini',model:'gemini-4-hydrogen'},autoVoices:true,remember:true}));sessionStorage.removeItem('ara.chat.play.v1')`);
+  await go('/play/'); await w('document.getElementById("ask-ara")', 'Play', 120000);
+  await e('window.dispatchEvent(new StorageEvent("storage",{key:"ara.keys.v1"}))');
+  await e('document.getElementById("setup").open&&document.getElementById("setup").close()'); await pause(1500);
+  await queue('Here’s a keke race against buses:\n```json\n' + JSON.stringify(game) + '\n```');
+  await w('!document.getElementById("ask-ara").hidden', 'Ask Ara shown with setup closed', 20000);
+  await click('#ask-ara'); await w('!document.getElementById("ask-ara-panel").hidden', 'chat'); await click('#ask-ara-panel [data-r=new]');
+  await type('#ask-ara-input', 'A keke race against buses in the city'); await click('#ask-ara-panel [data-r=send]');
+  await w('/Keke City Loop/.test(document.body.innerText)&&!document.getElementById("setup").open&&document.querySelector("#ask-ara-panel .ask-undo")', 'the new game is on screen', 180000);
+  await shot('24-play-race-loaded');
+});
+
+// The landing page's picture of Ask Ara: LANDING_SHOT=1 writes public/media/ask-ara.jpg.
+if (process.env.LANDING_SHOT) await step('Landing picture: Ask Ara builds a café film in Studio', async () => {
+  const { assistExample } = await import('../src/studio/assist');
+  const film = { ...assistExample('reel-6'), title: 'Café reunion', texts: [] };
+  await e(`localStorage.setItem('ara.keys.v1',JSON.stringify({keys:{anthropic:{key:${JSON.stringify(KEYS.anthropic)}}},ai:{provider:'anthropic',model:'claude-opus-5-5'},autoVoices:true,remember:true}));sessionStorage.removeItem('ara.chat.studio.v1')`);
+  await go('/studio/#demo'); await w('window.studio?.ready', 'Studio ready', 180000);
+  await e('window.dispatchEvent(new StorageEvent("storage",{key:"ara.keys.v1"}));document.querySelectorAll("dialog[open]").forEach(d=>d.close())');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1.25, mobile: false });
+  await queue('Here’s a café reunion: two old friends catch up over coffee, with a few warm lines and restaurant jazz.\n```json\n' + JSON.stringify(film) + '\n```');
+  await click('#ask-ara'); await w('!document.getElementById("ask-ara-panel").hidden', 'chat'); await click('#ask-ara-panel [data-r=new]');
+  await type('#ask-ara-input', 'Two old friends bump into each other at a street café. Give them warm dialogue and some jazz.'); await click('#ask-ara-panel [data-r=send]');
+  await w('studio.project.title==="Café reunion"&&document.querySelector("#ask-ara-panel .ask-undo")', 'film built', 180000);
+  await w('window.studio?.ready', 'characters loaded', 180000);
+  await e('studio.seek(2.4)'); await pause(7000);
+  const r = await send<{ data: string }>('Page.captureScreenshot', { format: 'png' });
+  const sharp = (await import('sharp')).default;
+  await sharp(Buffer.from(r.data, 'base64')).jpeg({ quality: 84, mozjpeg: true }).toFile(join(import.meta.dirname, '../public/media/ask-ara.jpg'));
 });
 
 await mock.close();

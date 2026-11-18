@@ -166,7 +166,7 @@ export function playSchema(catalog:Catalog){
    aiSkill:choice(['easy','medium','hard','expert']),rubberBand:flag('Keeps the pack close. Default true.'),
    handling:choice(['grip','drift'],'Default drift.'),nitro:flag('Default true.'),
    pickups:set(RACE_PICKUPS,'Track pickups. Default ["boost-pad"].'),ghost:flag('Record and replay the best lap. Default true.'),
-   car:ref('raceCar'),medals:flag('false turns off podium medals.'),
+   car:ref('raceCar'),rivals:{type:'array',minItems:1,maxItems:7,items:choice(RACE_CARS,''),description:'The vehicles the AI racers drive, in turn, such as ["keke","bus"]. Absent: a mixed field.'},medals:flag('false turns off podium medals.'),
    traction:choice(['normal','icy'],'Road grip. Omitted uses the circuit\'s own ground (snow is icy).'),
   },{description:'Race settings, used with mode "race". Every field is optional.'}),
   raceCar:object({model:choice(RACE_CARS,'Default sports_car.'),color:hex('Default #c8372d.')},{description:'The player\'s car.'}),

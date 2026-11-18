@@ -21,7 +21,9 @@ export interface AskAra {
   parse(json: string): unknown;
   describe(value: unknown): { headline: string };
   /** Builds this JSON now, as Assist's Build does; resolves to a function that puts back what was there before. */
-  apply(json: string, progress?: (p: { stage: string }) => void): Promise<() => Promise<void>>;
+  apply(json: string, progress?: (p: { stage: string }) => void): Promise<{ undo(): Promise<void>; note?: string }>;
+  /** One-tap fixes offered when something in a built result couldn't be made (such as voices), done without the AI. */
+  repairs?(): { label: string; run(): Promise<string | void> }[];
   suggestions: string[];
   /** Facts about a result while its JSON is still arriving. */
   peek?(partial: string): string[];
@@ -43,7 +45,7 @@ export interface AskAra {
 }
 
 /** What happened to the result in a reply: being built, built (Undo offered), undone, or failed. */
-type Built = { state: 'building' | 'applied' | 'undone' | 'failed'; message?: string };
+type Built = { state: 'building' | 'applied' | 'undone' | 'failed'; message?: string; note?: string };
 interface Turn { role: 'user' | 'assistant'; text: string; /** Reference attached to a message, sent to the AI but not shown. */ attached?: string; seen?: string[]; meta?: string; error?: { message: string; keys: boolean }; built?: Built }
 
 const html = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
@@ -117,7 +119,10 @@ export function mountAskAra(cfg: AskAra) {
           const Noun = cfg.noun[0].toUpperCase() + cfg.noun.slice(1), headline = html(cfg.describe(value).headline);
           const state = built?.state ?? (streaming ? 'building' : 'applied');
           if (state === 'building') parts.push(`<div class="ask-card ok building"><span class="ask-card-kind">Building your ${cfg.noun}</span><b>${headline}</b><div class="ask-slot-loader" data-loader></div></div>`);
-          else if (state === 'applied') parts.push(`<div class="ask-card ok"><span class="ask-card-kind">${Noun} ready</span><b>${headline}</b>${undos.has(turn) ? `<button class="ask-undo" data-undo="${turn}">↶ Undo</button>` : '<p class="ask-note">Use Undo in the app to go back.</p>'}</div>`);
+          else if (state === 'applied') {
+            const fixes = built?.note ? cfg.repairs?.() ?? [] : [];
+            parts.push(`<div class="ask-card ok${built?.note ? ' partly' : ''}"><span class="ask-card-kind">${Noun} ready${built?.note ? ' · something to finish' : ''}</span><b>${headline}</b>${built?.note ? `<p class="ask-partly">${html(built.note)}</p>` : ''}<div class="ask-row">${fixes.map((f, k) => `<button class="ask-undo" data-repair="${turn}:${k}">${html(f.label)}</button>`).join('')}${undos.has(turn) ? `<button class="ask-undo" data-undo="${turn}">↶ Undo</button>` : ''}</div>${undos.has(turn) ? '' : '<p class="ask-note">Use Undo in the app to go back.</p>'}</div>`);
+          }
           else if (state === 'undone') parts.push(`<div class="ask-card"><span class="ask-card-kind">Undone</span><b>${headline}</b><button class="ask-undo" data-apply="${turn}">Apply again</button></div>`);
           else parts.push(`<div class="ask-card bad"><span class="ask-card-kind">Couldn’t build it</span><p>${html(built?.message ?? '')}</p><button class="ask-fix" data-apply="${turn}">Try again</button></div>`);
         } catch (error) {
@@ -246,7 +251,7 @@ ${guide}`;
     const loader = log.querySelector<HTMLElement>(`[data-turn="${index}"] [data-loader]`);
     const ara = loader ? thinking(cfg.noun, loader, { patience: 'Building can take a minute while characters load. You can keep working.' }) : undefined;
     ara?.phase('building');
-    try { undos.set(index, await cfg.apply(json, p => ara?.phase('building', p.stage.replace(/…$/, '')))); turn.built = { state: 'applied' }; }
+    try { const done = await cfg.apply(json, p => ara?.phase('building', p.stage.replace(/…$/, ''))); undos.set(index, done.undo); turn.built = { state: 'applied', ...(done.note ? { note: `Built, but ${done.note.charAt(0).toLowerCase()}${done.note.slice(1)} The rest of the ${cfg.noun} is ready.` } : {}) }; }
     catch (error) { turn.built = { state: 'failed', message: (error as Error).message }; }
     finally { ara?.stop(); save(); render(); toBottom(); }
   }
@@ -276,6 +281,14 @@ ${guide}`;
       save(); render();
     }
     else if (el.dataset.apply) void build(Number(el.dataset.apply));
+    else if (el.dataset.repair) {
+      const [i, k] = el.dataset.repair.split(':').map(Number), fix = cfg.repairs?.()[k];
+      if (!fix) return;
+      (el as HTMLButtonElement).disabled = true; const label = el.textContent; el.textContent = 'Working…';
+      try { const said = await fix.run(); turns[i].built = { ...turns[i].built!, note: said || undefined }; }
+      catch (error) { turns[i].built = { ...turns[i].built!, note: (error as Error).message }; el.textContent = label; }
+      save(); render();
+    }
     else if (el.dataset.reason) void ask(`Ara couldn't use that ${cfg.noun}: ${decodeURIComponent(el.dataset.reason)} Please fix it and send the complete JSON again.`);
   });
   onKeysChange(() => { if (!panel.hidden && !busy) render(); });

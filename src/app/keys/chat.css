@@ -81,3 +81,6 @@
 @keyframes ask-ping { 0% { box-shadow: 0 0 0 0 rgba(109, 141, 255, .6); } 100% { box-shadow: 0 0 0 8px rgba(109, 141, 255, 0); } }
 .ask-slot-loader { margin-top: 4px; }
 @media (prefers-reduced-motion: reduce) { .ask-ara-fab[data-state="working"]::after { animation: none; } }
+.ask-card.partly { border-color: rgba(232, 195, 122, .55); box-shadow: none; }
+.ask-card.partly .ask-card-kind { color: #e8c37a; }
+.ask-partly { margin: 0 !important; font-size: 12px; color: #e9d7b0; }

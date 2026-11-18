@@ -15,6 +15,9 @@ import '../keys/keys.css';
 /** What the build is doing, for the progress view: a stage line, how far along (0–1, or unknown) and optional parts, such as the cast. */
 export interface BuildProgress { stage: string; fraction?: number; items?: { label: string; state: 'waiting' | 'active' | 'done' }[] }
 
+/** A result built straight away: how to undo it, and anything that couldn't be made (voices, sounds). */
+export interface Applied { undo(): Promise<void>; note?: string }
+
 export interface AssistDraft { brief: string; json: string; context: boolean; open: boolean; guideOpen: boolean; reference?:string }
 
 export interface AssistConfig<T> {
@@ -482,23 +485,28 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
    * Builds a reply straight away, as Build does (with dialogue voiced first when Assist would), for Ask Ara.
    * Returns a function that puts back what was open before.
    */
-  async function apply(json: string, progress: (p: BuildProgress) => void = () => {}): Promise<() => Promise<void>> {
+  async function apply(json: string, progress: (p: BuildProgress) => void = () => {}): Promise<Applied> {
     if (building || preparing) throw Error(`Assist is busy. Try again in a moment.`);
-    let value = cfg.parse(json);
+    let value = cfg.parse(json), note: string | undefined;
     const before = cfg.snapshot?.();
     building = true; lock();
     try {
       if (cfg.prepare?.needed(value) && (cfg.prepare.quick?.(value) ?? true)) {
-        const control = new AbortController();
-        value = await cfg.prepare.run(value, { signal: control.signal, progress: stage => progress({ stage }), updated: () => {} });
+        // Voices and sounds are extras: if a provider fails (an allowance runs out), build with what was made.
+        let latest = value;
+        try { value = await cfg.prepare.run(value, { signal: new AbortController().signal, progress: stage => progress({ stage }), updated: v => { latest = v; } }); }
+        catch (error) { value = latest; note = (error as Error).message; }
       }
       await cfg.build(value, progress);
       cfg.commit?.();
     } finally { building = false; lock(); }
-    return async () => {
-      if (before === undefined) throw Error('This can’t be undone here. Use Undo in the app.');
-      building = true; lock();
-      try { await cfg.build(structuredClone(before), () => {}); cfg.commit?.(); } finally { building = false; lock(); }
+    return {
+      note,
+      undo: async () => {
+        if (before === undefined) throw Error('This can’t be undone here. Use Undo in the app.');
+        building = true; lock();
+        try { await cfg.build(structuredClone(before), () => {}); cfg.commit?.(); } finally { building = false; lock(); }
+      },
     };
   }
   /** Opens Assist with a reply to review, such as one written in Ask Ara. */

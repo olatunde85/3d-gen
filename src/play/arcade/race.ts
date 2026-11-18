@@ -23,6 +23,7 @@ export const CAR_STATS: Record<RaceCar, CarStats> = {
   scooter: { name: 'Scooter', top: 46, accel: 18, grip: 10, turn: 1.5, mass: 0.45, radius: 0.8 },
   quad: { name: 'Quad bike', top: 52, accel: 18, grip: 9.5, turn: 1.35, mass: 0.7, radius: 1.0 },
   keke: { name: 'Keke', top: 40, accel: 13, grip: 7.5, turn: 1.2, mass: 0.8, radius: 1.05 },
+  bus: { name: 'City bus', top: 42, accel: 9, grip: 6.4, turn: 0.82, mass: 2.6, radius: 1.95 },
 };
 /** Pace is a share of the car's top speed, lateral the cornering grip the line is planned for, brake the deceleration
  * planned into each corner, ease how far the pack lifts when it leads the player, and nitro the meter level it fires at. */
@@ -80,13 +81,13 @@ export class RaceGame {
   /** Grid of two columns behind the start line; the player starts mid-pack. */
   reset() {
     const s = this.settings, total = s.opponents + 1, gridSlot = Math.min(total - 1, Math.floor(total / 2));
-    const models: RaceCar[] = ['sports_car', 'muscle', 'suv', 'motorcycle', 'saloon', 'pickup', 'danfo', 'quad'], colors = ['#2d6fc8', '#e2b23a', '#3c9a5f', '#8a4fc0', '#e47b2d', '#ececec', '#2b2b30'];
+    const mixed: RaceCar[] = ['sports_car', 'muscle', 'suv', 'motorcycle', 'saloon', 'pickup', 'danfo', 'quad'], models = s.rivals?.length ? s.rivals : mixed, colors = ['#2d6fc8', '#e2b23a', '#3c9a5f', '#8a4fc0', '#e47b2d', '#ececec', '#2b2b30'];
     this.cars = [];this.status = 'countdown';this.countdown = 3.6;this.time = 0;this.events = [];this.accumulator = 0;this.result = undefined;this.recording = [];this.lastRecord = -1;this.ghost = this.bestGhost;
     this.slicks = this.slicks.filter((o) => o.age === -Infinity);for (const item of this.items) item.respawn = 0;
     const order = Array.from({ length: total }, (_, i) => i);
     order.splice(gridSlot, 0, ...order.splice(0, 1));
     order.forEach((who, slot) => {
-      const ai = who > 0, model = ai ? models[(who - 1 + (s.car.model === 'sports_car' ? 1 : 0)) % models.length] : s.car.model;
+      const ai = who > 0, model = ai ? models[(who - 1 + (!s.rivals?.length && s.car.model === 'sports_car' ? 1 : 0)) % models.length] : s.car.model;
       const back = -8 - slot * 7, lateral = (slot % 2 ? -1 : 1) * this.track.width * 0.2, p = trackPoint(this.track, back, lateral);
       this.cars[who] = {
         id: ai ? `ai-${who}` : 'player', driver: ai ? this.names.drivers[(who - 1) % Math.max(1, this.names.drivers.length)] ?? `Racer ${who}` : this.names.player, model, color: ai ? colors[(who - 1) % colors.length] : s.car.color, ai, stats: CAR_STATS[model],

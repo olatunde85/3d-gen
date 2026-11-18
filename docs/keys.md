@@ -52,6 +52,8 @@ In Studio, Ara has the full map of the location that's open. When a message name
 
 When Ara writes a character, film or game, it is checked and built straight away, and its card offers **Undo** to put back what you had. If it can't be built, the card says why and offers **Ask Ara to fix it**.
 
+Voices, sounds and music are extras: if one can't be made (an allowance runs out, say), the rest is built anyway and the card says what's missing, with fixes that don't call the AI again. In Studio these are **Try again**, **Use Ara’s voices** (switches the unvoiced lines to Ara's free voices and voices them in Sound) and **Use library audio instead** (drops the sounds that weren't made and picks the closest library music). In Play, a game built from Ask Ara loads straight away.
+
 Dialogue in Ara's own voices isn't voiced automatically from the chat, because it needs the first-time voice download. Use **Voice all lines** in Sound (or **Generate all speech** in Play) for those lines.
 
 Conversations last until the browser closes; **＋** starts a new one. In Play, Ask Ara stays out of the way while a game is being played and in full screen.

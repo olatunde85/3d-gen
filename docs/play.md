@@ -36,7 +36,8 @@ Climbs slow cars and descents speed them up; cars tilt with the road and the cam
 | `pickups` | Boost pads; item boxes giving a boost, an oil slick to drop behind or a nitro refill; oil-slick hazards |
 | `ghost` | Records the best lap and replays it as a translucent car |
 | `traction` | `icy` makes every car slide wide; `normal` keeps full grip. Without it, snow circuits are icy and the others normal |
-| `car` | Sports car, muscle car, saloon, go-kart, SUV, pickup, danfo, van, box truck, motorcycle, scooter, quad bike or keke, each with its own top speed, acceleration and grip, plus a paint colour |
+| `car` | Sports car, muscle car, saloon, go-kart, SUV, pickup, danfo, van, box truck, motorcycle, scooter, quad bike, keke or city bus, each with its own top speed, acceleration and grip, plus a paint colour |
+| `rivals` | The vehicles the AI racers drive, in turn, such as `["keke","bus"]`; without it the field is mixed. **Rival vehicles** in Cast sets one vehicle for every rival |
 
 A countdown starts each race; throttle pressed just before GO gives a launch boost. Walls bounce cars back instead of wrecking them, and a car that is stuck or driving the wrong way returns to the road. **F** returns the player to the road at any time. The HUD shows position, laps, lap and best times, the ghost delta, speed, nitro, drift charge, the held item and a minimap. The results show a podium, the finishing order with car colours and gaps to the winner, the race and best-lap times with any new records, and in a cup the cash earned and the points table.
 
