@@ -74,6 +74,7 @@ const FACES: Record<string, FaceFn> = {
     const ha = Math.abs(Math.sin((t / d) * Math.PI * 12));
     return { mouthSmile: 1, jawOpen: 0.2 + 0.35 * ha, mouthUpperUp: 0.3 + 0.2 * ha, eyeSquintLeft: 0.6, eyeSquintRight: 0.6, browOuterUpLeft: 0.25, browOuterUpRight: 0.25 };
   },
+  laugh_hard: (t, d) => FACES.laugh(t, d),
   cry: (t, d) => {
     const a = (t / d) * Math.PI * 2;
     const sob = Math.max(0, Math.sin(a * 2)) ** 2 * 0.7 + Math.max(0, Math.sin(a * 4 + 1)) ** 3 * 0.3;

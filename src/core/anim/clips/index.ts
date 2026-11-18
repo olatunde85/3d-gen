@@ -7,7 +7,7 @@ import { type Clip } from './types';
 import { crouch, idle } from './basic';
 import { pace, recordedWalk, recordedRun, recordedStrafeLeft, recordedStrafeRight, walkBack } from './recorded';
 import { fall, hit, jumpAir, jumpLand, jumpRunning, jumpStart, punch } from './actions';
-import { cheer, laugh, talk, wave, SOCIAL_EMOTES } from './emotes';
+import { cheer, talk, wave, SOCIAL_EMOTES } from './emotes';
 import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
 import { COMBAT } from './combat';
@@ -82,7 +82,8 @@ export const CLIPS: Clip[] = withFaces(
     ...EVERYDAY,
     wave,
     cheer,
-    laugh,
+    mocap('laugh', 'Laugh', 'Emotes'),
+    mocap('laugh_hard', 'Laugh hard', 'Emotes'),
     talk,
     mocap('cry', 'Cry', 'Emotes'),
     ...SOCIAL_EMOTES,
