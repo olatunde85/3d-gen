@@ -30,11 +30,11 @@ export const wave: Clip = {
 
 /** Cheering: fists raised around head height that rise once each loop, with a soft bounce in the knees (no jumping). */
 export const cheer: Clip = {
-  id: 'cheer', name: 'Cheer', category: 'Emotes', duration: 1.3, loop: true,
+  id: 'cheer', name: 'Cheer', category: 'Emotes', duration: 1, loop: true,
   sample: (t) => {
-    const u = t / 1.3; // one rise per loop
+    const u = t; // one rise per loop (a second)
     // Each pump rises quickly and settles slowly; the knees dip as the fists come down.
-    const pump = u < 0.25 ? Math.sin((u / 0.25) * Math.PI * 0.5) : 0.5 + 0.5 * Math.cos(((u - 0.25) / 0.75) * Math.PI);
+    const pump = u < 0.2 ? Math.sin((u / 0.2) * Math.PI * 0.5) : 0.5 + 0.5 * Math.cos(((u - 0.2) / 0.8) * Math.PI);
     const dip = 0.5 - 0.5 * Math.cos(u * Math.PI * 2);
     const out: Record<string, Ch> = {
       Spine: [-2 - 2 * pump, 0, 0], Spine1: [-2 - 2 * pump, 0, 0], Spine2: [-2, 0, 0],
