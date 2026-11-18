@@ -68,6 +68,7 @@ Films and games are small files, so they are written straight away; there is not
 
 - **Where files go:** set `ARA3D_OUT` to change the default folder, for example `"env": { "ARA3D_OUT": "/Users/me/game/characters" }` beside `args` in the config. The assistant can also name a folder for each character.
 - **Offline or a fixed copy of the data:** the same `ARA3D_DATA`, `ARA3D_DATA_URL` and `ARA3D_CACHE` settings as the [command line](cli.md).
+- **Updates:** `npx -y ara3d mcp` runs the newest published `ara3d` whenever the assistant starts it (npm may reuse a copy it fetched a short while before). Assistants read the list of tools when they start the server, so restart the assistant app to pick up new tools; in Claude Code, `/mcp` can reconnect it.
 - **A fixed version:** `npx -y ara3d@0.8.0 mcp` instead of `ara3d`.
 
 ## Good to know
