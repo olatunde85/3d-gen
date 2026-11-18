@@ -14,9 +14,9 @@ import { idle } from './basic';
 export interface PairPlacement { x: number; z: number }
 
 /** A handshake's partner stands a little to the right, so the two right hands meet in the middle. */
-const SHAKE: PairPlacement = { x: -0.1, z: 0.9 };
-/** Hugging partners stand close, chest to chest. */
-const HUG: PairPlacement = { x: 0, z: 0.36 };
+const SHAKE: PairPlacement = { x: -0.1, z: 0.75 };
+/** Hugging partners stand close, chest to chest, a little offset so their heads pass each other. */
+const HUG: PairPlacement = { x: -0.08, z: 0.38 };
 
 /** The interactions two people play together, by clip ID, with where the partner stands. */
 export const PAIRS: Record<string, PairPlacement> = { handshake: SHAKE, hug: HUG };
@@ -46,9 +46,10 @@ export const handshake: Clip = {
     const head = bones.Head ?? [0, 0, 0];
     bones.Head = [head[0] + 4 * w + 2 * pumps * w, head[1], head[2]];
     side(bones, 'Hand', [0, 0, 0], [0, 0, 0]);
-    fingers(bones, 10 + 35 * w);
-    // The meeting point: in front, a little to the right, at hand height; the palm faces the partner's palm.
-    const grip: HandTarget = { space: 'floor', pos: v(-0.05, 1.0 + 0.035 * pumps, SHAKE.z / 2), pole: v(-1, -1, -0.3), dir: v(0.3, 0, 1), palm: v(1, 0, -0.1) };
+    fingers(bones, 10 + 50 * w);
+    // The meeting point is in front, a little to the right, at hand height. The wrists sit either side of it (palm
+    // facing the partner's palm, about a hand's thickness apart) and short of it, so the two hands overlap.
+    const grip: HandTarget = { space: 'floor', pos: v(-0.065, 1.04 + 0.035 * pumps, SHAKE.z / 2 - 0.06), pole: v(-1, -1, -0.3), dir: v(0.08, 0, 1), palm: v(1, 0, 0) };
     return { ...s, bones, ik: { ...s.ik, Right: grip }, ikWeight: { ...s.ikWeight, Right: w } };
   },
 };
@@ -62,16 +63,16 @@ export const hug: Clip = {
     const { s, bones } = stand(t, 8 * w);
     // The head turns to the left, so the two heads go to opposite sides.
     const head = bones.Head ?? [0, 0, 0], neck = bones.Neck ?? [0, 0, 0];
-    bones.Neck = [neck[0] + 4 * w, neck[1] + 12 * w, neck[2] - 3 * w];
-    bones.Head = [head[0] + 6 * w, head[1] + 14 * w, head[2] - 4 * w];
+    bones.Neck = [neck[0] + 6 * w, neck[1] + 16 * w, neck[2] - 4 * w];
+    bones.Head = [head[0] + 8 * w, head[1] + 20 * w, head[2] - 6 * w];
     const spine = bones.Spine ?? [0, 0, 0];
     bones.Spine = [spine[0], spine[1], spine[2] + 2 * sway];
     side(bones, 'Shoulder', [0, 0, 6 * w], [0, 0, 8 * w]);
     fingers(bones, 12);
-    const back = HUG.z + 0.1;
-    // Right hand on the partner's upper back, over their left shoulder; left hand round their waist.
-    const over: HandTarget = { space: 'floor', pos: v(-0.1, 1.34, back + 0.02 * pat), pole: v(-1, 0.3, -0.5), dir: v(0.7, -0.2, 0.5), palm: v(0, 0, -1) };
-    const under: HandTarget = { space: 'floor', pos: v(0.08, 1.02, back - 0.02), pole: v(1, -0.4, -0.5), dir: v(-0.7, 0, 0.5), palm: v(0, 0, -1) };
+    // Right hand on the partner's upper back, over their left shoulder; left hand round their waist, on the back clear of
+    // the body and clothes.
+    const over: HandTarget = { space: 'floor', pos: v(HUG.x - 0.02, 1.34, HUG.z + 0.15 + 0.02 * pat), pole: v(-1, 0.3, -0.5), dir: v(0.7, -0.2, 0.5), palm: v(0, 0, -1) };
+    const under: HandTarget = { space: 'floor', pos: v(HUG.x + 0.16, 1.0, HUG.z + 0.18), pole: v(1, -0.4, -0.5), dir: v(-0.75, 0, 0.4), palm: v(0, 0, -1) };
     return { ...s, bones, ik: { Left: under, Right: over }, ikWeight: { Left: w, Right: w } };
   },
 };
