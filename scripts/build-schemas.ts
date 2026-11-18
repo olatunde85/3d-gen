@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { characterSchema } from '../src/app/character-assist';
 import { assistSchema } from '../src/studio/assist';
+import { playSchema } from '../src/play/schema';
 import { nodeLibrary } from './node-assets';
 
 const root = resolve(import.meta.dirname, '..'), out = join(root, 'dist/schemas'), site = 'https://ara3dgen.com/schemas/';
@@ -13,6 +14,7 @@ const { catalog } = await nodeLibrary();
 const schemas = [
   { file: 'character.v1.json', title: 'Ara character', description: 'A character: a preset and/or appearance parameters (kind "ara-character", version 1).', schema: characterSchema(catalog) },
   { file: 'studio-film.v2.json', title: 'Ara 3D Studio film', description: 'A Studio film: set, cast, timeline, dialogue, sound and music (version 2).', schema: assistSchema(catalog) },
+  { file: 'play-game.v2.json', title: 'Ara Play game', description: 'An Ara Play game: mode, missions, cast, city, story and chapters (kind "ara-play", version 2).', schema: playSchema(catalog) },
 ];
 mkdirSync(out, { recursive: true });
 for (const s of schemas) writeFileSync(join(out, s.file), JSON.stringify({ $id: site + s.file, ...s.schema }, null, 2) + '\n');

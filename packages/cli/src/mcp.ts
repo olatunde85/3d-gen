@@ -26,6 +26,10 @@ import { applyColors, COLOR_SLOTS, colorsOf, type CharacterColors } from './libr
 import { loadLibrary } from './data';
 import { explain, writeSafely } from './safety';
 import PACKAGE from '../package.json';
+import { generateAssistGuide, parseStudioInput, summarizeAssistProject } from '../../../src/studio/assist';
+import { checkPlayPlacements, describeGame, generatePlayGuide, parsePlayInput } from '../../../src/play/assist';
+import { fileLink } from '../../../src/app/links';
+import { guideAnswer } from './guides';
 
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const FORMATS: readonly ExportFormat[] = ['glb', 'fbx', 'obj', 'zip'];
@@ -35,7 +39,8 @@ const OUT = process.env.ARA3D_OUT || join(homedir(), 'ara3d-characters');
 const INSTRUCTIONS = `ara3d makes realistic, rigged and animated 3D humans on this machine and writes GLB, FBX or OBJ files.
 Start from a preset (list_presets), a random seed, a share link from the Ara builder, or a character you design: call character_schema for every field, then pass { preset, params } to create_character.
 Choose only the animations needed (list_animations): every clip makes the file bigger and the build slower.
-Each result includes a link that opens the character in the Ara builder, so the user can see it and keep editing.`;
+Each result includes a link that opens the character in the Ara builder, so the user can see it and keep editing.
+Films and games: read film_guide or game_guide (an overview, then the topics you need), write the file, then call create_film or create_game. They check it as Ara Studio and Ara Play do, save it, and return a link that opens it in Studio (to watch, edit and record as a video) or Play (to play, edit and download).`;
 
 const TOOLS = [
   {
@@ -81,6 +86,26 @@ const TOOLS = [
       },
       additionalProperties: false,
     },
+  },
+  {
+    name: 'film_guide',
+    description: 'How to write an Ara Studio film (sets, cast, actions, camera, dialogue, sound, music). Without a topic: the core rules and a list of topics; then ask for each topic you need, such as the animation catalogue or the JSON schema.',
+    inputSchema: { type: 'object', properties: { topic: { type: 'string', description: 'A topic key from the overview\'s list.' }, brief: { type: 'string', description: 'What the user wants, included in the overview so the rules can point at it.' } }, additionalProperties: false },
+  },
+  {
+    name: 'create_film',
+    description: 'Checks an Ara Studio film as Studio does, saves it as .ara-studio.json and returns a summary and a link that opens it in Ara Studio. Errors name the field to fix.',
+    inputSchema: { type: 'object', properties: { film: { type: 'object', description: 'The film, written following film_guide.' }, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['film'], additionalProperties: false },
+  },
+  {
+    name: 'game_guide',
+    description: 'How to write an Ara Play game (missions, races, endless runs, cast, city, story, chapters). Without a topic: the core rules and a list of topics; then ask for each topic you need, such as the map library.',
+    inputSchema: { type: 'object', properties: { topic: { type: 'string', description: 'A topic key from the overview\'s list.' }, brief: { type: 'string', description: 'What the user wants, included in the overview so the rules can point at it.' } }, additionalProperties: false },
+  },
+  {
+    name: 'create_game',
+    description: 'Checks an Ara Play game as Play does (including where everything is placed on the map), saves it as .ara-play.json and returns a summary and a link that opens it in Ara Play. Errors name the field to fix.',
+    inputSchema: { type: 'object', properties: { game: { type: 'object', description: 'The game, written following game_guide.' }, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['game'], additionalProperties: false },
   },
 ];
 
@@ -149,6 +174,34 @@ async function createCharacter(args: Args, progress: (done: number, message: str
   ].join('\n\n');
 }
 
+/** The folder to write to: the assistant's choice (relative to the default folder) or the default. */
+function outDir(args: Args) {
+  const out = typeof args.out_dir === 'string' && args.out_dir ? (isAbsolute(args.out_dir) ? args.out_dir : resolve(OUT, args.out_dir)) : OUT;
+  mkdirSync(out, { recursive: true });return out;
+}
+const fileName = (title: string, fallback: string) => (title.trim().replace(/[^\w-]+/g, '_').replace(/^_+|_+$/g, '') || fallback).slice(0, 60);
+
+/** Checks a film, saves it and returns where it went and the link that opens it in Studio. */
+async function createFilm(args: Args) {
+  if (!args.film || typeof args.film !== 'object') throw Error('Pass the film as an object in "film".');
+  const json = JSON.stringify(args.film), film = parseStudioInput(json, (await data()).catalog);
+  const path = join(outDir(args), `${fileName(film.title, 'film')}.ara-studio.json`);
+  writeSafely(path, new TextEncoder().encode(JSON.stringify(film, null, 2) + '\n'));
+  return [`Checked: ${summarizeAssistProject(film)}`, `Saved: ${path}`, `Open it in Ara Studio to watch, edit and record it as a video: ${fileLink('film', json)}`].join('\n\n');
+}
+
+/** Checks a game (settings and placement on the map), saves it and returns where it went and the link that opens it in Play. */
+async function createGame(args: Args) {
+  if (!args.game || typeof args.game !== 'object') throw Error('Pass the game as an object in "game".');
+  const { catalog } = await data(), json = JSON.stringify(args.game), game = parsePlayInput(json, catalog);
+  const placed = checkPlayPlacements(json, catalog);
+  if (!placed.valid) throw Error(`The game's settings are valid, but it can't be laid out on its map:\n${placed.chapters.filter((c) => !c.ok).map((c) => `${c.id}: ${'error' in c ? c.error : ''}`).join('\n')}`);
+  const path = join(outDir(args), `${fileName(game.identity.title, 'game')}.ara-play.json`);
+  writeSafely(path, new TextEncoder().encode(JSON.stringify(game, null, 2) + '\n'));
+  const about = describeGame(game) as { headline: string; facts: string[] };
+  return [`Checked: ${about.headline}\n  ${about.facts.join('\n  ')}`, `Saved: ${path}`, `Open it in Ara Play to play it, edit it, download it as a standalone web game or publish it: ${fileLink('game', json)}`].join('\n\n');
+}
+
 async function callTool(name: string, args: Args, progress: (done: number, message: string) => void): Promise<string> {
   if (name === 'list_presets') return Object.keys(PRESETS).join('\n');
   if (name === 'list_animations') return listAnimations(args);
@@ -160,6 +213,11 @@ async function callTool(name: string, args: Args, progress: (done: number, messa
   ].join('\n');
   if (name === 'character_schema') return JSON.stringify(characterSchema((await data()).catalog), null, 2);
   if (name === 'create_character') return createCharacter(args, progress);
+  const brief = typeof args.brief === 'string' ? args.brief : '';
+  if (name === 'film_guide') return guideAnswer(generateAssistGuide((await data()).catalog, brief), args.topic, 'film_guide');
+  if (name === 'game_guide') return guideAnswer(generatePlayGuide((await data()).catalog, brief), args.topic, 'game_guide');
+  if (name === 'create_film') return createFilm(args);
+  if (name === 'create_game') return createGame(args);
   throw Error(`Unknown tool "${name}".`);
 }
 

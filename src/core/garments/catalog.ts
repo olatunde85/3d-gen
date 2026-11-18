@@ -105,6 +105,16 @@ function upperField(b: Body, o: { hem: number; chest: number; scoop?: number; st
   };
 }
 
+/**
+ * Where a band round the torso looks up its skin weights: a little in toward the midline. At the sides the nearest
+ * body points can be the inner arm, which would drag the band out with a raised arm.
+ */
+function towardMidline(m: PolyMesh): Float32Array {
+  const out = new Float32Array(m.positions);
+  for (let i = 0; i < out.length; i += 3) out[i] *= 0.8;
+  return out;
+}
+
 /** Tank top: straps that sit in toward the neck, so raising the arms doesn't drag the shoulder's skin over them. */
 function tankTop(g: GCtx, st: GarmentStyle): GPart[] {
   const r = cutShell(g.body, g.faceVerts, {
@@ -452,10 +462,10 @@ export const GARMENTS: GarmentDef[] = [
       const vest = cutShell(b, g.faceVerts, { field: upperField(b, { hem: 0.22, chest: 0.72, strap: [0.62, 0.2] }), offset: cm(1.8), tile: 0.3, relax: 8 });
       // Two reflective bands around the body.
       const trunk = points(b, isTrunk);
-      const bands = [0.4, 0.58].map((t) => solidBand(trunk, hplane(b, torsoY(b, t)), cm(4.5), cm(0.15), cm(1.95), { samples: 72, slab: cm(2) }));
+      const bands = [0.4, 0.58].map((t) => solidBand(trunk, hplane(b, torsoY(b, t)), cm(4.5), cm(0.15), cm(2.4), { samples: 72, slab: cm(2) }));
       return [
         ...(vest ? [{ mesh: vest.mesh, material: cloth(g, 'Reflective vest', st, { roughness: 0.7 }), smooth: true }] : []),
-        ...(bands.some(Boolean) ? [{ mesh: merge(bands)!, material: mat('Reflective tape', null, { color: st.color2, roughness: 0.25, metalness: 0.55 }) }] : []),
+        ...(bands.some(Boolean) ? [{ mesh: merge(bands)!, material: mat('Reflective tape', null, { color: st.color2, roughness: 0.25, metalness: 0.55 }), skinAt: towardMidline(merge(bands)!) }] : []),
       ];
     },
   },

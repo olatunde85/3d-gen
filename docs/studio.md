@@ -293,6 +293,7 @@ With a rifle equipped, **Take cover** steps forward and crouches behind a 1.1 m 
 - **Automatic:** Studio saves on this device as you work. A reload brings back the film, the view, your selection, the playhead, open editors, Assist drafts and your Undo history.
 - **Save project:** downloads an editable `.ara-studio.json`. Films with recorded or generated voices save as a `.ara-studio.zip` bundle with the audio included (up to 128 MB). **Open** loads either one, on any device.
 - **Save frame:** the current picture as a PNG.
+- **Film links:** a link can open Studio with a film loaded, as a builder share link does with a character. `https://ara3dgen.com/studio/#film=…` carries the film in the link, packed the way share links are; `https://ara3dgen.com/studio/#src=https://…/film.json` opens a film file hosted elsewhere, on a host that lets other sites read it, such as GitHub's raw files or a gist. The film after `#` stays in the browser, and it goes through the same checks as a file opened from disk; Undo returns to the film you had. The [AI assistant tools](mcp.md) return these links.
 - **Export film:** a 30 fps MP4 at 720p or 1080p, with sound. **Save soundtrack WAV** exports the audio on its own.
 
 Recordings and generated voices are stored in your browser, which can clear them; save a project bundle to keep them safe. Projects point to Ara's built-in characters, sets and sounds rather than copying them, so keep the same Ara version to reopen them exactly.

@@ -1,5 +1,6 @@
 import {AirView} from './air-view';
 import {saveSetup,openSetup} from './project-bundle';
+import {clearLinkedFile,hasLinkedFile,linkedFile} from '../app/links';
 import {finishLoading,paintLoading,savedGame} from './loading';
 import {storyEditor} from './story-editor';
 import {generateImportedVoices} from './voice-import';
@@ -206,14 +207,14 @@ const campaignTry=document.createElement('button');campaignTry.type='button';cam
 for(const [id,label,example] of [['pa-race-example','Try a race cup',raceExample],['pa-runner-example','Try a runner',runnerExample]]as const){const b=document.createElement('button');b.type='button';b.id=id;b.className='ai-link';b.textContent=label;assist.dialog.querySelector('.ai-review .ai-row')!.append(b);b.onclick=()=>{assist.restore({...assist.state(),json:JSON.stringify(example(),null,2)});$<HTMLTextAreaElement>('pa-json').dispatchEvent(new Event('input'));};}
 const placementCheck=document.createElement('button');placementCheck.type='button';placementCheck.id='pa-check-placements';placementCheck.className='ai-link';placementCheck.textContent='Check placements';assist.dialog.querySelector('.ai-review .ai-row')!.append(placementCheck);placementCheck.onclick=()=>{try{const report=checkPlayPlacements($<HTMLTextAreaElement>('pa-json').value,lib.catalog),blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='ara-play-placements.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);placementCheck.textContent=report.valid?'Placements checked ✓':'Placement issues found · report saved';}catch(error){placementCheck.textContent=(error as Error).message;}};
 button('play-assist-open').onclick=()=>{stopMusicPreview();void assist.open();};
-assist.dialog.addEventListener('close',()=>{if(!assistedPreview)return;project=assistedPreview.project;resetDraft(project);pendingCast=assistedPreview.cast;assistedPreview=undefined;try{localStorage.setItem(storage,JSON.stringify(project));}catch{/* optional persistence */}restartAfterSetup=true;setup.close();});
+assist.dialog.addEventListener('close',()=>{if(!assistedPreview)return;project=assistedPreview.project;resetDraft(project);pendingCast=assistedPreview.cast;assistedPreview=undefined;try{localStorage.setItem(storage,JSON.stringify(project));clearLinkedFile('game');}catch{/* optional persistence */}restartAfterSetup=true;setup.close();});
 const applyLabel=button('apply').innerHTML;
 button('apply').onclick=async()=>{
  if(applying)return;stopMusicPreview();applying=true;const fields=$<HTMLFieldSetElement>('setup-fields');fields.disabled=true;
  try{
   const nextProject=parseProject(JSON.stringify(wholeDraft()),lib.catalog);
   const next=await prepareGame(nextProject,text=>{button('apply').textContent='Preparing cast…';$('setup-note').textContent=text;});
-  project=nextProject;pendingCast=next;try{localStorage.setItem(storage,JSON.stringify(project));}catch{/* optional persistence */}
+  project=nextProject;pendingCast=next;try{localStorage.setItem(storage,JSON.stringify(project));clearLinkedFile('game');}catch{/* optional persistence */}
   restartAfterSetup=true;setup.close();
  }catch(error){$('setup-note').textContent=(error as Error).message;}
  finally{fields.disabled=false;button('apply').innerHTML=applyLabel;applying=false;}
@@ -249,11 +250,15 @@ async function init(){
   scene=new GameScene(canvas);
   const assets=new URL(`${import.meta.env.BASE_URL}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);
   try{const saved=localStorage.getItem(storage);if(saved)project=parseProject(saved,lib.catalog);}catch{/* invalid/stale local drafts do not block play */}
+  // A link can carry a game (#game=…, or #src= for a hosted file). It plays in place of the saved setup, which stays
+  // stored until a change is applied; it is checked like a file opened from disk.
+  let linkNote='';
+  if(hasLinkedFile(location.hash,'game')){try{const text=await linkedFile(location.hash,'game');if(text){project=parsePlayInput(text,lib.catalog);linkNote='Opened the game from the link.';}}catch(error){linkNote=(error as Error).message;}}
   applyTheme(project.theme);applyHowToPlay(project.howToPlay);
   const linked=new URLSearchParams(location.hash.slice(1)).get('c');if(linked){const character=decodeCharacter(linked,'medium');if(character)project.character=playable(character);}
   const cast=await prepareGameCast(project,engine,f=>lib.textureUrl(f),text=>{$('load-note').textContent=text;});gameCast=cast;loading=false;
   player=mountPlayer(scene,project,cast,{stopPreview:stopMusicPreview,renderMusicStatus,unlockPreview:()=>musicPreview.unlock(),audioChanged:enabled=>{musicPreview.setMuted(!enabled);renderMusicStatus();}});
-  finishLoading();
+  finishLoading();if(linkNote)player.announce(linkNote);
   if(import.meta.env.DEV||new URLSearchParams(location.hash.slice(1)).has('demo'))Object.defineProperty(window,'araPlay',{get:()=>({...player.state,musicPreview})});
  }catch(error){$('load-label').textContent='Try loading again';$('load-note').textContent=(error as Error).message;button('start').disabled=false;button('start').onclick=()=>location.reload();}
 }
