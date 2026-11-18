@@ -35,6 +35,11 @@ if (lowMemory) {
   void import('./developers');
 }
 
+// --- The AI assistant section's character: plays while it's on screen, unless the visitor prefers less motion ------
+const mcpVideo = $<HTMLVideoElement>('#mcp video');
+if (mcpVideo && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+  new IntersectionObserver(([entry]) => { if (entry.isIntersecting) void mcpVideo.play().catch(() => {});else mcpVideo.pause(); }).observe(mcpVideo);
+
 // --- Embed demos: recordings (scripts/develop-clips.ts) on phones and low-memory devices -------------------------
 const demo = $<HTMLDivElement>('#embed-demo');
 if (lowMemory) {

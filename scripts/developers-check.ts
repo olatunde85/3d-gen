@@ -125,6 +125,10 @@ try {
   await until("[...document.querySelectorAll('#embed-demo ara-character')].every((e) => e.character)", 'embed demos');await sleep(1500);
   await photo('embed-section', await box('#embed'));console.log('OK embed demos loaded');
   await photo('rest-desktop', { ...(await box('.dev-uses')), height: await evaluate<number>("document.querySelector('.footer').getBoundingClientRect().bottom + scrollY - document.querySelector('.dev-uses').getBoundingClientRect().top - scrollY") });
+  await evaluate("document.querySelector('#mcp video').scrollIntoView({ block: 'center' })");
+  await until("(() => { const v = document.querySelector('#mcp video');return v.readyState >= 2 && !v.paused; })()", 'desktop AI assistant recording');await sleep(600);
+  await photo('desktop-mcp', await box('#mcp'));
+  console.log('OK desktop: the AI assistant section plays the character beside the conversation');
   // A phone: no live 3D at all (no playground, no live embeds) and no sideways scrolling.
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await send('Page.reload');await sleep(2500);await evaluate('scrollTo(0, 0)');
@@ -136,6 +140,10 @@ try {
   await until("(() => { const v = document.querySelector('#library video');return !document.getElementById('library').hidden && v.readyState >= 2 && !v.paused; })()", 'phone library recording');await sleep(600);
   await photo('phone-library', await box('#library'));
   console.log('OK phone: the library section plays its recording');
+  await evaluate("document.querySelector('#mcp video').scrollIntoView({ block: 'center' })");
+  await until("(() => { const v = document.querySelector('#mcp video');return v.readyState >= 2 && !v.paused; })()", 'phone AI assistant recording');await sleep(600);
+  await photo('phone-mcp', await box('#mcp'));
+  console.log('OK phone: the AI assistant section plays the character beside the conversation');
   await photo('phone-top', { x: 0, y: 0, width: 390, height: 844 });
   await evaluate("document.getElementById('embed').scrollIntoView()");
   // A phone plays recordings of the demos instead of three more live 3D views.
