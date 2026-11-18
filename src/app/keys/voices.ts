@@ -2,7 +2,7 @@
  * Every voice a line can use: Ara's own voices (free, on this device) and the voices of connected providers. A voice
  * is named "F1" … "M2" for Ara's, or "provider/voice" (such as "gemini/Kore" or "elevenlabs/<voice id>").
  */
-import { call, PROVIDERS, type ProviderId } from './providers';
+import { call, elevenVoiceList, PROVIDERS, type ProviderId } from './providers';
 import { keySettings, type SavedKey } from './store';
 import { ProviderError } from './http';
 
@@ -41,16 +41,11 @@ async function elevenVoices(): Promise<Voice[]> {
   if (!saved) return [];
   if (eleven?.key === saved.key) return eleven.voices;
   const voices: Voice[] = [];
-  let token = '';
-  for (let page = 0; page < 10; page++) {
-    const j = await (await call('elevenlabs', saved, `/v2/voices?page_size=100${token ? `&next_page_token=${encodeURIComponent(token)}` : ''}`)).json();
-    for (const v of j.voices ?? []) {
-      const l = v.labels ?? {}, own = v.category && v.category !== 'premade';
-      const detail = [own ? 'your voice' : '', l.gender, l.age, l.accent, l.description ?? l.descriptive ?? l.use_case].filter(Boolean).join(' · ');
-      voices.push({ id: `elevenlabs/${v.voice_id}`, name: v.name, detail, ...(l.gender === 'female' || l.gender === 'male' ? { gender: l.gender } : {}), ...(v.preview_url ? { preview: v.preview_url } : {}) });
-    }
-    if (!j.has_more || !j.next_page_token) break;
-    token = j.next_page_token;
+  const j = await elevenVoiceList(saved);
+  for (const v of j.voices ?? []) {
+    const l = v.labels ?? {}, own = v.category && v.category !== 'premade';
+    const detail = [own ? 'your voice' : '', l.gender, l.age, l.accent, l.description ?? l.descriptive ?? l.use_case].filter(Boolean).join(' · ');
+    voices.push({ id: `elevenlabs/${v.voice_id}`, name: v.name, detail, ...(l.gender === 'female' || l.gender === 'male' ? { gender: l.gender } : {}), ...(v.preview_url ? { preview: v.preview_url } : {}) });
   }
   // Your own voices first, then the rest by name.
   voices.sort((a, b) => Number(b.detail?.startsWith('your voice') ?? 0) - Number(a.detail?.startsWith('your voice') ?? 0) || a.name.localeCompare(b.name));

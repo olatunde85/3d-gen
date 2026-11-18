@@ -215,12 +215,32 @@ function pick(id: 'anthropic' | 'openai' | 'gemini', ids: Set<string>, keep: (m:
   return [...known, ...rest];
 }
 
+/**
+ * The visitor's ElevenLabs voices. /v1/voices returns them all at once; /v2/voices (paged) is the fallback, since
+ * either can fail the browser's permission check on a given day.
+ */
+export async function elevenVoiceList(saved: SavedKey, signal?: AbortSignal): Promise<{ voices: { voice_id: string; name: string; category?: string; labels?: Record<string, string>; preview_url?: string }[]; total_count?: number }> {
+  try { return await (await call('elevenlabs', saved, '/v1/voices', { signal })).json(); }
+  catch (error) {
+    if ((error as ProviderError).problem !== 'network') throw error;
+    const all: { voice_id: string; name: string }[] = [];
+    let token = '';
+    for (let page = 0; page < 10; page++) {
+      const j = await (await call('elevenlabs', saved, `/v2/voices?page_size=100${token ? `&next_page_token=${encodeURIComponent(token)}` : ''}`, { signal })).json();
+      all.push(...(j.voices ?? []));
+      if (!j.has_more || !j.next_page_token) break;
+      token = j.next_page_token;
+    }
+    return { voices: all };
+  }
+}
+
 export interface CheckResult { note: string; models?: ModelInfo[] }
 
 /** Checks a key with a free call and describes what it gives. Throws a ProviderError explaining any problem. */
 export async function checkKey(id: ProviderId, saved: SavedKey, signal?: AbortSignal): Promise<CheckResult> {
   if (id === 'elevenlabs') {
-    const voices = await (await call(id, saved, '/v2/voices?page_size=100', { signal })).json();
+    const voices = await elevenVoiceList(saved, signal);
     const own = (voices.voices ?? []).filter((v: { category?: string }) => v.category && v.category !== 'premade').length;
     let allowance = '';
     try {

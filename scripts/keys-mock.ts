@@ -170,7 +170,7 @@ async function answer(provider: string, path: string, req: IncomingMessage, res:
   if (provider === 'elevenlabs') {
     const e = (status: number, type: string, code: string, message: string) => json(res, status, { detail: { type, code, message, status: code, request_id: 'mock' } });
     if (scenario === 'bad') return e(401, 'authentication_error', 'invalid_api_key', 'Invalid API key');
-    if (path.startsWith('/v2/voices')) {
+    if (path.startsWith('/v2/voices') || path === '/v1/voices') {
       if (scenario === 'scoped') return e(401, 'authorization_error', 'missing_permissions', 'The API key you used is missing the permission voices_read to execute this operation.');
       return json(res, 200, { voices: [
         { voice_id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', category: 'premade', labels: { gender: 'female', age: 'young', accent: 'american', description: 'calm' }, preview_url: '' },
