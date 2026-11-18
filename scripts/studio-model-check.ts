@@ -17,7 +17,7 @@ import { PRESETS, ageToYears } from '../src/core/params';
 import { parseTextCues, parseSubtitles, subtitlesToSrt, MAX_TEXT_CUES } from '../src/studio/text';
 import { defaultAudio, parseAudio, speechActor, hasAudio, MAX_SOUND_EFFECTS, MAX_SPEECH, MUSIC_TRACKS, VOICE_EFFECTS } from '../src/studio/audio/schema';
 import { SOUND_EFFECTS } from '../src/studio/audio/effects-catalog';
-import { addCastActor, arrangeCast, castArrangement, ARRANGEMENTS } from '../src/studio/staging';
+import { addCastActor, addHandshake, arrangeCast, castArrangement, ARRANGEMENTS } from '../src/studio/staging';
 import { CLIPS } from '../src/core/anim/clips';
 import { seatCast, seatedAt, hipsAt, type Sitter } from '../src/studio/seating';
 import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES} from '../src/core/props/vehicles';
@@ -152,10 +152,26 @@ assert.equal(addCastActor(ensemble),undefined);assert.deepEqual(parseStudioInput
 for(let count=1;count<=MAX_ACTORS;count++)for(const kind of ARRANGEMENTS){
  const cast=structuredClone(ensemble.actors.slice(0,count)),before=JSON.stringify(cast);arrangeCast(cast,kind);
  if(count!==2){assert.equal(JSON.stringify(cast),before,'Arrangement commands only apply to two actors');assert.equal(castArrangement(cast),'');continue;}
- assert.ok(Math.hypot(cast[0].x-cast[1].x,cast[0].z-cast[1].z)>=1.4);
+ // Arrangements keep characters apart; a handshake brings them within arm's reach on purpose.
+ assert.ok(Math.hypot(cast[0].x-cast[1].x,cast[0].z-cast[1].z)>=(kind==='handshake'?.7:1.4));
  const snapshot=JSON.stringify(cast);assert.equal(castArrangement(cast),kind);assert.equal(JSON.stringify(cast),snapshot,'Detection must not move characters');
  cast[0].x+=.1;assert.equal(castArrangement(cast),'');cast[0].x-=.1;assert.equal(castArrangement(cast),kind);
  cast[0].y=.05;assert.equal(castArrangement(cast),'');cast[0].y=0;cast[0].yaw+=5;assert.equal(castArrangement(cast),'');
+}
+// Handshake: both timelines end with a handshake that starts at the same moment; asking again adds nothing; a full
+// timeline is explained instead of overflowing.
+{
+  const pair=structuredClone(ensemble.actors.slice(0,2));pair[0].beats=[beat('idle',2)];pair[1].beats=[beat('walk',3),beat('wave',1.5)];
+  arrangeCast(pair,'handshake');addHandshake(pair);
+  const startOf=(a:typeof pair[0])=>a.beats.slice(0,-1).reduce((t,b)=>t+b.duration,0);
+  assert.ok(pair.every(a=>a.beats.at(-1)!.clip==='handshake'));assert.ok(Math.abs(startOf(pair[0])-startOf(pair[1]))<.001,'both handshakes start together');
+  assert.equal(pair[0].beats.length,3,'the shorter timeline waits in idle first');
+  const once=JSON.stringify(pair);addHandshake(pair);assert.equal(JSON.stringify(pair),once,'a second Handshake adds nothing');
+  const full=structuredClone(ensemble.actors.slice(0,2));full[0].beats=Array.from({length:16},()=>beat('idle',1));full[1].beats=[beat('idle',1)];
+  assert.throws(()=>addHandshake(full),/up to 16 actions/);
+  const right=(a:typeof pair[0])=>({x:-Math.cos(a.yaw*Math.PI/180),z:Math.sin(a.yaw*Math.PI/180)});
+  const toOther=(i:number)=>{const a=pair[i],b=pair[1-i],f={x:Math.sin(a.yaw*Math.PI/180),z:Math.cos(a.yaw*Math.PI/180)};return {ahead:(b.x-a.x)*f.x+(b.z-a.z)*f.z,right:(b.x-a.x)*right(a).x+(b.z-a.z)*right(a).z};};
+  for(const i of [0,1]){const o=toOther(i);assert.ok(Math.abs(o.ahead-.75)<.001&&Math.abs(o.right-.1)<.001,`each partner stands ahead and a little to the right (${JSON.stringify(o)})`);}
 }
 const removed=ensemble.actors.splice(2,1)[0];assert.equal(addCastActor(ensemble)?.id,removed.id);assert.equal(new Set(ensemble.actors.map(a=>a.id)).size,5);
 assert.throws(()=>parseProject(JSON.stringify({...ensemble,actors:[...ensemble.actors,{...ensemble.actors[0],id:'sixth'}]})),/one to 5/);
@@ -201,7 +217,9 @@ const customCamera=structuredClone(valid);customCamera.shots[0].view={azimuth:90
 assert.deepEqual(parseStudioInput(JSON.stringify(customCamera)).shots[0].view,customCamera.shots[0].view);
 assert.equal(parseProject(JSON.stringify(customCamera)).shots[0].camera,'locked');
 assert.equal(parseProject(JSON.stringify(valid)).shots[0].view,undefined);
-for(const patch of [{view:{azimuth:181,elevation:0,zoom:1}},{view:{azimuth:0,zoom:1}},{view:[]},{camera:'fly'}])assert.throws(()=>parseProject(JSON.stringify({...valid,shots:[{...valid.shots[0],...patch}]})));
+// Camera rotation wraps round (181° is -179°); missing or malformed views and unknown moves are rejected.
+assert.equal(parseProject(JSON.stringify({...valid,shots:[{...valid.shots[0],view:{azimuth:181,elevation:0,zoom:1}}]})).shots[0].view?.azimuth,-179);
+for(const patch of [{view:{azimuth:0,zoom:1}},{view:[]},{camera:'fly'}])assert.throws(()=>parseProject(JSON.stringify({...valid,shots:[{...valid.shots[0],...patch}]})));
 assert.throws(()=>parseStudioInput(JSON.stringify({...valid,shots:[{...customCamera.shots[0],view:{...customCamera.shots[0].view,fov:45}}]})));
 assert.equal(parseAudio({effects:[{sound:'car-engine',loop:true,duration:30}]},actors).effects[0].loop,true);
 assert.equal(parseAudio({effects:[{sound:'car-engine',loop:false}]},actors).effects[0].loop,false);

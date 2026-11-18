@@ -28,7 +28,7 @@ import { setupAssist } from './assist-ui';
 import type { BuildProgress } from '../app/assist/panel';
 import { setupStudioTour } from './tour';
 import { seatCast } from './seating';
-import { addCastActor, arrangeCast, castArrangement, ARRANGEMENTS, ARRANGEMENT_LABELS, type Arrangement } from './staging';
+import { addCastActor, addHandshake, arrangeCast, castArrangement, ARRANGEMENTS, ARRANGEMENT_LABELS, type Arrangement } from './staging';
 import { MUSIC_TRACKS } from './audio/tracks';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { reconcileWeaponActions,equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
@@ -368,7 +368,8 @@ button('remove-actor').addEventListener('click',()=>void edit(p=>{if(p.actors.le
 for(const key of ['x','y','z','yaw']as const)input(`actor-${key}`).addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)![key]=Number(input(`actor-${key}`).value)));
 select('blocking').addEventListener('change',async()=>{
   const value=select('blocking').value as Arrangement;if(project.actors.length!==2||!ARRANGEMENTS.includes(value))return;
-  if(!await edit(p=>arrangeCast(p.actors,value)))return;
+  // Handshake also ends both timelines with the handshake, starting together.
+  try{if(!await edit(p=>{arrangeCast(p.actors,value);if(value==='handshake')addHandshake(p.actors);}))return;}catch(e){notify((e as Error).message);renderUI();return;}
   notify(castArrangement(project.actors)===value?`${ARRANGEMENT_LABELS[value]} applied to all ${project.actors.length} characters.`:'Cast placement updated. Seated characters use the set’s seats.');
 });
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});

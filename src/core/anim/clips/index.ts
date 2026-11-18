@@ -8,6 +8,7 @@ import { crouch, idle } from './basic';
 import { pace, recordedWalk, recordedRun, recordedStrafeLeft, recordedStrafeRight, walkBack } from './recorded';
 import { fall, hit, jumpAir, jumpLand, jumpRunning, jumpStart, punch } from './actions';
 import { cheer, laugh, talk, wave, SOCIAL_EMOTES } from './emotes';
+import { PARTNER_CLIPS } from './partners';
 import { PISTOL, RIFLE } from './shooter';
 import { MELEE } from './melee';
 import { COMBAT } from './combat';
@@ -83,9 +84,11 @@ export const CLIPS: Clip[] = withFaces(
     wave,
     cheer,
     laugh,
+    mocap('laugh_hard', 'Laugh hard', 'Emotes'),
     talk,
     mocap('cry', 'Cry', 'Emotes'),
     ...SOCIAL_EMOTES,
+    ...PARTNER_CLIPS,
     SIT_DOWN,
     mocap('sit_idle', 'Sit idle (chair)', 'Sitting & lying'),
     reversed(SIT_DOWN, 'stand_up', 'Stand up (chair)'),

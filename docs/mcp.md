@@ -52,7 +52,7 @@ Other apps take the same command: `npx -y ara3d mcp`.
 |---|---|
 | `create_character` | Builds a character and writes GLB, FBX, OBJ or ZIP files. Starts from a preset, a random seed, a builder share link, or a character the assistant designs. Takes animations, detail, root motion, a weapon, something to carry, a vehicle and colours |
 | `list_presets` | The 32 preset characters |
-| `list_animations` | The 216 animation clips, searchable, such as "dance" or "rifle" |
+| `list_animations` | The 218 animation clips, searchable, such as "dance" or "rifle" |
 | `list_props` | Weapons, carried items, vehicles and expressions |
 | `character_schema` | Every field of a character, so the assistant can design one: body, face, hair, clothes, colours and rig |
 | `create_film` | Checks an [Ara Studio](studio.md) film as Studio does, saves it as `.ara-studio.json` and returns a link that opens it in Studio, to watch, edit and record as a video |
@@ -69,9 +69,9 @@ Films and games are small files, so they are written straight away; there is not
 - **Where files go:** set `ARA3D_OUT` to change the default folder, for example `"env": { "ARA3D_OUT": "/Users/me/game/characters" }` beside `args` in the config. The assistant can also name a folder for each character.
 - **Offline or a fixed copy of the data:** the same `ARA3D_DATA`, `ARA3D_DATA_URL` and `ARA3D_CACHE` settings as the [command line](cli.md).
 - **Updates:** `npx -y ara3d mcp` runs the newest published `ara3d` whenever the assistant starts it (npm may reuse a copy it fetched a short while before). Assistants read the list of tools when they start the server, so restart the assistant app to pick up new tools; in Claude Code, `/mcp` can reconnect it.
-- **A fixed version:** `npx -y ara3d@0.8.0 mcp` instead of `ara3d`.
+- **A fixed version:** `npx -y ara3d@0.9.0 mcp` instead of `ara3d`.
 
 ## Good to know
 
-- **Smaller, faster files:** ask for only the animations you need. Every clip makes the file bigger and the build slower; a character with all 216 is about 28 MB.
+- **Smaller, faster files:** ask for only the animations you need. Every clip makes the file bigger and the build slower; a character with all 218 is about 28 MB.
 - **Licence:** characters are built from CC0 MakeHuman data, with animations from the CMU Graphics Lab Motion Capture Database, so you can use them in commercial projects.

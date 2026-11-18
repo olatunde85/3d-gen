@@ -27,7 +27,7 @@ Use one of these:
 
 | Attribute | Example | |
 |---|---|---|
-| `animation` | `animation="texting"` | The clip that plays (default `idle`), or several in a row, such as `walk 3s, look_around, talk_gestures` (see below). The [playground](https://ara3dgen.com/developers/#playground) lists all 216 with their IDs |
+| `animation` | `animation="texting"` | The clip that plays (default `idle`), or several in a row, such as `walk 3s, look_around, talk_gestures` (see below). The [playground](https://ara3dgen.com/developers/#playground) lists all 218 with their IDs |
 | `expression` | `expression="laughing"` | neutral, happy, laughing, angry, sad, crying, surprised, afraid or determined |
 | `weapon` | `weapon="rifle"` | rifle, pistol, sword, knife or grenade |
 | `carry` | `carry="briefcase"` | Something to carry; `none` takes away a preset's own bag. A `texting` or `phone_call` animation brings the phone, in place of a preset's bag, unless you set `carry` |
@@ -83,7 +83,7 @@ With a bundler, `import 'ara3d/embed'` registers the element. TypeScript knows i
 
 ## Good to know
 
-- **Versions:** `ara3d@0` follows the newest 0.x release, though browsers that already have the file can keep their copy for up to a week. To stay on one release, or to get a new one at once, use the full version, such as `ara3d@0.8.0`.
+- **Versions:** `ara3d@0` follows the newest 0.x release, though browsers that already have the file can keep their copy for up to a week. To stay on one release, or to get a new one at once, use the full version, such as `ara3d@0.9.0`.
 - **Many characters:** each element draws only while it's on screen, and the character data downloads once for the whole page. Browsers allow about 16 3D views per page, so for crowds use the [library](library.md#crowds-rigs-and-other-animations) in a single scene.
 - **Content-Security-Policy:** sites with a strict policy need to allow `https://cdn.jsdelivr.net` for scripts and connections, and `blob:` addresses for workers, images and connections.
 - **Phones:** a sideways swipe turns the character and an up-or-down swipe scrolls the page.

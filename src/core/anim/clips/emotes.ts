@@ -1,4 +1,4 @@
-/** Emotes: wave, cheer, laugh, talk and social emotes (cry is motion capture: see mocap-data.ts). */
+/** Emotes: wave, cheer, laugh, talk and social emotes (laugh hard and cry are motion capture: see mocap-data.ts). */
 import { type Ch, type Clip } from './types';
 import { fingers, fist, FISTS, side, v } from './helpers';
 import { idle } from './basic';
@@ -28,58 +28,63 @@ export const wave: Clip = {
   },
 };
 
+/** Cheering: fists raised around head height that rise once each loop, with a soft bounce in the knees (no jumping). */
 export const cheer: Clip = {
-  id: 'cheer', name: 'Cheer', category: 'Emotes', duration: 1.2, loop: true,
+  id: 'cheer', name: 'Cheer', category: 'Emotes', duration: 0.8, loop: true,
   sample: (t) => {
-    const ph = (t / 1.2) * 2; // two fist pumps (and hops) per loop
-    const u = ph % 1;
-    const pump = Math.sin(Math.min(1, u / 0.35) * Math.PI * 0.5) * (u < 0.35 ? 1 : 1 - (u - 0.35) / 0.65); // fast up, slow down
-    const hop = Math.max(0, Math.sin(u * Math.PI * 2 - 0.3));
+    const u = t / 0.8; // one rise per loop
+    // Each pump rises quickly and settles slowly; the knees dip as the fists come down.
+    const pump = u < 0.2 ? Math.sin((u / 0.2) * Math.PI * 0.5) : 0.5 + 0.5 * Math.cos(((u - 0.2) / 0.8) * Math.PI);
+    const dip = 0.5 - 0.5 * Math.cos(u * Math.PI * 2);
     const out: Record<string, Ch> = {
-      Spine: [-5 - 3 * pump, 0, 0], Spine1: [-4 - 3 * pump, 0, 0], Spine2: [-3, 0, 0],
-      Neck: [-8, 0, 0], Head: [-14 - 6 * pump, 0, 0],
+      Spine: [-2 - 2 * pump, 0, 0], Spine1: [-2 - 2 * pump, 0, 0], Spine2: [-2, 0, 0],
+      Neck: [-4, 0, 0], Head: [-8 - 4 * pump, 0, 0],
     };
-    side(out, 'Shoulder', [0, 0, 14 + 8 * pump], [0, 0, 14 + 8 * pump]);
-    side(out, 'UpLeg', [10 * (1 - hop), 0, -2], [10 * (1 - hop), 0, -2]);
-    side(out, 'Leg', [-18 * (1 - hop) - 4, 0, 0], [-18 * (1 - hop) - 4, 0, 0]);
-    side(out, 'Foot', [8 * (1 - hop) - 12 * hop, 0, 0], [8 * (1 - hop) - 12 * hop, 0, 0]);
+    side(out, 'Shoulder', [0, 0, 8 + 4 * pump], [0, 0, 8 + 4 * pump]);
+    side(out, 'UpLeg', [6 * dip, 0, -2], [6 * dip, 0, -2]);
+    side(out, 'Leg', [-12 * dip - 2, 0, 0], [-12 * dip - 2, 0, 0]);
+    side(out, 'Foot', [6 * dip, 0, 0], [6 * dip, 0, 0]);
     fist(out);
-    // Double fist pump: elbows bent out, fists driving up from head height to just above it.
-    const up = 0.06 + 0.24 * pump;
-    const wide = 0.36 - 0.04 * pump;
+    // Fists a little in front of the shoulders, from head height to a hand's width above it.
+    const up = 0.02 + 0.12 * pump, wide = 0.3;
     return {
       bones: out,
-      root: { ground: true, lift: 0.06 * hop },
+      root: { ground: true },
       thumbs: FISTS,
       ik: {
-        Left: { pos: v(wide, up, 0.12), pole: v(1, -0.5, -0.4), dir: v(0.1, 1, 0.15), palm: v(-0.3, 0, 1) },
-        Right: { pos: v(-wide, up, 0.12), pole: v(-1, -0.5, -0.4), dir: v(-0.1, 1, 0.15), palm: v(0.3, 0, 1) },
+        Left: { pos: v(wide, up, 0.14), pole: v(1, -0.6, -0.4), dir: v(0.15, 1, 0.2), palm: v(-0.4, 0, 1) },
+        Right: { pos: v(-wide, up, 0.14), pole: v(-1, -0.6, -0.4), dir: v(-0.15, 1, 0.2), palm: v(0.4, 0, 1) },
       },
     };
   },
 };
 
-/** Laughing: the body bounces with each "ha", the head tips back, a hand on the belly. */
+/**
+ * Laughing: two bouts per loop, each a few rounded "ha"s that fade into a breath. The body leans in and the shoulders
+ * shake with each "ha", the head tips back a little, a hand rests on the belly, and the whole body sways slowly.
+ */
 export const laugh: Clip = {
   id: 'laugh', name: 'Laugh', category: 'Emotes', duration: 4.8, loop: true,
   sample: (t) => {
-    const a = (t / 4.8) * Math.PI * 2;
-    const ha = Math.abs(Math.sin(a * 6)); // six laughs per loop
+    const a = (t / 4.8) * Math.PI * 2, bout = (t / 2.4) % 1;
+    // The bout's strength: in quickly, fading out by three quarters, then a calm breath.
+    const env = bout < 0.08 ? Math.sin((bout / 0.08) * Math.PI * 0.5) : bout < 0.75 ? Math.cos(((bout - 0.08) / 0.67) * Math.PI * 0.5) ** 1.5 : 0;
+    const ha = env * (0.5 - 0.5 * Math.cos(bout * Math.PI * 2 * 5.33)); // smooth pulses, no snapping at the bottom
     const out: Record<string, Ch> = {
-      Spine: [-4 + 4 * ha, 0, 0], Spine1: [-3 + 3 * ha, 0, 0], Spine2: [-2, 0, 0],
-      Neck: [-6, 0, 0], Head: [-12 + 5 * ha, 4 * Math.sin(a), 3 * Math.sin(a)],
+      Spine: [-1 + 3 * ha + 1.5 * env, 0, 1.5 * Math.sin(a)], Spine1: [-1 + 2 * ha + env, 0, 1 * Math.sin(a)], Spine2: [-1, 0, 0],
+      Neck: [-4, 0, 0], Head: [-6 - 3 * env + 2 * ha, 3 * Math.sin(a), 2 * Math.sin(a + 0.6)],
     };
-    side(out, 'Shoulder', [0, 0, 4 + 5 * ha], [0, 0, 4 + 5 * ha]);
-    side(out, 'Arm', [8, 0, 6], [0, 0, 0]);
-    side(out, 'ForeArm', [18, 0, 0], [0, 0, 0]);
-    side(out, 'UpLeg', [4 * ha, 0, -2], [4 * ha, 0, -2]);
-    side(out, 'Leg', [-6 * ha - 3, 0, 0], [-6 * ha - 3, 0, 0]);
-    fingers(out, 16);
+    side(out, 'Shoulder', [0, 0, 3 + 3 * ha], [0, 0, 3 + 3 * ha]);
+    side(out, 'Arm', [6 + 3 * ha, 0, 5], [0, 0, 0]);
+    side(out, 'ForeArm', [14 + 6 * ha, 0, 0], [0, 0, 0]);
+    side(out, 'UpLeg', [2 * ha, 0, -2], [2 * ha, 0, -2]);
+    side(out, 'Leg', [-3 * ha - 2, 0, 0], [-3 * ha - 2, 0, 0]);
+    fingers(out, 14);
     return {
       bones: out,
       root: { ground: true },
-      // Right hand resting on the belly.
-      ik: { Right: { pos: v(-0.06, -0.5 + 0.01 * ha, 0.2), pole: v(-1, -0.6, -0.4), dir: v(1, -0.2, 0.2), palm: v(0, 0, -1) } },
+      // Right hand resting on the belly, pressing in a little with each "ha".
+      ik: { Right: { pos: v(-0.06, -0.5 + 0.008 * ha, 0.2 - 0.01 * ha), pole: v(-1, -0.6, -0.4), dir: v(1, -0.2, 0.2), palm: v(0, 0, -1) } },
     };
   },
 };

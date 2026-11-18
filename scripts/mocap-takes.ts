@@ -29,6 +29,8 @@ export const MOCAP_TAKES: MocapTake[] = [
   { id: 'strafe_right', take: '41_02', loop: true, cut: { start: 4.0, loopSearch: [0.7, 1.4] } },
   { id: 'strafe_left', take: '41_02', loop: true, cut: { start: 4.0, loopSearch: [0.7, 1.4] }, mirror: true },
   { id: 'jump', take: '02_04', loop: false, cut: { start: 0.1, end: 2.9, neutral:[2.6,3.4] } },
+  // A bigger, theatrical laugh that leans back and doubles over.
+  { id: 'laugh_hard', take: '79_70', loop: true, cut: { start: 0.4, loopSearch: [3.0, 5.6] } },
   { id: 'cry', take: '79_72', loop: true, cut: { start: 2.0, loopSearch: [2.5, 4.0], neutral: [0, 0.5] } },
   // Sitting on a chair: two cuts of one take, sharing a reference while seated so they chain, with
   // the standing start as the origin (Stand up is Sit down in reverse, so it ends back there).
@@ -51,6 +53,7 @@ export const MOCAP_FILES: Record<string, string> = {
   '09_01': 'Sequence-001-009/09/Data/09_01.zip',
   '41_02': 'Sequence-040-045/41/Data/41_02.zip',
   '79_72': 'Sequence-076-080/79/Data/79_72.zip',
+  '79_70': 'Sequence-076-080/79/Data/79_70.zip',
   '113_15': 'Sequence-113-128/113/Data/113_15.zip',
   '69_17':'Sequence-060-075/69/Data/69_17.zip',
 };
