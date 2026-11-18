@@ -1,0 +1,10 @@
+{
+  "$schema": "https://ara3dgen.com/schemas/character.v1.json",
+  "kind": "ara-character",
+  "version": 1,
+  "preset": "The Adventurer",
+  "params": {
+    "name": "Scout",
+    "ageYears": 34
+  }
+}

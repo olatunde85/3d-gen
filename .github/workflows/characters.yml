@@ -1,0 +1,54 @@
+# Builds the character files in examples/ci-characters/characters/ with the ara3d command-line tool and uploads the
+# models as a download on the run. Manual: run it from the Actions tab. To build whenever a character file changes,
+# add under `on:`
+#   push: { paths: ['examples/ci-characters/characters/**'] }
+# The character data (about 50 MB) downloads on the first run and is cached for later runs of the same ara3d version.
+name: Build characters
+
+on:
+  workflow_dispatch:
+    inputs:
+      formats:
+        description: 'glb, fbx, obj or zip, comma-separated'
+        default: 'glb'
+      detail:
+        description: 'Mesh detail'
+        type: choice
+        options: [low, medium, high]
+        default: medium
+      animations:
+        description: 'Clip IDs or groups, comma-separated (see npx ara3d animations)'
+        default: 'idle,walk,run'
+
+permissions:
+  contents: read
+
+jobs:
+  characters:
+    runs-on: ubuntu-latest
+    env:
+      # A fixed version: the same character files always build the same models. Raise it to update.
+      ARA3D_VERSION: 0.8.0
+      ARA3D_CACHE: ${{ github.workspace }}/.ara3d-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/cache@v4
+        with:
+          path: .ara3d-cache
+          key: ara3d-data-${{ env.ARA3D_VERSION }}
+      - name: Build the characters
+        env:
+          FORMATS: ${{ inputs.formats }}
+          DETAIL: ${{ inputs.detail }}
+          ANIMATIONS: ${{ inputs.animations }}
+        run: |
+          params=()
+          for file in examples/ci-characters/characters/*.json; do params+=(--params "$file"); done
+          npx -y "ara3d@$ARA3D_VERSION" export "${params[@]}" --formats "$FORMATS" --detail "$DETAIL" --animations "$ANIMATIONS" --out characters
+      - uses: actions/upload-artifact@v4
+        with:
+          name: characters
+          path: characters
