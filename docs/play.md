@@ -36,7 +36,8 @@ Climbs slow cars and descents speed them up; cars tilt with the road and the cam
 | `pickups` | Boost pads; item boxes giving a boost, an oil slick to drop behind or a nitro refill; oil-slick hazards |
 | `ghost` | Records the best lap and replays it as a translucent car |
 | `traction` | `icy` makes every car slide wide; `normal` keeps full grip. Without it, snow circuits are icy and the others normal |
-| `car` | Sports car, muscle car, saloon, go-kart, SUV, pickup, danfo, van, box truck, motorcycle, scooter, quad bike or keke, each with its own top speed, acceleration and grip, plus a paint colour |
+| `car` | Sports car, muscle car, saloon, go-kart, SUV, pickup, danfo, van, box truck, motorcycle, scooter, quad bike, keke or city bus, each with its own top speed, acceleration and grip, plus a paint colour |
+| `rivals` | The vehicles the AI racers drive, in turn, such as `["keke","bus"]`; without it the field is mixed. **Rival vehicles** in Cast sets one vehicle for every rival |
 
 A countdown starts each race; throttle pressed just before GO gives a launch boost. Walls bounce cars back instead of wrecking them, and a car that is stuck or driving the wrong way returns to the road. **F** returns the player to the road at any time. The HUD shows position, laps, lap and best times, the ghost delta, speed, nitro, drift charge, the held item and a minimap. The results show a podium, the finishing order with car colours and gaps to the winner, the race and best-lap times with any new records, and in a cup the cash earned and the points table.
 
@@ -198,7 +199,7 @@ Atmosphere → **Story & dialogue** accepts a Studio JSON or project ZIP and ren
 
 Add up to 24 cues triggered by mission start, a time, an objective number, detection, overwatch, reinforcement arrival, objective completion or extraction. Cues support subtitles, captions and comic speech/thought bubbles following the selected character. Text timers pause with the game. Each cue plays once per run; checkpoint retries can replay later cues. Cues can also use any recorded Studio sound effect.
 
-Enable **Voice this line** or **Read opening briefing aloud** for native device speech. Device voices vary. **Generate all speech** prepares selected lines with Studio’s on-device speech engine, record speech directly in Play, or attach an audio recording. Choose from two female and two male generated voices for each line. Prepared speech is stored locally and exported as audio; players do not download speech models. Native speech remains a fallback when a prepared line is unavailable. Generate or attach speech for consistent playback across devices.
+Enable **Voice this line** or **Read opening briefing aloud** for native device speech. Device voices vary. **Generate all speech** prepares selected lines with Studio’s on-device speech engine, record speech directly in Play, or attach an audio recording. Choose a voice for each line: two female and two male Ara voices, or Gemini and ElevenLabs voices with your own key ([Your own AI and voices](keys.md)). **More voices…** in the voice menu connects one. Prepared speech is stored locally and exported as audio; players do not download speech models. Native speech remains a fallback when a prepared line is unavailable. Generate or attach speech for consistent playback across devices.
 
 Story media is content-addressed and stored in browser-owned IndexedDB so reloading preserves it. It does not grant access to arbitrary files on a device. JSON contains references; attached files travel in an editable project ZIP and in the independent game ZIP. The importer rejects external media URLs, unsupported paths, oversized files and mismatched asset hashes.
 
@@ -246,7 +247,7 @@ Agile movement chooses vaults and climbs from measured heights and safe landings
 - Unzip and serve the folder with a static host or the local HTTP instructions in its README. Browser module/media rules require HTTP rather than opening `index.html` through `file://`.
 - Game preparation validates every chapter and its fitted vehicle/aircraft clearance before replacing the current preview. Failure preserves the working game.
 
-LLM Assist’s generated guide enumerates the live capabilities, exact library IDs, custom character schema, media rules and measured maps. Its parser uses the same project and staging rules as manual setup. **Check placements** downloads a per-chapter JSON report with objective coordinates, routes, and specific placement errors. No API key, arbitrary script execution or arbitrary coordinate editor is included.
+With your own AI key, LLM Assist writes the game in Play, and **Ask Ara** (bottom right, hidden while a game is being played or in full screen) builds games from a chat, with Undo. LLM Assist’s generated guide enumerates the live capabilities, exact library IDs, custom character schema, media rules and measured maps. Its parser uses the same project and staging rules as manual setup. **Check placements** downloads a per-chapter JSON report with objective coordinates, routes, and specific placement errors. No API key, arbitrary script execution or arbitrary coordinate editor is included.
 
 ## Verification and code
 

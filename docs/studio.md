@@ -88,58 +88,40 @@ Text is visual only: it doesn't create speech or lip-sync.
 
 ## Speech
 
-Choose **Sound** above the timeline. Up to **24 speech clips** can overlap, each with its own start, duration, speaker, volume, pan, speed and trim.
+Choose **Sound** above the timeline. It has three tabs: **Dialogue**, **Music** and **Sound effects**.
 
-There are three ways to add a voice:
+**Voices** at the top of Dialogue lists each speaker (the narrator and every character) with the voice they use for all their lines. Change a speaker's voice and their typed lines are marked to be voiced again; recordings and uploaded audio stay as they are. **▶** plays a sample of the voice. **More voices** connects Gemini or ElevenLabs voices with your own key (see [Your own AI and voices](keys.md)).
 
-1. **Typed dialogue:** write the line, choose one of four English voices, then **Generate all speech** (or **Generate this clip**). The first time downloads a speech model of about 265 MB; it runs on your device, and your dialogue isn't sent anywhere.
+**Script** lists the lines in time order, with who speaks, what they say and whether each has a voice. Up to **24 lines** can overlap. Click a line to open it:
+
+- **Speaker**, **Starts at** and **What they say**.
+- **How it's said** (Gemini and ElevenLabs voices): pick a preset such as **Whispered**, **Excited** or **Out of breath**, or describe it in your own words.
+- **▶ Play line**, **Voice this line** (or **Voice again**), **Use a recording…** to replace the audio with a file, and **Delete line**.
+- **Timing, effect and mix:** the line's name, voice effect (**Natural**, **Robotic**, **Dramatic**, **Radio**, **Telephone** or **Echo**), length, trim start, speed, volume and pan, and **Fit length to the audio**.
+
+There are three ways to add a line, all starting at the playhead:
+
+1. **+ Line:** type what someone says. **Voice all lines** at the foot of the tab voices every line that needs it, and says what that involves first. Ara's four voices are free and run on your device; the first time downloads a speech model of about 265 MB, and your dialogue isn't sent anywhere. Gemini and ElevenLabs voices use your key.
 2. **Record:** allow the microphone, record and stop. Recording needs HTTPS or localhost.
-3. **Upload:** a WAV, MP3, M4A, Ogg or WebM file, up to 60 seconds and 24 MB, with **Attach audio** or **Replace audio**.
+3. **Upload:** a WAV, MP3, M4A, Ogg or WebM file, up to 60 seconds and 24 MB.
 
-**Quick read-through with a device voice** uses your browser's built-in voices, with no download. It's for rehearsing only: it can't take effects and isn't included in exports.
+A voiced line is fitted to the length of its audio. Dialogue still waiting for a voice shows **Add speech audio** under the preview and in the export dialog.
 
-- **Voice effects:** **Natural**, **Robotic**, **Dramatic**, **Radio**, **Telephone** and **Echo**. **Preview voice** plays the result.
-- **Fit duration to audio** matches the clip to its take. A shorter clip cuts the take; a longer one adds silence.
-- **Nothing missing:** dialogue still waiting for a voice shows **Add speech audio** under the preview and in the export dialog.
+**Make a sound** (Sound effects tab) and **Compose music** (Music tab) use your own ElevenLabs key ([Your own AI and voices](keys.md)). Describe a sound, choose a length (or **Auto**) and whether it loops, press **Make sound**, listen, then **Add at playhead**. Describe the music and press **Compose**: it is made at the film's length, instrumental unless you untick **Instrumental only**, and **Use as background music** puts it in the film. Made sounds and composed music are saved in this browser and go into exports and **Save film with its audio**. With ElevenLabs connected, Assist and Ask Ara can also describe sounds and music in a film, and they are made before it is built. Each one uses some of your ElevenLabs allowance; some plans don't include music, and your plan decides how you may use what it makes.
 
-Assigning a speaker doesn't add lip-sync or place the voice in the scene.
-
-## Music
-
-Choose from **nine recorded tracks**, grouped by genre: Dramatic Adventure Trailer, Tropical Relaxing Pop, Jazz Restaurant Music, Horror, Urban Hip Hop Beat / Hip Hop Story, Spy Opening Scene, Afrobeat Instrumental / Alone, Spy Agent Mission Music and Old School Salsa 02. The picker shows each creator and length.
-
-Only the chosen track downloads. The film uses its beginning, with your volume and fades, and lowers the music under dialogue.
-
-Music follows the whole film by default. Drag its timeline edges or enable **Custom music timing** in Sound to choose a start and duration. Fades follow that window; turn custom timing off to follow the film again.
-
-## Sound effects
-
-**Sound effects** above the timeline opens twenty recordings, grouped by category:
-
-- **Weapon:** suppressed pistol, rifle shot and cover fire (rising from cover, two shots).
-- **Impact:** body fall, bullet hit, and bullet hit and fall.
-- **Combat:** fighting-stance footwork, punch combo, low punch, front kick, roundhouse kick, two block impacts and take-cover steps, made for the matching animations. Each description says where its hits fall in the recording; set the start or **Trim start** so they meet the moves.
-- **Vehicle** and **Ambience:** motorcycle, car and boat engines (eight seconds), wind, forest birds and ocean (four seconds).
-
-Enable **Loop until cue ends** for longer engine or ambience beds. The recording repeats from **Trim start** to its end at the chosen speed, stopping exactly at the cue’s end. Looping is off by default; longer non-looping windows leave silence after the recording. Assist lists every ID, source duration and the optional `loop` field.
-
-1. Listen, then **Add at playhead**.
-2. Set the start time to the moment of the shot or impact.
-3. Adjust duration, trim, speed (0.5–2×), volume (0–200%) and pan. **Duplicate** adds another after it.
-
-Up to **64 effects** can overlap the dialogue and music. Tag an effect with a character to keep things organised, or leave it as a **Scene sound**. Effects don't make anything happen on screen: a thump doesn't make a character fall, so direct the matching action yourself.
+**Music** holds the background track, its volume and fades, **Lower the music while someone speaks**, an optional part-of-the-film window, **Mute all film sound**, **Save soundtrack (.wav)** and **Save film with its audio (.zip)**.
 
 ## Assist
 
-**Assist** in the top bar turns a description into an editable film, using any AI assistant you like: ChatGPT, Claude, Gemini or another. No API key is needed and Studio sends nothing on its own.
+**Assist** in the top bar turns a description into an editable film. With your own AI key connected, it writes the film in Studio (see [Your own AI and voices](keys.md#writing-in-assist)); without one, it works with any AI assistant you like, such as ChatGPT, Claude or Gemini, and Studio sends nothing on its own. **Ask Ara**, in the bottom-right corner, does the same in a chat and builds the result straight away, with Undo.
 
 1. **Describe your film,** or pick one of the **Ideas**. Tick **Start from my current film** to revise what you have.
-2. **Get the film JSON:** **Copy guide** (or **Save as .txt**) and give it to your assistant. The guide holds your description and everything the assistant needs: the locations, character controls, animations, equipment, text, speech, sound effects, music, the JSON format, an example and Studio's limits.
+2. **Write the film** with your connected AI, or **Get the film JSON:** **Copy guide** (or **Save as .txt**) and give it to your assistant. The guide holds your description and everything the assistant needs: the locations, character controls, animations, equipment, text, speech, sound effects, music, the JSON format, an example and Studio's limits.
 3. **Review and build:** **Paste reply**, paste into the box, or **Open file**. You can paste the whole reply; Studio finds the JSON inside it. A summary card lists the location, cast, length, shots, actions, text, sound and music. If something's wrong, it says what and offers **Copy fix request** to send back. **Copy guide**, **Save as .txt** and **Build film** stay at the foot of the panel. **Build film** shows each character as it is built, then replaces your project; Undo brings the old one back.
 
-- **Voices are prepared for you:** typed dialogue in a valid reply is generated while you review, with progress, **Stop generation** and retry.
+- **Voices are prepared for you:** typed dialogue in a valid reply is voiced while you review, with progress, **Stop generation** and retry. With Gemini or ElevenLabs connected, the guide lists their voices, so the AI can cast each character and direct their lines; **Voice new dialogue automatically** in Keys turns this off for provider voices.
 - **Try an example:** choose a film to load. Nine are the scenes of the Ara 3D Studio reel on the home page: a tank and a helicopter at the military base, a jet takeoff, a skydive and parachute landing, a shootout from cover, a highway race, a street café, an alley fight, a rooftop chase and a sunset beach. Each comes with its sound effects, caption and music. The tenth, *Agents of Mild Competence: The Warehouse*, is a 30-second, five-character spy comedy with its original dialogue, a shootout with blood and a cover wall; no speech download is needed.
-- **Shortcuts:** Ctrl/Cmd+Enter in the description copies the guide; in the JSON box it builds. Drafts survive reloads.
+- **Shortcuts:** Ctrl/Cmd+Enter in the description writes the film (or copies the guide without a key); in the JSON box it builds. Drafts survive reloads.
 
 The guide is built from Studio's own catalogues, so new sets, presets, animations and equipment appear in it automatically.
 

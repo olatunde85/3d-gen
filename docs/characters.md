@@ -38,8 +38,10 @@ Quick build always reflects the current character, however it was made: in Detai
 **LLM Assist** in the builder header creates a single character from a description. It works like [Studio's Assist](studio.md#assist):
 
 1. **Describe** the character, or pick one of the **Ideas**. Optionally start from the current character.
-2. **Get the JSON:** **Copy guide** (or **Save as .txt**) and give it to your AI assistant. No API key is needed, and the builder sends nothing automatically.
+2. **Write the character** with your own AI key ([Your own AI and voices](keys.md)), or **Get the JSON:** **Copy guide** (or **Save as .txt**) and give it to any AI assistant. Without a key, the builder sends nothing automatically.
 3. **Review and build:** paste the assistant's whole reply (the JSON is found inside it) or open a file. A summary card shows the name, age, outfit, hair and extras, and any problem comes with a fix request to send back.
+
+**Ask Ara**, in the bottom-right corner, can also make or change the character in a chat; the result is built straight away, with Undo.
 
 The guide includes the installed asset IDs, all body and face controls, clothing and fabric options, equipment, presets, rig and detail settings, a JSON schema and a valid example.
 

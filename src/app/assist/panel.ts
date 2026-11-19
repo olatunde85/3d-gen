@@ -5,9 +5,18 @@
 import './panel.css';
 import { extractJson, fixRequest, hadSurroundingText } from './extract';
 import {referencePickerMarkup,setupReferencePicker,type ReferenceChoice} from './reference-picker';
+import { writer, writeJson, estimate, money, StillWrong, type Progress as WriteProgress } from '../keys/ai';
+import { openKeys } from '../keys/dialog';
+import { onKeysChange } from '../keys/store';
+import { ProviderError } from '../keys/http';
+import { thinking } from '../keys/thinking';
+import '../keys/keys.css';
 
 /** What the build is doing, for the progress view: a stage line, how far along (0–1, or unknown) and optional parts, such as the cast. */
 export interface BuildProgress { stage: string; fraction?: number; items?: { label: string; state: 'waiting' | 'active' | 'done' }[] }
+
+/** A result built straight away: how to undo it, and anything that couldn't be made (voices, sounds). */
+export interface Applied { undo(): Promise<void>; note?: string }
 
 export interface AssistDraft { brief: string; json: string; context: boolean; open: boolean; guideOpen: boolean; reference?:string }
 
@@ -48,10 +57,20 @@ export interface AssistConfig<T> {
   prepare?: {
     note:string;
     needed(value:T):boolean;
+    /** Whether it can run without a large download, for results built straight from Ask Ara. */
+    quick?(value:T):boolean;
     run(value:T,options:{signal:AbortSignal;progress(message:string):void;updated(value:T):void}):Promise<T>;
     write(value:T,json:string):string;
   };
   footnote: string;
+  /** Facts about the result while it's still arriving (see keys/peek.ts), shown while the visitor waits. */
+  peek?(partial: string): string[];
+  /** The button that opens the panel: it shows that Assist is writing, or has finished, while the panel is closed. */
+  launcher?: string;
+  /** What's open now, so a result applied from Ask Ara can be undone (built again from this). */
+  snapshot?(): T;
+  /** Finishes a build made outside the panel, as closing the panel does after Build (Play's preview). */
+  commit?(): void;
   /** Where drafts persist when the host doesn't save them itself. */
   storageKey?: string;
 }
@@ -78,7 +97,16 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
         <label class="ai-check"><input type="checkbox" id="${id}-context" data-r="context" /><span>${html(cfg.contextLabel)}</span></label>
         ${cfg.reference?`${referencePickerMarkup(id,cfg.reference.label,cfg.reference.choices)}<div class="ai-row"><button class="ai-btn" id="${id}-save-map" data-r="save-reference">Save map .json</button>${cfg.reference.all?'<button class="ai-link" data-r="save-all-references">All location maps</button>':''}</div><p class="ai-note">The guide includes this set’s full staging map. Choose the location you want to film.</p>`:''}
 
-        <div class="ai-step"><span class="ai-num">2</span><h3>Get the ${noun} JSON</h3></div>
+        <div class="ai-step"><span class="ai-num">2</span><h3 data-r="s2-title">Get the ${noun} JSON</h3></div>
+        <div class="ai-direct" data-r="direct" hidden>
+          <p class="ai-direct-model"><span data-r="direct-model"></span> <button class="ai-link" data-r="change-ai">Change</button></p>
+          <p class="ai-note" data-r="direct-estimate"></p>
+          <div class="ai-writing" data-r="writing" aria-live="polite" hidden></div><p class="sr-only" data-r="writing-text" role="status"></p>
+          <div class="ai-direct-error" data-r="direct-error" hidden><p data-r="direct-error-text"></p><div class="ai-row"><button class="ai-btn" data-r="direct-retry">Try again</button><button class="ai-btn" data-r="direct-keys">Open Keys</button></div></div>
+          <p class="ai-note ai-direct-done" data-r="direct-done"></p>
+        </div>
+        <div class="ai-connect" data-r="connect" hidden><p><b>Skip the copying.</b> Connect your own AI key and Assist writes the ${noun} right here, checks it and fixes mistakes for you. Google Gemini has a free allowance.</p><button class="ai-btn" data-r="connect-keys">Connect a key</button></div>
+        <details class="ai-chat" data-r="chat" open><summary data-r="chat-summary">Use any AI chat instead</summary>
         <div class="ai-pane">
           <ol class="ai-howto">
             <li><b>Copy the guide.</b> It holds your description and everything the assistant needs.</li>
@@ -86,7 +114,8 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
             <li>Copy the assistant's whole reply and press <b>Paste reply</b> on the right.</li>
           </ol>
           <details id="${id}-guide-details" data-r="guide-details"><summary>Preview the guide</summary><textarea class="ai-guide" id="${id}-guide" data-r="guide" rows="8" readonly spellcheck="false" aria-label="LLM guide text"></textarea></details>
-        </div>
+          <div class="ai-row ai-chat-actions" data-r="chat-actions" hidden><button class="ai-btn" data-r="copy-alt">Copy guide</button><button class="ai-btn" data-r="save-alt">Save as .txt</button></div>
+        </div></details>
       </section>
       <section class="ai-col ai-review" aria-labelledby="${id}-s3">
         <div class="ai-step"><span class="ai-num">3</span><h3 id="${id}-s3">Review and build</h3></div>
@@ -100,7 +129,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
       </section>
     </div>
     <div class="ai-actions">
-      <div class="ai-actions-guide"><button class="ai-btn ai-primary" id="${id}-copy" data-r="copy">Copy guide</button><button class="ai-btn" id="${id}-download" data-r="save">Save as .txt</button><p class="ai-note" id="${id}-copy-status" data-r="copy-status" role="status"></p></div>
+      <div class="ai-actions-guide"><button class="ai-btn ai-primary" id="${id}-write" data-r="write" hidden>Write ${noun}</button><button class="ai-btn" data-r="stop-write" hidden>Stop</button><button class="ai-btn ai-primary" id="${id}-copy" data-r="copy">Copy guide</button><button class="ai-btn" id="${id}-download" data-r="save">Save as .txt</button><p class="ai-note" id="${id}-copy-status" data-r="copy-status" role="status"></p></div>
       <button class="ai-btn ai-primary ai-wide ai-build" id="${id}-create" data-r="build" disabled>${html(cfg.buildLabel??`Build ${noun}`)} <span aria-hidden="true">↗</span></button>
     </div>
     <input type="file" id="${id}-file" data-r="file" accept=".json,.txt,application/json,text/plain" hidden />
@@ -126,6 +155,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   let saveTimer = 0, guideStale = true;
   let preparing=false,preparationTimer=0,preparationToken=0,preparationText='',preparationRetry=false;
   let preparationController:AbortController|undefined;
+  let writing:AbortController|undefined,writeTimer=0;
 
   // ---- Drafts ----
   const reference=cfg.reference?$<HTMLInputElement>('reference'):undefined;
@@ -192,10 +222,18 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     schedule();queuePreparation();
   }
 
+  /** The Write button: names the model, and steps back once there's a result to build. */
+  function writeLabel() {
+    const w = writer(), write = $('write');
+    if (w) { write.textContent = parsed ? 'Write again' : `Write ${noun} with ${w.label}`; write.classList.toggle('ai-primary', !parsed); }
+  }
   // ---- Busy state ----
   function lock() {
     for (const el of dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('button,input,select,textarea')) el.disabled = building;
-    build.disabled = building || preparing || !parsed;
+    build.disabled = building || preparing || !parsed || !!writing;
+    if (writing) for (const r of ['brief', 'context', 'json', 'paste', 'open', 'example', 'change-ai']) { const el = dialog.querySelector<HTMLButtonElement>(`[data-r="${r}"]`); if (el) el.disabled = true; }
+    $<HTMLButtonElement>('stop-write').disabled = false;
+    writeLabel();
     dialog.setAttribute('aria-busy', String(building||preparing));
     renderPreparation();
   }
@@ -244,6 +282,95 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   reference?.addEventListener('change',()=>{referenceChosen=true;renderReference();staleGuide();schedule();});
   if(cfg.reference){$('save-reference').addEventListener('click',()=>saveReference(cfg.reference!.file(reference!.value)));if(cfg.reference.all)$('save-all-references').addEventListener('click',()=>saveReference({name:cfg.reference!.all!.name,text:cfg.reference!.all!.text()}));}
   details.addEventListener('toggle', () => { if (details.open && dialog.open) refreshGuide(); schedule(); });
+
+  // ---- Writing here, with the visitor's own AI key ----
+  /** Shows "Write here" when an AI key is connected, and the copy-and-paste route otherwise. */
+  function renderMode() {
+    const w = writer(), chat = $<HTMLDetailsElement>('chat');
+    $('direct').hidden = !w; $('connect').hidden = !!w;
+    $('write').hidden = !w || !!writing; $('stop-write').hidden = !writing;
+    $('copy').hidden = !!w; $('save').hidden = !!w; $('chat-actions').hidden = !w;
+    $('s2-title').textContent = w ? `Write the ${noun}` : `Get the ${noun} JSON`;
+    $('chat-summary').textContent = w ? 'Or use any AI chat instead' : 'Use any AI chat';
+    $('copy-status').hidden = !!w; writeLabel();
+    if (w) { if (!chatTouched) chat.open = false; $('direct-model').innerHTML = `Writes with <b>${html(w.label)}</b>${w.label.includes(w.providerName) ? '' : ` · ${html(w.providerName)}`}`; }
+    else if (!chatTouched) chat.open = true;
+    renderEstimate();
+  }
+  let chatTouched = false;
+  $('chat-summary').addEventListener('click', () => { chatTouched = true; });
+  function renderEstimate() {
+    const w = writer(); if (!w || writing) return;
+    const e = estimate(refreshGuide().length, noun === 'character' ? 1200 : 6000);
+    $('direct-estimate').textContent = e ? `Sends about ${tokens(e.input)} tokens of instructions with your description. ${e.free ? 'Covered by the free allowance, or about ' + (e.cost !== undefined ? money(e.cost) : 'a few cents') + ' without it.' : e.cost !== undefined ? `About ${money(e.cost)} a request, paid to ${w.providerName}.` : 'Priced by your provider.'}` : '';
+  }
+  /** The launcher button's state while the panel is closed: writing, or a result ready to review. */
+  function launcher(state: '' | 'writing' | 'ready') {
+    const el = cfg.launcher ? document.getElementById(cfg.launcher) : null;
+    if (el) { if (state) el.dataset.assist = state; else delete el.dataset.assist; }
+  }
+  const title = document.title;
+  function finished() {
+    if (dialog.open && !document.hidden) { launcher(''); return; }
+    launcher(dialog.open ? '' : 'ready');
+    // The tab says it's ready until the visitor comes back.
+    if (document.hidden || !dialog.open) { document.title = `✓ ${title}`; const back = () => { document.title = title; document.removeEventListener('visibilitychange', back); dialog.removeEventListener('close', back); }; document.addEventListener('visibilitychange', back); }
+  }
+  const phaseText = (p: WriteProgress, label: string) => {
+    if (p.phase === 'sending') return `Sending your description to ${label}…`;
+    if (p.phase === 'thinking') return `${label} is thinking…`;
+    if (p.phase === 'writing') return `${label} is writing your ${noun}… ${p.chars ? `${p.chars.toLocaleString()} characters` : ''}`;
+    if (p.phase === 'checking') return `Checking the ${noun}…`;
+    return p.problem ? `Ara found a problem: ${p.problem} Asking ${label} to fix it (try ${p.round} of 3)…` : `${label} is fixing the ${noun} (try ${p.round} of 3)… ${p.chars ? `${p.chars.toLocaleString()} characters` : ''}`;
+  };
+  async function writeHere() {
+    if (writing || building) return;
+    const w = writer();
+    if (!w) { openKeys({ focus: 'ai', then: renderMode }); return; }
+    if (!brief.value.trim() && !context.checked) { brief.focus(); $('direct-done').textContent = `Describe your ${noun} first.`; return; }
+    stopPreparation();
+    const control = new AbortController(); writing = control;
+    const started = performance.now(); let last: WriteProgress = { phase: 'sending', round: 1, chars: 0 };
+    const ara = thinking(noun, $('writing'), { patience: `Large ${noun}s can take a few minutes. You can close Assist and keep working; its button shows when the ${noun} is ready.` });
+    const show = () => {
+      ara.phase(last.phase, last.chars ? `${tokens(last.chars)} characters` : last.phase === 'sending' ? w.label : '');
+      if (last.text && cfg.peek) ara.facts(cfg.peek(last.text));
+      $('writing-text').textContent = phaseText(last, w.label);
+    };
+    launcher('writing');
+    $('writing').hidden = false; $('direct-error').hidden = true; $('direct-done').textContent = ''; $('direct-estimate').textContent = '';
+    show(); renderMode(); lock();
+    persist();
+    try {
+      const r = await writeJson({ prompt: refreshGuide(), noun, extract: extractJson, accept: json => cfg.parse(json), fix: reason => fixRequest(reason, noun), signal: control.signal, onProgress: p => { last = p; show(); } });
+      if (control.signal.aborted) return;
+      setReply(r.json);
+      const secs = Math.round((performance.now() - started) / 1000);
+      $('direct-done').textContent = `Written by ${w.label} in ${secs} s${r.rounds > 1 ? `, after ${r.rounds - 1} fix${r.rounds > 2 ? 'es' : ''}` : ''}${r.cost !== undefined ? ` · ${money(r.cost)}` : ''}. Review it, then build.`;
+    } catch (error) {
+      if (error instanceof StillWrong) {
+        setReply(error.json);
+        $('direct-done').textContent = `${w.label} couldn’t get it right after 3 tries. Try again, rephrase your description, or choose a stronger model.`;
+      } else if (error instanceof ProviderError && error.problem === 'stopped') {
+        $('direct-done').textContent = 'Stopped.';
+      } else {
+        const e = error as ProviderError;
+        $('direct-error-text').textContent = e.message;
+        $('direct-error').hidden = false;
+        $('direct-keys').hidden = !['key', 'credit', 'permission', 'model', 'blocked', 'workspace'].includes(e.problem);
+        $('direct-retry').hidden = ['key', 'blocked', 'workspace'].includes(e.problem);
+      }
+    } finally {
+      clearInterval(writeTimer); ara.stop(); writing = undefined; finished(); $('writing').hidden = true; renderMode(); lock(); persist();
+    }
+  }
+  $('write').addEventListener('click', () => void writeHere());
+  $('direct-retry').addEventListener('click', () => void writeHere());
+  $('stop-write').addEventListener('click', () => writing?.abort());
+  for (const r of ['change-ai', 'connect-keys', 'direct-keys']) $(r).addEventListener('click', () => openKeys({ focus: 'ai', then: renderMode }));
+  $('copy-alt').addEventListener('click', () => $('copy').click());
+  $('save-alt').addEventListener('click', () => $('save').click());
+  onKeysChange(() => { if (dialog.open && !writing) renderMode(); });
 
   // ---- Review ----
   result.addEventListener('click', async e => {
@@ -313,14 +440,16 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
   });
 
   // ---- Describe ----
-  brief.addEventListener('input', () => { staleGuide(300); schedule(); });
-  context.addEventListener('change', () => { staleGuide(); schedule(); });
+  brief.addEventListener('input', () => { staleGuide(300); schedule(); clearTimeout(estimateTimer); estimateTimer = window.setTimeout(renderEstimate, 400); });
+  let estimateTimer = 0;
+  context.addEventListener('change', () => { staleGuide(); schedule(); renderEstimate(); });
   brief.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('copy').click(); }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (writer()) void writeHere(); else $('copy').click(); }
   });
   draft.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); build.click(); } });
 
   // ---- Open and close ----
+  // Closing leaves a running write going; the launcher shows when it's done.
   $('close').addEventListener('click', () => { if (!building) dialog.close(); });
   dialog.addEventListener('cancel', e => { if (building) e.preventDefault(); });
   dialog.addEventListener('close',()=>{stopPreparation();persist();});
@@ -328,12 +457,13 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
 
   async function open() {
     if (!await cfg.canOpen()) return;
+    if (!writing) { launcher(''); document.title = title; }
     if(reference&&!referenceChosen)reference.value=cfg.reference!.current();
     renderReference();
     // A context-based guide reflects the current state, which may have changed since it was made.
     guideStale = true; check();
     if (!dialog.open) dialog.showModal();
-    refreshGuide();queuePreparation();
+    refreshGuide();renderMode();queuePreparation();
     (brief.value.trim() ? (parsed ? build : draft) : brief).focus();
     persist();
   }
@@ -351,5 +481,35 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
     if (saved?.open === true) void open();
   } catch { restore({}); }
   else restore({});
-  return { dialog, open, state, restore };
+  /**
+   * Builds a reply straight away, as Build does (with dialogue voiced first when Assist would), for Ask Ara.
+   * Returns a function that puts back what was open before.
+   */
+  async function apply(json: string, progress: (p: BuildProgress) => void = () => {}): Promise<Applied> {
+    if (building || preparing) throw Error(`Assist is busy. Try again in a moment.`);
+    let value = cfg.parse(json), note: string | undefined;
+    const before = cfg.snapshot?.();
+    building = true; lock();
+    try {
+      if (cfg.prepare?.needed(value) && (cfg.prepare.quick?.(value) ?? true)) {
+        // Voices and sounds are extras: if a provider fails (an allowance runs out), build with what was made.
+        let latest = value;
+        try { value = await cfg.prepare.run(value, { signal: new AbortController().signal, progress: stage => progress({ stage }), updated: v => { latest = v; } }); }
+        catch (error) { value = latest; note = (error as Error).message; }
+      }
+      await cfg.build(value, progress);
+      cfg.commit?.();
+    } finally { building = false; lock(); }
+    return {
+      note,
+      undo: async () => {
+        if (before === undefined) throw Error('This can’t be undone here. Use Undo in the app.');
+        building = true; lock();
+        try { await cfg.build(structuredClone(before), () => {}); cfg.commit?.(); } finally { building = false; lock(); }
+      },
+    };
+  }
+  /** Opens Assist with a reply to review, such as one written in Ask Ara. */
+  async function review(text: string) { await open(); if (!dialog.open) return false; setReply(text); return true; }
+  return { dialog, open, state, restore, review, apply, parse: (json: string) => cfg.parse(json), describe: (value: T) => cfg.describe(value) };
 }

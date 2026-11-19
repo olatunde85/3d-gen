@@ -97,7 +97,9 @@ npm run test:studio -- --new-project # fresh projects, save-first downloads, rec
 npm run test:studio -- --cast     # five characters, arrangements, framing and an MP4 with music
 npm run test:studio -- --sfx      # sound-effect timing, mixing, editing and export
 npm run setup:studio-speech       # caches the speech model once, for the next suite
-npm run test:studio -- --audio    # voice effects, music, device voices, real speech generation, recording and bundles
+npm run test:studio -- --audio    # voice effects, music, real speech generation, recording and bundles
+npm run test:keys                 # your own AI and voice keys: every provider and error, against a local stand-in
+npm run test:keys:browser         # Keys, Assist writing, Ask Ara and Sound voices in a real browser, against the stand-in
 ```
 
 Screenshots and videos from the browser suites are saved in `out/studio-expansion/`. `--audio` uses a simulated microphone; set `STUDIO_TTS_FIXTURE` to use a model directory you already have.

@@ -3,6 +3,11 @@ import { decodeCharacter } from '../../app/share';
 import { SOUND_EFFECTS, soundEffectById } from './effects-catalog';
 import { MAX_SOUND_EFFECTS, type SoundEffectCue } from './schema';
 import { AudioPlayback } from './mix';
+import { getAsset, type AudioAsset } from './assets';
+import { generateSoundEffect, canGenerate } from './generate';
+import { openKeys } from '../../app/keys/dialog';
+import { onKeysChange } from '../../app/keys/store';
+import { thinking, type Thinking } from '../../app/keys/thinking';
 interface EffectsEditor{
  project():StudioProject;time():number;actor():string|undefined;canEdit():boolean;pause():void;
  edit(fn:(project:StudioProject)=>void,remember?:boolean):Promise<boolean>;changed():void;stopOther():void;
@@ -11,15 +16,18 @@ export function setupEffectsEditor(editor:EffectsEditor){
  const $=<T extends HTMLElement>(id:string)=>document.getElementById('fx-'+id)as T,input=(id:string)=>$<HTMLInputElement>(id),select=(id:string)=>$<HTMLSelectElement>(id),button=(id:string)=>$<HTMLButtonElement>(id);
  const preview=new AudioPlayback();let selected='',previewToken=0;
  const current=()=>editor.project().audio.effects.find(c=>c.id===selected),status=(message:string)=>{$('status').textContent=message;};
- const label=(cue:SoundEffectCue)=>`${cue.start.toFixed(2)}s · ${cue.name}`;
+ const label=(cue:SoundEffectCue)=>`${cue.start.toFixed(2)}s · ${cue.sound==='generated'?'✦ ':''}${cue.name}${cue.sound==='generated'&&!cue.asset?' · not made yet':''}`;
+ /** How long a cue's source audio is: the library's length, or the made sound's. */
+ const lengths=new Map<string,number>();
+ const sourceLength=(cue:SoundEffectCue)=>cue.sound==='generated'?(cue.asset&&lengths.get(cue.asset))||30:soundEffectById(cue.sound)!.duration;
  for(const id of ['library','sound'])for(const category of new Set(SOUND_EFFECTS.map(s=>s.category))){const group=document.createElement('optgroup');group.label=category;for(const effect of SOUND_EFFECTS.filter(s=>s.category===category))group.append(new Option(effect.name,effect.id));select(id).append(group);}
  function describe(){const effect=soundEffectById(select('library').value)!;$('description').textContent=`${effect.description} ${effect.duration.toFixed(2)}s.`;}
  function render(){
   const cues=editor.project().audio.effects;if(!cues.some(c=>c.id===selected))selected=cues[0]?.id??'';
   select('cue').replaceChildren();for(const c of cues)select('cue').append(new Option(label(c),c.id));select('cue').value=selected;
   $('count').textContent=`${cues.length} / ${MAX_SOUND_EFFECTS}`;const cue=current();$('fields').hidden=!cue;$('empty').hidden=!!cue;
-  if(cue){for(const key of ['name','start','duration','offset','speed','volume','pan']as const)if(document.activeElement!==input(key))input(key).value=String(key==='name'?cue.name:key==='volume'||key==='pan'?Math.round(cue[key]*100):Number(cue[key].toFixed(4)));select('sound').value=cue.sound;
-   select('actor').replaceChildren(new Option('Scene sound',''));for(const [i,a]of editor.project().actors.entries())select('actor').append(new Option(`${i+1} · ${decodeCharacter(a.character,a.detail)?.name||a.id}`,a.id));select('actor').value=cue.actor??'';input('loop').checked=cue.loop??false;input('offset').max=String(soundEffectById(cue.sound)!.duration-.001);}
+  if(cue){for(const key of ['name','start','duration','offset','speed','volume','pan']as const)if(document.activeElement!==input(key))input(key).value=String(key==='name'?cue.name:key==='volume'||key==='pan'?Math.round(cue[key]*100):Number(cue[key].toFixed(4)));if(cue.sound==='generated'){if(![...select('sound').options].some(o=>o.value==='generated'))select('sound').prepend(new Option('✦ Made from a description','generated'));if(cue.asset&&!lengths.has(cue.asset))void getAsset(cue.asset).then(a=>{if(a){lengths.set(a.id,a.duration);render();}});}else select('sound').querySelector('option[value="generated"]')?.remove();select('sound').value=cue.sound;
+   select('actor').replaceChildren(new Option('Scene sound',''));for(const [i,a]of editor.project().actors.entries())select('actor').append(new Option(`${i+1} · ${decodeCharacter(a.character,a.detail)?.name||a.id}`,a.id));select('actor').value=cue.actor??'';input('loop').checked=cue.loop??false;input('offset').max=String(sourceLength(cue)-.001);}
   for(const e of document.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('#sound-effects-panel input,#sound-effects-panel select,#sound-effects-panel button'))e.disabled=!editor.canEdit();
   button('add').disabled=!editor.canEdit()||cues.length>=MAX_SOUND_EFFECTS;button('duplicate').disabled=!editor.canEdit()||!cue||cues.length>=MAX_SOUND_EFFECTS;describe();
  }
@@ -31,8 +39,8 @@ export function setupEffectsEditor(editor:EffectsEditor){
  for(const key of ['name','start','duration','offset','speed','volume','pan']as const)input(key).addEventListener('change',()=>void patch({[key]:key==='name'?input(key).value:Number(input(key).value)/(key==='volume'||key==='pan'?100:1)}));
  input('loop').addEventListener('change',()=>void patch({loop:input('loop').checked}));
  select('actor').addEventListener('change',()=>void patch({actor:select('actor').value||undefined}));
- select('sound').addEventListener('change',()=>{const cue=current(),sound=soundEffectById(select('sound').value)!;if(cue)void patch({sound:sound.id,name:sound.name,offset:0,duration:Math.min(sound.duration/cue.speed,60-cue.start)});});
- button('fit').addEventListener('click',()=>{const cue=current();if(cue)void patch({duration:Math.min((soundEffectById(cue.sound)!.duration-cue.offset)/cue.speed,60-cue.start)});});
+ select('sound').addEventListener('change',()=>{const cue=current(),sound=soundEffectById(select('sound').value)!;if(cue&&sound)void patch({sound:sound.id,name:sound.name,prompt:undefined,asset:undefined,offset:0,duration:Math.min(sound.duration/cue.speed,60-cue.start)});});
+ button('fit').addEventListener('click',()=>{const cue=current();if(cue)void patch({duration:Math.min((sourceLength(cue)-cue.offset)/cue.speed,60-cue.start)});});
  button('delete').addEventListener('click',()=>void commit(p=>{p.audio.effects=p.audio.effects.filter(c=>c.id!==selected);}));
  button('duplicate').addEventListener('click',async()=>{const cue=current();if(!cue)return;const copy={...cue,id:beatId(),start:Math.min(60-cue.duration,cue.start+cue.duration)};if(await commit(p=>p.audio.effects.push(copy))){selected=copy.id;render();}});
  async function play(audition=false){
@@ -41,5 +49,33 @@ export function setupEffectsEditor(editor:EffectsEditor){
   const target=button(audition?'audition':'preview');target.textContent='Preparing…';try{const started=await preview.play(project,0,()=>{if(token===previewToken)stop();},cue.duration);if(token===previewToken)target.textContent=started?'Stop preview':audition?'Listen':'Preview cue';}catch(error){if(token===previewToken){stop();status((error as Error).message);}}
  }
  button('preview').addEventListener('click',()=>void play());button('audition').addEventListener('click',()=>void play(true));
+
+ // ---- Making a sound with ElevenLabs ----
+ let made:AudioAsset|undefined,making:AbortController|undefined,wait:Thinking|undefined;
+ const makeState=()=>{const on=canGenerate();$('make-off').hidden=on;$('make-on').hidden=!on;button('make-play').hidden=!made;button('make-add').hidden=!made;button('make-go').textContent=making?'Stop':made?'Make another':'Make sound';};
+ button('make-keys').addEventListener('click',()=>openKeys({focus:'voice',then:makeState}));
+ onKeysChange(makeState);
+ button('make-go').addEventListener('click',async()=>{
+  if(making){making.abort();return;}
+  const prompt=$<HTMLTextAreaElement>('make-prompt').value.trim();if(!prompt){$('make-prompt').focus();status('Describe the sound first.');return;}
+  stop();making=new AbortController();made=undefined;makeState();status('');
+  wait=thinking('sound',$('make-wait'),{patience:'Sounds usually take a few seconds.'});wait.phase('writing','Making the sound');
+  try{const length=select('make-length').value;made=await generateSoundEffect(prompt,{seconds:length?Number(length):undefined,loop:input('make-loop').checked},making.signal);lengths.set(made.id,made.duration);status(`Made “${prompt.slice(0,50)}” · ${made.duration.toFixed(1)} s. Play it, then add it at the playhead.`);void playMade();}
+  catch(error){status((error as Error).message);}
+  finally{wait?.stop();wait=undefined;making=undefined;makeState();}
+ });
+ async function playMade(){
+  if(!made)return;if(preview.active){stop();return;}editor.pause();editor.stopOther();
+  const project=structuredClone(editor.project());project.audio.speech=[];project.audio.music.track='none';project.audio.muted=false;project.texts=[];
+  project.audio.effects=[{id:'made',name:made.name,sound:'generated',prompt:made.name,asset:made.id,start:0,duration:made.duration,offset:0,speed:1,volume:1,pan:0}];
+  project.shots=[{id:'audition',shot:'wide',target:'all',duration:.1}];for(const actor of project.actors)actor.beats=[{id:'audition',clip:'idle',duration:.1,move:false}];
+  const token=++previewToken;button('make-play').textContent='■ Stop';try{await preview.play(project,0,()=>{if(token===previewToken)button('make-play').textContent='▶ Play';},made.duration);}catch(error){status((error as Error).message);button('make-play').textContent='▶ Play';}
+ }
+ button('make-play').addEventListener('click',()=>void playMade());
+ button('make-add').addEventListener('click',async()=>{
+  if(!made)return;const start=Math.min(59.9,editor.time()),prompt=$<HTMLTextAreaElement>('make-prompt').value.trim()||made.name;selected=beatId();
+  if(await commit(p=>p.audio.effects.push({id:selected,name:prompt.slice(0,80),sound:'generated',prompt:prompt.slice(0,300),asset:made!.id,...(editor.actor()?{actor:editor.actor()}:{}),...(input('make-loop').checked?{loop:true}:{}),start,duration:Math.min(made!.duration,60-start),offset:0,speed:1,volume:1,pan:0})))status('Sound added. Set its start time to match the action.');
+ });
+ makeState();
  return{render,stop,select:(id:string)=>{selected=id;render();},selected:()=>selected};
 }

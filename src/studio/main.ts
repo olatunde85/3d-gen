@@ -25,6 +25,7 @@ import { AudioPlayback, SpeechAudioRequired } from './audio/mix';
 import { hasAudio, resolveSpeechActor } from './audio/schema';
 import { audioProjectBundle, openAudioBundle } from './audio/bundle';
 import { setupAssist } from './assist-ui';
+import { useCapableModels } from '../app/keys/providers';
 import type { BuildProgress } from '../app/assist/panel';
 import { setupStudioTour } from './tour';
 import { seatCast } from './seating';
@@ -73,7 +74,7 @@ function editorState(): EditorState {
     sceneSearch:input('scene-search').value,sceneCategory:select('scene-category').value,
     animationSearch:input('animation-search').value,animationCategory:select('animation-category').value,resolution:select('resolution').value as '720'|'1080',
     text:{open:$<HTMLDialogElement>('text-dialog').open,selected:select('text-cue').value},
-    sound:{open:$<HTMLDialogElement>('sound-dialog').open,selected:select('sound-cue').value,deviceVoice:soundEditor.deviceVoice(),rate:Number(input('sound-device-rate').value),pitch:Number(input('sound-device-pitch').value),fit:input('sound-fit-generated').checked,tab:soundEditor.tab(),selectedEffect:soundEditor.selectedEffect()},
+    sound:{open:$<HTMLDialogElement>('sound-dialog').open,selected:soundEditor.selected(),tab:soundEditor.tab(),selectedEffect:soundEditor.selectedEffect()},
     assist:assist.state(),
     scroll:{library:document.querySelector('.library')!.scrollTop,inspector:document.querySelector('.inspector')!.scrollTop,sets:$('set-list').scrollTop,page:window.scrollY}};
 }
@@ -563,7 +564,8 @@ const soundEditor=setupSoundEditor({project:()=>project,time:()=>time,actor:()=>
 const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
-const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,bodies:()=>fittedSpatialBodies(scene.actors),canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
+useCapableModels();
+const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,update:next=>apply(next),bodies:()=>fittedSpatialBodies(scene.actors),canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
   load:(next,progress)=>{castProgress=progress;return importStudioProject(JSON.stringify(next)).finally(()=>castProgress=undefined);}});
 setupSpatialReview({project:()=>project,actors:()=>scene.actors,canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,pause:()=>setPlaying(false),seek:t=>{time=t;renderPosition();dirty=true;},download});
 const tour=setupStudioTour({canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,begin:()=>{
@@ -668,7 +670,7 @@ async function start() {
     if(hasLinkedFile(location.hash,'film')){try{const text=await linkedFile(location.hash,'film');if(text&&await importStudioProject(text)){clearLinkedFile('film');notify('Opened the film from the link.');}}catch(e){notify((e as Error).message);}}
     if(resume){
       document.querySelector('.library')!.scrollTop=resume.scroll.library;document.querySelector('.inspector')!.scrollTop=resume.scroll.inspector;$('set-list').scrollTop=resume.scroll.sets;window.scrollTo(0,resume.scroll.page);
-      if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open){if(resume.sound.tab==='effects')soundEditor.openEffects(resume.sound.selectedEffect);else soundEditor.open(resume.sound.selected);}
+      if(resume.assist.open)void assist.open();else if(resume.text.open)textEditor.open(resume.text.selected);else if(resume.sound.open){if(resume.sound.tab==='effects')soundEditor.openEffects(resume.sound.selectedEffect);else{soundEditor.open(resume.sound.selected);if(resume.sound.tab==='music')soundEditor.restore({tab:'music'});}}
     }
     const saved=save();
     if(acceptedLink&&saved){

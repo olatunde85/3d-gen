@@ -1,0 +1,16 @@
+/* Waiting on the AI: a thin progress bar, a status line and facts as they arrive. */
+.ara-wait { display: grid; gap: 8px; width: 100%; min-width: 0; }
+.ara-bar { position: relative; height: 3px; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, .08); }
+.ara-bar span { position: absolute; inset: 0 auto 0 0; width: 35%; border-radius: inherit; background: linear-gradient(90deg, transparent, #6d8dff 30%, #a9bcff 70%, transparent); animation: ara-slide 1.4s cubic-bezier(.45, 0, .55, 1) infinite; }
+.ara-wait[data-stage="thinking"] .ara-bar span { animation-duration: 2.2s; opacity: .7; }
+@keyframes ara-slide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+.ara-line { margin: 0; font-size: 12.5px; color: #e4e4e7; }
+.ara-line .ara-stage { font-weight: 600; }
+.ara-line .ara-meta { color: #8b8b94; font-variant-numeric: tabular-nums; }
+.ara-wait .ara-facts { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.ara-facts:empty { display: none; }
+.ara-facts li { padding: 2px 8px; border-radius: 99px; border: 1px solid #2f2f37; background: #18181d; font-size: 11px; color: #c9c9d1; animation: ara-fact .25s ease-out; }
+@keyframes ara-fact { from { opacity: 0; transform: translateY(3px); } }
+.ara-patience { margin: 0; font-size: 11.5px; line-height: 1.5; color: #8b8b94; }
+.ara-patience[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .ara-bar span { animation: none; width: 100%; opacity: .5; } .ara-facts li { animation: none; } }

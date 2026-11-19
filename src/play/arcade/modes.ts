@@ -14,14 +14,16 @@ export const parseMode = (raw: unknown): PlayMode => {
   return raw as PlayMode;
 };
 
-export type RaceCar = 'sports_car' | 'muscle' | 'saloon' | 'kart' | 'suv' | 'pickup' | 'danfo' | 'van' | 'truck' | 'motorcycle' | 'scooter' | 'quad' | 'keke';
-export const RACE_CARS: readonly RaceCar[] = ['sports_car', 'muscle', 'saloon', 'kart', 'suv', 'pickup', 'danfo', 'van', 'truck', 'motorcycle', 'scooter', 'quad', 'keke'];
+export type RaceCar = 'sports_car' | 'muscle' | 'saloon' | 'kart' | 'suv' | 'pickup' | 'danfo' | 'van' | 'truck' | 'motorcycle' | 'scooter' | 'quad' | 'keke' | 'bus';
+export const RACE_CARS: readonly RaceCar[] = ['sports_car', 'muscle', 'saloon', 'kart', 'suv', 'pickup', 'danfo', 'van', 'truck', 'motorcycle', 'scooter', 'quad', 'keke', 'bus'];
 export type RacePickup = 'boost-pad' | 'item-box' | 'hazard';
 export const RACE_PICKUPS: readonly RacePickup[] = ['boost-pad', 'item-box', 'hazard'];
 export type AiSkill = 'easy' | 'medium' | 'hard' | 'expert';
 export interface RaceSettings {
   track: string | CustomTrack; laps: number; opponents: number; aiSkill: AiSkill; rubberBand: boolean;
   handling: 'grip' | 'drift'; nitro: boolean; pickups: RacePickup[]; ghost: boolean; car: { model: RaceCar; color: string };
+  /** The vehicles the AI racers drive, in turn (a mixed field when absent). */
+  rivals?: RaceCar[];
   /** False turns off podium medals; they are on by default. */
   medals?: false;
   /** Road grip: icy loosens every car. Omitted means the circuit's own ground (snow is icy). */
@@ -84,7 +86,7 @@ const number = (value: unknown, min: number, max: number, label: string) => { if
 
 export function parseRace(raw: unknown): RaceSettings {
   if (raw === undefined) return defaultRace();
-  const p = record(raw, 'race', ['track', 'laps', 'opponents', 'aiSkill', 'rubberBand', 'handling', 'nitro', 'pickups', 'ghost', 'car', 'medals', 'traction']), d = defaultRace();
+  const p = record(raw, 'race', ['track', 'laps', 'opponents', 'aiSkill', 'rubberBand', 'handling', 'nitro', 'pickups', 'ghost', 'car', 'medals', 'traction', 'rivals']), d = defaultRace();
   if (p.medals !== undefined && p.medals !== false && p.medals !== true) throw Error('race.medals must be true or false.');
   const car = p.car === undefined ? d.car : (() => {
     const c = record(p.car, 'race car', ['model', 'color']), model = c.model === undefined ? d.car.model : choice(c.model, RACE_CARS, `Choose a race car: ${RACE_CARS.join(', ')}.`), color = c.color ?? d.car.color;
@@ -102,6 +104,10 @@ export function parseRace(raw: unknown): RaceSettings {
     pickups: p.pickups === undefined ? d.pickups : subset(p.pickups, RACE_PICKUPS, 'race.pickups'),
     ghost: p.ghost === undefined ? d.ghost : flag(p.ghost, 'race.ghost'), ...(p.traction === undefined ? {} : { traction: choice(p.traction, ['normal', 'icy'] as const, 'Choose normal or icy race traction.') }), ...(p.medals === false ? { medals: false as const } : {}),
     car,
+    ...(p.rivals === undefined ? {} : { rivals: (() => {
+      if (!Array.isArray(p.rivals) || !p.rivals.length || p.rivals.length > 7) throw Error('race.rivals: list one to seven race vehicles for the AI racers.');
+      return p.rivals.map(m => choice(m, RACE_CARS, `race.rivals: choose from ${RACE_CARS.join(', ')}.`));
+    })() }),
   };
 }
 

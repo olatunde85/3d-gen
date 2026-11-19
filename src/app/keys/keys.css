@@ -1,0 +1,79 @@
+/* Keys: the visitor's own AI and voice keys. Themed like Assist through the --ai-* variables. */
+dialog.ak-keys {
+  --ai-bg: #111114; --ai-field: #0b0b0e; --ai-raised: #1a1a1f; --ai-line: #2a2a31;
+  --ai-text: #f4f4f5; --ai-muted: #a1a1aa; --ai-accent: #f4f4f5; --ai-accent-hover: #fff; --ai-on-accent: #09090b;
+  --ai-ok: #7fc99a; --ai-bad: #f2876a; --ai-warn: #e8c37a;
+  width: min(640px, calc(100vw - 24px)); max-height: 92dvh; overflow: auto; padding: 22px 24px 20px;
+  border: 1px solid var(--ai-line); border-radius: 16px; background: var(--ai-bg); color: var(--ai-text);
+  box-shadow: 0 24px 120px #0009; font: 13px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+dialog.ak-keys::backdrop { background: #080b11bb; backdrop-filter: blur(6px); }
+.ak-keys * { box-sizing: border-box; }
+.ak-keys [hidden] { display: none !important; }
+.ak-keys .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ak-keys .ak-top { display: flex; align-items: center; justify-content: space-between; }
+.ak-keys .ak-eyebrow { font-size: 10px; letter-spacing: .16em; color: var(--ai-muted); }
+.ak-keys h2 { margin: 8px 0 4px; font: 650 24px/1.2 system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing: -.02em; }
+.ak-keys h3 { margin: 0; font-size: 13px; font-weight: 650; }
+.ak-keys p { margin: 0; }
+.ak-keys .ak-muted { color: var(--ai-muted); }
+.ak-keys .ak-small { font-size: 12px; }
+.ak-keys a { color: var(--ai-text); text-underline-offset: 2px; }
+.ak-keys button, .ak-keys select, .ak-keys input { font: inherit; color: var(--ai-text); }
+.ak-keys button { cursor: pointer; }
+.ak-keys button:disabled { opacity: .45; cursor: default; }
+.ak-keys :focus-visible { outline: 2px solid var(--ai-accent); outline-offset: 2px; }
+.ak-keys .ak-icon { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--ai-line); background: none; }
+.ak-keys .ak-btn { padding: 8px 13px; border-radius: 8px; border: 1px solid var(--ai-line); background: var(--ai-raised); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.ak-keys .ak-btn:hover:not(:disabled) { border-color: var(--ai-muted); }
+.ak-keys .ak-primary { background: var(--ai-accent); border-color: var(--ai-accent); color: var(--ai-on-accent); }
+.ak-keys .ak-primary:hover:not(:disabled) { background: var(--ai-accent-hover); }
+.ak-keys .ak-link { background: none; border: 0; padding: 2px; font-size: 12px; color: var(--ai-muted); text-decoration: underline; text-underline-offset: 2px; }
+.ak-keys .ak-link:hover { color: var(--ai-text); }
+
+.ak-keys .ak-add { margin-top: 16px; padding: 14px; border: 1px solid var(--ai-line); border-radius: 12px; background: var(--ai-field); }
+.ak-keys .ak-paste { display: flex; gap: 8px; margin-top: 8px; }
+.ak-keys .ak-paste input { flex: 1; min-width: 0; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--ai-line); background: var(--ai-bg); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.ak-keys .ak-detect { min-height: 18px; margin-top: 8px; font-size: 12px; color: var(--ai-muted); }
+.ak-keys .ak-detect.ok { color: var(--ai-ok); }
+.ak-keys .ak-detect.bad { color: var(--ai-bad); }
+.ak-keys .ak-detect.busy::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 7px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ak-spin .7s linear infinite; vertical-align: -1px; }
+@keyframes ak-spin { to { transform: rotate(1turn); } }
+.ak-keys .ak-pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ak-keys .ak-workspace { display: flex; gap: 8px; margin-top: 8px; }
+.ak-keys .ak-workspace input { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--ai-line); background: var(--ai-bg); font-size: 12px; }
+
+.ak-keys .ak-section { margin-top: 20px; }
+.ak-keys .ak-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.ak-keys .ak-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ak-keys .ak-provider { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 10px 12px; border: 1px solid var(--ai-line); border-radius: 10px; background: var(--ai-raised); }
+.ak-keys .ak-provider.off { background: none; border-style: dashed; }
+.ak-keys .ak-name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.ak-keys .ak-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ai-line); flex: none; }
+.ak-keys .ak-provider.on .ak-dot { background: var(--ai-ok); }
+.ak-keys .ak-provider.problem .ak-dot { background: var(--ai-bad); }
+.ak-keys .ak-tag { padding: 1px 7px; border-radius: 99px; border: 1px solid var(--ai-line); font-size: 10.5px; font-weight: 500; color: var(--ai-muted); }
+.ak-keys .ak-info { grid-column: 1 / -1; font-size: 12px; color: var(--ai-muted); }
+.ak-keys .ak-provider.problem .ak-info { color: var(--ai-bad); }
+.ak-keys .ak-actions { display: flex; gap: 6px; align-items: center; }
+
+.ak-keys .ak-choice { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
+.ak-keys .ak-choice label { font-size: 12px; color: var(--ai-muted); }
+.ak-keys .ak-choice select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--ai-line); background: var(--ai-field); }
+.ak-keys .ak-check { display: flex; flex-direction: row; gap: 8px; align-items: flex-start; margin: 10px 0 0; font-size: 12px; cursor: pointer; color: var(--ai-muted); }
+.ak-keys .ak-check input { flex: none; width: 14px; height: 14px; min-height: 0; margin: 2px 0 0; padding: 0; accent-color: var(--ai-accent); }
+
+.ak-keys .ak-privacy { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--ai-line); display: grid; gap: 8px; }
+.ak-keys .ak-privacy ul { margin: 0; padding-left: 18px; color: var(--ai-muted); font-size: 12px; }
+.ak-keys .ak-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* The small "Keys" button each app puts in its toolbar, and the connect prompts in Assist and Sound. */
+.ak-chip { display: inline-flex; align-items: center; gap: 6px; }
+.ak-chip .ak-dot { width: 7px; height: 7px; border-radius: 50%; background: #52525b; }
+.ak-chip.on .ak-dot { background: #7fc99a; }
+
+@media (max-width: 520px) {
+  dialog.ak-keys { padding: 18px 16px; }
+  .ak-keys .ak-paste { flex-direction: column; }
+  .ak-keys .ak-provider { grid-template-columns: 1fr; }
+}

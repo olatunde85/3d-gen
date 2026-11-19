@@ -123,10 +123,15 @@ for(const patch of [{effect:'alien'},{voice:'F99'},{actor:'missing'},{start:59,d
 for(const music of [{track:'invented'},{volume:-1},{fadeIn:11},{ducking:'yes'},{url:'music.mp3'}])assert.throws(()=>parseAudio({music},actors));
 assert.throws(()=>parseAudio({speech:[dialogue,dialogue]},actors));assert.throws(()=>parseAudio({speech:Array.from({length:MAX_SPEECH+1},()=>dialogue)},actors));
 assert.throws(()=>parseAudio({muted:'yes'},actors));assert.equal(parseAudio({speech:[{text:'',source:'tts'}]},actors).speech.length,1);
-assert.deepEqual(schema.properties.audio.properties.music.properties.track.enum,MUSIC_TRACKS.map(t=>t.id));assert.deepEqual(schema.properties.audio.properties.speech.items.properties.effect.enum,VOICE_EFFECTS);
-assert.ok(guide.includes('Generate all speech'));assert.ok(guide.includes('Never invent asset hashes'));assert.ok(guide.includes('MUSIC LIBRARY'));
-const audioRecovery=readEditorSession(JSON.stringify({version:1,project:audioFilm,editor:{sound:{open:true,selected:'take',rate:1.3,pitch:.7,deviceVoice:'test',fit:false}}}));
-assert.equal(audioRecovery?.editor.sound.selected,'take');assert.equal(audioRecovery?.editor.sound.rate,1.3);assert.equal(audioRecovery?.editor.sound.fit,false);
+assert.deepEqual(schema.properties.audio.properties.music.properties.track.enum,[...MUSIC_TRACKS.map(t=>t.id),'generated']);
+{const made=parseAudio({effects:[{sound:'generated',prompt:'a helicopter landing on gravel',start:1,duration:4}],music:{track:'generated',prompt:'tense spy theme'}},actors);assert.equal(made.effects[0].prompt,'a helicopter landing on gravel');assert.equal(made.music.instrumental,true);
+ for(const bad of [{effects:[{sound:'generated'}]},{effects:[{sound:'door',prompt:'x'}]},{effects:[{sound:'generated',prompt:'x',asset:'bad'}]},{music:{track:'generated'}},{music:{track:'horror',prompt:'x'}}])assert.throws(()=>parseAudio(bad,actors),JSON.stringify(bad));}assert.deepEqual(schema.properties.audio.properties.speech.items.properties.effect.enum,VOICE_EFFECTS);
+assert.ok(guide.includes('voiced automatically'));assert.ok(guide.includes('VOICES'));
+for(const voice of ['gemini/Kore','elevenlabs/21m00Tcm4TlvDq8ikWAM','F2'])assert.equal(parseAudio({speech:[{text:'Hi',voice,delivery:'whispered'}]},actors).speech[0].voice,voice);
+for(const voice of ['openai/coral','gemini/','elevenlabs/x','F3','gemini/Kore; drop'])assert.throws(()=>parseAudio({speech:[{text:'Hi',voice}]},actors),voice);
+assert.equal(parseAudio({speech:[{text:'Hi',voice:'gemini/Kore',delivery:'  warm  '}]},actors).speech[0].delivery,'warm');assert.throws(()=>parseAudio({speech:[{text:'Hi',delivery:'x'.repeat(201)}]},actors));assert.ok(guide.includes('Never invent asset hashes'));assert.ok(guide.includes('MUSIC LIBRARY'));
+const audioRecovery=readEditorSession(JSON.stringify({version:1,project:audioFilm,editor:{sound:{open:true,selected:'take',tab:'music',rate:1.3,pitch:.7,deviceVoice:'test',fit:false}}}));
+assert.equal(audioRecovery?.editor.sound.selected,'take');assert.equal(audioRecovery?.editor.sound.tab,'music');
 console.log('Audio: defaults/legacy migration, actor aliases, timing, limits, validation, live LLM contract and editor recovery passed.');
 
 // Seated characters move onto the set's own furniture: nearest free seat, facing the seat, never shared.
@@ -190,7 +195,7 @@ for(const patch of [{sound:'unknown'},{actor:'missing'},{start:59.9,duration:.2}
 assert.throws(()=>parseAudio({effects:[{id:'same',sound:'body-fall-thump'},{id:'same',sound:'body-fall-thump'}]},actors));
 assert.throws(()=>parseAudio({effects:Array.from({length:MAX_SOUND_EFFECTS+1},()=>({sound:'body-fall-thump'}))},actors));
 assert.doesNotThrow(()=>parseAudio({effects:Array.from({length:MAX_SOUND_EFFECTS},()=>({sound:'body-fall-thump'}))},actors));
-assert.deepEqual(schema.properties.audio.properties.effects.items.properties.sound.enum,SOUND_EFFECTS.map(s=>s.id));assert.equal(schema.properties.audio.properties.effects.maxItems,MAX_SOUND_EFFECTS);
+assert.deepEqual(schema.properties.audio.properties.effects.items.properties.sound.enum,[...SOUND_EFFECTS.map(s=>s.id),'generated']);assert.equal(schema.properties.audio.properties.effects.maxItems,MAX_SOUND_EFFECTS);
 for(const sound of SOUND_EFFECTS)assert.ok(guide.includes(sound.id));assert.ok(guide.includes('no physical collision response'));assert.ok(guide.includes('audio.effects'));assert.ok(guide.includes('Sounds do not add weapons'));
 const fxSession=readEditorSession(JSON.stringify({version:1,project:fxFilm,editor:{sound:{open:true,tab:'effects',selectedEffect:'fx-0'}}}));
 assert.equal(fxSession?.editor.sound.tab,'effects');assert.equal(fxSession?.editor.sound.selectedEffect,'fx-0');

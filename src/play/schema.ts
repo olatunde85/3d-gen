@@ -152,7 +152,7 @@ export function playSchema(catalog:Catalog){
    text:{type:'string',maxLength:500},duration:num(1,30,'Seconds on screen.'),
    speaker:{type:'string',description:'"radio", "player", "companion" or the ID of an enemy in this chapter.'},
    style:choice(['subtitle','caption','speech','thought'],'Speech and thought bubbles need a character speaker, not "radio".'),
-   voice:flag('Speak the text.'),voiceId:choice(['F1','F2','M1','M2'],'F1 and F2 are female voices, M1 and M2 male.'),
+   voice:flag('Speak the text.'),voiceId:{type:'string',pattern:'^(F1|F2|M1|M2|gemini/[A-Za-z]{2,40}|elevenlabs/[A-Za-z0-9]{8,64})$',description:'F1 and F2 are female voices, M1 and M2 male (Ara voices, free). gemini/<voice> and elevenlabs/<voice id> are spoken with the player\'s own key.'},
    audio:media(['audio/wav'],'Recorded or generated speech for this cue.'),
    sound:choice(SOUND_EFFECTS.map(s=>s.id),'A library sound effect.'),
   },{required:['id','trigger','text','duration','speaker','style','voice'],allOf:[
@@ -166,7 +166,7 @@ export function playSchema(catalog:Catalog){
    aiSkill:choice(['easy','medium','hard','expert']),rubberBand:flag('Keeps the pack close. Default true.'),
    handling:choice(['grip','drift'],'Default drift.'),nitro:flag('Default true.'),
    pickups:set(RACE_PICKUPS,'Track pickups. Default ["boost-pad"].'),ghost:flag('Record and replay the best lap. Default true.'),
-   car:ref('raceCar'),medals:flag('false turns off podium medals.'),
+   car:ref('raceCar'),rivals:{type:'array',minItems:1,maxItems:7,items:choice(RACE_CARS,''),description:'The vehicles the AI racers drive, in turn, such as ["keke","bus"]. Absent: a mixed field.'},medals:flag('false turns off podium medals.'),
    traction:choice(['normal','icy'],'Road grip. Omitted uses the circuit\'s own ground (snow is icy).'),
   },{description:'Race settings, used with mode "race". Every field is optional.'}),
   raceCar:object({model:choice(RACE_CARS,'Default sports_car.'),color:hex('Default #c8372d.')},{description:'The player\'s car.'}),

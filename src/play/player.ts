@@ -174,7 +174,7 @@ function renderCombatHud(){
  const incoming=game.enemies.filter(e=>e.combat.health>0&&e.combat.windup>0).sort((a,b)=>a.combat.windup-b.combat.windup)[0];$('enemy-warning').hidden=!incoming||paused||game.status!=='playing';
  if(incoming){const p=scene.projectPoint({x:incoming.x,y:incoming.y+incoming.height+.3,z:incoming.z});$('enemy-warning').hidden=!p.visible||paused||game.status!=='playing';$('enemy-warning').style.left=`${p.x}px`;$('enemy-warning').style.top=`${p.y}px`;}
 }
-let nextHudFrame=0,nextMapFrame=0;function frame(now:number){if(suspended){last=now;requestAnimationFrame(frame);return;}const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
+let nextHudFrame=0,nextMapFrame=0;function frame(now:number){document.body.dataset.gameActive=String(game.status==='playing'&&!paused&&!setup?.open);if(suspended){last=now;requestAnimationFrame(frame);return;}const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
  if(!loading){
   if(!paused&&game.status==='playing'){
    const right=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+joystick.x,forward=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)+joystick.z;

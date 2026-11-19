@@ -110,6 +110,10 @@ check('every AI field finishes on every circuit and walls keep cars on the road'
   }
 });
 check('races are deterministic, rubber-banding keeps the pack close and ghosts replay the best lap', () => {
+  {const field = new RaceGame(parseRace({ car: { model: 'keke' }, rivals: ['keke', 'bus'], opponents: 4 }), names, 2);
+   assert.deepEqual(field.cars.filter(c => c.ai).map(c => c.model), ['keke', 'bus', 'keke', 'bus'], 'rivals drive the listed vehicles in turn');
+   assert.equal(new RaceGame(parseRace({ rivals: ['bus'] }), names, 2).cars.filter(c => c.ai).every(c => c.model === 'bus'), true);
+   for (const bad of [[], ['spaceship'], Array(8).fill('keke')]) assert.throws(() => parseRace({ rivals: bad }), JSON.stringify(bad));}
   const a = new RaceGame(defaultRace(), names, 9), b = new RaceGame(defaultRace(), names, 9);runRace(a);runRace(b);
   assert.deepEqual(a.cars.map((c) => c.finished), b.cars.map((c) => c.finished));
   const banded = new RaceGame({ ...defaultRace(), rubberBand: true }, names, 4), loose = new RaceGame({ ...defaultRace(), rubberBand: false }, names, 4);
