@@ -18,7 +18,7 @@ One Gemini key covers both writing and voices.
 
 Open **Keys** from Assist (**Connect a key** or **Change**), from Ask Ara (the model button at the top), or from Sound (**More voices**). Paste a key and press **Connect**. Ara recognises the provider from the key, or asks which service it is for, then checks it with a free request and shows what it found: the models it can use, or the voices and how much of the monthly allowance is left.
 
-- **Assist writes with:** the model Assist and Ask Ara use. The first one listed for each provider is the recommended one; prices and free allowances are shown next to each.
+- **Assist writes with:** the model Assist and Ask Ara use. The first one listed for each provider is the recommended one; prices and free allowances are shown next to each. Studio lists only the models that write films well (for example Claude Opus, Sonnet and Fable, GPT-6.2 Sol and Astra, Gemini 4 Hydrogen and Carbon); if the chosen model isn't one of them, Studio uses the provider's recommended model instead, and the builder and Play keep using the chosen one.
 - **Voice new dialogue automatically:** when Assist builds a film or game, its dialogue is voiced straight away with your connected voices.
 - **Remember keys on this device:** on by default. Turn it off on a shared computer and keys are forgotten when the browser closes.
 - **Remove** takes a key out of this browser; **Remove all keys** removes every one.

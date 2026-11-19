@@ -121,7 +121,7 @@ export function failure(id: ProviderId, status: number, body: string): ProviderE
 
 /** Prices in US dollars per million tokens. */
 export interface Price { input: number; output: number; cached?: number }
-export interface ModelInfo { id: string; name: string; note?: string; detail?: string; price?: Price; free?: boolean; maxOutput?: number }
+export interface ModelInfo { id: string; name: string; note?: string; detail?: string; price?: Price; free?: boolean; maxOutput?: number; /** Strong enough for Studio's films. */ capable?: boolean }
 
 /**
  * Models Ara knows well, best first within each provider, with published prices (November 2026). The first one the key
@@ -129,20 +129,20 @@ export interface ModelInfo { id: string; name: string; note?: string; detail?: s
  */
 const KNOWN: Record<'anthropic' | 'openai' | 'gemini', ModelInfo[]> = {
   anthropic: [
-    { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', note: 'Recommended', detail: 'Best results for films and games. About 10–30 cents a request.', price: { input: 4, output: 20, cached: .4 }, maxOutput: 32000 },
-    { id: 'claude-sonnet-5-5', name: 'Claude Sonnet 5.5', note: 'Half the cost', detail: 'Very good and faster. About 5–15 cents a request.', price: { input: 2, output: 10, cached: .2 }, maxOutput: 32000 },
-    { id: 'claude-fable-5-2', name: 'Claude Fable 5.2', note: 'Most capable', detail: 'The strongest Claude, at twice Opus’s price.', price: { input: 8, output: 40, cached: .8 }, maxOutput: 32000 },
+    { id: 'claude-opus-5-5', capable: true, name: 'Claude Opus 5.5', note: 'Recommended', detail: 'Best results for films and games. About 10–30 cents a request.', price: { input: 4, output: 20, cached: .4 }, maxOutput: 32000 },
+    { id: 'claude-sonnet-5-5', capable: true, name: 'Claude Sonnet 5.5', note: 'Half the cost', detail: 'Very good and faster. About 5–15 cents a request.', price: { input: 2, output: 10, cached: .2 }, maxOutput: 32000 },
+    { id: 'claude-fable-5-2', capable: true, name: 'Claude Fable 5.2', note: 'Most capable', detail: 'The strongest Claude, at twice Opus’s price.', price: { input: 8, output: 40, cached: .8 }, maxOutput: 32000 },
     { id: 'claude-haiku-5-5', name: 'Claude Haiku 5.5', note: 'Cheapest', detail: 'Fine for characters; may struggle with large films.', price: { input: .1, output: .5, cached: .01 }, maxOutput: 32000 },
   ],
   openai: [
-    { id: 'gpt-6.2-sol', name: 'GPT-6.2 Sol', note: 'Recommended', detail: 'OpenAI’s everyday flagship. About 5–15 cents a request.', price: { input: 2, output: 10, cached: .1 } },
-    { id: 'gpt-6.2-astra', name: 'GPT-6.2 Astra', note: 'Most capable', detail: 'OpenAI’s strongest model, at four times Sol’s price.', price: { input: 8, output: 40, cached: .4 } },
+    { id: 'gpt-6.2-sol', capable: true, name: 'GPT-6.2 Sol', note: 'Recommended', detail: 'OpenAI’s everyday flagship. About 5–15 cents a request.', price: { input: 2, output: 10, cached: .1 } },
+    { id: 'gpt-6.2-astra', capable: true, name: 'GPT-6.2 Astra', note: 'Most capable', detail: 'OpenAI’s strongest model, at four times Sol’s price.', price: { input: 8, output: 40, cached: .4 } },
     { id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra', note: 'Half the cost', price: { input: 1, output: 5, cached: .05 } },
     { id: 'gpt-6-luna', name: 'GPT-6 Luna', note: 'Cheapest', detail: 'Fine for characters; may struggle with large films.', price: { input: .1, output: .5, cached: .01 } },
   ],
   gemini: [
-    { id: 'gemini-4-hydrogen', name: 'Gemini 4 Hydrogen', note: 'Recommended · free allowance', detail: 'Strong, and covered by Google’s free daily allowance.', price: { input: 1.5, output: 7.5 }, free: true },
-    { id: 'gemini-4-carbon', name: 'Gemini 4 Carbon', note: 'Most capable · needs billing', detail: 'Google’s strongest model. Not in the free allowance.', price: { input: 2, output: 10 } },
+    { id: 'gemini-4-hydrogen', capable: true, name: 'Gemini 4 Hydrogen', note: 'Recommended · free allowance', detail: 'Strong, and covered by Google’s free daily allowance.', price: { input: 1.5, output: 7.5 }, free: true },
+    { id: 'gemini-4-carbon', capable: true, name: 'Gemini 4 Carbon', note: 'Most capable · needs billing', detail: 'Google’s strongest model. Not in the free allowance.', price: { input: 2, output: 10 } },
     { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', note: 'Fast · free allowance', price: { input: .75, output: 3.75 }, free: true },
     { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', note: 'Cheapest · free allowance', detail: 'Fine for characters; may struggle with large films.', price: { input: .3, output: 2.5 }, free: true },
   ],
@@ -153,6 +153,19 @@ const OPENROUTER_PICKS = [/^anthropic\/claude-opus-5\.?5/, /^anthropic\/claude-s
 export const modelInfo = (id: ProviderId, model: string): ModelInfo | undefined =>
   (KNOWN as Record<string, ModelInfo[]>)[id]?.find(m => m.id === model) ?? openrouterCache?.find(m => m.id === model);
 let openrouterCache: ModelInfo[] | undefined;
+
+/**
+ * Studio's films are the hardest thing Ara asks an AI to write, so Studio uses only the models that write them well;
+ * the builder and Play can use any model.
+ */
+let capableOnly = false;
+export const useCapableModels = () => { capableOnly = true; };
+export const onlyCapableModels = () => capableOnly;
+export const isCapable = (id: ProviderId, model: string) =>
+  id === 'openrouter' ? OPENROUTER_PICKS.some(re => re.test(model)) : !!modelInfo(id, model)?.capable;
+/** The model to use in place of one that isn't capable: the provider's recommended one. */
+export const recommendedModel = (id: ProviderId) =>
+  id === 'openrouter' ? openrouterCache?.find(m => m.capable)?.id ?? 'anthropic/claude-opus-5.5' : (KNOWN as Record<string, ModelInfo[]>)[id]?.[0]?.id;
 
 /** Headers for a provider, with the visitor's key. */
 export function headers(id: ProviderId, saved: SavedKey): Record<string, string> {
@@ -203,7 +216,7 @@ export async function aiModels(id: ProviderId, saved: SavedKey, signal?: AbortSi
       const input = per(m.pricing?.prompt), output = per(m.pricing?.completion), free = input === 0 && output === 0;
       return { id: m.id, name: m.name ?? m.id, ...(input !== undefined && output !== undefined ? { price: { input, output, ...(per(m.pricing?.input_cache_read) !== undefined ? { cached: per(m.pricing?.input_cache_read) } : {}) } } : {}), ...(free ? { free: true, note: 'Free' } : {}), ...(m.top_provider?.max_completion_tokens ? { maxOutput: m.top_provider.max_completion_tokens } : {}) };
     });
-    const picks = OPENROUTER_PICKS.map(re => all.find(m => re.test(m.id))).filter((m): m is ModelInfo => !!m).map((m, i): ModelInfo => ({ ...m, note: i === 0 ? 'Recommended' : m.note }));
+    const picks = OPENROUTER_PICKS.map(re => all.find(m => re.test(m.id))).filter((m): m is ModelInfo => !!m).map((m, i): ModelInfo => ({ ...m, capable: true, note: i === 0 ? 'Recommended' : m.note }));
     const rest = all.filter(m => !picks.includes(m)).sort((a, b) => a.name.localeCompare(b.name));
     return openrouterCache = [...picks, ...rest];
   }

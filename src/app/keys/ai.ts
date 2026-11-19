@@ -3,7 +3,7 @@
  * fix anything Ara rejects before the visitor sees it.
  */
 import { events, ProviderError } from './http';
-import { call, modelInfo, PROVIDERS, type ModelInfo, type ProviderId } from './providers';
+import { call, isCapable, modelInfo, onlyCapableModels, PROVIDERS, recommendedModel, type ModelInfo, type ProviderId } from './providers';
 import { keySettings } from './store';
 import type { SavedKey } from './store';
 
@@ -137,8 +137,10 @@ export function writer() {
   if (!s.ai) return undefined;
   const saved = s.keys[s.ai.provider];
   if (!saved) return undefined;
-  const info = modelInfo(s.ai.provider, s.ai.model);
-  return { provider: s.ai.provider, model: s.ai.model, saved, info, label: info?.name ?? s.ai.model, providerName: PROVIDERS[s.ai.provider].short };
+  // Studio swaps a model that can't write films well for the provider's recommended one.
+  const model = onlyCapableModels() && !isCapable(s.ai.provider, s.ai.model) ? recommendedModel(s.ai.provider) ?? s.ai.model : s.ai.model;
+  const info = modelInfo(s.ai.provider, model);
+  return { provider: s.ai.provider, model, saved, info, label: info?.name ?? model, providerName: PROVIDERS[s.ai.provider].short };
 }
 
 /** A rough cost before sending: the guide's tokens in, and a typical reply out. */

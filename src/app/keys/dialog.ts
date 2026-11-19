@@ -3,7 +3,7 @@
  * for Assist and which voices Sound offers. One window for the builder, Studio and Play.
  */
 import './keys.css';
-import { PROVIDERS, detectProvider, checkKey, aiModels, ORDER, type ProviderId, type ModelInfo } from './providers';
+import { PROVIDERS, detectProvider, checkKey, aiModels, ORDER, onlyCapableModels, isCapable, recommendedModel, type ProviderId, type ModelInfo } from './providers';
 import { keySettings, updateKeys, onKeysChange, forgetAllKeys, type KeySettings } from './store';
 import { ProviderError } from './http';
 
@@ -56,7 +56,7 @@ function create() {
     <section class="ak-section" data-section="ai" aria-labelledby="keys-ai">
       <div class="ak-section-head"><h3 id="keys-ai">AI for Assist</h3><span class="ak-muted ak-small">Writes characters, films and games</span></div>
       <ul class="ak-list" data-r="ai-list"></ul>
-      <div class="ak-choice" data-r="ai-choice" hidden><label for="keys-model">Assist writes with</label><select id="keys-model" data-r="model"></select><p class="ak-muted ak-small" data-r="model-note"></p></div>
+      <div class="ak-choice" data-r="ai-choice" hidden><label for="keys-model" data-r="model-label">Assist writes with</label><select id="keys-model" data-r="model"></select><p class="ak-muted ak-small" data-r="model-note"></p></div>
     </section>
     <section class="ak-section" data-section="voice" aria-labelledby="keys-voice">
       <div class="ak-section-head"><h3 id="keys-voice">Voices</h3><span class="ak-muted ak-small">Speak dialogue in Studio and Play</span></div>
@@ -171,20 +171,28 @@ function render() {
   $('voice-list').innerHTML = ORDER.filter(id => PROVIDERS[id].roles.includes('voice')).map(id => row(id, s, 'voice')).join('');
   $('auto-row').hidden = !hasRole('voice', s);
   $<HTMLInputElement>('auto').checked = s.autoVoices;
-  const choice = $('ai-choice'), select = $<HTMLSelectElement>('model');
+  const choice = $('ai-choice'), select = $<HTMLSelectElement>('model'), capable = onlyCapableModels();
   const connected = ORDER.filter(id => s.keys[id] && PROVIDERS[id].roles.includes('ai'));
   choice.hidden = !connected.length;
   select.replaceChildren();
   for (const id of connected) {
     const group = document.createElement('optgroup'); group.label = PROVIDERS[id].name;
-    const list = models.get(id) ?? (s.ai?.provider === id ? [{ id: s.ai.model, name: s.ai.model }] : []);
+    const all = models.get(id) ?? (s.ai?.provider === id ? [{ id: s.ai.model, name: s.ai.model }] : []);
+    const list = capable ? all.filter(m => isCapable(id, m.id)) : all;
     for (const m of list) group.append(new Option(m.note ? `${m.name} · ${m.note}` : m.name, `${id}:${m.id}`));
-    if (!list.length) group.append(Object.assign(new Option('Loading models…', ''), { disabled: true }));
+    if (!list.length) group.append(Object.assign(new Option(models.has(id) ? 'No models for films with this key' : 'Loading models…', ''), { disabled: true }));
     select.append(group);
   }
-  if (s.ai) select.value = `${s.ai.provider}:${s.ai.model}`;
-  const chosen = s.ai && models.get(s.ai.provider)?.find(m => m.id === s.ai!.model);
-  $('model-note').textContent = chosen?.detail ?? (s.ai ? '' : 'Choose which model writes for Assist.');
+  // In Studio, a model that can't write films well shows as the recommended one Studio uses in its place.
+  const current = s.ai && (capable && !isCapable(s.ai.provider, s.ai.model) ? recommendedModel(s.ai.provider) ?? s.ai.model : s.ai.model);
+  if (s.ai) select.value = `${s.ai.provider}:${current}`;
+  $('model-label').textContent = capable ? 'Studio writes with' : 'Assist writes with';
+  const chosen = s.ai && models.get(s.ai.provider)?.find(m => m.id === current);
+  const swapped = capable && s.ai && current !== s.ai.model ? models.get(s.ai.provider)?.find(m => m.id === s.ai!.model)?.name ?? s.ai.model : '';
+  const studio = !capable ? '' : swapped ? ` Films use it in place of ${swapped}, which the builder and Play still use.` : ' Studio lists the models that write films well; the builder and Play can use any.';
+  $('model-note').textContent = s.ai
+    ? `${chosen?.detail ?? ''}${studio}`.trim()
+    : 'Choose which model writes for Assist.';
 }
 
 /** Loads the model list for each connected AI provider, for the model picker. */

@@ -227,6 +227,19 @@ await check('removing a key drops the choices that needed it', () => {
   assert.equal(keySettings().ai, undefined); assert.equal(writer(), undefined);
 });
 
+await check('Studio writes only with capable models; the builder and Play use any', async () => {
+  const { useCapableModels } = await import('../src/app/keys/providers');
+  use('anthropic', 'claude-haiku-5-5'); assert.equal(writer()?.model, 'claude-haiku-5-5');
+  use('openrouter', 'meta/some-small-model'); assert.equal(writer()?.model, 'meta/some-small-model');
+  useCapableModels();
+  assert.equal(writer()?.model, 'anthropic/claude-opus-5.5');
+  use('anthropic', 'claude-haiku-5-5'); assert.equal(writer()?.model, 'claude-opus-5-5'); assert.equal(writer()?.label, 'Claude Opus 5.5');
+  use('anthropic', 'claude-sonnet-5-5'); assert.equal(writer()?.model, 'claude-sonnet-5-5');
+  use('gemini', 'gemini-3.8-flash'); assert.equal(writer()?.model, 'gemini-4-hydrogen');
+  use('openai', 'gpt-6-luna'); assert.equal(writer()?.model, 'gpt-6.2-sol');
+  use('openai', 'gpt-6.2-astra'); assert.equal(writer()?.model, 'gpt-6.2-astra');
+});
+
 await mock.close();
 console.log(`Keys: ${passed} checks passed${failures.length ? `, ${failures.length} failed` : ''}.`);
 if (failures.length) { for (const f of failures) console.error(`✗ ${f}`); process.exit(1); }

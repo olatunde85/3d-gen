@@ -170,6 +170,23 @@ await step('Studio: Assist writes a film with Gemini, casts Gemini voices and vo
   await w('!document.getElementById("assist-dialog").open&&studio.project.title==="Harbour night"&&studio.project.audio.speech.every(c=>c.asset)', 'film built with voiced lines', 120000);
 });
 
+await step('Studio lists only capable models and writes with Opus when Haiku is chosen; the builder lists every model', async () => {
+  const haiku = `localStorage.setItem('ara.keys.v1',JSON.stringify({keys:{anthropic:{key:${JSON.stringify(KEYS.anthropic)}}},ai:{provider:'anthropic',model:'claude-haiku-5-5'},autoVoices:true,remember:true}));window.dispatchEvent(new StorageEvent("storage",{key:"ara.keys.v1"}))`;
+  await go('/studio/#demo'); await w('window.studio?.ready', 'Studio ready', 180000);
+  await e(haiku);
+  await click('#ask-ara'); await w('/Opus 5\\.5/.test(document.querySelector(".ask-model")?.textContent??"")', 'Ask Ara names Opus');
+  await click('.ask-model'); await w('document.getElementById("keys-dialog")?.open&&[...document.querySelectorAll("#keys-model option")].some(o=>o.value==="anthropic:claude-sonnet-5-5")', 'Studio models listed');
+  const studioModels = await e<string[]>('[...document.querySelectorAll("#keys-model option")].map(o=>o.value)');
+  if (studioModels.includes('anthropic:claude-haiku-5-5')) throw Error('Studio lists Haiku');
+  if (await e('document.querySelector("#keys-model").value') !== 'anthropic:claude-opus-5-5') throw Error('Studio does not show Opus in use');
+  if (!/Studio writes with/.test(await text('#keys-dialog [data-r=model-label]'))) throw Error('Label not Studio');
+  await shot('13-studio-capable-models');
+  await go('/app/'); await w('!!document.querySelector("#ask-ara")', 'builder ready', 120000);
+  await e(haiku);
+  await click('#ask-ara'); await w('/Haiku/.test(document.querySelector(".ask-model")?.textContent??"")', 'builder keeps Haiku');
+  await click('.ask-model'); await w('[...document.querySelectorAll("#keys-model option")].some(o=>o.value==="anthropic:claude-haiku-5-5")', 'builder lists Haiku');
+});
+
 await step('Studio: Make a sound and Compose music with ElevenLabs, and an Ask Ara film that asks for both', async () => {
   await viewport(1400, 1000);
   await e(`localStorage.setItem('ara.keys.v1',JSON.stringify({keys:{elevenlabs:{key:${JSON.stringify(KEYS.elevenlabs)}},gemini:{key:${JSON.stringify(KEYS.gemini)}}},ai:{provider:'gemini',model:'gemini-4-hydrogen'},autoVoices:true,remember:true}))`);
