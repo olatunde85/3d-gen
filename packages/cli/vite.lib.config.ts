@@ -4,7 +4,7 @@
  */
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
-import { catalog } from './catalog-plugin';
+import { catalog } from './catalog-plugin.ts';
 
 export default defineConfig({
   root: import.meta.dirname,
