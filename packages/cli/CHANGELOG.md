@@ -2,6 +2,15 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.11.0 — 2026-11-20
+
+- **63 preset characters:** 13 new ones: The Doctor, The Lab Scientist, The Explorer, The Chef, The Photographer, The DJ, The Basketball Player, The Footballer, The Beach Dude, The Gamer, and three teens: The Schoolboy, The Schoolgirl and The Cool Kid. See them on the [characters page](https://ara3dgen.com/characters/).
+- **Numbered jerseys:** `football_shirt` and `basketball_jersey` carry a number from 0 to 99, set with `garmentStyles.<id>.number`, in plain, stripes, hoops (football), sport print or jersey knit.
+- **New clothes and props:** chef jacket, chef hat, bib apron, over-ear headphones, knee-high sports socks, a uniform shirt without epaulettes (`school_shirt`), and a camera on a neck strap with its own joint.
+- **Take a picture:** a new clip (`take_picture`) that lifts the camera to the eye and fires the shutter twice. 219 animations in all.
+- **Fixed:** the long overcoat lies cleanly over any top, with smooth lapels and nothing showing through at the neck, shoulders or lower coat.
+- **Fixed:** backpack straps run straight down the chest and curve under the arms, over the clothes at the front and back.
+
 ## 0.10.0 — 2026-11-20 (with ara3d-data 1.2.0)
 
 - **50 preset characters:** 18 new ones: The Resort Guest, The Lifeguard, The Paramedic, The Nurse, The Flight Attendant, The Airline Pilot, The Dispatch Rider, The Road Worker, The Street Racer, The Police Officer (USA), The MMA Fighter, The Mob Boss, The Clown, The Masked Robber, The Getaway Driver, The Security Guard, The Motorcycle Cop and The Army Medic. See them all on the [characters page](https://ara3dgen.com/characters/).
