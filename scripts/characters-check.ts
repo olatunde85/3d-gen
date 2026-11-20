@@ -44,7 +44,7 @@ try {
     await send('Page.navigate', { url: `http://127.0.0.1:${port}/characters/` });await sleep(1200);
     await until("document.querySelectorAll('.char').length > 0", 'cards');
     const total = await evaluate<number>("document.querySelectorAll('.char').length");
-    assert.equal(total, 53, `${name}: every preset has a card`);
+    assert.equal(total, 63, `${name}: every preset has a card`);
     // Every portrait loads.
     await evaluate("Promise.all([...document.images].map((i) => { i.loading = 'eager'; return i.decode().catch(() => {}); }))");
     const broken = await evaluate<string[]>("[...document.querySelectorAll('.char img')].filter((i) => !i.naturalWidth).map((i) => i.alt)");
@@ -66,12 +66,12 @@ try {
     assert.ok(women.includes('Nurse') && !women.includes('Road Worker'), 'women filter');
     assert.match(await evaluate<string>('location.search'), /filter=women/);
     await evaluate("document.querySelector('[data-filter=all]').click()");
-    assert.equal((await shown()).length, 53);
+    assert.equal((await shown()).length, 63);
     const href = await evaluate<string>("[...document.querySelectorAll('.char')].find((c) => c.querySelector('.char-name').textContent === 'Nurse').querySelector('.char-glb').getAttribute('href')");
     assert.match(href, /app\/#preset=The%20Nurse&download$/);
     assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), `${name}: no sideways scroll`);
     await photo(`characters-${name}`, { x: 0, y: 0, width, height });
-    console.log(`OK ${name}: 53 cards with portraits, search, filters and links`);
+    console.log(`OK ${name}: 63 cards with portraits, search, filters and links`);
   }
   // Download .glb: the builder opens the character and saves a .glb at once.
   const downloads = mkdtempSync(join(tmpdir(), 'ara-glb-'));

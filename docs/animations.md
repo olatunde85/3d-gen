@@ -1,6 +1,6 @@
 # Animations
 
-There are 218 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 219 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -11,7 +11,7 @@ There are 218 clips. The character loads playing **Idle**. The animation bar at 
 | Combat | Fighting stance (loop), Punch, Low punch, Punch combo (jab, cross, hook), Front kick, Roundhouse kick, Block (unarmed); Sword idle (guard) (loop), Sword slash, Sword block, Sword combo (three cuts), Sword thrust; Shot in the head, Shot in the chest, Shot in the back, Shot in the stomach, Shot in the leg, Shot in the arm |
 | Reactions | Hit from front / back / left / right, Knockdown, Death (fall forward / backward), Get up (from back / front) |
 | Interaction | Pick up (ground), Put down / drop (ground), Use / press, Open door, Push, Handshake (two people); Carry idle, Carry walk, Head-load idle, Head-load walk (loops) |
-| Everyday | Talk with gestures, Phone call, Texting, Lean on wall, Look around, Sweep (loops) |
+| Everyday | Talk with gestures, Phone call, Texting, Take a picture, Lean on wall, Look around, Sweep (loops) |
 | Emotes | Wave, Cheer, Laugh, Laugh hard, Talk, Cry, Clap, Dance (groove), Dance (party bounce) (loops); Point, Thumbs up, Bow |
 | Sitting & lying | Sit down, Sit idle, Stand up (on a chair); Lie down, Sleep (on the back) |
 | Swimming | Tread water, Swim forward (front crawl), Swim breaststroke, Swim backstroke (loops); Dive into water, Climb out of water |
@@ -65,6 +65,8 @@ Choose a prop under **Carry**. Props that clips hold have their own rigid joint,
 Interaction hands use chest-space IK; the pickup reach uses floor-space targets that follow the body while it squats. Actions ease in from and back to the relaxed pose, except pickup, which ends holding the object, and put-down, which starts there. Timings are references for game events; the game supplies doors, buttons and other objects.
 
 ## Everyday and emotes
+
+**Take a picture** uses the camera worn on its neck strap (accessory *Camera on a neck strap*, as on the Photographer): both hands take it from the chest and lift it to the right eye, the left eye closes, the shutter fires twice, and the camera goes back on the chest. The camera has its own joint, so it moves with the hands, and the strap stretches with it. Without the camera the hands mime it.
 
 **Talk with gestures**, **Phone call**, **Texting**, **Look around** and **Sweep** are loops for background characters. In **Phone call** the character talks in two bursts, with the mouth moving and the free hand gesturing, and listens in between. **Lean on wall** folds the arms, rests one foot on the wall and expects a wall about 20 cm behind the heels.
 

@@ -9,21 +9,23 @@ const smoothMax = (a: number, b: number, k: number) => Math.max(a, b) + k * Math
 const smoothMin = (a: number, b: number, k: number) => -smoothMax(-a, -b, k);
 
 /** Neck and arm cutlines measured against the morphed shoulders, so the vest keeps its fit on different bodies. */
-function singletCut(body: Body) {
+/** The singlet's outline; a jersey has wider straps (half-width as a fraction of the shoulders) and its own hem. */
+export function singletCut(body: Body, o: { strap?: number; hem?: number } = {}) {
+  const strapHalf = o.strap ?? 0.1, hemT = o.hem ?? 0.075;
   const shoulderX = body.L.shoulderX, torsoHeight = body.L.neckY - body.L.hipY;
   return (v: VInfo) => {
     if (!(v.region === REGION.torso || v.region === REGION.hips || v.region === REGION.neck ||
       v.region === REGION.upperarm)) return -1;
     // On the arm only the straps over the shoulder tops: cloth on the shoulder joint would be dragged about by a
     // raised arm.
-    const armLimit = v.region === REGION.upperarm ? 0.6 * shoulderX - v.ax : Infinity;
-    const hem = (v.tt - 0.075) * torsoHeight;
+    const armLimit = v.region === REGION.upperarm ? (0.5 + strapHalf) * shoulderX - v.ax : Infinity;
+    const hem = (v.tt - hemT) * torsoHeight;
     // A low U at the front and a shallow curve at the back; wide flat shoulders hold the straps.
     const front = Math.min(1, Math.max(0, (Math.cos(v.tth) + 0.35) / 0.7));
     const neckline = (0.91 - 0.12 * front) + (0.07 + 0.12 * front) *
       Math.min(1, (v.ax / (0.53 * shoulderX)) ** 3);
     const torso = (neckline - v.tt) * torsoHeight;
-    const strap = 0.10 * shoulderX - Math.abs(v.ax - 0.49 * shoulderX);
+    const strap = strapHalf * shoulderX - Math.abs(v.ax - 0.49 * shoulderX);
     const top = smoothMax(torso, strap, cm(1.1));
     // The outer edge tapers inward over the shoulder, then opens to the torso at the armpit.
     const q = Math.min(1, Math.max(0, (0.83 - v.tt) / 0.2));
@@ -50,7 +52,7 @@ function ribFabric(g: GCtx, st: GarmentStyle) {
  * upper arm: a raised arm then leaves the bottom of the armhole smooth instead of dragging it into a fold. The straps
  * keep following the shoulders.
  */
-function chestSkin(b: Body, P: Float32Array): Float32Array {
+export function chestSkin(b: Body, P: Float32Array): Float32Array {
   const out = Float32Array.from(P), soft = 0.08 * b.L.shoulderX, torsoHeight = b.L.neckY - b.L.hipY;
   for (let i = 0; i < P.length; i += 3) {
     // The straps over the shoulder tops keep following the shoulders; only the sides below are drawn in.

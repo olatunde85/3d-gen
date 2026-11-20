@@ -21,6 +21,8 @@ export interface GarmentStyle {
   pattern: Pattern;
   color: string;
   color2: string;
+  /** A jersey's number (0-99), for garments that have one. */
+  number?: number;
 }
 
 export interface GarmentDef {
@@ -39,6 +41,8 @@ export interface GarmentDef {
   preserveUnderJacket?: boolean;
   color: string;
   color2: string;
+  /** A jersey's default number: the garment has a number (0-99) chosen in the UI. */
+  number?: number;
   /**
    * A MakeHuman outfit whose fitted mesh the garment is cut from (`g.outfits[id]`), e.g. the shirt
    * of a casual suit.
@@ -80,6 +84,12 @@ export interface GPart {
    * and both legs, which a single lookup can only do by jumping from one leg to the other.
    */
   skinMix?: { at: Float32Array; amount: Float32Array }[];
+  /**
+   * Part of a prop on its own joint (the camera): rigged characters get a root joint of this name at `pivot`, which
+   * the animator keeps on the chest and clips can lift. Without `weight` the part moves rigidly with it; with it,
+   * each vertex follows the joint by its weight and the body by the rest (a strap stretching from the neck).
+   */
+  prop?: { bone: 'Camera'; pivot: Vec3; weight?: Float32Array };
 }
 
 export interface FittedOutfit {

@@ -169,7 +169,7 @@ try {
   mkdirSync(out, { recursive: true });
 
   const lists = await evaluate('window.lists');
-  assert.deepEqual(lists, { presets: 53, clips: 218, vehicles: 15 });console.log('OK lists', JSON.stringify(lists));
+  assert.deepEqual(lists, { presets: 63, clips: 219, vehicles: 15 });console.log('OK lists', JSON.stringify(lists));
   const cases: [string, unknown, object, object][] = [
     ['soldier-rifle-backpack', 'The Soldier', { animations: ['walk', 'idle'], weapon: 'rifle', carry: 'backpack' }, { play: 'walk', az: 0.6, dist: 4.2 }],
     ['ara-character-file', { preset: 'The Bride', params: { name: 'Ada', ageYears: 30 } }, { animations: ['locomotion'], rootMotion: false }, { play: 'run', az: -0.5, dist: 4.2 }],

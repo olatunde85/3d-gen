@@ -480,7 +480,10 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     }
     return { ...m, skin: { j, w } };
   };
+  // Parts of a prop on its own joint (the camera): their skin is rebound to that joint once the rig is built.
+  const propParts: { index: number; prop: NonNullable<(typeof gparts)[number]['prop']> }[] = [];
   for (const g of gparts) {
+    if (g.prop) propParts.push({ index: parts.length, prop: g.prop });
     const m = g.skinMix ? mixedSkin(g.mesh, g.skinMix) : g.skinAt ? { ...skinOf({ ...g.mesh, positions: g.skinAt }, 8), positions: g.mesh.positions } : skinOf(g.mesh, g.smooth ? 4 : 8);
     parts.push([hd && g.smooth ? subdivide(m) : m, g.material]);
     if (g.ground) groundParts.push(g.mesh);
@@ -560,6 +563,23 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     }
     const sizeK = ((maxBodyY - minY) * DM) / 1.8;
     bones.push(socketBone(hand, handIdx, sizeK));
+    // A prop on its own joint (the camera): a root joint at its pivot. Its parts follow it rigidly; a part with
+    // weights (the strap) shares each vertex between it and the body.
+    if (propParts.length) {
+      const pv = propParts[0].prop.pivot, head: Vec3 = [pv[0] * DM, (pv[1] - minY) * DM, pv[2] * DM], index = bones.length;
+      bones.push({ name: propParts[0].prop.bone, parent: -1, head, tail: [head[0], head[1] + 0.1 * sizeK, head[2]], rot: [1, 0, 0, 0, 1, 0, 0, 0, 1] });
+      for (const { index: at, prop } of propParts) {
+        const m = out[at][0], n = m.positions.length / 3, j = new Uint16Array(n * 4), w = new Float32Array(n * 4);
+        for (let i = 0; i < n; i++) {
+          const k = prop.weight ? Math.min(1, Math.max(0, prop.weight[i])) : 1;
+          const acc = new Map<number, number>();
+          if (k < 1 && m.skin) for (let q = 0; q < 4; q++) if (m.skin.w[i * 4 + q]) acc.set(m.skin.j[i * 4 + q], (acc.get(m.skin.j[i * 4 + q]) ?? 0) + m.skin.w[i * 4 + q] * (1 - k));
+          if (k > 0) acc.set(index, k);
+          blendInfluences(acc, j, w, i * 4);
+        }
+        out[at] = [{ ...m, skin: { j, w } }, out[at][1]];
+      }
+    }
     // A bag carried in the hand: that hand's fingers close round its handle.
     rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && p.carry!=='parcel' && p.carry!=='broom' && p.carry!=='phone' && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
 

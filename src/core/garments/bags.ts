@@ -101,25 +101,53 @@ function backpack(g: GCtx, st: GarmentStyle): GPart[] {
       .sort((p, q) => q.a - p.a)
       .map((o) => o.p);
     if (over.length < 4) continue;
-    // Lower strap: from the chest end out to the front of the armpit, then round the side under
-    // the arm to the pack's bottom corner.
+    // Down the front and round the side: by angle round the torso (0 = front), the strap keeps the angle it reaches the
+    // chest at (a straight line down the front), curves out under the arm, and runs round the side to the pack's bottom
+    // corner, lying on the torso (and the clothes over it) all the way.
+    const start = over[over.length - 1];
+    const cornerY = yBot + cm(5), corner: Vec3 = [s * W * 0.42, cornerY, zFront(cornerY) - D * 0.3];
+    const aEnd = Math.atan2(corner[0], corner[2] - b.L.torsoZ);
+    const yBend = torsoY(b, 0.6), ySide = torsoY(b, 0.42);
+    const ease = (x: number) => { const k = clamp(x, 0, 1); return k * k * (3 - 2 * k); };
     const low: Vec3[] = [];
-    const start = over[over.length - 1], end: Vec3 = [s * W * 0.42, yBot + cm(5), zFront(yBot + cm(5)) - D * 0.3];
-    const pit: Vec3 = [s * 0.9 * sx, torsoY(b, 0.6), b.L.torsoZ + cm(6)];
-    const path = (t: number): Vec3 => (t < 0.35 ? v3.lerp(start, pit, t / 0.35) : v3.lerp(pit, end, (t - 0.35) / 0.65));
-    for (let k = 1; k <= 18; k++) {
-      const t = k / 18;
-      const [x, y, z] = path(t);
-      const h = hullAt(y);
-      const c: Vec3 = [0, y, b.L.torsoZ];
-      const d = v3.norm([x - c[0], 0, z - c[2]]);
+    // The point on the torso's outline at height y whose x is x (seen from the front), by its angle.
+    const angleAtX = (h: Vec3[], c: Vec3, x: number) => {
+      let lo = 0, hi = s * Math.PI / 2;
+      for (let k = 0; k < 24; k++) {
+        const m = (lo + hi) / 2, d: Vec3 = [Math.sin(m), 0, Math.cos(m)], r = rayRing(h, c, d) ?? 0;
+        if (Math.abs(d[0] * r) < Math.abs(x)) lo = m; else hi = m;
+      }
+      return (lo + hi) / 2;
+    };
+    for (let y = start[1] - cm(1.5); y > cornerY; y -= cm(1.5)) {
+      const h = hullAt(y), c: Vec3 = [0, y, b.L.torsoZ];
+      // Seen from the front: straight down from the shoulder, then easing out to the side under the arm.
+      const a = y > ySide && h
+        ? angleAtX(h, c, start[0] + (s * 0.98 * sx - start[0]) * ease((yBend + (start[1] - yBend) * 0.3 - y) / (yBend + (start[1] - yBend) * 0.3 - ySide)) ** 1.4)
+        : s * Math.PI / 2 + (aEnd - s * Math.PI / 2) * ease((ySide - y) / (ySide - cornerY));
+      const d: Vec3 = [Math.sin(a), 0, Math.cos(a)];
       const r = h ? rayRing(h, c, d) : null;
-      low.push(r !== null && t < 0.85 ? [c[0] + d[0] * r, y, c[2] + d[2] * r] : [x, y, z]);
+      low.push(r !== null ? [c[0] + d[0] * r, y, c[2] + d[2] * r] : [c[0] + d[0] * cm(15), y, c[2] + d[2] * cm(15)]);
     }
-    const line = [...over, ...low];
-    // Normals: away from a point inside the chest (up on the shoulders, out on the chest and sides).
-    const inside = (p: Vec3): Vec3 => [p[0] * 0.4, Math.min(p[1], torsoY(b, 0.8)) - cm(12), b.L.torsoZ];
-    const normals = line.map((p) => v3.norm(v3.sub(p, inside(p))));
+    low.push(corner);
+    // Smoothed along its length, so loose clothes' folds and a collar's bumps don't make it wave, then pushed back out
+    // wherever smoothing sank it into the torso or clothes.
+    // (Only lightly over the shoulder: smoothing a tight curve pulls it in, under the clothes.)
+    const smoothed = (pts: Vec3[], passes: number) => {
+      let out = pts;
+      for (let it = 0; it < passes; it++) out = out.map((q, i) => (i === 0 || i === out.length - 1 ? q : v3.scale(v3.add(v3.add(out[i - 1], out[i + 1]), v3.scale(q, 2)), 0.25)));
+      return out;
+    };
+    const front = smoothed([start, ...low], 14).slice(1).map((q, i, all) => {
+      if (i === all.length - 1) return q;
+      const h = hullAt(q[1]), c: Vec3 = [0, q[1], b.L.torsoZ], d = v3.norm([q[0], 0, q[2] - c[2]]), r = h ? rayRing(h, c, d) : null, now = Math.hypot(q[0], q[2] - c[2]);
+      return r !== null && r > now ? [d[0] * r, q[1], c[2] + d[2] * r] as Vec3 : q;
+    });
+    const line = [...smoothed(over, 2), ...front];
+    // Normals: out from the torso's axis at the strap's height, and from the shoulder's middle over the top, so the
+    // ribbon lies flat without twisting.
+    const yS = torsoY(b, 0.8);
+    const normals = line.map((p) => v3.norm(v3.sub(p, [p[0] * (p[1] > yS ? 0.6 : 0), Math.min(p[1], yS), b.L.torsoZ])));
     straps.push(ribbon(line, normals, cm(4), cm(0.35)));
   }
   // Rigid with the chest: every vertex of the pack looks up its weights at the upper back.

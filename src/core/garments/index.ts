@@ -76,7 +76,8 @@ export function styleOf(id: string, styles: HumanParams['garmentStyles']): Garme
   const def = garmentById.get(id)!;
   const o = styles[id] ?? {};
   const pattern = (o.pattern && PATTERNS.includes(o.pattern as Pattern) ? o.pattern : def.patterns[0]) as Pattern;
-  return { pattern, color: o.color ?? def.color, color2: o.color2 ?? def.color2 };
+  const number = def.number === undefined ? undefined : Number.isInteger(o.number) && o.number! >= 0 && o.number! <= 99 ? o.number : def.number;
+  return { pattern, color: o.color ?? def.color, color2: o.color2 ?? def.color2, ...(number === undefined ? {} : { number }) };
 }
 
 /** Register a generated texture once (by key) and return its file names. */

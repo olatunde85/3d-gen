@@ -26,6 +26,7 @@ import { GULF } from './gulf';
 import { EARPIECE } from './earpiece';
 import { SUIT } from './suit';
 import { STREET } from './street';
+import { TRADES } from './trades';
 import { SWIMWEAR } from './swimwear';
 import { WRIST } from './wrist';
 import { NECKLACES } from './necklaces';
@@ -746,6 +747,7 @@ export const GARMENTS: GarmentDef[] = [
   ...WRIST,
   ...SWIMWEAR,
   ...STREET,
+  ...TRADES,
   ...PRISON,
   ...SHIRTS,
   ...CHARACTER_EXTRAS,

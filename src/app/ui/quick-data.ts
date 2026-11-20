@@ -150,7 +150,7 @@ export const STYLES: Style[] = [
   { id: 'zulu', label: 'Zulu warrior', phrase: 'dressed as a Zulu warrior', group: 'Warriors', man: fromPreset('The Zulu Warrior'), alt: 'dahomey' },
   { id: 'resort', label: 'Resort shirt', phrase: 'in a resort shirt and shorts', group: 'Beach', ...both(fromPreset('The Resort Guest')) },
   { id: 'lifeguard', label: 'Lifeguard', phrase: 'in a singlet and board shorts', group: 'Beach', man: fromPreset('The Lifeguard'), alt: 'resort' },
-  { id: 'beach', label: 'Beachwear', phrase: 'in beachwear', group: 'Beach', man: full({ bottom: 'resort_shorts', shoes: 'flipflops', accessories: ['sunglasses'], garmentStyles: { resort_shorts: { pattern: 'tropical', color: '#1f5f8b', color2: '#f2c14e' } } }), woman: fromSet('set_gold_bikini'), adult: true },
+  { id: 'beach', label: 'Beachwear', phrase: 'in beachwear', group: 'Beach', man: fromPreset('The Beach Dude'), woman: fromSet('set_gold_bikini'), adult: true },
 ];
 export const styleById = new Map(STYLES.map((s) => [s.id, s]));
 

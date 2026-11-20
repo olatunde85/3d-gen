@@ -93,7 +93,7 @@ const RESORT_FROM = 'male_casualsuit01';
 const isCollar = (i: Island) => i.u0 > 0.71 && i.u1 < 0.8 && i.v0 > 0.28 && i.v1 < 0.49;
 
 /** Casualsuit01's button-front shirt, with the fitted long sleeves replaced by open loose cuffs. */
-function fittedUniformShirt(g: GCtx, st: GarmentStyle): GPart[] {
+function fittedUniformShirt(g: GCtx, st: GarmentStyle, epaulettes = true): GPart[] {
   const o = g.outfits?.[RESORT_FROM];
   if (!o) return [];
   const src = { ...o.mesh, ref: Int32Array.from(o.ref) };
@@ -141,7 +141,7 @@ function fittedUniformShirt(g: GCtx, st: GarmentStyle): GPart[] {
     ...(pockets.length ? [{ mesh: merge(pockets)!, material: mat('Uniform chest pockets', null, { color: st.color, roughness: 0.83 }) }] : []),
     ...(pocketFlaps.length ? [{ mesh: merge(pocketFlaps)!, material: mat('Uniform pocket flaps', null, { color: st.color, roughness: 0.83 }) }] : []),
     ...(buttonMesh ? [{ mesh: buttonMesh, material: mat('Fitted uniform buttons', null, { color: '#f5f3e9', roughness: 0.4 }) }] : []),
-    ...uniformEpaulettes(g, torso, st.color2),
+    ...(epaulettes ? uniformEpaulettes(g, torso, st.color2) : []),
   ];
 }
 
@@ -319,7 +319,12 @@ export const SHIRTS: GarmentDef[] = [
   {
     id: 'uniform_camp_shirt', label: 'Uniform shirt (loose short sleeves)', slot: 'top',
     patterns: ['solid', 'khaki', 'linen'], color: '#e6edf0', color2: '#137e86', colorLabels: ['Fabric', 'Epaulettes'],
-    fromOutfit: RESORT_FROM, build: fittedUniformShirt,
+    fromOutfit: RESORT_FROM, build: (g, st) => fittedUniformShirt(g, st),
+  },
+  {
+    id: 'school_shirt', label: 'Uniform shirt (loose short sleeves, no epaulettes)', slot: 'top',
+    patterns: ['solid', 'khaki', 'linen'], color: '#eef2f6', color2: '#eef2f6',
+    fromOutfit: RESORT_FROM, build: (g, st) => fittedUniformShirt(g, st, false),
   },
   {
     id: 'clerical_shirt', label: 'Clerical shirt (tab collar)', slot: 'top', patterns: ['solid', 'linen'], color: '#141416', color2: '#26262a',

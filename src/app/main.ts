@@ -62,6 +62,19 @@ if (fromLink) store.params = fromLink;
 else if (presetName && PRESETS[presetName]) store.params = { ...DEFAULT_PARAMS, ...PRESETS[presetName], name: presetName, detail: store.params.detail };
 store.emit('sync');
 gen.regenerate();
+// A character opened from a link (the characters page, a shared link) leaves the address once another character is
+// picked or this one is changed, so a reload keeps the character being worked on (it is saved in the browser).
+if (presetName || shared) {
+  let linked = true;
+  store.on('params', () => {
+    if (!linked) return;
+    linked = false;
+    const h = new URLSearchParams(location.hash.slice(1));
+    for (const key of ['preset', 'c', 'detail', 'download']) h.delete(key);
+    const rest = h.toString();
+    window.history.replaceState(window.history.state, '', location.pathname + location.search + (rest ? '#' + rest : ''));
+  });
+}
 // Undo history starts from the character the app opened with; Quick build mounts above the sidebar.
 quickBuild(ctx, history(store));
 characterAssist(ctx);

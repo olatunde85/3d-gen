@@ -14,7 +14,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 |---|---|
 | `ara3d export [options]` | Builds characters and writes GLB, FBX, OBJ or ZIP files |
 | `ara3d presets` | Lists the preset characters |
-| `ara3d animations` | Lists the 218 animation clips by group |
+| `ara3d animations` | Lists the 219 animation clips by group |
 | `ara3d props` | Lists the weapons, carried items and vehicles |
 | `ara3d new <name> [--preset P]` | Writes a starter character file to edit |
 | `ara3d schema [character\|film\|game]` | Prints a JSON schema, for editors and AI tools |
@@ -41,7 +41,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `--out <dir>` | Output folder; the default is `./ara3d-out` |
 | `--debug` | Adds technical details when something fails |
 
-Characters include all 218 animations unless you choose. Most games need far fewer, and files shrink a lot: the Soldier is about 28 MB as a GLB with every clip, 7 MB with `--animations walk,run,idle`, and 5 MB with `--no-animations`. A group name, such as `locomotion`, `combat`, `shooter`, `vehicles` or `emotes`, takes every clip in it.
+Characters include all 219 animations unless you choose. Most games need far fewer, and files shrink a lot: the Soldier is about 28 MB as a GLB with every clip, 7 MB with `--animations walk,run,idle`, and 5 MB with `--no-animations`. A group name, such as `locomotion`, `combat`, `shooter`, `vehicles` or `emotes`, takes every clip in it.
 
 Prop flags replace only the prop they name, so a character file's other props stay. A character with a vehicle or a separate prop is written as a zip holding the character, a `props/` folder and a README on how to line them up. If you pick a vehicle but none of its riding clips, `ara3d` suggests the clips to add.
 

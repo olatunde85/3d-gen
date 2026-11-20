@@ -219,10 +219,11 @@ export type Pattern =
   | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur' | 'shearling'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
   | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa' | 'workwear'
-  | 'tropical' | 'resort_geo' | 'linen' | 'suiting' | 'patent' | 'shemagh' | 'satin' | 'striped';
+  | 'tropical' | 'resort_geo' | 'linen' | 'suiting' | 'patent' | 'shemagh' | 'satin' | 'striped'
+  | 'stripes' | 'hoops' | 'sport_print' | 'pinstripe';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'resort_geo', 'linen', 'suiting', 'nappa', 'patent', 'shemagh', 'satin', 'striped',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'resort_geo', 'linen', 'suiting', 'nappa', 'patent', 'shemagh', 'satin', 'striped', 'stripes', 'hoops', 'sport_print', 'pinstripe',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -579,6 +580,33 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat
         const c = mixc(A, B, Math.max(0, Math.min(0.5, fade * 0.5 + (slub - 0.5) * 0.18 + (1 - ridge) * 0.1)));
         return { c: mul(c, 0.86 + 0.18 * ridge), h: ridge * 0.8 + slub * 0.3 };
       }, false, 2.2);
+    }
+    case 'stripes':
+    case 'hoops': {
+      // Sports jersey: wide stripes of c2 on c1, down (stripes) or round (hoops) the shirt, in a fine polyester knit.
+      return render(S, (u, v) => {
+        const t = frac((p === 'stripes' ? u : v) * 2), band = t < 0.5;
+        const knit = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 200) * Math.sin(v * Math.PI * 2 * 150);
+        return { c: mul(band ? B : A, 0.96 + 0.04 * knit), h: knit * 0.25 };
+      }, false, 1);
+    }
+    case 'sport_print': {
+      // Sublimated sports print: c1 with diagonal speed streaks and a halftone fade in c2.
+      return render(S, (u, v) => {
+        const d = frac(u * 2 + v * 1.2), streak = d < 0.16 ? 1 : d < 0.22 ? 0.5 : 0;
+        const dots = frac(u * 64) - 0.5, dv = frac(v * 64) - 0.5, r = 0.45 * Math.max(0, 0.5 - frac(u * 2 + v * 1.2 + 0.25)) * 2;
+        const dot = dots * dots + dv * dv < r * r ? 1 : 0;
+        const knit = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 200) * Math.sin(v * Math.PI * 2 * 150);
+        return { c: mul(mixc(A, B, Math.max(streak, dot * 0.85)), 0.96 + 0.04 * knit), h: knit * 0.25 };
+      }, false, 1);
+    }
+    case 'pinstripe': {
+      // Butcher's stripe: fine c2 lines down a c1 cotton twill.
+      return render(S, (u, v) => {
+        const line = frac(u * 10) < 0.09;
+        const twill = frac((u * 3 + v) * 160) < 0.5 ? 1 : 0.95;
+        return { c: mul(line ? B : A, twill), h: twill * 0.3 };
+      }, false, 0.8);
     }
     case 'jersey': {
       // Cotton jersey: a very fine knit, nearly flat, with soft mottling.

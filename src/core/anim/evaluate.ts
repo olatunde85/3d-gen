@@ -159,6 +159,7 @@ export class Animator {
   private bag:number;
   private floorShift: Vec3 = [0, 0, 0];
   private phone:number;
+  private camera:number;
   private fits = new Map<string, { rot: Q; supportZ: number }>();
 
   /** `face`: the character's blend-shape names and resting (expression) weights, if it has face shapes. */
@@ -277,6 +278,7 @@ export class Animator {
     this.broom=B.findIndex(b=>b.name==='Broom');
     this.bag=B.findIndex(b=>b.name==='BagL');
     this.phone=B.findIndex(b=>b.name==='Phone');
+    this.camera=B.findIndex(b=>b.name==='Camera');
   }
 
   /**
@@ -351,6 +353,7 @@ export class Animator {
     // A hand-carried bag is put away while the hands climb or swim.
     if(this.bag>=0&&(clip.category==='Climbing'||clip.category==='Swimming')){frame.scale??=new Map();frame.scale.set(this.bag,[0,0,0]);}
     this.placePhone(frame,carried);
+    this.placeCamera(frame,carried);
     if(opts.vehicleLift&&!clip.vehicleTransition){const lift=opts.vehicleLift*(clip.liftWeight?.(time)??1);for(const [i,p]of frame.rootPos)frame.rootPos.set(i,[p[0],p[1]+lift,p[2]]);}
     if(contact){
       if(opts.vehicleLift)for(const [i,p]of contact.rootPos)contact.rootPos.set(i,[p[0],p[1]+opts.vehicleLift,p[2]]);
@@ -425,6 +428,25 @@ export class Animator {
     const {cd,origin}=this.chestSpace(world,this.positions(frame)),x=norm(s.prop.x),z0=norm(s.prop.z),y=norm(cross3(z0,x)),z=cross3(x,y);
     const at=qrot(cd,s.prop.pos.map(v=>v*this.scale)as Vec3);
     frame.rootPos.set(index,[origin[0]+at[0],origin[1]+at[1],origin[2]+at[2]]);frame.rot[index]=qmul(cd,quatOf([...x,...y,...z]as Parameters<typeof quatOf>[0]));
+  }
+
+  /**
+   * The camera on its neck strap rides on the chest as it was dressed; a clip that holds it (`camera`, in chest space)
+   * lifts it there, blended by its weight.
+   */
+  private placeCamera(frame:Frame,s:Sample){
+    const index=this.camera;if(index<0)return;
+    const B=this.rig.bones,chest=this.idx.get('Spine2')??this.idx.get('Spine1')??0,world:Q[]=[];B.forEach((b,i)=>world[i]=b.parent<0?frame.rot[i]:qmul(world[b.parent],frame.rot[i]));
+    const pos=this.positions(frame),d=qmul(world[chest],qconj(this.restWorld[chest])),rel=qrot(d,sub3(B[index].head,B[chest].head));
+    let at:Vec3=[pos[chest][0]+rel[0],pos[chest][1]+rel[1],pos[chest][2]+rel[2]],rot=d;
+    const c=s.camera,w=c?Math.min(1,Math.max(0,c.w)):0;
+    if(c&&w>0){
+      const cross3=(a:Vec3,b:Vec3):Vec3=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+      const {cd,origin}=this.chestSpace(world,pos),z=norm(c.fwd),x=norm(cross3(c.up,z)),y=cross3(z,x);
+      const o=qrot(cd,c.pos.map(v=>v*this.scale)as Vec3),target:Vec3=[origin[0]+o[0],origin[1]+o[1],origin[2]+o[2]];
+      at=at.map((v,i)=>v+(target[i]-v)*w)as Vec3;rot=qslerp(rot,qmul(cd,quatOf([...x,...y,...z]as Parameters<typeof quatOf>[0])),w);
+    }
+    frame.rootPos.set(index,at);frame.rot[index]=rot;
   }
 
   /** The broom only shows while sweeping: its handle runs through both hands and the bristles rest on the floor. */

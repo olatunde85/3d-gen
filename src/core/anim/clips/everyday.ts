@@ -1,6 +1,7 @@
 /**
- * Everyday NPCs: conversation gestures, a phone call, texting, leaning on a wall, looking around and sweeping.
- * The phone is Carry: Mobile phone (left hand); sweeping uses Carry: Broom, laid through both hands.
+ * Everyday NPCs: conversation gestures, a phone call, texting, taking a photo, leaning on a wall, looking around and
+ * sweeping. The phone is Carry: Mobile phone (left hand); sweeping uses Carry: Broom, laid through both hands; the photo
+ * lifts the camera worn on its neck strap (accessory: camera).
  */
 import type { Ch, Clip, HandTarget, Sample } from './types';
 import { fingers, grip, side, v } from './helpers';
@@ -93,6 +94,40 @@ export const texting: Clip = {
   },
 };
 
+/**
+ * Taking a photo with the camera on its neck strap: both hands take it from the chest and lift it to the right eye,
+ * the right hand round the grip with the index finger on the shutter and the left palm under the lens; two shots, the
+ * left eye closed, then it is lowered back onto the chest. Without the camera the hands mime it.
+ */
+// Where the camera is held: at the right eye with the back of the camera just clear of the face, and, while the hands
+// take it or put it back, a hand's width out from the chest so the hands stay clear of the body.
+const EYE: V3 = v(-0.03, 0.13, 0.175), CHEST: V3 = v(0, -0.24, 0.24);
+export const takePicture: Clip = {
+  id: 'take_picture', name: 'Take a picture', category: 'Everyday', duration: 4.4, loop: true,
+  sample: (t) => {
+    const ease = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k); };
+    // Reach for the camera (0-0.5 s), lift it (0.5-1.3), hold and shoot, lower it (3.0-3.8), let go (3.8-4.2).
+    const lift = ease((t - 0.5) / 0.8) * (1 - ease((t - 3) / 0.8)), hold = ease(t / 0.5) * (1 - ease((t - 3.8) / 0.4));
+    const shot = Math.max(0, 1 - Math.abs(t - 1.9) / 0.09) + Math.max(0, 1 - Math.abs(t - 2.5) / 0.09);
+    const s = standing(t, 4.4), c: V3 = v(CHEST[0] + (EYE[0] - CHEST[0]) * lift, CHEST[1] + (EYE[1] - CHEST[1]) * lift, CHEST[2] + (EYE[2] - CHEST[2]) * lift);
+    const bones: Record<string, Ch> = { ...s.bones, Spine: [2 * lift, 0, 0], Neck: [4 * lift, -2 * lift, 0], Head: [2 * lift - 6 * (1 - lift) * hold, -3 * lift, 2 * lift] };
+    grip(bones, 'Right', true, 0.85);
+    for (const k of [1, 2, 3]) bones[`RightHandIndex${k}`] = [k === 1 ? 18 + 14 * shot : 12 + 10 * shot, 0, 0];
+    for (const f of ['Index', 'Middle', 'Ring', 'Pinky']) for (const k of [1, 2, 3]) bones[`LeftHand${f}${k}`] = [k === 1 ? 14 : 20, 0, 0];
+    // The right palm against the outside of the grip, fingers round its front; the left palm up under the lens.
+    const rDir = norm3(v(0.05, 0.45, 0.9)), rPalm: V3 = v(c[0] - 0.072, c[1] - 0.012, c[2] + 0.012);
+    const lDir = norm3(v(-1, 0.12, 0.12)), lPalm: V3 = v(c[0] + 0.015, c[1] - 0.062, c[2] + 0.06);
+    return { ...s, bones, gaze: [0, -6 * (1 - lift) * hold], thumbs: { Right: 0.2, Left: 0.1 },
+      face: { eyeBlinkLeft: 0.95 * lift },
+      camera: { pos: c, fwd: v(0, 0.12 * lift, 1), up: v(0, 1, 0), w: hold },
+      ikWeight: { Left: hold, Right: hold },
+      ik: {
+        Right: { pos: v(rPalm[0] - rDir[0] * 0.075, rPalm[1] - rDir[1] * 0.075, rPalm[2] - rDir[2] * 0.075), pole: v(-0.35, -1, 0.15), dir: rDir, palm: v(1, 0, 0) },
+        Left: { pos: v(lPalm[0] - lDir[0] * 0.075, lPalm[1] - lDir[1] * 0.075, lPalm[2] - lDir[2] * 0.075), pole: v(0.3, -1, 0.2), dir: lDir, palm: v(0, 1, 0) },
+      } };
+  },
+};
+
 /** Leaning back against a wall, arms crossed, one foot flat against it. The wall is about 18 cm behind the heels. */
 export const leanWall: Clip = {
   id: 'lean_wall', name: 'Lean on wall', category: 'Everyday', duration: 4, loop: true,
@@ -157,4 +192,4 @@ export const sweep: Clip = {
   },
 };
 
-export const EVERYDAY: Clip[] = [talkGestures, phoneCall, texting, leanWall, lookAround, sweep];
+export const EVERYDAY: Clip[] = [talkGestures, phoneCall, texting, takePicture, leanWall, lookAround, sweep];

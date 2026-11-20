@@ -84,6 +84,8 @@ export interface Sample {
   feet?: { Left?: FootTarget; Right?: FootTarget };
   /** A hand-held prop on its own joint (the phone), placed in chest space: centre, screen normal (+X) and top (+Z). */
   prop?: { pos: [number, number, number]; x: [number, number, number]; z: [number, number, number] };
+  /** The camera on its neck strap, held in chest space: its centre, lens direction and up, blended in by `w` (0 = on the chest). */
+  camera?: { pos: [number, number, number]; fwd: [number, number, number]; up: [number, number, number]; w: number };
   /** 0..1: wrap the thumb across the front of the index/middle fingers (fists). */
   thumbs?: { Left?: number; Right?: number };
   /** Facial blend-shape weights added on top of the character's expression (see core/face.ts). */
