@@ -50,7 +50,7 @@ const TOOLS = [
   },
   {
     name: 'list_animations',
-    description: 'The 218 animation clips, by group, with their IDs. Pass clip IDs or category names (such as locomotion) to create_character.',
+    description: `The ${CLIPS.length} animation clips, by group, with their IDs. Pass clip IDs or category names (such as locomotion) to create_character.`,
     inputSchema: { type: 'object', properties: { search: { type: 'string', description: 'Only clips whose ID, name or group contains this, such as "dance" or "rifle".' } }, additionalProperties: false },
   },
   {

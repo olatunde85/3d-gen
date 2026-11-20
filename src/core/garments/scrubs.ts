@@ -104,8 +104,8 @@ function stethoscope(g: GCtx, st: GarmentStyle): GPart[] {
   const back: Vec3[] = [];
   for (let i = 0; i <= 36; i++) back.push(loop(1.45 + (Math.PI * 2 - 2.9) * i / 36));
 
-  // Each end then hangs down the chest, lying on whatever is worn.
-  const worn = merge((g.topParts ?? []).map(p => p.mesh));
+  // Each end then hangs down the chest, lying on whatever is worn (over a coat's lapels where it has one).
+  const worn = merge([...(g.topParts ?? []), ...(g.jacketParts ?? [])].map(p => p.mesh));
   const surface = worn ? new Caster(worn, null, () => true, 'front') : new Caster(b, g.faceVerts, () => true, 'front');
   const hang = (start: Vec3, length: number, inward: number): { path: Vec3[]; end: Vec3; normal: Vec3 } => {
     const path: Vec3[] = [];

@@ -60,7 +60,7 @@ export interface HumanParams {
   /** Procedural accessories (garment ids). */
   accessories: string[];
   /** Per-garment pattern / colour overrides. */
-  garmentStyles: Record<string, { pattern?: string; color?: string; color2?: string }>;
+  garmentStyles: Record<string, { pattern?: string; color?: string; color2?: string; number?: number }>;
   /** MakeHuman shoes id, 'sandals', 'combat_boots' or 'none' (barefoot). */
   shoes: string;
   hat: string;
@@ -185,6 +185,30 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     african: 0.78, asian: 0.04, caucasian: 0.18, eyes: 'blackbrown', hair: 'ponytail01', hairTint: '#1f1712', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'happy',
     outfit: 'none', top: 'scrub_top', bottom: 'suit_trousers', shoes: 'sneakers', accessories: ['stethoscope', 'watch_silver'],
     garmentStyles: { scrub_top: { pattern: 'solid', color: '#1f9aa2', color2: '#1c8f97' }, suit_trousers: { pattern: 'suiting', color: '#1c8890', color2: '#1c8890' }, stethoscope: { pattern: 'solid', color: '#17181b', color2: '#c9ccd1' }, sneakers: { pattern: 'workwear', color: '#eef0f2' } },
+  },
+  'The Doctor': {
+    gender: 1, age: 0.58, muscle: 0.5, weight: 0.5, height: 0.6,
+    african: 0.2, asian: 0.62, caucasian: 0.18, eyes: 'darkbrown', hair: 'short02', expression: 'happy',
+    outfit: 'none', top: 'scrub_top', jacket: 'overcoat', bottom: 'suit_trousers', shoes: 'shoes02', accessories: ['stethoscope', 'watch_silver'],
+    garmentStyles: { scrub_top: { pattern: 'solid', color: '#3d5f8f', color2: '#38598a' }, overcoat: { pattern: 'solid', color: '#f3f4f2', color2: '#e6e8e6' }, suit_trousers: { pattern: 'suiting', color: '#38598a', color2: '#38598a' }, stethoscope: { pattern: 'solid', color: '#17181b', color2: '#c9ccd1' } },
+  },
+  'The Lab Scientist': {
+    gender: 0, age: 0.5, muscle: 0.42, weight: 0.45, height: 0.54, proportions: 0.85,
+    african: 0.08, asian: 0.12, caucasian: 0.8, eyes: 'green', hair: 'bob02', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'determined',
+    outfit: 'none', top: 'silk_blouse', jacket: 'overcoat', bottom: 'suit_trousers', shoes: 'shoes03', accessories: ['watch_silver'],
+    garmentStyles: { silk_blouse: { pattern: 'solid', color: '#9fb6cc' }, overcoat: { pattern: 'solid', color: '#f3f4f2', color2: '#e6e8e6' }, suit_trousers: { pattern: 'suiting', color: '#2b2f36', color2: '#30343b' } },
+  },
+  'The Chef': {
+    gender: 1, age: 0.55, muscle: 0.5, weight: 0.6, height: 0.55,
+    african: 0.3, asian: 0.05, caucasian: 0.65, eyes: 'brown', hair: 'short01', facialHair: 'stubble', expression: 'happy',
+    outfit: 'none', top: 'chef_jacket', bottom: 'suit_trousers', shoes: 'sneakers', hat: 'chef_hat', accessories: ['apron'],
+    garmentStyles: { chef_jacket: { pattern: 'solid', color: '#f4f4f1', color2: '#1d1f24' }, suit_trousers: { pattern: 'suiting', color: '#2b2d31', color2: '#3a3c41' }, apron: { pattern: 'solid', color: '#1d1f24', color2: '#1d1f24' }, sneakers: { pattern: 'workwear', color: '#1c1d20' } },
+  },
+  'The Photographer': {
+    gender: 0, age: 0.48, muscle: 0.45, weight: 0.45, height: 0.56, proportions: 0.85,
+    african: 0.1, asian: 0.75, caucasian: 0.15, eyes: 'darkbrown', hair: 'ponytail01', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'happy',
+    outfit: 'none', top: 'camp_shirt', bottom: 'cargo_pants', shoes: 'sneakers', accessories: ['camera', 'watch_silver'],
+    garmentStyles: { camp_shirt: { pattern: 'linen', color: '#5f6b52', color2: '#5f6b52' }, cargo_pants: { pattern: 'khaki', color: '#b5a383', color2: '#8c7b5e' }, sneakers: { pattern: 'workwear', color: '#e6e3dc' } },
   },
   'The Flight Attendant': {
     gender: 0, age: 0.5, muscle: 0.46, weight: 0.48, height: 0.58, proportions: 0.9, breastSize: 0.72, breastFirmness: 0.67,
@@ -378,6 +402,12 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     outfit: 'set_street_tee_jeans', shoes: 'sneakers', hat: 'baseball_cap', accessories: ['cuban_chain', 'watch_gold'],
     earrings: 'studs', earringMetal: 'gold',
   },
+  'The Beach Dude': {
+    gender: 1, age: 0.47, muscle: 0.68, weight: 0.42, height: 0.6,
+    african: 0.25, asian: 0.05, caucasian: 0.7, eyes: 'brownlight', hair: 'short03', hairTint: '#b88a4a', facialHair: 'stubble', expression: 'happy',
+    outfit: 'none', top: 'none', bottom: 'resort_shorts', shoes: 'flipflops', accessories: ['sunglasses'],
+    garmentStyles: { resort_shorts: { pattern: 'tropical', color: '#1f5f8b', color2: '#f2c14e' } },
+  },
   'The Beach Girl': {
     gender: 0, age: 0.5, muscle: 0.42, weight: 0.56, height: 0.55, proportions: 0.85, breastSize: 0.72, breastFirmness: 0.7,
     african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', eyebrows: 'eyebrow001', eyelashes: 'eyelashes02',
@@ -415,6 +445,30 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     outfit: 'none', top: 'tank_top', bottom: 'cargo_shorts', shoes: 'combat_boots', accessories: ['utility_belt'],
     garmentStyles: { tank_top: { pattern: 'solid', color: '#3b6f73' }, cargo_shorts: { pattern: 'khaki', color: '#8f7a55' } },
   },
+  'The Explorer': {
+    gender: 1, age: 0.5, muscle: 0.72, weight: 0.42, height: 0.62,
+    african: 0.55, asian: 0.05, caucasian: 0.4, eyes: 'brown', hair: 'short02', hairTint: '#1c1611', facialHair: 'stubble', expression: 'determined',
+    outfit: 'none', top: 'singlet', bottom: 'cargo_pants', shoes: 'combat_boots', accessories: ['utility_belt', 'watch_silver'], carry: 'backpack',
+    garmentStyles: { singlet: { pattern: 'rib', color: '#24324f' }, cargo_pants: { pattern: 'camo', color: '#26324a', color2: '#5b3f27' } },
+  },
+  'The Basketball Player': {
+    gender: 1, age: 0.45, muscle: 0.75, weight: 0.42, height: 0.9,
+    african: 0.9, asian: 0, caucasian: 0.1, eyes: 'blackbrown', hair: 'buzz', expression: 'determined',
+    outfit: 'none', top: 'basketball_jersey', bottom: 'resort_shorts', shoes: 'sneakers', accessories: [],
+    garmentStyles: { basketball_jersey: { pattern: 'solid', color: '#1d4fa8', color2: '#f2f2ef', number: 23 }, resort_shorts: { pattern: 'solid', color: '#1d4fa8', color2: '#f2f2ef' }, sneakers: { pattern: 'workwear', color: '#f2f2ef', color2: '#1d4fa8' } },
+  },
+  'The Footballer': {
+    gender: 1, age: 0.42, muscle: 0.7, weight: 0.4, height: 0.6,
+    african: 0.8, asian: 0, caucasian: 0.2, eyes: 'brown', hair: 'short04', expression: 'determined',
+    outfit: 'none', top: 'football_shirt', bottom: 'resort_shorts', shoes: 'shoes06', accessories: ['sport_socks'],
+    garmentStyles: { football_shirt: { pattern: 'solid', color: '#1e7a3c', color2: '#f2f2ef', number: 10 }, resort_shorts: { pattern: 'solid', color: '#f2f2ef', color2: '#1e7a3c' }, sport_socks: { pattern: 'rib', color: '#1e7a3c', color2: '#f2f2ef' } },
+  },
+  'The DJ': {
+    gender: 0, age: 0.44, muscle: 0.45, weight: 0.45, height: 0.57, proportions: 0.9,
+    african: 0.85, asian: 0, caucasian: 0.15, eyes: 'blackbrown', hair: 'afro01', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'happy',
+    outfit: 'none', top: 'oversized_tee', bottom: 'baggy_jeans', shoes: 'sneakers', accessories: ['headphones', 'cuban_chain'],
+    garmentStyles: { oversized_tee: { pattern: 'jersey', color: '#f2f2ef', color2: '#f2f2ef' }, baggy_jeans: { pattern: 'denim', color: '#37557f', color2: '#8aa4c6' }, headphones: { pattern: 'solid', color: '#17181b', color2: '#3a3c41' }, sneakers: { pattern: 'workwear', color: '#f2f2ef' } },
+  },
   'The Secret Agent': {
     gender: 1, age: 0.6, muscle: 0.62, weight: 0.45, height: 0.5, proportions: 0.9,
     african: 0.05, asian: 0.05, caucasian: 0.9, hair: 'short04', eyes: 'lightblue', eyebrows: 'eyebrow007',
@@ -424,6 +478,30 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     gender: 1, age: 0.55, muscle: 0.8, weight: 0.55, height: 0.5, african: 0.3, asian: 0.1, caucasian: 0.6,
     hair: 'buzz', facialHair: 'stubble', eyebrows: 'eyebrow003', outfit: 'none', top: 'fatigue_shirt', bottom: 'fatigue_pants',
     shoes: 'combat_boots', accessories: ['tactical_vest', 'helmet', 'belt'],
+  },
+  'The Gamer': {
+    gender: 1, age: 0.36, muscle: 0.4, weight: 0.52, height: 0.56,
+    african: 0.1, asian: 0.7, caucasian: 0.2, eyes: 'darkbrown', hair: 'short04', expression: 'happy',
+    outfit: 'none', top: 'oversized_tee', bottom: 'baggy_jeans', shoes: 'sneakers', accessories: ['headphones'],
+    garmentStyles: { oversized_tee: { pattern: 'jersey', color: '#17181c', color2: '#17181c' }, baggy_jeans: { pattern: 'denim', color: '#3c3f46', color2: '#7d838d' }, headphones: { pattern: 'solid', color: '#e9e9ec', color2: '#2fd27a' }, sneakers: { pattern: 'workwear', color: '#1c1d20', color2: '#2fd27a' } },
+  },
+  'The Schoolboy': {
+    gender: 1, age: 0.232, muscle: 0.4, weight: 0.42, height: 0.5,
+    african: 0.95, asian: 0, caucasian: 0.05, eyes: 'blackbrown', hair: 'buzz', expression: 'happy',
+    outfit: 'none', top: 'school_shirt', bottom: 'resort_shorts', shoes: 'shoes01', accessories: [], carry: 'backpack',
+    garmentStyles: { school_shirt: { pattern: 'solid', color: '#9fc3e7', color2: '#9fc3e7' }, resort_shorts: { pattern: 'solid', color: '#26324f', color2: '#26324f' }, backpack: { pattern: 'solid', color: '#141518', color2: '#141518' } },
+  },
+  'The Schoolgirl': {
+    gender: 0, age: 0.232, muscle: 0.4, weight: 0.42, height: 0.48,
+    african: 0.9, asian: 0, caucasian: 0.1, eyes: 'blackbrown', hair: 'braid01', hairTint: '#17110d', eyebrows: 'eyebrow010', expression: 'happy',
+    outfit: 'none', top: 'school_shirt', bottom: 'fitted_mini_skirt', shoes: 'shoes01', accessories: [], carry: 'backpack',
+    garmentStyles: { school_shirt: { pattern: 'solid', color: '#f3dc9a', color2: '#f3dc9a' }, fitted_mini_skirt: { pattern: 'solid', color: '#7a1f2b', color2: '#7a1f2b' }, backpack: { pattern: 'solid', color: '#e83f8f', color2: '#e83f8f' } },
+  },
+  'The Cool Kid': {
+    gender: 0, age: 0.277, muscle: 0.4, weight: 0.45, height: 0.5,
+    african: 0.05, asian: 0.85, caucasian: 0.1, eyes: 'darkbrown', hair: 'bob01', hairTint: '#1d1712', eyebrows: 'eyebrow010', expression: 'happy',
+    outfit: 'none', top: 'oversized_tee', bottom: 'techwear_pants', shoes: 'sneakers', accessories: ['headphones'],
+    garmentStyles: { oversized_tee: { pattern: 'jersey', color: '#7a5bd1', color2: '#7a5bd1' }, techwear_pants: { pattern: 'solid', color: '#1d1f24', color2: '#1d1f24' }, headphones: { pattern: 'solid', color: '#f0c6dc', color2: '#ffffff' } },
   },
   'The Cyberpunk Hacker': {
     gender: 0.15, age: 0.45, muscle: 0.45, weight: 0.35, height: 0.5, african: 0.05, asian: 0.85, caucasian: 0.1,
@@ -664,6 +742,7 @@ export function sanitizeParams(raw: unknown, base: HumanParams = DEFAULT_PARAMS)
         ...(typeof o.pattern === 'string' && o.pattern.length <= 30 ? { pattern: o.pattern } : {}),
         ...(typeof o.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(o.color) ? { color: o.color } : {}),
         ...(typeof o.color2 === 'string' && /^#[0-9a-fA-F]{6}$/.test(o.color2) ? { color2: o.color2 } : {}),
+        ...(Number.isInteger(o.number) && (o.number as number) >= 0 && (o.number as number) <= 99 ? { number: o.number as number } : {}),
       };
     }
   out.garmentStyles = styles;

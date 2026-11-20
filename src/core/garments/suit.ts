@@ -11,7 +11,7 @@ import { cm, REGION } from './body';
 import { crotchY, dressPts, knee, looseSkin, soleY } from './drape';
 import { Caster, OUTWARD } from './project';
 import { cord, hullRing, loftRings, merge, orientOutward, rayRing, v3 } from './ring';
-import { hplane, isTrunk, mat, shell, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
+import { hplane, isTrunk, mat, overWorn, shell, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { keepIslands, outfitCloth, outfitCovers, type Island } from './outfit-cut';
 import { shade, shirtTieTexture } from './textures';
 
@@ -22,6 +22,16 @@ const FROM = 'male_elegantsuit01';
 const isTrousers = (i: Island) => i.v1 < 0.53 && i.u1 < 0.75;
 const isShirt = (i: Island) => i.v0 >= 0.54 && i.u0 >= 0.33 && i.u1 <= 0.495;
 const isButton = (i: Island) => i.v0 > 0.88 && i.u1 - i.u0 < 0.09 && !isShirt(i);
+/** The vertices of each connected piece of a mesh. */
+function islandsOf(m: PolyMesh): number[][] {
+  const n = m.positions.length / 3, up = Int32Array.from({ length: n }, (_, i) => i);
+  const find = (i: number): number => (up[i] === i ? i : (up[i] = find(up[i])));
+  let k = 0;
+  for (const size of m.faceSizes) { for (let c = 1; c < size; c++) up[find(m.faceVerts[k + c])] = find(m.faceVerts[k]); k += size; }
+  const groups = new Map<number, number[]>();
+  for (let i = 0; i < n; i++) { const r = find(i); (groups.get(r) ?? groups.set(r, []).get(r)!).push(i); }
+  return [...groups.values()];
+}
 // About 1.85 m of cloth per unit of the atlas: six repeats of a 30 cm tile.
 const REPEAT = 6;
 
@@ -84,6 +94,75 @@ function overcoat(g: GCtx, st: GarmentStyle): GPart[] {
   const b = g.body;
   const jacket = cut(g, st, 'Overcoat', (i) => !isTrousers(i) && !isShirt(i) && !isButton(i), [REGION.torso, REGION.hips, REGION.neck, REGION.upperarm, REGION.lowerarm]);
   if (!jacket.length) return [];
+  // The skin at the front of the neck and the top of the chest stays: hidden, its gaps would show the inside of the
+  // collar behind.
+  if (jacket[0].hides) {
+    let nz = 0, nn = 0;
+    for (const v of b.verts(REGION.neck)) { nz += b.coords[v * 3 + 2]; nn++; }
+    nz /= Math.max(1, nn);
+    const front = new Uint8Array(b.regions.length), fv = g.faceVerts, hides = Uint8Array.from(jacket[0].hides);
+    for (const v of b.verts(REGION.neck)) if (b.coords[v * 3 + 2] > nz - cm(1)) front[v] = 1;
+    // And round the top of the chest in the open front.
+    for (let v = 0; v < front.length; v++)
+      if (b.regions[v] === REGION.torso && b.coords[v * 3 + 2] > b.L.torsoZ && b.coords[v * 3 + 1] > b.L.neckY - cm(14) && Math.abs(b.coords[v * 3]) < 0.55 * b.L.shoulderX) front[v] = 1;
+    const keep = (f: number) => front[fv[f * 4]] || front[fv[f * 4 + 1]] || front[fv[f * 4 + 2]] || front[fv[f * 4 + 3]];
+    for (let f = 0; f < hides.length; f++) if (keep(f)) hides[f] = 0;
+    jacket[0] = { ...jacket[0], hides };
+    // (The top under the coat is cut back to what shows in the V, so it keeps that skin too.)
+    for (const t of g.topParts ?? []) if (t.hides) for (let f = 0; f < t.hides.length; f++) if (keep(f)) t.hides[f] = 0;
+  }
+  // Over a loose top (scrubs) the coat lies on it: each trunk point moves out along the skin's normal to clear what's
+  // worn there by 4 mm (at most 1.5 cm), so the top can't show through the fronts, lapels and shoulders. The amounts are
+  // then evened out over neighbouring points (never below what each needs), so the lapels' edges stay smooth.
+  // Moves a point (a button) with the nearest point of the coat.
+  let follow = (q: Vec3): Vec3 => q;
+  if (g.worn?.length && jacket[0].mesh.ref) {
+    const m = jacket[0].mesh, ref = m.ref!, n = ref.length, clear = overWorn(g, 0, cm(0.4), (q) => q[1] > b.L.neckY - cm(15));
+    const trunk = new Uint8Array(n), need = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const r = ref[i];
+      // The trunk and the tops of the shoulders (not the front of the collar round the neck: it would come forward
+      // through the V).
+      const shoulder = b.regions[r] === REGION.upperarm && b.coords[r * 3 + 1] > b.L.neckY - cm(18);
+      // (The collar at the back and sides of the neck lies over the top's neckline too.)
+      const collar = b.regions[r] === REGION.neck && b.coords[r * 3 + 2] < b.L.torsoZ;
+      if (r < 0 || (!shoulder && !collar && b.regions[r] !== REGION.torso && b.regions[r] !== REGION.hips)) continue;
+      trunk[i] = 1;
+      // Not right under the arms (the top's sleeves there would push it into points).
+      const v = b.info[r];
+      if (b.regions[r] === REGION.torso && v.tt > 0.6 && v.tt < 0.78 && Math.abs(Math.abs(v.theta) - Math.PI / 2) < 0.5) continue;
+      const p = b.p(r), at = (m.positions[i * 3] - p[0]) * b.normals[r * 3] + (m.positions[i * 3 + 1] - p[1]) * b.normals[r * 3 + 1] + (m.positions[i * 3 + 2] - p[2]) * b.normals[r * 3 + 2];
+      need[i] = Math.min(Math.max(0, clear(v, p) - at), cm(1.5));
+    }
+    const nbrs: number[][] = Array.from({ length: n }, () => []);
+    let k = 0;
+    for (const size of m.faceSizes) {
+      for (let c = 0; c < size; c++) { const a = m.faceVerts[k + c], o = m.faceVerts[k + ((c + 1) % size)]; nbrs[a].push(o); nbrs[o].push(a); }
+      k += size;
+    }
+    let d = Float32Array.from(need);
+    for (let it = 0; it < 8; it++) {
+      const e = new Float32Array(d);
+      for (let i = 0; i < n; i++) if (trunk[i] && nbrs[i].length) e[i] = Math.max(need[i], nbrs[i].reduce((s, j) => s + d[j], d[i]) / (nbrs[i].length + 1));
+      d = e;
+    }
+    const Q = new Float32Array(m.positions);
+    for (let i = 0; i < n; i++) if (d[i] > 0) for (let c = 0; c < 3; c++) Q[i * 3 + c] += b.normals[ref[i] * 3 + c] * d[i];
+    jacket[0] = { ...jacket[0], mesh: { ...m, positions: Q } };
+    const P0 = m.positions, cell = cm(2), grid = new Map<string, number[]>();
+    const key = (x: number, y: number, z: number) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+    for (let i = 0; i < n; i++) { const kk = key(P0[i * 3], P0[i * 3 + 1], P0[i * 3 + 2]); (grid.get(kk) ?? grid.set(kk, []).get(kk)!).push(i); }
+    follow = (q) => {
+      let best = -1, bd = Infinity;
+      const [cx, cy, cz] = q.map((c) => Math.floor(c / cell));
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++)
+        for (const i of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+          const dd = (P0[i * 3] - q[0]) ** 2 + (P0[i * 3 + 1] - q[1]) ** 2 + (P0[i * 3 + 2] - q[2]) ** 2;
+          if (dd < bd) { bd = dd; best = i; }
+        }
+      return best < 0 ? q : [q[0] + Q[best * 3] - P0[best * 3], q[1] + Q[best * 3 + 1] - P0[best * 3 + 1], q[2] + Q[best * 3 + 2] - P0[best * 3 + 2]];
+    };
+  }
   const jm = jacket[0].mesh;
   // The jacket's outline by angle round the body (0 = front) and height (1 cm): its outermost
   // point, so the skirt can lie just over it; and its lowest point (the hem) per angle. The open
@@ -121,7 +200,9 @@ function overcoat(g: GCtx, st: GarmentStyle): GPart[] {
   // surface, no ledge), down to just below the knee, falling straight, never closer to the hips and
   // legs than 2 cm.
   // (The jacket is cut at yCut; the skirt starts 2.5 cm above, over the jacket's remaining edge.)
-  const yCut = hemY + cm(6), yTop = yCut + cm(2.5), yEnd = knee(b) - cm(6), src = dressPts(b);
+  const yCut = hemY + cm(6), yTop = yCut + cm(2.5), yEnd = knee(b) - cm(6);
+  // The skirt clears the trousers as well as the body.
+  const src = [...dressPts(b), ...(g.worn ?? []).filter((q) => q[1] < crotchY(b) && q[1] > yEnd - cm(4))];
   const hulls = new Map<number, Vec3[] | null>();
   const hullAt = (y: number) => {
     const k = Math.round(y / cm(1));
@@ -161,6 +242,15 @@ function overcoat(g: GCtx, st: GarmentStyle): GPart[] {
   // The same cloth, without the jacket's fold map (it belongs to the jacket's own UVs).
   const cloth = { ...jacket[0].material, normalMap: undefined };
   const buttons = keepIslands(o.mesh, isButton);
+  const BP = new Float32Array(buttons.positions);
+  // Each button moves with the coat under its middle.
+  for (const isl of islandsOf(buttons)) {
+    let c: Vec3 = [0, 0, 0];
+    for (const v of isl) c = [c[0] + BP[v * 3] / isl.length, c[1] + BP[v * 3 + 1] / isl.length, c[2] + BP[v * 3 + 2] / isl.length];
+    const t = follow(c);
+    for (const v of isl) for (let k = 0; k < 3; k++) BP[v * 3 + k] += t[k] - c[k];
+  }
+  buttons.positions = BP;
   return [
     ...jacket,
     { mesh: skirt, material: cloth, skinAt: looseSkin(b, skirt, 0.3, 0.3) },

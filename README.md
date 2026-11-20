@@ -10,7 +10,7 @@ Create realistic 3D characters, direct them in films, and build games with missi
 
 Ara has three apps that share the same characters:
 
-- **The character builder:** shape a body, dress it, give it hair, tattoos and a weapon, pick from 218 animations and export **GLB, FBX, OBJ or a ZIP bundle** for any engine.
+- **The character builder:** shape a body, dress it, give it hair, tattoos and a weapon, pick from 219 animations and export **GLB, FBX, OBJ or a ZIP bundle** for any engine.
 - **Ara 3D Studio:** direct up to five characters on 66 sets, with dialogue, sound and music, and export an MP4.
 - **Ara Play:** build games from missions, arcade races and endless runs, string them into a campaign, and publish it online in about a minute.
 
@@ -42,13 +42,13 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 ### Characters
 
 - **Realistic humans:** built on the CC0 MakeHuman dataset: 900+ morph targets, 219 detail sliders, 20 photo-based skins across age, ethnicity and sex, three detail levels (≈5k to 120k triangles).
-- **Quick build:** a guided mode where you tap options (body, heritage, 42 outfit styles, colours, hair, extras, vehicles and an action) and watch the character update. Pick a vehicle to preview its matching animation, then choose its colour, style and finish. Plain-words summary, undo, *Surprise me*, and every unavailable option explains why. *Detailed* has every slider.
-- **50 presets:** including the Nurse, Airline Pilot, Road Worker, Getaway Driver, Female Executive, Gangster, Priest and Yoruba Warrior, all on the [characters page](https://ara3dgen.com/characters/) with search, filters and a one-click .glb download. Plus one-click, reproducible random characters.
+- **Quick build:** a guided mode where you tap options (body, heritage, 44 outfit styles, colours, hair, extras, vehicles and an action) and watch the character update. Pick a vehicle to preview its matching animation, then choose its colour, style and finish. Plain-words summary, undo, *Surprise me*, and every unavailable option explains why. *Detailed* has every slider.
+- **63 presets:** including the Chef, Footballer, DJ, Doctor, Lab Scientist, Nurse, Airline Pilot, Road Worker, Getaway Driver, Female Executive, Gangster, Priest and Yoruba Warrior, all on the [characters page](https://ara3dgen.com/characters/) with search, filters and a one-click .glb download. Plus one-click, reproducible random characters.
 - **Clothing:** MakeHuman outfits, or mix-and-match tops, bottoms, uniforms and 30+ accessories in recolourable generated fabrics, from denim, linen, leather and camo to woven and printed patterns.
 - **Hair and looks:** MakeHuman hairstyles plus buzz cut, punk mohawk, cornrows and box braids. Stubble, mustache, goatee and beards. Tattoos. Earrings.
 - **Faces that come alive:** blinking and glances, 9 expressions with teeth and tongue, a talking clip and lip-sync mouth shapes, exported as blend shapes.
 - **Auto-rigging:** game rig (Mixamo bone names; Unity Humanoid / Unreal / Mixamo compatible), lite or full skeleton, A- or T-pose, optional face bones, a `WeaponR` socket.
-- **218 animations:** motion-captured walk, model walk (catwalk), run and turns; jumps; unarmed fighting (punch combos, kicks, blocks) and sword combos; gunshot reactions (head, chest, back, stomach, leg and arm) with blood in the preview and Studio; a full shooter set with cover, rifle hits and deaths; reactions and get-ups; pick up, press, open door, push and carrying (in the hands or on the head); everyday background actions (talking gestures, phone call, texting, leaning on a wall, looking around, sweeping); emotes and dances; sitting and lying; swimming, diving and climbing out; ladder climbing, vaulting and ledge climbing; forward roll and side dodges; parachuting; and vehicles. Optional root motion. What you see in the preview is what you export.
+- **219 animations:** motion-captured walk, model walk (catwalk), run and turns; jumps; unarmed fighting (punch combos, kicks, blocks) and sword combos; gunshot reactions (head, chest, back, stomach, leg and arm) with blood in the preview and Studio; a full shooter set with cover, rifle hits and deaths; reactions and get-ups; pick up, press, open door, push and carrying (in the hands or on the head); everyday background actions (talking gestures, phone call, texting, leaning on a wall, looking around, sweeping); emotes and dances; sitting and lying; swimming, diving and climbing out; ladder climbing, vaulting and ledge climbing; forward roll and side dodges; parachuting; and vehicles. Optional root motion. What you see in the preview is what you export.
 - **Props:** a rifle, pistol, sword, knife and grenade (exported in the hand or as separate props), bags, a parcel, a phone, a broom, a head-load basin, an animated parachute, and a ladder, vault obstacle, ledge wall and cover wall for the climbing and cover clips.
 - **Vehicles:** fourteen customizable vehicles fitted to the rider: bicycle, classic convertible, modern sports car, SUV, pickup, motorcycle, horse, canoe, kayak, rowing boat, motorboat, helicopter, military tank and jet. Each has boarding and alighting; there are stunt rolls, crash escapes, jet taxi/take-off/landing, parachute bail-outs and a tank machine gunner. Riders can wield guns or blades. Export vehicles separately in GLB, FBX or OBJ. In Studio they travel through sets, share seats between characters and stay parked after use.
 - **Exports you can trust:** an export panel that lists every file before you download it: static, rigged, or rigged + animations; one file or one per clip; Unity `model@clip` and Godot loop naming.
@@ -56,7 +56,7 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 
 ### Ara 3D Studio
 
-- **Films:** open your character in `/studio/`, search 66 categorized sets, direct up to five preset or saved custom characters with 218 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with voice effects, timed sound effects and nine recorded music options. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
+- **Films:** open your character in `/studio/`, search 66 categorized sets, direct up to five preset or saved custom characters with 219 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with voice effects, timed sound effects and nine recorded music options. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
 
 ### Ara Play
 

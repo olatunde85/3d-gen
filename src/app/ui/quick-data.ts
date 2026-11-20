@@ -111,8 +111,8 @@ export const STYLES: Style[] = [
   { id: 'tee', label: 'T-shirt & jeans', phrase: 'in a T-shirt and jeans', group: 'Everyday', man: outfit('male_casualsuit06', 'shoes03'), woman: outfit('female_casualsuit02', 'shoes03') },
   { id: 'street', label: 'Streetwear', phrase: 'in streetwear', group: 'Everyday', ...both(fromSet('set_street_tee_jeans')) },
   { id: 'smart', label: 'Smart casual', phrase: 'in smart casual clothes', group: 'Everyday', man: outfit('male_casualsuit05', 'shoes02'), woman: outfit('female_elegantsuit01', 'heels') },
-  { id: 'sporty', label: 'Sporty', phrase: 'in sportswear', group: 'Everyday', man: full({ top: 'tank_top', bottom: 'cargo_shorts', shoes: 'sneakers' }), woman: outfit('female_sportsuit01', 'shoes03') },
-  { id: 'adventurer', label: 'Adventurer', phrase: 'in adventure gear', group: 'Everyday', ...both(fromPreset('The Adventurer')) },
+  { id: 'sporty', label: 'Sporty', phrase: 'in sportswear', group: 'Everyday', man: full({ top: 'fatigue_shirt', bottom: 'resort_shorts', shoes: 'sneakers', garmentStyles: { fatigue_shirt: { pattern: 'solid', color: '#a7aaae', color2: '#9a9da1' }, resort_shorts: { pattern: 'solid', color: '#3a3d42', color2: '#2f3236' } } }), woman: outfit('female_sportsuit01', 'shoes03') },
+  { id: 'adventurer', label: 'Adventurer', phrase: 'in adventure gear', group: 'Everyday', man: fromPreset('The Explorer'), woman: fromPreset('The Adventurer') },
   { id: 'business', label: 'Business suit', phrase: 'in a business suit', group: 'Work & formal', man: fromSet('set_suit_tie'), woman: fromSet('set_pantsuit') },
   { id: 'classic', label: 'Classic suit', phrase: 'in a classic suit', group: 'Work & formal', ...both(outfit('male_elegantsuit01', 'shoes02')) },
   { id: 'pastel', label: 'Pastel suit', phrase: 'in a pastel suit', group: 'Work & formal', ...both(fromSet('set_pastel_suit')) },
@@ -127,6 +127,8 @@ export const STYLES: Style[] = [
   { id: 'army_medic', label: 'Army medic', phrase: 'in army medic fatigues', group: 'Uniforms & action', man: fromPreset('The Army Medic'), alt: 'soldier' },
   { id: 'nurse', label: 'Nurse scrubs', phrase: 'in nurse scrubs', group: 'Uniforms & action', ...both(fromPreset('The Nurse')) },
   { id: 'paramedic', label: 'Paramedic', phrase: "in a paramedic's uniform", group: 'Uniforms & action', ...both(fromPreset('The Paramedic')) },
+  { id: 'doctor', label: 'Doctor', phrase: "in a doctor's white coat", group: 'Uniforms & action', ...both(fromPreset('The Doctor')) },
+  { id: 'lab_coat', label: 'Lab coat', phrase: 'in a lab coat', group: 'Uniforms & action', ...both(fromPreset('The Lab Scientist')) },
   { id: 'pilot', label: 'Airline pilot', phrase: "in an airline pilot's uniform", group: 'Uniforms & action', ...both(fromPreset('The Airline Pilot')) },
   { id: 'flight_attendant', label: 'Flight attendant', phrase: "in a flight attendant's uniform", group: 'Uniforms & action', woman: fromPreset('The Flight Attendant'), alt: 'pilot' },
   { id: 'road_worker', label: 'Hard hat & hi-vis', phrase: 'in a hard hat and hi-vis vest', group: 'Uniforms & action', ...both(fromPreset('The Road Worker')) },
@@ -148,7 +150,7 @@ export const STYLES: Style[] = [
   { id: 'zulu', label: 'Zulu warrior', phrase: 'dressed as a Zulu warrior', group: 'Warriors', man: fromPreset('The Zulu Warrior'), alt: 'dahomey' },
   { id: 'resort', label: 'Resort shirt', phrase: 'in a resort shirt and shorts', group: 'Beach', ...both(fromPreset('The Resort Guest')) },
   { id: 'lifeguard', label: 'Lifeguard', phrase: 'in a singlet and board shorts', group: 'Beach', man: fromPreset('The Lifeguard'), alt: 'resort' },
-  { id: 'beach', label: 'Beachwear', phrase: 'in beachwear', group: 'Beach', man: full({ bottom: 'cargo_shorts', shoes: 'flipflops', accessories: ['sunglasses'] }), woman: fromSet('set_gold_bikini'), adult: true },
+  { id: 'beach', label: 'Beachwear', phrase: 'in beachwear', group: 'Beach', man: fromPreset('The Beach Dude'), woman: fromSet('set_gold_bikini'), adult: true },
 ];
 export const styleById = new Map(STYLES.map((s) => [s.id, s]));
 

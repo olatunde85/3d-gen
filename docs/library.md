@@ -52,7 +52,7 @@ Unknown fields and out-of-range values are rejected with a message that says wha
 
 | Option | Meaning |
 |---|---|
-| `animations` | Clip IDs or categories, such as `['walk', 'run']` or `['locomotion', 'shooter']`; `'all'` (the default, 218 clips) or `'none'`. `ANIMATIONS` lists them |
+| `animations` | Clip IDs or categories, such as `['walk', 'run']` or `['locomotion', 'shooter']`; `'all'` (the default, 219 clips) or `'none'`. `ANIMATIONS` lists them |
 | `detail` | `'low'` (about 25–50k triangles dressed), `'medium'` (about 45–65k) or `'high'` (about 130–170k); see [Detail levels](characters.md#detail-levels). Low and medium use textures up to 1024 pixels across, which look the same at web sizes and download faster; high uses the full 2048-pixel textures |
 | `rootMotion` | Walks, runs and strafes move the character forward instead of playing in place |
 | `weapon` | `'rifle'`, `'pistol'`, `'sword'`, `'knife'` or `'grenade'`, held in the hand |

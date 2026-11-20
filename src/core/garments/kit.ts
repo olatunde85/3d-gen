@@ -21,6 +21,8 @@ export interface GarmentStyle {
   pattern: Pattern;
   color: string;
   color2: string;
+  /** A jersey's number (0-99), for garments that have one. */
+  number?: number;
 }
 
 export interface GarmentDef {
@@ -39,6 +41,8 @@ export interface GarmentDef {
   preserveUnderJacket?: boolean;
   color: string;
   color2: string;
+  /** A jersey's default number: the garment has a number (0-99) chosen in the UI. */
+  number?: number;
   /**
    * A MakeHuman outfit whose fitted mesh the garment is cut from (`g.outfits[id]`), e.g. the shirt
    * of a casual suit.
@@ -80,6 +84,12 @@ export interface GPart {
    * and both legs, which a single lookup can only do by jumping from one leg to the other.
    */
   skinMix?: { at: Float32Array; amount: Float32Array }[];
+  /**
+   * Part of a prop on its own joint (the camera): rigged characters get a root joint of this name at `pivot`, which
+   * the animator keeps on the chest and clips can lift. Without `weight` the part moves rigidly with it; with it,
+   * each vertex follows the joint by its weight and the body by the rest (a strap stretching from the neck).
+   */
+  prop?: { bone: 'Camera'; pivot: Vec3; weight?: Float32Array };
 }
 
 export interface FittedOutfit {
@@ -105,6 +115,8 @@ export interface GCtx {
   worn?: Vec3[];
   /** Top garment pieces already dressed, for accessories that follow its surface. */
   topParts?: GPart[];
+  /** Jacket pieces already dressed, for accessories that follow the outermost surface. */
+  jacketParts?: GPart[];
   /** MakeHuman outfits fitted to the body (and rigged), for garments cut from them. */
   outfits?: Record<string, FittedOutfit>;
   /** Vertices of the jacket over the top, for things worn over everything (a backpack). */
@@ -315,9 +327,10 @@ export function cylinderUVs(m: PolyMesh, cx: number, cz: number, tile: number, c
 
 /**
  * An offset for cloth worn over other clothes (a vest over a shirt): at each body point, far enough out along the
- * skin's normal to clear whatever is already worn there, plus `gap`; never less than `min`.
+ * skin's normal to clear whatever is already worn there, plus `gap`; never less than `min`. Cloth on the arms is left
+ * out unless `keep` takes it (a coat keeps the top's shoulders).
  */
-export function overWorn(g: GCtx, min: number, gap: number): (v: VInfo, p: Vec3) => number {
+export function overWorn(g: GCtx, min: number, gap: number, keep: (q: Vec3) => boolean = () => false): (v: VInfo, p: Vec3) => number {
   const b = g.body, cell = cm(3);
   const at = (x: number, y: number, z: number) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
   // Cloth on the arms (sleeves) is left out: where an arm hangs close to the torso, a sleeve would otherwise read as a
@@ -335,7 +348,7 @@ export function overWorn(g: GCtx, min: number, gap: number): (v: VInfo, p: Vec3)
     const region = best < 0 ? -1 : b.regions[best];
     return region === REGION.upperarm || region === REGION.lowerarm || region === REGION.hand;
   };
-  const worn = [...(g.worn ?? []), ...(g.jacket ?? [])].filter(q => !arm(q));
+  const worn = [...(g.worn ?? []), ...(g.jacket ?? [])].filter(q => keep(q) || !arm(q));
   const grid = new Map<string, Vec3[]>();
   for (const q of worn) { const k = at(q[0], q[1], q[2]); (grid.get(k) ?? grid.set(k, []).get(k)!).push(q); }
   const index = new Map<string, number>();

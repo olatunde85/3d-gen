@@ -36,7 +36,7 @@ Object.assign(FIELD_NOTES,{
   outfitTint:'#RRGGBB multiplied over the outfit texture: it can only darken. #ffffff leaves it unchanged.',
   outfit:'A complete outfit or outfit set ID, or none to dress with separate pieces (top, jacket, bottom, shoes, hat).',
   underwear:'Briefs under the clothes. Only adults (18+) can switch it off.',
-  garmentStyles:'Pattern and colour per garment ID: {"pattern": ..., "color": "#RRGGBB", "color2": "#RRGGBB"}.',
+  garmentStyles:'Pattern and colour per garment ID: {"pattern": ..., "color": "#RRGGBB", "color2": "#RRGGBB"}; jerseys (football_shirt, basketball_jersey) also take "number" (0-99).',
   detail:'low: game proxy, about 5-10k triangles. medium: full body, about 30-40k. high: smoothed body and clothing, about 100-120k.',
   rig:'game: 65 bones with Mixamo names (retargets to Mixamo, Unity Humanoid and Unreal). game_lite: 25 bones, no fingers. full: 163 MakeHuman bones including the face. none: no skeleton.',
   faceBones:'Adds jaw and eye bones for facial animation.',
@@ -107,7 +107,7 @@ export function parseCharacterInput(source:string,cat:Catalog,initial:HumanParam
     if(Object.keys(patch.garmentStyles).length>60)throw Error('Use at most 60 garment style overrides.');
     for(const [id,style]of Object.entries(patch.garmentStyles)){
       const def=defs.get(id);if(!def||!object(style))throw Error(`Unknown garment style: ${id}.`);
-      for(const [key,value]of Object.entries(style)){if(!['pattern','color','color2'].includes(key))throw Error(`Unsupported style field: ${key}.`);check(value,key==='pattern'?enumeration(def.patterns??PATTERNS):{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},`garmentStyles.${id}.${key}`);}
+      for(const [key,value]of Object.entries(style)){if(!['pattern','color','color2','number'].includes(key))throw Error(`Unsupported style field: ${key}.`);check(value,key==='pattern'?enumeration(def.patterns??PATTERNS):key==='number'?{type:'integer',minimum:0,maximum:99}:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},`garmentStyles.${id}.${key}`);}
     }
   }
   const result={...base,...patch,...('ageYears'in patch?{age:yearsToAge(patch.ageYears as number)}:{})};delete (result as Record<string,unknown>).ageYears;
@@ -121,7 +121,7 @@ export function characterSchema(cat:Catalog){
   properties.accessories={type:'array',maxItems:40,uniqueItems:true,items:enumeration(GARMENTS.filter(g=>g.slot==='acc').map(g=>g.id))};
   properties.tattoos={type:'array',maxItems:20,uniqueItems:true,items:enumeration(TATTOOS)};
   properties.modifiers={type:'object',additionalProperties:false,maxProperties:400,properties:Object.fromEntries([...modifierRanges(cat)].map(([id,range])=>[id,{type:'number',minimum:range.minimum,maximum:range.maximum,description:range.label}]))};
-  properties.garmentStyles={type:'object',maxProperties:60,propertyNames:{enum:[...new Set([...GARMENTS.map(g=>g.id),...OUTFIT_SETS.map(s=>s.id),...Object.keys(CARRY_STYLES),...Object.values(PRESETS).flatMap(p=>Object.keys(p.garmentStyles??{}))])]},additionalProperties:{type:'object',additionalProperties:false,properties:{pattern:enumeration(PATTERNS),color:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},color2:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'}}}};
+  properties.garmentStyles={type:'object',maxProperties:60,propertyNames:{enum:[...new Set([...GARMENTS.map(g=>g.id),...OUTFIT_SETS.map(s=>s.id),...Object.keys(CARRY_STYLES),...Object.values(PRESETS).flatMap(p=>Object.keys(p.garmentStyles??{}))])]},additionalProperties:{type:'object',additionalProperties:false,properties:{pattern:enumeration(PATTERNS),color:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},color2:{type:'string',pattern:'^#[a-fA-F0-9]{6}$'},number:{type:'integer',minimum:0,maximum:99,description:'Jersey number (football_shirt, basketball_jersey).'}}}};
   for(const [key,description] of Object.entries(FIELD_NOTES))if(properties[key])properties[key]={...(properties[key] as object),description};
   return{$schema:'https://json-schema.org/draft/2020-12/schema',title:'Ara character input',type:'object',additionalProperties:false,required:['kind','version'],anyOf:[{required:['preset']},{required:['params']}],properties:{$schema:{type:'string',description:'Optional link to this schema, for editors.'},kind:{const:'ara-character'},version:{const:1},preset:enumeration(Object.keys(PRESETS)),params:{type:'object',additionalProperties:false,properties,not:{required:['age','ageYears']}}}};
 }

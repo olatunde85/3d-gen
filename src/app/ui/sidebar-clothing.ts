@@ -22,11 +22,11 @@ export function styleControls(ctx: Ctx, current: () => string) {
     // A garment, a set whose pieces share one style (sets that don't show their pieces' controls),
     // or a bag carried in the hand.
     const set = setById.get(id);
-    const def: { patterns: GarmentDef['patterns']; color: string; color2: string; colorLabels?: [string, string] } | undefined =
+    const def: { patterns: GarmentDef['patterns']; color: string; color2: string; colorLabels?: [string, string]; number?: number } | undefined =
       garmentById.get(id) ?? (set?.patterns ? { patterns: set.patterns, color: set.color!, color2: set.color2! } : CARRY_STYLES[id as keyof typeof CARRY_STYLES]);
     if (!def) return;
     const st = () => store.params.garmentStyles[id] ?? {};
-    const put = (patch: Record<string, string>) =>
+    const put = (patch: Record<string, string | number>) =>
       store.set({ garmentStyles: { ...store.params.garmentStyles, [id]: { ...st(), ...patch } } });
     if (def.patterns.length > 1) {
       const sel = el('select');
@@ -44,6 +44,13 @@ export function styleControls(ctx: Ctx, current: () => string) {
       input.addEventListener('input', () => put({ [key]: input.value }));
       input.addEventListener('sync', () => (input.value = st()[key] ?? fallback));
       box.append(el('div', { className: 'ctl wide' }, el('span', { textContent: label }), input));
+    }
+    if (def.number !== undefined) {
+      const input = el('input', { type: 'number', min: '0', max: '99', step: '1', value: String(st().number ?? def.number) });
+      input.dataset.sync = '1';
+      input.addEventListener('change', () => { const n = Math.round(Number(input.value)); if (Number.isFinite(n)) put({ number: Math.min(99, Math.max(0, n)) }); });
+      input.addEventListener('sync', () => (input.value = String(st().number ?? def.number)));
+      box.append(el('div', { className: 'ctl wide' }, el('span', { textContent: 'Number' }), input));
     }
   };
   store.on('sync', render);

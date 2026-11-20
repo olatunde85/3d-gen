@@ -7,7 +7,7 @@ import { PRESETS, type HumanParams } from '../core/params';
 import { garmentById } from '../core/garments/catalog';
 import { OUTFIT_SETS } from '../core/garments/sets';
 import { siteMenu } from '../landing/nav';
-import { GROUPS, presetGroup, type Group } from './groups';
+import { GROUPS, presetGroup, type Group } from '../core/preset-groups';
 import { presetSlug } from './slug';
 
 siteMenu();
