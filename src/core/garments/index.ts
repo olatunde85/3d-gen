@@ -40,7 +40,8 @@ export function dressing(p: HumanParams): Dressing {
   let top = pieces && topId !== 'none' && garmentById.has(topId) ? topId : undefined;
   let bottom = pieces && bottomId !== 'none' && garmentById.has(bottomId) ? bottomId : undefined;
   const jacketId = set ? (set.jacket ?? 'none') : p.jacket;
-  const jacket = pieces && garmentById.get(jacketId)?.slot === 'jacket' ? jacketId : undefined;
+  // A fitted full outfit can still carry an outer jacket (the street racer's sportsuit).
+  const jacket = garmentById.get(jacketId)?.slot === 'jacket' ? jacketId : undefined;
   const styles = set ? setStyles(set, p.garmentStyles) : p.garmentStyles;
   if (pieces && !bottom && underwear && !(top && garmentById.get(top)?.fullLength)) bottom = 'briefs';
   if (pieces && !top && p.gender < 0.5 && minor) top = 'tank_top';
@@ -98,7 +99,7 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
   const g: GCtx = {
     body,
     faceVerts,
-    layered: { top: !!d.top, bottom: !!d.bottom && d.bottom !== 'briefs' },
+    layered: { top: !!d.top, bottom: !!d.bottom && d.bottom !== 'briefs', topId: d.top, bottomId: d.bottom },
     underwear: d.underwear,
     texture: (key, make) => genTexture(lib, key, make),
     outfits,
@@ -110,6 +111,7 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
     if (!id) return;
     const built = garmentById.get(id)!.build(g, styleOf(id, d.styles));
     parts.push(...built);
+    if (id === d.top) g.topParts = built;
     if (id === d.top && d.jacket) built.forEach((p) => tops.top.add(p));
     if (id === d.jacket) built.forEach((p) => tops.jacket.add(p));
     // The bottom and top, and the jacket over them: what later layers rest on.
@@ -121,7 +123,8 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
     }
   };
   for (const id of [d.bottom, d.top, d.jacket, ...d.accessories]) dress(id);
-  if (d.top && d.jacket) layerUnderJacket(body, parts, tops.top, tops.jacket);
+  if (d.top && d.jacket && !garmentById.get(d.top)?.preserveUnderJacket && !garmentById.get(d.jacket)?.preserveUnderJacket)
+    layerUnderJacket(body, parts, tops.top, tops.jacket);
   if (d.footwear === 'sandals') parts.push(...sandals(g));
   if (d.footwear === 'boots') parts.push(...bootShafts(g));
   if (d.footwear === 'flipflops') parts.push(...flipFlops(g));

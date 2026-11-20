@@ -42,8 +42,8 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 ### Characters
 
 - **Realistic humans:** built on the CC0 MakeHuman dataset: 900+ morph targets, 219 detail sliders, 20 photo-based skins across age, ethnicity and sex, three detail levels (≈5k to 120k triangles).
-- **Quick build:** a guided mode where you tap options (body, heritage, 30 outfit styles, colours, hair, extras, vehicles and an action) and watch the character update. Pick a vehicle to preview its matching animation, then choose its colour, style and finish. Plain-words summary, undo, *Surprise me*, and every unavailable option explains why. *Detailed* has every slider.
-- **32 presets:** including the Female Executive, Miami Dealer, Gangster, Priest, Corporate High-Flier, Prison Escapee, Arabian Oil Tycoon and Adventurer. Plus one-click, reproducible random characters.
+- **Quick build:** a guided mode where you tap options (body, heritage, 42 outfit styles, colours, hair, extras, vehicles and an action) and watch the character update. Pick a vehicle to preview its matching animation, then choose its colour, style and finish. Plain-words summary, undo, *Surprise me*, and every unavailable option explains why. *Detailed* has every slider.
+- **50 presets:** including the Nurse, Airline Pilot, Road Worker, Getaway Driver, Female Executive, Gangster, Priest and Yoruba Warrior, all on the [characters page](https://ara3dgen.com/characters/) with search, filters and a one-click .glb download. Plus one-click, reproducible random characters.
 - **Clothing:** MakeHuman outfits, or mix-and-match tops, bottoms, uniforms and 30+ accessories in recolourable generated fabrics, from denim, linen, leather and camo to woven and printed patterns.
 - **Hair and looks:** MakeHuman hairstyles plus buzz cut, punk mohawk, cornrows and box braids. Stubble, mustache, goatee and beards. Tattoos. Earrings.
 - **Faces that come alive:** blinking and glances, 9 expressions with teeth and tongue, a talking clip and lip-sync mouth shapes, exported as blend shapes.

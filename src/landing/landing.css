@@ -197,6 +197,9 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
 .cast-card img { width: 100%; aspect-ratio: 440 / 915; object-fit: cover; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); filter: saturate(0.92); transition: filter 0.2s, border-color 0.2s; }
 .cast-card:hover { color: var(--text); }
 .cast-card:hover img { filter: none; border-color: var(--line-2); }
+/* The last tile of the cast: a link to every character. */
+.cast-all { display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; aspect-ratio: 440 / 915; border-radius: 12px; border: 1px dashed var(--line-2); color: var(--muted); font-size: 14px; font-weight: 550; text-decoration: none; scroll-snap-align: start; transition: color 0.15s, border-color 0.15s; }
+.cast-all:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.3); }
 
 /* Studio locations: eight of them, named. */
 .locations { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 14px; margin: clamp(40px, 5vw, 56px) 0 0; }

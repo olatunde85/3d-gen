@@ -14,6 +14,7 @@ import sharp from 'sharp';
 import type { AssetMaterial, BaseMeta, Catalog, CatalogItem, ProxyKind, ProxyMeta, Slider, SliderGroup, TargetsMeta } from '../src/core/assets';
 import { encodePack } from '../src/core/pack';
 import { REGION } from '../src/core/garments/body';
+import { addRacerCasualShirtTexture, addSportsuitRacerVariant } from './sportsuit-racer-variant';
 
 const ROOT = join(import.meta.dirname, '..');
 const MH = join(ROOT, 'vendor/mh/makehuman/data');
@@ -524,6 +525,8 @@ async function main() {
   const shoes = await reKind(clothes.filter((c) => isTag(c, 'shoes')), 'shoes');
   const hats = await reKind(clothes.filter((c) => isTag(c, 'hats')), 'hat');
   const outfits = clothes.filter((c) => !isTag(c, 'shoes') && !isTag(c, 'hats'));
+  await addSportsuitRacerVariant(OUT, outfits);
+  await addRacerCasualShirtTexture(OUT, outfits);
 
   const catalog: Catalog = {
     skins,

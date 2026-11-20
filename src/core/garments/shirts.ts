@@ -10,7 +10,9 @@ import { part } from './drape';
 import { clamp, hplane, isTrunk, mat, points, torsoY, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { keepIslands, outfitCloth, outfitCovers, SHIRT_REGIONS, type Island } from './outfit-cut';
 import { Caster, OUTWARD } from './project';
-import { boundaryChain, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, rayRing, v3 } from './ring';
+import { boundaryChain, cord, ellipsoid, frameOf, hullRing, loftRings, merge, orientOutward, rayRing, roundedBox, v3 } from './ring';
+import { cutLooseShortSleeves } from './resort-shirt';
+import { uniformEpaulettes } from './epaulettes';
 
 /** A V neckline: its point's trunk height (tt), and half-width at the base of the neck (fraction of the shoulder width). */
 export interface VOpts {
@@ -90,11 +92,80 @@ const RESORT_FROM = 'male_casualsuit01';
 // The suit shirt's collar: one island at the right of its UV atlas.
 const isCollar = (i: Island) => i.u0 > 0.71 && i.u1 < 0.8 && i.v0 > 0.28 && i.v1 < 0.49;
 
+/** Casualsuit01's button-front shirt, with the fitted long sleeves replaced by open loose cuffs. */
+function fittedUniformShirt(g: GCtx, st: GarmentStyle): GPart[] {
+  const o = g.outfits?.[RESORT_FROM];
+  if (!o) return [];
+  const src = { ...o.mesh, ref: Int32Array.from(o.ref) };
+  // The torso and collar are separate UV islands; the remaining islands at the atlas's right
+  // are the original sleeves. The jeans occupy the atlas centre.
+  let torso = keepIslands(src, i => i.u1 < 0.36);
+  if (g.layered.bottom && g.worn?.length) torso = tuckInto(g, torso);
+  if (g.layered.bottomId === 'fitted_mini_skirt') torso = finishMiniSkirtTuck(g, torso);
+  const collar = keepIslands(src, isCollar);
+  const sleeves = cutLooseShortSleeves(g, keepIslands(src, i => i.u0 > 0.71 && !isCollar(i)));
+  const fabric = outfitCloth(g, o, 'Fitted uniform shirt', st, 6, { roughness: 0.83, doubleSided: true });
+  const armHides = outfitCovers(g, o, sleeves.mesh, [REGION.upperarm], cm(5));
+  for (let f = 0; f < armHides.length; f++) {
+    if (!armHides[f]) continue;
+    const q = g.faceVerts.subarray(f * 4, f * 4 + 4);
+    if ([...q].every(v => g.body.info[v].region === REGION.upperarm && g.body.info[v].t > 0.4)) armHides[f] = 0;
+  }
+  const hems = sleeves.hems.map(ring => {
+    const center = ring.reduce<Vec3>((sum, p) => v3.add(sum, v3.scale(p, 1 / ring.length)), [0, 0, 0]);
+    const inset = ring.map(p => v3.madd(p, v3.norm(v3.sub(center, p)), cm(0.28)));
+    return orientOutward(loftRings([ring, inset], { closedAround: true, tileU: 0.24, tileV: 0.04 }), center);
+  });
+  const front = new Caster(torso, null, () => true, 'front'), buttons: PolyMesh[] = [];
+  const pockets: PolyMesh[] = [], pocketFlaps: PolyMesh[] = [];
+  const chestY = torsoY(g.body, 0.66);
+  for (const side of [-1, 1]) {
+    const x = side * g.body.L.shoulderX * 0.36;
+    const pocket = front.hit(x, chestY), flap = front.hit(x, chestY + cm(3));
+    if (pocket) pockets.push(roundedBox(frameOf(v3.madd(pocket.p, pocket.n, cm(0.25)), pocket.n, [0, 1, 0]),
+      [cm(3.7), cm(3), cm(0.28)], 0.5));
+    if (flap) pocketFlaps.push(roundedBox(frameOf(v3.madd(flap.p, flap.n, cm(0.4)), flap.n, [0, 1, 0]),
+      [cm(3.9), cm(0.8), cm(0.23)], 0.5));
+  }
+  for (let i = 0; i < 5; i++) {
+    const hit = front.hit(cm(0.9), torsoY(g.body, 0.75) - i * cm(7));
+    if (hit) buttons.push(ellipsoid(frameOf(v3.madd(hit.p, OUTWARD.front, cm(0.18)), OUTWARD.front, [0, 1, 0]),
+      [cm(0.55), cm(0.55), cm(0.18)], [0.5, 0.5], 10, 5));
+  }
+  const hemMesh = merge(hems), buttonMesh = merge(buttons);
+  return [
+    { mesh: torso, material: fabric, hides: outfitCovers(g, o, torso, [REGION.torso, REGION.neck]), smooth: true },
+    { mesh: sleeves.mesh, material: { ...fabric, name: 'Fitted uniform loose short sleeves' }, hides: armHides, smooth: true },
+    ...(hemMesh ? [{ mesh: hemMesh, material: { ...fabric, name: 'Fitted uniform open sleeve hems' }, smooth: true }] : []),
+    { mesh: collar, material: { ...fabric, name: 'Fitted uniform collar' }, collar: true, smooth: true },
+    ...(pockets.length ? [{ mesh: merge(pockets)!, material: mat('Uniform chest pockets', null, { color: st.color, roughness: 0.83 }) }] : []),
+    ...(pocketFlaps.length ? [{ mesh: merge(pocketFlaps)!, material: mat('Uniform pocket flaps', null, { color: st.color, roughness: 0.83 }) }] : []),
+    ...(buttonMesh ? [{ mesh: buttonMesh, material: mat('Fitted uniform buttons', null, { color: '#f5f3e9', roughness: 0.4 }) }] : []),
+    ...uniformEpaulettes(g, torso, st.color2),
+  ];
+}
+
+/** Pull the fitted uniform's uneven source hem behind the mini skirt's finished waistband. */
+function finishMiniSkirtTuck(g: GCtx, mesh: PolyMesh): PolyMesh {
+  const b = g.body, waistTop = torsoY(b, 0.22) + cm(1.5);
+  const P = new Float32Array(mesh.positions);
+  for (let i = 0; i < P.length; i += 3) {
+    const blend = smoothstep(waistTop + cm(2.5), waistTop, P[i + 1]);
+    if (!blend) continue;
+    const x = P[i], z = P[i + 2] - b.L.torsoZ, r = Math.hypot(x, z);
+    if (r < cm(1)) continue;
+    const k = Math.max(0, r - cm(1.2) * blend) / r;
+    P[i] *= k;
+    P[i + 2] = b.L.torsoZ + z * k;
+  }
+  return { ...mesh, positions: P };
+}
+
 /**
  * Tuck a shirt into the bottom already dressed (`g.worn`): from just above the top of the bottom
  * down, the shirt is drawn in inside it; below that it is cut off (hidden under the bottom).
  */
-function tuckInto(g: GCtx, m: PolyMesh): PolyMesh {
+export function tuckInto(g: GCtx, m: PolyMesh): PolyMesh {
   const b = g.body, worn = g.worn!;
   let yTop = -Infinity;
   for (const p of worn) if (Math.abs(p[0]) < cm(4) && p[2] > b.L.torsoZ) yTop = Math.max(yTop, p[1]);
@@ -245,6 +316,11 @@ function clericalShirt(g: GCtx, st: GarmentStyle): GPart[] {
 }
 
 export const SHIRTS: GarmentDef[] = [
+  {
+    id: 'uniform_camp_shirt', label: 'Uniform shirt (loose short sleeves)', slot: 'top',
+    patterns: ['solid', 'khaki', 'linen'], color: '#e6edf0', color2: '#137e86', colorLabels: ['Fabric', 'Epaulettes'],
+    fromOutfit: RESORT_FROM, build: fittedUniformShirt,
+  },
   {
     id: 'clerical_shirt', label: 'Clerical shirt (tab collar)', slot: 'top', patterns: ['solid', 'linen'], color: '#141416', color2: '#26262a',
     fromOutfit: CLERIC_FROM, build: clericalShirt,

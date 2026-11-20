@@ -122,6 +122,16 @@ export const STYLES: Style[] = [
   { id: 'police', label: 'Police (Nigeria)', phrase: 'in a Nigeria Police uniform', group: 'Uniforms & action', ...both(fromPreset('The Police Officer (Nigeria)')) },
   { id: 'frsc', label: 'Road marshal (FRSC)', phrase: 'in an FRSC uniform', group: 'Uniforms & action', ...both(fromPreset('The FRSC Officer (Nigeria)')) },
   { id: 'sheriff', label: 'Sheriff', phrase: "in a sheriff's uniform", group: 'Uniforms & action', ...both(fromPreset('The American Sheriff')) },
+  { id: 'police_usa', label: 'Police (USA)', phrase: 'in a US police uniform', group: 'Uniforms & action', ...both(fromPreset('The Police Officer (USA)')) },
+  { id: 'security', label: 'Security guard', phrase: "in a security guard's uniform", group: 'Uniforms & action', ...both(fromPreset('The Security Guard')) },
+  { id: 'army_medic', label: 'Army medic', phrase: 'in army medic fatigues', group: 'Uniforms & action', man: fromPreset('The Army Medic'), alt: 'soldier' },
+  { id: 'nurse', label: 'Nurse scrubs', phrase: 'in nurse scrubs', group: 'Uniforms & action', ...both(fromPreset('The Nurse')) },
+  { id: 'paramedic', label: 'Paramedic', phrase: "in a paramedic's uniform", group: 'Uniforms & action', ...both(fromPreset('The Paramedic')) },
+  { id: 'pilot', label: 'Airline pilot', phrase: "in an airline pilot's uniform", group: 'Uniforms & action', ...both(fromPreset('The Airline Pilot')) },
+  { id: 'flight_attendant', label: 'Flight attendant', phrase: "in a flight attendant's uniform", group: 'Uniforms & action', woman: fromPreset('The Flight Attendant'), alt: 'pilot' },
+  { id: 'road_worker', label: 'Hard hat & hi-vis', phrase: 'in a hard hat and hi-vis vest', group: 'Uniforms & action', ...both(fromPreset('The Road Worker')) },
+  { id: 'racer', label: 'Racing jacket', phrase: 'in a racing jacket', group: 'Uniforms & action', man: { ...fromPreset('The Getaway Driver'), accessories: ['sport_gloves'] }, woman: fromPreset('The Street Racer') },
+  { id: 'clown', label: 'Clown', phrase: 'dressed as a clown', group: 'Uniforms & action', ...both(fromPreset('The Clown')) },
   { id: 'prisoner', label: 'Prison jumpsuit', phrase: 'in a prison jumpsuit', group: 'Uniforms & action', ...both(fromSet('set_prison_jumpsuit')) },
   { id: 'cyberpunk', label: 'Cyberpunk', phrase: 'in cyberpunk techwear', group: 'Uniforms & action', ...both(fromPreset('The Cyberpunk Hacker')) },
   { id: 'survivor', label: 'Wasteland survivor', phrase: 'in wasteland gear', group: 'Uniforms & action', ...both(fromPreset('The Wasteland Survivor')) },
@@ -136,6 +146,8 @@ export const STYLES: Style[] = [
   { id: 'dahomey', label: 'Dahomey warrior', phrase: 'dressed as a Dahomey warrior', group: 'Warriors', woman: fromPreset('The Dahomey Warrior'), alt: 'yoruba_warrior' },
   { id: 'maasai', label: 'Maasai', phrase: 'in a Maasai shuka', group: 'Warriors', man: fromPreset('The Maasai Warrior'), alt: 'dahomey' },
   { id: 'zulu', label: 'Zulu warrior', phrase: 'dressed as a Zulu warrior', group: 'Warriors', man: fromPreset('The Zulu Warrior'), alt: 'dahomey' },
+  { id: 'resort', label: 'Resort shirt', phrase: 'in a resort shirt and shorts', group: 'Beach', ...both(fromPreset('The Resort Guest')) },
+  { id: 'lifeguard', label: 'Lifeguard', phrase: 'in a singlet and board shorts', group: 'Beach', man: fromPreset('The Lifeguard'), alt: 'resort' },
   { id: 'beach', label: 'Beachwear', phrase: 'in beachwear', group: 'Beach', man: full({ bottom: 'cargo_shorts', shoes: 'flipflops', accessories: ['sunglasses'] }), woman: fromSet('set_gold_bikini'), adult: true },
 ];
 export const styleById = new Map(STYLES.map((s) => [s.id, s]));
@@ -200,7 +212,7 @@ export const TINTS: Option[] = [
 const PATTERN_NAMES: Record<string, string> = {
   solid: 'Plain', khaki: 'Khaki', camo: 'Camouflage', kente: 'Kente', asooke: 'Aso-oke', ankara: 'Ankara', ankara_floral: 'Ankara (floral)',
   ankara_web: 'Ankara (web)', adire: 'Adire', adire_panel: 'Adire panel', lace: 'Lace', damask: 'Damask', pleated: 'Pleated', foil: 'Metallic foil',
-  denim: 'Denim', jersey: 'Jersey', workwear: 'Workwear', tropical: 'Tropical', linen: 'Linen', suiting: 'Suiting', nappa: 'Smooth leather',
+  denim: 'Denim', jersey: 'Jersey', workwear: 'Workwear', tropical: 'Tropical', resort_geo: 'Geometric resort', linen: 'Linen', suiting: 'Suiting', nappa: 'Smooth leather',
   patent: 'Patent leather', shemagh: 'Shemagh', satin: 'Satin', striped: 'Striped', shuka: 'Shuka check', leather: 'Leather', hide: 'Hide',
   leopard: 'Leopard', techwear: 'Techwear', tattered: 'Worn', molle: 'MOLLE', fur: 'Fur', beadbands: 'Beads', straw: 'Straw', rib: 'Rib knit',
 };
@@ -340,16 +352,16 @@ export const GLASSES: Option[] = [
   { id: 'none', label: 'None' }, { id: 'sunglasses', label: 'Sunglasses' }, { id: 'aviators', label: 'Aviators' }, { id: 'sunglasses_sleek', label: 'Cat-eye' },
 ];
 export const JEWELLERY: Option[] = [
-  'watch_gold', 'watch_silver', 'gold_necklace', 'fine_pendant', 'gold_chains', 'cuban_chain', 'pearl_necklace', 'silver_cross', 'gold_ring', 'bangles', 'wrist_beads', 'gloves', 'earpiece',
+  'watch_gold', 'watch_silver', 'gold_necklace', 'fine_pendant', 'gold_chains', 'cuban_chain', 'pearl_necklace', 'silver_cross', 'gold_ring', 'bangles', 'wrist_beads', 'gloves', 'sport_gloves', 'earpiece',
 ].map((id) => ({ id, label: garmentById.get(id)?.label.replace(/ \(.*\)$/, '') ?? id }));
 /** Hats: the ready-made ones (the hat setting) and procedural ones (accessories). */
 export const HATS: Option[] = [
   { id: 'none', label: 'None' }, { id: 'baseball_cap', label: 'Baseball cap' }, { id: 'fedora01', label: 'Fedora' }, { id: 'fedora_cocked', label: 'Fedora (tilted)' },
-  { id: 'cowboy_hat', label: 'Cowboy hat' }, { id: 'beret', label: 'Beret' },
+  { id: 'cowboy_hat', label: 'Cowboy hat' }, { id: 'beret', label: 'Beret' }, { id: 'hard_hat', label: 'Hard hat' },
 ];
 const ACC_HATS = ['cowboy_hat', 'beret'];
 /** Headwear that comes with an outfit (shown so "None" can take it off). */
-const OUTFIT_HEADWEAR: Record<string, string> = { gele: 'Gele', keffiyeh: 'Keffiyeh', helmet: 'Helmet', fila_cap: 'Fila cap', feather_headband: 'Headband', bead_headband: 'Headband', visor: 'Visor' };
+const OUTFIT_HEADWEAR: Record<string, string> = { gele: 'Gele', keffiyeh: 'Keffiyeh', helmet: 'Helmet', open_face_helmet: 'Motorcycle helmet', fila_cap: 'Fila cap', feather_headband: 'Headband', bead_headband: 'Headband', visor: 'Visor' };
 
 export function hatOf(p: HumanParams): string {
   if (p.hat !== 'none') return p.hat;

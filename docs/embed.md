@@ -18,7 +18,7 @@ Use one of these:
 
 | Attribute | Example | |
 |---|---|---|
-| `preset` | `preset="The Bride"` | One of the 32 presets. Without any of these attributes, the element shows The Soldier |
+| `preset` | `preset="The Bride"` | One of the 50 presets. Without any of these attributes, the element shows The Soldier |
 | `share` | `share="https://ara3dgen.com/app/#c=…"` | A share link from the builder: the character exactly as designed |
 | `random` | `random="42"` | A random character; the same number always gives the same person |
 | `src` | `src="/characters/hero.json"` | A character file: an `ara-character` file (`npx ara3d new hero`) or a `params.json` from an export |

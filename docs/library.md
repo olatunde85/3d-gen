@@ -34,7 +34,7 @@ It's written in TypeScript and ships its types, so editors autocomplete every op
 
 `createCharacter(input, options)` takes:
 
-- **A preset name:** `'The Soldier'`. `PRESET_NAMES` lists all 32.
+- **A preset name:** `'The Soldier'`. `PRESET_NAMES` lists all 45.
 - **A share link from the builder:** design a character visually at [ara3dgen.com/app](https://ara3dgen.com/app/), choose **Share**, copy the link and pass it in:
   ```js
   await createCharacter('https://ara3dgen.com/app/#c=eJyr...');

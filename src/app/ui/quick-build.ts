@@ -323,6 +323,10 @@ export function quickBuild(ctx: Ctx, hist: History): void {
         row('vehicleVariant', horse ? 'Tack style' : 'Style', VEHICLE_VARIANTS.map(id => ({
           id, label: id === 'sport' ? 'Sport' : horse ? 'Traditional' : 'Standard', on: id === q.vehicleStyle.variant,
         })), id => style('variant', id as VehicleStyle['variant'], 'vehicleVariant')),
+        ...(current === 'motorcycle' && !q.vehicleStyle.body ? [row('deliveryBox', 'Delivery box', [
+          { id: 'off', label: 'Off', on: !q.vehicleStyle.deliveryBox },
+          { id: 'on', label: 'On', on: !!q.vehicleStyle.deliveryBox },
+        ], id => style('deliveryBox', id === 'on', 'deliveryBox'))] : []),
         ...(!horse ? [row('vehicleFinish', 'Finish', VEHICLE_FINISHES.map(id => ({
           id, label: id[0].toUpperCase() + id.slice(1), on: id === q.vehicleStyle.finish,
         })), id => style('finish', id as VehicleStyle['finish'], 'vehicleFinish'))] : []),

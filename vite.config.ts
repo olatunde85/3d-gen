@@ -21,6 +21,7 @@ export default defineConfig({
         terms: resolve(import.meta.dirname, 'terms/index.html'),
         privacy: resolve(import.meta.dirname, 'privacy/index.html'),
         developers: resolve(import.meta.dirname, 'developers/index.html'),
+        characters: resolve(import.meta.dirname, 'characters/index.html'),
         // Engine-side GLB check page: only built for `npm run test:gltf`, not for the public site.
         ...(process.env.STUDIO_AUDIO_CHECK?{studioAudioCheck:resolve(import.meta.dirname,'studio-audio-check.html')} : {}),
         ...(process.env.GLTF_CHECK ? { gltfCheck: resolve(import.meta.dirname, 'gltf-check.html') } : {}),

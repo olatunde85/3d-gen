@@ -45,7 +45,7 @@ Films and games: read film_guide or game_guide (an overview, then the topics you
 const TOOLS = [
   {
     name: 'list_presets',
-    description: 'The 32 preset characters, such as "The Soldier" or "The Bride". Use one as a starting point for create_character.',
+    description: `The ${Object.keys(PRESETS).length} preset characters, such as "The Soldier" or "The Bride". Use one as a starting point for create_character.`,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {

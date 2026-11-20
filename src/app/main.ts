@@ -51,7 +51,7 @@ const syncPlayback = () => { viewer.rootMotion = store.exportSettings.rootMotion
 syncPlayback();
 store.on('export', syncPlayback);
 
-// URL options: #c=<shared character> | #preset=<name> | &clip=<id> &skeleton &export &face
+// URL options: #c=<shared character> | #preset=<name> | &clip=<id> &skeleton &export &download &face
 const hash = new URLSearchParams(location.hash.slice(1));
 const shared = hash.get('c');
 const linkedDetail = hash.get('detail');
@@ -73,6 +73,8 @@ if (hash.has('skeleton')) {
   viewer.setSkeleton(true);
 }
 if (hash.has('export')) xp.open();
+// From the characters page: build the character and download it as a .glb at once.
+if (hash.has('download')) void (async () => { while (!store.current) await new Promise((r) => setTimeout(r, 200)); await xp.downloadGlb(); })();
 // Scripted recordings (demo videos) drive the viewer and clips directly.
 if (hash.has('demo')) Object.assign(window, { ara: { viewer, store, play: (id: string) => anim.playClip(id) } });
 if (hash.has('face')) {

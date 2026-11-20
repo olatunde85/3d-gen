@@ -2,11 +2,11 @@
 import { CLIPS } from '../../core/anim/clips';
 import { stagePropFor } from '../../core/anim/stage';
 import { RIG_LABELS, type RigType } from '../../core/rig/skeletons';
-import { MODE_LABELS, planExport } from '../../export';
+import { DEFAULT_EXPORT, MODE_LABELS, planExport, type ExportSettings } from '../../export';
 import type { Ctx } from './context';
 import { $, el } from './dom';
 
-export function exportPanel(ctx: Ctx): { open: () => void } {
+export function exportPanel(ctx: Ctx): { open: () => void; downloadGlb: () => Promise<void> } {
   const { store, viewer, engine } = ctx;
   const settings=()=>({...store.exportSettings,vehiclePreviewClip:viewer.playing?.id});
   const panel = $('#export-panel');
@@ -171,13 +171,16 @@ export function exportPanel(ctx: Ctx): { open: () => void } {
     }
   }
 
+  /** Settings for one export only (a one-click download), without changing the saved choices. */
+  let once: ExportSettings | null = null;
+
   async function doExport() {
     if (!store.current || (exportState && !exportState.done && !exportState.failed)) return;
     exportState = { label: 'Preparing…', frac: 0 };
     paintButtons();
     try {
       await ctx.whenIdle(); // export the character as currently shown in the controls
-      const chosen=settings(),plan = planExport(store.current, chosen);
+      const chosen=once ?? settings();once = null;const plan = planExport(store.current, chosen);
       const previewPng = plan.zipped ? await viewer.snapshot() : undefined;
       const file = await engine.export(chosen, previewPng, (label, frac) => {
         exportState = { label: `${label}…`, frac: frac ?? exportState!.frac };
@@ -208,6 +211,12 @@ export function exportPanel(ctx: Ctx): { open: () => void } {
     open: () => {
       panel.hidden = false;
       render();
+    },
+    /** Downloads the character as one rigged, animated .glb (idle, walk and run), whatever the saved choices. */
+    downloadGlb: async () => {
+      await ctx.whenIdle();
+      once = { ...DEFAULT_EXPORT, format: 'glb', vehicleFile: false };
+      await doExport();
     },
   };
 }
