@@ -139,7 +139,16 @@ function parseFbx(data: Uint8Array, label: string): Map<string, number> {
 const lib = await nodeLibrary();
 
 async function checkExports(ch: Awaited<ReturnType<typeof buildHuman>>, label: string) {
-  const glb = (await exportCharacter(lib, ch, 'glb')).data;
+  // A character with a vehicle comes as a zip: its own file plus the fitted vehicle as a separate prop.
+  const own = async (format: 'glb' | 'fbx') => {
+    const data = (await exportCharacter(lib, ch, format)).data;
+    if (ch.params.vehicle === 'none') return data;
+    const files = unzipSync(data), names = Object.keys(files), prop = (n: string) => /(^|\/)props\//.test(n);
+    const main = names.find((n) => n.endsWith(`.${format}`) && !prop(n));
+    if (!main || !names.some((n) => prop(n) && n.endsWith(`.${format}`))) throw Error(`${format} zip should hold the character and its vehicle (${names.join(', ')})`);
+    return files[main];
+  };
+  const glb = await own('glb');
   const gdv = new DataView(glb.buffer, glb.byteOffset);
   if (gdv.getUint32(0, true) !== 0x46546c67 || gdv.getUint32(8, true) !== glb.length) fail(`${label}: bad GLB header`);
   const json = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + gdv.getUint32(12, true))));
@@ -161,7 +170,7 @@ async function checkExports(ch: Awaited<ReturnType<typeof buildHuman>>, label: s
     if (ch.rig && ch.params.animations && !json.animations?.every((a: { channels: { target: { path: string } }[] }) => a.channels.some((c) => c.target.path === 'weights')))
       fail(`${label}: GLB animations missing face weights`);
   }
-  const counts = parseFbx((await exportCharacter(lib, ch, 'fbx')).data, label);
+  const counts = parseFbx(await own('fbx'), label);
   if (ch.face && counts.get('Geometry') !== 1 + ch.face.names.length) fail(`${label}: FBX face shapes ${(counts.get('Geometry') ?? 1) - 1}`);
   if (ch.rig && (!counts.get('Pose') || (counts.get('Deformer') ?? 0) < 2)) fail(`${label}: FBX skin/bind pose missing`);
   if (ch.rig && ch.params.animations && counts.get('AnimationStack') !== CLIPS.length) fail(`${label}: FBX animation stacks ${counts.get('AnimationStack')}`);

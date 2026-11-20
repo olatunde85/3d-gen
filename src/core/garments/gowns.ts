@@ -259,9 +259,9 @@ function skirtMix(b: Body, P: Float32Array, hem: number): GPart['skinMix'] {
  * the crotch down to the knee): close over the hips, a little ease over the seat, the hem straight
  * round both thighs.
  */
-function shortSkirt(g: GCtx, m: Material, yTop: number): { parts: GPart[]; hem: Vec3[]; skin: (P: Float32Array) => GPart['skinMix'] } | null {
+export function shortSkirt(g: GCtx, m: Material, yTop: number, hemFraction = 0.38): { parts: GPart[]; hem: Vec3[]; skin: (P: Float32Array) => GPart['skinMix'] } | null {
   const b = g.body;
-  const crotch = crotchY(b), hemY = crotch - (crotch - knee(b)) * 0.38;
+  const crotch = crotchY(b), hemY = crotch - (crotch - knee(b)) * hemFraction;
   const src = dressPts(b), samples = 160;
   const rings: Vec3[][] = [];
   const k = Math.ceil((yTop - hemY) / cm(1.5));

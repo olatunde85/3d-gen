@@ -1,5 +1,9 @@
 import {checkMobileBuilder} from './mobile-builder-check';
 const mobileOnly=process.argv.includes('--mobile');
+const presetsOnly=process.argv.includes('--presets-only');
+const singletReview=process.argv.includes('--singlet-review');
+const shortsReview=process.argv.includes('--shorts-review');
+const racerReview=process.argv.includes('--racer-review');
 /**
  * UI smoke test: builds the app, opens it in headless Chrome and drives it through the main
  * flows (load, Quick build, slider, preset, animation browser, export panel, export), failing on
@@ -7,6 +11,7 @@ const mobileOnly=process.argv.includes('--mobile');
  *   npm run test:ui          (set CHROME=/path/to/chrome if not on macOS default)
  */
 import {unzipSync} from 'fflate';
+import sharp from 'sharp';
 import {buildGownThumbnails} from './builder-gown-thumbnails';
 const gownsOnly=process.argv.includes('--gowns');
 import { spawn } from 'node:child_process';
@@ -102,6 +107,9 @@ const results: [string, boolean, string?][] = [];
 async function step(name: string, fn: () => Promise<void>) {
   if(mobileOnly&&!/loads and builds|^Mobile /.test(name))return;
   if(gownsOnly&&!/loads and builds|^Gown /.test(name))return;
+  if(presetsOnly&&!/loads and builds|^Preset expansion/.test(name))return;
+  // The preset review renders through the demo hooks, so it runs on its own (npm run test:ui:presets).
+  if(!presetsOnly&&/^Preset expansion/.test(name))return;
   try {
     await fn();
     results.push([name, true]);
@@ -121,10 +129,81 @@ try {
   await send('Runtime.enable');
   await send('Page.enable');
   if(mobileOnly){await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await send('Emulation.setTouchEmulationEnabled',{enabled:true});}
-  await send('Page.navigate', { url: 'http://localhost:4398/app/'+(gownsOnly||mobileOnly?'#demo':'') });
+  await send('Page.navigate', { url: 'http://localhost:4398/app/'+(gownsOnly||mobileOnly||presetsOnly?'#demo':'') });
 
   await step('loads and builds a character', async () => {
     await waitFor("document.querySelector('#loading')?.hidden === true && !!document.querySelector('#stats').textContent", 'the first character');
+  });
+  await step('Preset expansion renders in the builder', async () => {
+    const names = process.env.PRESET_REVIEW_NAMES?.split(',') ?? ['The Resort Guest','The Lifeguard','The Paramedic','The Nurse','The Flight Attendant','The Airline Pilot','The Dispatch Rider','The Street Racer','The Police Officer (USA)','The MMA Fighter','The Mob Boss','The Clown','The Masked Robber'];
+    mkdirSync('out/presets',{recursive:true});
+    const tiles: { input: Buffer; left: number; top: number }[] = [];
+    for (const [i,name] of names.entries()) {
+      const before = await statsNow();
+      await evaluate(`(() => { const s=document.querySelector('#preset');s.value=${JSON.stringify(name)};s.dispatchEvent(new Event('change')); })()`);
+      await builtAfter(before,name);
+      const {data} = await send<{data:string}>('Page.captureScreenshot',{format:'png'});
+      const screenshot = Buffer.from(data,'base64');
+      writeFileSync(`out/presets/${name.toLowerCase().replaceAll(/[^a-z0-9]+/g,'-')}.png`,screenshot);
+      tiles.push({input:await sharp(screenshot).extract({left:430,top:80,width:900,height:720}).resize(450,360).png().toBuffer(),left:i%4*450,top:Math.floor(i/4)*360});
+    }
+    if(names.length>1)await sharp({create:{width:1800,height:1440,channels:3,background:'#eeeae1'}}).composite(tiles).png().toFile('out/presets/contact-sheet.png');
+    if(singletReview){
+      if(names.at(-1)!=='The Lifeguard'){
+        const before=await statsNow();
+        await evaluate("(() => { const s=document.querySelector('#preset');s.value='The Lifeguard';s.dispatchEvent(new Event('change')); })()");
+        await builtAfter(before,'singlet close-up');
+      }
+      for(const [view,x,y,z] of [['front',.18,1.48,2.15],['back',.18,1.48,-2.15],['overhead',0,2.35,1.5],['side',1.8,1.8,1.2],['armholes',0,1.55,1.25]]as const){
+        await evaluate(`(() => { const v=window.ara.viewer;v.controls.target.set(0,1.36,0);v.camera.position.set(${x},${y},${z});v.controls.update(); })()`);
+        await new Promise(r=>setTimeout(r,450));
+        const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});
+        writeFileSync(`out/presets/singlet-${view}.png`,Buffer.from(data,'base64'));
+      }
+    }
+    if(shortsReview){
+      if(names.at(-1)!=='The Resort Guest'){
+        const before=await statsNow();
+        await evaluate("(() => { const s=document.querySelector('#preset');s.value='The Resort Guest';s.dispatchEvent(new Event('change')); })()");
+        await builtAfter(before,'loose shorts review');
+      }
+      if(process.env.SHORTS_REVIEW_TROPICAL==='1'){
+        const before=await statsNow();
+        await evaluate("(() => { const s=window.ara.store,p=s.params;s.set({garmentStyles:{...p.garmentStyles,resort_shorts:{pattern:'tropical',color:'#d62e32',color2:'#5ea97b'}}}); })()");
+        await builtAfter(before,'tropical loose shorts');
+      }
+      for(const [view,x,y,z] of [['front',0,.84,1.55],['below',0,.28,1.15],['side',1.15,.58,.65]]as const){
+        await evaluate(`(() => { const v=window.ara.viewer;v.controls.target.set(0,.82,0);v.camera.position.set(${x},${y},${z});v.controls.update(); })()`);
+        await new Promise(r=>setTimeout(r,450));
+        const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});
+        writeFileSync(`out/presets/loose-shorts-${view}.png`,Buffer.from(data,'base64'));
+      }
+    }
+    if(racerReview){
+      for(const [view,x,y,z] of [['front',0,1.48,2.2],['side',2.05,1.48,0],['back',0,1.48,-2.2]] as const){
+        await evaluate(`(() => { const v=window.ara.viewer;v.controls.target.set(0,1.36,0);v.camera.position.set(${x},${y},${z});v.controls.update(); })()`);
+        await new Promise(r=>setTimeout(r,450));
+        const {data}=await send<{data:string}>('Page.captureScreenshot',{format:'png'});
+        writeFileSync(`out/presets/street-racer-jacket-${view}.png`,Buffer.from(data,'base64'));
+      }
+    }
+    if(!singletReview&&!shortsReview&&!racerReview){
+    const before = await statsNow();
+    await evaluate("(() => { const s=document.querySelector('#preset');s.value='The Dispatch Rider';s.dispatchEvent(new Event('change')); })()");
+    await builtAfter(before,'dispatch motorcycle');
+    await evaluate("window.ara.play('ride_motorcycle')");
+    await waitFor("!!window.ara.viewer.ride && window.ara.viewer.ride.id==='motorcycle'",'dispatch motorcycle preview',10000);
+    await evaluate("(() => { const v=window.ara.viewer,t=v.controls.target;v.camera.position.set(t.x+4.2,t.y+2.1,t.z-5.4);v.controls.update(); })()");
+    await new Promise(r=>setTimeout(r,500));
+    const {data} = await send<{data:string}>('Page.captureScreenshot',{format:'png'});
+    writeFileSync('out/presets/dispatch-motorcycle.png',Buffer.from(data,'base64'));
+    await evaluate("[...document.querySelectorAll('.mode-switch button')].find(b=>b.textContent.includes('Detailed')).click()");
+    await waitFor("!document.querySelector('input[aria-label=\"Motorcycle delivery box\"]').closest('label').hidden",'motorcycle box setting',5000);
+    await evaluate("document.querySelector('input[aria-label=\"Motorcycle delivery box\"]').click()");
+    await waitFor("window.ara.store.params.vehicleStyle.deliveryBox===false",'delivery box off',5000);
+    await evaluate("document.querySelector('input[aria-label=\"Motorcycle delivery box\"]').click()");
+    await waitFor("window.ara.store.params.vehicleStyle.deliveryBox===true",'delivery box on',5000);
+    }
   });
   await checkMobileBuilder({enabled:mobileOnly,step,evaluate,waitFor,send});
   await buildGownThumbnails({enabled:gownsOnly,step,evaluate,waitFor,send});

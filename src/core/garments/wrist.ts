@@ -7,6 +7,7 @@ import type { Vec3 } from '../math';
 import { cm, REGION, type Body } from './body';
 import { clamp, cloth, limbBand, limbRing, mat, shell, type GarmentDef, type GarmentStyle, type GCtx, type GPart } from './kit';
 import { along, cord, ellipsoid, frameOf, hullRing, merge, roundedBox, v3 } from './ring';
+import { cutShell } from './shell';
 
 /** A loop round the wrist (side s), `t` along the forearm, standing `gap` off the skin. */
 function wristLoop(b: Body, s: number, t: number, gap: number): { ring: Vec3[]; centre: Vec3; dir: Vec3 } | null {
@@ -118,20 +119,77 @@ function signetRing(g: GCtx, st: GarmentStyle): GPart[] {
  * seam line along the back of each hand.
  */
 function gloves(g: GCtx, st: GarmentStyle): GPart[] {
-  const b = g.body;
   const m = cloth(g, 'Gloves', st, { roughness: 0.38 });
   const r = shell(g, {
-    covers: (v) => v.region === REGION.hand || (v.region === REGION.lowerarm && v.t > 0.82),
+    covers: (v) => v.region === REGION.hand || (v.region === REGION.lowerarm && v.t > 0.76),
     offset: (v) => (v.region === REGION.lowerarm ? cm(0.25) + cm(0.25) * clamp((0.92 - v.t) / 0.1, 0, 1) : cm(0.12)),
-    tile: 0.08, relax: 1, hemDepth: cm(0.2),
+    tile: 0.08, relax: 1, edgeRelax: 12, hemDepth: cm(0.2),
   });
   if (!r) return [];
-  const cuffs = merge([1, -1].map((s) => limbBand(b, REGION.lowerarm, s, 0.83, cm(0.9), cm(0.15), cm(0.45))));
-  return [{ mesh: r.mesh, material: m, hides: r.covered, smooth: true }, ...(cuffs ? [{ mesh: cuffs, material: m }] : [])];
+  return [{ mesh: r.mesh, material: m, hides: r.covered, smooth: true }];
+}
+
+/** Fingerless MMA gloves: a close hand wrap, four padded knuckles, and a short wrist closure. */
+function sportGloves(g: GCtx, st: GarmentStyle): GPart[] {
+  const b = g.body;
+  const wrap = cutShell(b, g.faceVerts, {
+    // Cut through faces rather than at vertex rows so the exposed fingers have an even edge.
+    field: v => v.region === REGION.hand ? 0.57 - v.t
+      : v.region === REGION.lowerarm ? v.t - 0.89 : -1,
+    offset: cm(0.22), tile: 0.08, relax: 1, edgeSmooth: 3, edgeLoops: true,
+  });
+  if (!wrap) return [];
+  const parts: GPart[] = [{
+    mesh: wrap.mesh, material: cloth(g, 'Sport gloves fingerless leather', st, { roughness: 0.52 }),
+    hides: wrap.covered, smooth: true,
+  }];
+  const trimColor = st.color2 || '#35363a';
+  const edges = (wrap.edgeLoops ?? []).filter(loop => loop.length > 5).map(loop => cord(loop, cm(0.075), true, 5));
+  if (edges.length) parts.push({ mesh: merge(edges)!, material: mat('Sport gloves black opening trim', null,
+    { color: trimColor, roughness: 0.86 }), smooth: true });
+
+  const pads: PolyMesh[] = [], straps: PolyMesh[] = [], strapEdges: PolyMesh[] = [];
+  for (const s of [-1, 1]) {
+    const side = s > 0 ? '.L' : '.R';
+    const back = dorsal(b, s);
+    const [wrist, fingertip] = b.axis(REGION.hand, s);
+    const handDir = v3.norm(v3.sub(fingertip, wrist));
+    const vertices = b.verts(REGION.hand, s);
+    for (let finger = 2; finger <= 5; finger++) {
+      const base = b.joint(`finger${finger}-1${side}____head`);
+      const target = v3.lerp(wrist, base, 0.9);
+      // Find the skin on the back of this knuckle; this follows each morphed hand.
+      let surface = target, best = Infinity;
+      for (const v of vertices) {
+        const p = b.p(v), delta = v3.sub(p, target);
+        const depth = v3.dot(delta, back);
+        const sideways = v3.sub(delta, v3.scale(back, depth));
+        const score = v3.dot(sideways, sideways) + Math.max(0, cm(0.6) - depth) ** 2;
+        if (score < best) { best = score; surface = p; }
+      }
+      const centre = v3.madd(surface, back, cm(0.28));
+      pads.push(roundedBox(frameOf(centre, back, handDir),
+        [cm(0.67), cm(0.8), cm(0.28)], 2));
+    }
+    const band = limbBand(b, REGION.lowerarm, s, 0.93, cm(2.3), cm(0.16), cm(0.31));
+    if (band) straps.push(band);
+    for (const t of [0.895, 0.965]) {
+      const ring = wristLoop(b, s, t, cm(0.37));
+      if (ring) strapEdges.push(cord(ring.ring, cm(0.085), true, 5));
+    }
+  }
+  if (pads.length) parts.push({ mesh: merge(pads)!, material: mat('Sport gloves padded knuckles', null,
+    { color: st.color, roughness: 0.48 }), smooth: true });
+  if (straps.length) parts.push({ mesh: merge(straps)!, material: mat('Sport gloves wrist straps', null,
+    { color: st.color, roughness: 0.58 }), smooth: true });
+  if (strapEdges.length) parts.push({ mesh: merge(strapEdges)!, material: mat('Sport gloves wrist binding', null,
+    { color: trimColor, roughness: 0.85 }), smooth: true });
+  return parts;
 }
 
 export const WRIST: GarmentDef[] = [
   { id: 'gloves', label: 'Leather gloves', slot: 'acc', patterns: ['nappa', 'leather'], color: '#121212', color2: '#000000', build: gloves },
+  { id: 'sport_gloves', label: 'Sport gloves (fingerless)', slot: 'acc', patterns: ['nappa', 'leather', 'solid'], color: '#1c1d20', color2: '#35363a', colorLabels: ['Glove', 'Trim'], build: sportGloves },
   { id: 'gold_ring', label: 'Gold signet ring', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000', build: signetRing },
   { id: 'bangles', label: 'Bangles', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000', build: bangles },
   { id: 'watch_gold', label: 'Gold watch', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#f4efe4', build: (g, st) => braceletWatch(g, st, 'Gold watch') },

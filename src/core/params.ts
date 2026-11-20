@@ -162,8 +162,121 @@ export function yearsToAge(y: number): number {
 
 export const PRESETS: Record<string, Partial<HumanParams>> = {
   // Newest characters first.
+  'The Resort Guest': {
+    gender: 1, age: 0.53, muscle: 0.48, weight: 0.48, height: 0.59,
+    african: 0.72, asian: 0.08, caucasian: 0.2, eyes: 'brown', hair: 'short02', facialHair: 'stubble',
+    outfit: 'none', top: 'tropical_short_shirt', bottom: 'resort_shorts', shoes: 'slides', accessories: ['sunglasses', 'watch_gold'],
+    garmentStyles: { tropical_short_shirt: { pattern: 'resort_geo', color: '#22324f', color2: '#c9653f' }, resort_shorts: { pattern: 'linen', color: '#a8865a' }, slides: { pattern: 'leather', color: '#6d4630' } },
+  },
+  'The Lifeguard': {
+    gender: 1, age: 0.48, muscle: 0.82, weight: 0.44, height: 0.61,
+    african: 0.35, asian: 0.1, caucasian: 0.55, eyes: 'brownlight', hair: 'buzz', expression: 'determined',
+    outfit: 'none', top: 'singlet', bottom: 'resort_shorts', shoes: 'flipflops', accessories: ['sunglasses'],
+    garmentStyles: { singlet: { pattern: 'rib', color: '#f7f7f4' }, resort_shorts: { pattern: 'solid', color: '#d62e32', color2: '#f4eee3' } },
+  },
+  'The Paramedic': {
+    gender: 0, age: 0.52, muscle: 0.62, weight: 0.47, height: 0.57,
+    african: 0.65, asian: 0.1, caucasian: 0.25, eyes: 'brown', hair: 'ponytail01', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02',
+    outfit: 'none', top: 'tropical_short_shirt', bottom: 'suit_trousers', shoes: 'sneakers', accessories: ['epaulette_accent', 'medical_emblem', 'gloves'], carry: 'briefcase',
+    garmentStyles: { tropical_short_shirt: { pattern: 'solid', color: '#e6edf0', color2: '#e6edf0' }, epaulette_accent: { pattern: 'solid', color: '#137e86' }, suit_trousers: { pattern: 'suiting', color: '#1b4b58', color2: '#284e59' }, sneakers: { pattern: 'workwear', color: '#e9ecef' }, gloves: { pattern: 'nappa', color: '#293d53' }, briefcase: { pattern: 'nappa', color: '#d94a50' } },
+  },
+  'The Nurse': {
+    gender: 0, age: 0.46, muscle: 0.45, weight: 0.5, height: 0.55, proportions: 0.85,
+    african: 0.78, asian: 0.04, caucasian: 0.18, eyes: 'blackbrown', hair: 'ponytail01', hairTint: '#1f1712', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'happy',
+    outfit: 'none', top: 'scrub_top', bottom: 'suit_trousers', shoes: 'sneakers', accessories: ['stethoscope', 'watch_silver'],
+    garmentStyles: { scrub_top: { pattern: 'solid', color: '#1f9aa2', color2: '#1c8f97' }, suit_trousers: { pattern: 'suiting', color: '#1c8890', color2: '#1c8890' }, stethoscope: { pattern: 'solid', color: '#17181b', color2: '#c9ccd1' }, sneakers: { pattern: 'workwear', color: '#eef0f2' } },
+  },
+  'The Flight Attendant': {
+    gender: 0, age: 0.5, muscle: 0.46, weight: 0.48, height: 0.58, proportions: 0.9, breastSize: 0.72, breastFirmness: 0.67,
+    modifiers: { 'torso/torso-scale-horiz': -0.22, 'hip/hip-scale-horiz': 0.45, 'buttocks/buttocks-volume': 0.38 },
+    african: 0.18, asian: 0.58, caucasian: 0.24, eyes: 'brown', hair: 'ponytail01', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'happy',
+    outfit: 'none', top: 'uniform_camp_shirt', bottom: 'fitted_mini_skirt', shoes: 'heels', accessories: ['watch_silver', 'neck_scarf'],
+    garmentStyles: { neck_scarf: { pattern: 'solid', color: '#b52f3c', color2: '#b52f3c' }, uniform_camp_shirt: { pattern: 'solid', color: '#f4f0e8', color2: '#d0a267' }, fitted_mini_skirt: { pattern: 'suiting', color: '#253e60', color2: '#253e60' }, heels: { pattern: 'nappa', color: '#253e60', color2: '#171c29' } },
+  },
+  'The Airline Pilot': {
+    gender: 1, age: 0.62, muscle: 0.55, weight: 0.5, height: 0.62, proportions: 0.6,
+    african: 0.12, asian: 0.08, caucasian: 0.8, eyes: 'brown', hair: 'short02', eyebrows: 'eyebrow001', facialHair: 'none', expression: 'determined',
+    outfit: 'none', top: 'uniform_camp_shirt', bottom: 'suit_trousers', shoes: 'oxfords', accessories: ['aviators', 'watch_silver'],
+    garmentStyles: { uniform_camp_shirt: { pattern: 'solid', color: '#f6f6f3', color2: '#c9a54a' }, suit_trousers: { pattern: 'suiting', color: '#1b2433', color2: '#1b2433' }, oxfords: { pattern: 'patent', color: '#111215' } },
+  },
+  'The Dispatch Rider': {
+    gender: 1, age: 0.49, muscle: 0.62, weight: 0.47, height: 0.56,
+    african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', hair: 'buzz', facialHair: 'stubble', expression: 'determined',
+    outfit: 'none', top: 'techwear_jacket', bottom: 'fatigue_pants', shoes: 'combat_boots', accessories: ['open_face_helmet', 'sport_gloves'],
+    garmentStyles: { techwear_jacket: { pattern: 'techwear', color: '#535a60', color2: '#31383d' }, fatigue_pants: { pattern: 'solid', color: '#3b4045' }, open_face_helmet: { pattern: 'solid', color: '#202123', color2: '#777a7d' } },
+    vehicle: 'motorcycle', vehicleStyle: { ...DEFAULT_VEHICLE_STYLE, color: '#e77838', accentColor: '#26343e', seatColor: '#252729', deliveryBox: true },
+  },
+  'The Road Worker': {
+    gender: 1, age: 0.6, muscle: 0.72, weight: 0.6, height: 0.6,
+    african: 0.55, asian: 0.05, caucasian: 0.4, eyes: 'brown', hair: 'buzz', facialHair: 'stubble', expression: 'neutral',
+    outfit: 'none', top: 'uniform_shirt_long', bottom: 'baggy_jeans', shoes: 'combat_boots', hat: 'hard_hat', accessories: ['reflective_vest', 'gloves'],
+    garmentStyles: { uniform_shirt_long: { pattern: 'solid', color: '#3c4a5c', color2: '#3c4a5c' }, baggy_jeans: { pattern: 'denim', color: '#33475f', color2: '#7d93ad' }, reflective_vest: { pattern: 'solid', color: '#ff7a1c', color2: '#dfe3e8' }, hard_hat: { pattern: 'solid', color: '#f2b51d', color2: '#f2b51d' }, gloves: { pattern: 'leather', color: '#b58a52' } },
+  },
+  'The Street Racer': {
+    gender: 0, age: 0.5, muscle: 0.64, weight: 0.38, height: 0.59, proportions: 0.87,
+    african: 0.12, asian: 0.2, caucasian: 0.68, eyes: 'brown', hair: 'ponytail01', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'determined',
+    outfit: 'none', top: 'racer_casual_shirt', jacket: 'racing_jacket', bottom: 'cargo_pants', shoes: 'sneakers', accessories: ['open_face_helmet', 'sport_gloves'],
+    garmentStyles: { cargo_pants: { pattern: 'solid', color: '#292b30', color2: '#c52633' }, racing_jacket: { pattern: 'leather', color: '#24262b', color2: '#c52633' }, open_face_helmet: { pattern: 'solid', color: '#202123', color2: '#c52633' }, sneakers: { pattern: 'workwear', color: '#292d35', color2: '#c52633' } },
+    vehicle: 'sports_car', vehicleStyle: { ...DEFAULT_VEHICLE_STYLE, color: '#d83c39', accentColor: '#17181d', finish: 'gloss', variant: 'sport', livery: 'racing', number: 7 },
+  },
+  'The Police Officer (USA)': {
+    gender: 1, age: 0.57, muscle: 0.68, weight: 0.54, height: 0.61,
+    african: 0.68, asian: 0.04, caucasian: 0.28, eyes: 'brown', hair: 'buzz', facialHair: 'none', expression: 'determined',
+    outfit: 'none', top: 'uniform_camp_shirt', bottom: 'suit_trousers', shoes: 'shoes03', accessories: ['police_badge', 'police_nameplate', 'utility_belt', 'watch_silver'],
+    garmentStyles: { uniform_camp_shirt: { pattern: 'solid', color: '#233654', color2: '#c8b479' }, suit_trousers: { pattern: 'suiting', color: '#1d2e49', color2: '#1d2e49' }, police_badge: { pattern: 'solid', color: '#c9ad56' }, police_nameplate: { pattern: 'solid', color: '#c9ad56' }, utility_belt: { pattern: 'leather', color: '#16191e' } },
+  },
+  'The MMA Fighter': {
+    gender: 1, age: 0.5, muscle: 0.95, weight: 0.59, height: 0.61, proportions: 0.82,
+    african: 0.18, asian: 0.13, caucasian: 0.69, eyes: 'brown', hair: 'buzz', facialHair: 'stubble', tattoos: ['sleeve_r'], expression: 'determined',
+    outfit: 'none', top: 'singlet', bottom: 'resort_shorts', shoes: 'sneakers', accessories: ['sport_gloves'],
+    garmentStyles: { singlet: { pattern: 'rib', color: '#202126' }, resort_shorts: { pattern: 'solid', color: '#29292e', color2: '#cb3439' }, sport_gloves: { pattern: 'nappa', color: '#1c1d20', color2: '#35363a' }, sneakers: { pattern: 'workwear', color: '#212429', color2: '#d8d9da' } },
+  },
+  'The Mob Boss': {
+    gender: 1, age: 0.69, muscle: 0.7, weight: 0.77, height: 0.64,
+    african: 0, asian: 0.03, caucasian: 0.97, eyes: 'grey', hair: 'buzz', facialHair: 'short_beard', expression: 'angry',
+    outfit: 'none', top: 'fatigue_shirt', jacket: 'fur_jacket', bottom: 'suit_trousers', shoes: 'combat_boots', accessories: ['sunglasses', 'gold_ring', 'watch_gold'],
+    garmentStyles: { fatigue_shirt: { pattern: 'solid', color: '#3a3b3e', color2: '#3a3b3e' }, fur_jacket: { pattern: 'leather', color: '#30251f', color2: '#c2a27e' }, suit_trousers: { pattern: 'suiting', color: '#242427' } },
+  },
+  'The Clown': {
+    gender: 1, age: 0.54, muscle: 0.5, weight: 0.58, height: 0.58,
+    african: 0.45, asian: 0.08, caucasian: 0.47, eyes: 'lightblue', hair: 'mohawk', hairColor: '#e94735', eyebrows: 'none', expression: 'happy',
+    outfit: 'none', top: 'tropical_short_shirt', jacket: 'suit_jacket', bottom: 'suit_trousers', shoes: 'sneakers', accessories: ['clown_face'],
+    garmentStyles: { tropical_short_shirt: { pattern: 'solid', color: '#fff5df', color2: '#e63542' }, suit_jacket: { pattern: 'solid', color: '#6542a4', color2: '#f1c942' }, suit_trousers: { pattern: 'solid', color: '#6542a4', color2: '#f1c942' }, sneakers: { pattern: 'workwear', color: '#f4bc35', color2: '#d83a3e' } },
+  },
+  'The Masked Robber': {
+    gender: 1, age: 0.51, muscle: 0.7, weight: 0.47, height: 0.59,
+    african: 0.35, asian: 0.13, caucasian: 0.52, eyes: 'brown', hair: 'none', expression: 'determined',
+    outfit: 'none', top: 'techwear_jacket', bottom: 'techwear_pants', shoes: 'combat_boots', accessories: ['face_mask', 'gloves'], weapon: 'pistol',
+    garmentStyles: { techwear_jacket: { pattern: 'solid', color: '#282b31', color2: '#34373d' }, techwear_pants: { pattern: 'solid', color: '#22252a' }, face_mask: { pattern: 'rib', color: '#141518' }, gloves: { pattern: 'nappa', color: '#17191c' } },
+  },
   // Bride: a strapless ivory satin ball gown with a sweetheart neckline, pearl-beaded bodice and a
   // chapel train, a sheer fingertip veil on a pearl comb, a pearl necklace, ivory pumps.
+  'The Getaway Driver': {
+    gender: 1, age: 0.48, muscle: 0.62, weight: 0.5, height: 0.6,
+    african: 0.3, asian: 0.1, caucasian: 0.6, eyes: 'brown', hair: 'none', expression: 'determined',
+    outfit: 'none', top: 'racer_casual_shirt', jacket: 'racing_jacket_long', bottom: 'cargo_pants', shoes: 'sneakers', accessories: ['face_mask', 'sport_gloves'],
+    garmentStyles: { racer_casual_shirt: { pattern: 'solid', color: '#1b1c1f', color2: '#1b1c1f' }, racing_jacket_long: { pattern: 'solid', color: '#1d1f24', color2: '#e0a21d' }, cargo_pants: { pattern: 'solid', color: '#2a2c31', color2: '#202226' }, face_mask: { pattern: 'rib', color: '#141518' }, sport_gloves: { pattern: 'nappa', color: '#17181b', color2: '#2e3034' }, sneakers: { pattern: 'workwear', color: '#202226', color2: '#e0a21d' } },
+    vehicle: 'sports_car', vehicleStyle: { ...DEFAULT_VEHICLE_STYLE, color: '#1e2024', accentColor: '#e0a21d', finish: 'matte', variant: 'sport' },
+  },
+  'The Security Guard': {
+    gender: 1, age: 0.55, muscle: 0.75, weight: 0.62, height: 0.63,
+    african: 0.82, asian: 0.03, caucasian: 0.15, eyes: 'blackbrown', hair: 'buzz', facialHair: 'stubble', expression: 'determined',
+    outfit: 'none', top: 'uniform_camp_shirt', bottom: 'suit_trousers', shoes: 'combat_boots', accessories: ['police_badge', 'utility_belt', 'earpiece', 'watch_silver'],
+    garmentStyles: { uniform_camp_shirt: { pattern: 'solid', color: '#1b1c20', color2: '#3a3c42' }, suit_trousers: { pattern: 'suiting', color: '#17181b', color2: '#17181b' }, police_badge: { pattern: 'solid', color: '#c9ccd1' }, utility_belt: { pattern: 'leather', color: '#101114' } },
+  },
+  'The Motorcycle Cop': {
+    gender: 1, age: 0.52, muscle: 0.7, weight: 0.52, height: 0.62,
+    african: 0.2, asian: 0.12, caucasian: 0.68, eyes: 'brown', hair: 'buzz', facialHair: 'mustache_stubble', expression: 'determined',
+    outfit: 'none', top: 'uniform_camp_shirt', bottom: 'suit_trousers', shoes: 'combat_boots', accessories: ['open_face_helmet', 'aviators', 'police_badge', 'utility_belt', 'gloves'],
+    garmentStyles: { uniform_camp_shirt: { pattern: 'solid', color: '#2b3e5e', color2: '#c8b479' }, suit_trousers: { pattern: 'suiting', color: '#1d2e49', color2: '#1d2e49' }, open_face_helmet: { pattern: 'solid', color: '#eef0f2', color2: '#1d2e49' }, police_badge: { pattern: 'solid', color: '#c9ad56' }, utility_belt: { pattern: 'leather', color: '#16191e' } },
+    vehicle: 'motorcycle', vehicleStyle: { ...DEFAULT_VEHICLE_STYLE, color: '#eef0f2', accentColor: '#1d2e49', finish: 'gloss', variant: 'sport' },
+  },
+  'The Army Medic': {
+    gender: 1, age: 0.5, muscle: 0.68, weight: 0.5, height: 0.6,
+    african: 0.25, asian: 0.2, caucasian: 0.55, eyes: 'brown', hair: 'buzz', facialHair: 'stubble', expression: 'determined',
+    outfit: 'none', top: 'fatigue_shirt', bottom: 'fatigue_pants', shoes: 'combat_boots', accessories: ['helmet', 'medical_emblem', 'belt'],
+    garmentStyles: { fatigue_shirt: { pattern: 'camo', color: '#5b6b3a', color2: '#8a7d55' }, fatigue_pants: { pattern: 'camo', color: '#5b6b3a', color2: '#8a7d55' }, helmet: { pattern: 'solid', color: '#4d5634', color2: '#6c7048' }, medical_emblem: { pattern: 'solid', color: '#d23a45' }, belt: { pattern: 'leather', color: '#2b2a24' } },
+  },
   'The Bride': {
     gender: 0, age: 0.53, muscle: 0.45, weight: 0.42, height: 0.55, proportions: 0.9, breastSize: 0.55,
     african: 0.7, asian: 0, caucasian: 0.3, eyes: 'brown', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02',

@@ -216,13 +216,13 @@ const weave = (u: number, v: number, f = 96) => {
 // --- Patterns ------------------------------------------------------------------
 
 export type Pattern =
-  | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur'
+  | 'solid' | 'camo' | 'kente' | 'asooke' | 'ankara' | 'shuka' | 'leather' | 'hide' | 'leopard' | 'fur' | 'shearling'
   | 'techwear' | 'molle' | 'tattered' | 'beadbands' | 'khaki' | 'adire' | 'adire_panel'
   | 'ankara_floral' | 'ankara_web' | 'lace' | 'damask' | 'pleated' | 'foil' | 'straw' | 'denim' | 'rib' | 'jersey' | 'nappa' | 'workwear'
-  | 'tropical' | 'linen' | 'suiting' | 'patent' | 'shemagh' | 'satin' | 'striped';
+  | 'tropical' | 'resort_geo' | 'linen' | 'suiting' | 'patent' | 'shemagh' | 'satin' | 'striped';
 
 export const PATTERNS: Pattern[] = [
-  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'linen', 'suiting', 'nappa', 'patent', 'shemagh', 'satin', 'striped',
+  'solid', 'khaki', 'camo', 'kente', 'asooke', 'ankara', 'ankara_floral', 'ankara_web', 'adire', 'adire_panel', 'lace', 'damask', 'pleated', 'foil', 'denim', 'jersey', 'workwear', 'tropical', 'resort_geo', 'linen', 'suiting', 'nappa', 'patent', 'shemagh', 'satin', 'striped',
   'shuka', 'leather', 'hide', 'leopard', 'techwear', 'tattered',
 ];
 
@@ -378,6 +378,16 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat
         return { c: mul(c, 0.85 + 0.25 * fur), h: fur };
       }, false, 1.2);
     }
+    case 'shearling':
+      // Dense, opaque curled fleece for a coat collar. The strand texture below
+      // has transparent ends and is meant for loose fringe instead.
+      return render(256, (u, v) => {
+        const curls = pnoise(u, v, 64, seed);
+        const fibres = pnoise(u, v, 144, seed + 7);
+        const depth = fbm(u, v, 32, seed + 13, 3);
+        return { c: mul(mixc(A, B, 0.09 + 0.15 * (1 - depth)), 0.80 + 0.28 * curls + 0.10 * fibres),
+          h: curls * 0.65 + fibres * 0.25 + depth * 0.30 };
+      }, false, 5);
     case 'fur':
       // Long strands with alpha: for fringes and tassels (v runs down the strands).
       return render(256, (u, v) => {
@@ -631,6 +641,27 @@ export function makePattern(p: Pattern, c1: string, c2: string, seed = 1, repeat
         const c = diamond || link ? mul(A, 0.92 + 0.08 * n) : mul(B, 0.95 + 0.05 * n);
         return { c: mul(c, 0.94 + 0.06 * w), h: w * 0.5 };
       }, false, 1);
+    }
+    case 'resort_geo': {
+      // Open white ground with angled olive blocks and grouped hairline stripes, as on a
+      // printed camp shirt. The motif is periodic so seams on the torso and sleeves stay clean.
+      const ink: RGB = [29, 32, 26];
+      const blocks = Array.from({ length: 9 }, (_, i) => {
+        const h = hash(i % 3, Math.floor(i / 3), seed), a = (h - 0.5) * 1.45;
+        return { cos: Math.cos(a), sin: Math.sin(a), stripe: h > 0.43 && h < 0.78 };
+      });
+      return render(S, (u, v) => {
+        const gx = Math.floor(u * 3), gy = Math.floor(v * 3);
+        const x = u * 3 - gx - 0.5, y = v * 3 - gy - 0.5;
+        const { cos, sin, stripe } = blocks[(((gy % 3) + 3) % 3) * 3 + ((gx % 3) + 3) % 3];
+        const px = x * cos + y * sin;
+        const py = -x * sin + y * cos;
+        const inside = Math.abs(px) < (stripe ? 0.36 : 0.43) && Math.abs(py) < (stripe ? 0.20 : 0.28);
+        let c = A;
+        if (inside) c = stripe ? (Math.floor((py + 0.20) * 55) % 3 === 0 ? A : ink) : B;
+        const w = weave(u, v, 130);
+        return { c: mul(c, 0.97 + 0.03 * w), h: w * 0.25 };
+      }, false, 0.7);
     }
     case 'tropical': {
       // Tropical print on a soft rayon ground (c1): broad leaves in teal and sage with a pale

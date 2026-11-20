@@ -116,6 +116,8 @@ export function vehiclePanel(ctx: Ctx) {
   // Model, design and race number options depend on the vehicle the current animation rides.
   const model=el('select',{ariaLabel:'Vehicle model'}),design=el('select',{ariaLabel:'Vehicle design'}),number=el('input',{type:'number',min:'0',max:'99',step:'1',ariaLabel:'Race number'});
   const modelRow=el('div',{className:'ctl wide'},el('span',{textContent:'Model'}),model),designRow=el('div',{className:'ctl wide'},el('span',{textContent:'Design'}),design),numberRow=el('label',{className:'ctl wide'},el('span',{textContent:'Race number'}),number);
+  const deliveryBox=el('input',{type:'checkbox',ariaLabel:'Motorcycle delivery box'}),deliveryBoxRow=el('label',{className:'ctl wide'},el('span',{textContent:'Delivery box'}),deliveryBox);
+  deliveryBox.addEventListener('change',()=>set('deliveryBox',deliveryBox.checked));
   model.addEventListener('change',()=>{const ride=VEHICLE_FOR_CLIP[currentClip];if(ride)store.set({vehicleStyle:vehicleStyleForBody(ride,(model.value||undefined)as VehicleBody|undefined,store.params.vehicleStyle)});});
   design.addEventListener('change',()=>{const next:VehicleStyle={...store.params.vehicleStyle};if(design.value==='none')delete next.livery;else next.livery=design.value as VehicleStyle['livery'];store.set({vehicleStyle:next});});
   number.addEventListener('change',()=>{const n=Math.round(Number(number.value));if(Number.isFinite(n)&&n>=0&&n<100)set('number',n);});
@@ -124,8 +126,9 @@ export function vehiclePanel(ctx: Ctx) {
    model.replaceChildren(...(ride?[new Option(VEHICLE_LABELS[ride],''),...bodies.map(b=>new Option(VEHICLE_BODY_LABELS[b],b))]:[]));model.value=st.body&&bodies.includes(st.body)?st.body:'';modelRow.hidden=!bodies.length;
    design.replaceChildren(...designs.map(d=>new Option(VEHICLE_LIVERY_LABELS[d],d)));design.value=st.livery??'none';designRow.hidden=!designs.length;
    number.value=String(st.number??(st.body==='kart'?8:7));numberRow.hidden=!designs.length||st.livery!=='racing';
+   deliveryBox.checked=!!st.deliveryBox;deliveryBoxRow.hidden=ride!=='motorcycle'||!!st.body;
   };
-  style.prepend(modelRow);style.append(designRow,numberRow);store.on('sync',fill);store.on('clip',fill);fill();
+  style.prepend(modelRow);style.append(designRow,numberRow,deliveryBoxRow);store.on('sync',fill);store.on('clip',fill);fill();
   const show=()=>{visible.checked=store.params.vehicle!=='none';row.hidden=!VEHICLE_FOR_CLIP[currentClip];style.hidden=!VEHICLE_FOR_CLIP[currentClip]||store.params.vehicle==='none';};store.on('sync',show);show();
   const note = el('div', { className: 'hint', textContent: 'Choose a riding or driving animation to add its vehicle automatically. Model swaps in another vehicle for the same rider, such as a danfo or bus for the SUV, a keke or scooter for the motorcycle, or a go-kart for the sports car. Design paints race, police and taxi versions.' });
   return el('div', {}, row,style,note);

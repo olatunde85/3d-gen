@@ -35,7 +35,7 @@ export function liveriesFor(id:VehicleId,style:Pick<VehicleStyle,'body'>):readon
  return body==='kart'?['none','racing']:[];
 }
 /** `livery` adds painted designs (racing stripes, a race number, police or taxi colours); `number` is the race number; `body` swaps in another body for the same rider (see VEHICLE_BODIES). */
-export interface VehicleStyle{color:string;accentColor:string;seatColor:string;finish:typeof VEHICLE_FINISHES[number];variant:typeof VEHICLE_VARIANTS[number];livery?:typeof VEHICLE_LIVERIES[number];number?:number;body?:VehicleBody}
+export interface VehicleStyle{color:string;accentColor:string;seatColor:string;finish:typeof VEHICLE_FINISHES[number];variant:typeof VEHICLE_VARIANTS[number];livery?:typeof VEHICLE_LIVERIES[number];number?:number;body?:VehicleBody;deliveryBox?:boolean}
 export const DEFAULT_VEHICLE_STYLE:VehicleStyle={color:'#8a5535',accentColor:'#c7b293',seatColor:'#292827',finish:'satin',variant:'classic'};
 /** Factory paint for a newly chosen modern model; preserve colours the user has edited. */
 export function vehicleStyleForChoice(choice:VehicleChoice,style:VehicleStyle):VehicleStyle{
@@ -65,7 +65,7 @@ export function vehicleStyleForBody(id:VehicleId,body:VehicleBody|undefined,styl
 export function sanitizeVehicleStyle(value:unknown):VehicleStyle{
  const s=value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
  const color=(key:'color'|'accentColor'|'seatColor')=>typeof s[key]==='string'&&/^#[a-f0-9]{6}$/i.test(s[key])?s[key] as string:DEFAULT_VEHICLE_STYLE[key];
- return {color:color('color'),accentColor:color('accentColor'),seatColor:color('seatColor'),finish:VEHICLE_FINISHES.includes(s.finish as VehicleStyle['finish'])?s.finish as VehicleStyle['finish']:'satin',variant:VEHICLE_VARIANTS.includes(s.variant as VehicleStyle['variant'])?s.variant as VehicleStyle['variant']:'classic',...(VEHICLE_LIVERIES.includes(s.livery as never)&&s.livery!=='none'?{livery:s.livery as VehicleStyle['livery']}:{}),...(Number.isInteger(s.number)&&(s.number as number)>=0&&(s.number as number)<100?{number:s.number as number}:{}),...(VEHICLE_BODIES.includes(s.body as VehicleBody)?{body:s.body as VehicleBody}:{})};
+ return {color:color('color'),accentColor:color('accentColor'),seatColor:color('seatColor'),finish:VEHICLE_FINISHES.includes(s.finish as VehicleStyle['finish'])?s.finish as VehicleStyle['finish']:'satin',variant:VEHICLE_VARIANTS.includes(s.variant as VehicleStyle['variant'])?s.variant as VehicleStyle['variant']:'classic',...(VEHICLE_LIVERIES.includes(s.livery as never)&&s.livery!=='none'?{livery:s.livery as VehicleStyle['livery']}:{}),...(Number.isInteger(s.number)&&(s.number as number)>=0&&(s.number as number)<100?{number:s.number as number}:{}),...(VEHICLE_BODIES.includes(s.body as VehicleBody)?{body:s.body as VehicleBody}:{}),...(s.deliveryBox===true?{deliveryBox:true}:{})};
 }
 export function isPassengerClip(id:string){return ridingClip(id).includes('passenger');}
 export function isCar(id:VehicleChoice):id is 'car'|'sports_car'|'suv'|'pickup'{return id==='car'||id==='sports_car'||id==='suv'||id==='pickup';}

@@ -1,5 +1,6 @@
 /** Fitted open-cabin cars and road motorcycles. All controls are measured from the rider. */
 import * as T from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {buildCoveredCar} from './vehicle-car';
 import {VehicleKit,v} from './vehicle-kit';
 export function buildCar(k:VehicleKit){
@@ -57,8 +58,20 @@ export function buildMotorcycle(k:VehicleKit){
  const rearWheel=k.wheel('Rear_wheel',back,.32*s,.17*s,true),frontWheel=k.wheel('Front_wheel',front,.32*s,.14*s,true);
  k.updates.push((_,time)=>{rearWheel.rotation.x=frontWheel.rotation.x=time/k.fit.clip.duration*Math.PI*8;});
  k.ellipsoid(v(0,saddle.y-.025*s,H.z-.1*s),v(.17*s,.055*s,.3*s),k.seat);
- // A real pillion pad and rear frame support the second Studio occupant.
- k.ellipsoid(v(0,saddle.y+.02*s,H.z-.65*s),v(.16*s,.05*s,.23*s),k.seat);
+ // A pillion pad is replaced by the cargo rack when a delivery box is fitted.
+ if(!k.style.deliveryBox)k.ellipsoid(v(0,saddle.y+.02*s,H.z-.65*s),v(.16*s,.05*s,.23*s),k.seat);
+ if(k.style.deliveryBox){
+  // Keep the entire case above the rear tyre footprint instead of projecting beyond it.
+  const boxZ=back.z+.035*s,rackY=saddle.y+.02*s,boxY=rackY+.215*s;
+  const rack=k.box(v(0,rackY,boxZ),v(.44*s,.035*s,.50*s),k.trim);rack.name='Delivery_box_rack';
+  for(const side of [-1,1]){
+   k.tube(v(side*.17*s,saddle.y-.10*s,H.z-.46*s),v(side*.17*s,rackY-.02*s,boxZ+.18*s),.025*s,k.trim);
+   k.tube(v(side*.17*s,.54*s,back.z-.08*s),v(side*.17*s,rackY-.02*s,boxZ-.18*s),.023*s,k.trim);
+  }
+  const caseBody=k.mesh(new RoundedBoxGeometry(.43*s,.39*s,.46*s,3,.035*s),k.paint);caseBody.name='Delivery_box_case';caseBody.position.set(0,boxY,boxZ);
+  const lid=k.mesh(new RoundedBoxGeometry(.45*s,.055*s,.48*s,2,.018*s),k.trim);lid.name='Delivery_box_lid';lid.position.set(0,boxY+.21*s,boxZ);
+  k.box(v(0,boxY+.04*s,boxZ-.235*s),v(.31*s,.13*s,.018*s),k.light);
+ }
  for(const side of [-1,1]){
   k.tube(saddle.clone().setX(side*.12*s),v(side*.12*s,saddle.y-.04*s,H.z-.89*s),.022*s,k.dark);
   const peg=k.fit.average(side===1?'footLeft':'footRight').add(v(0,0,-.58*s));

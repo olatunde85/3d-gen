@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Characters: Ready-Made 3D Characters | Ara 3D Gen</title>
+    <meta name="description" content="Ready-made, rigged and animated 3D characters: paramedics, pilots, warriors, spies and more. Open any of them in the free builder to make it yours, or download it as a .glb." />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="canonical" href="https://ara3dgen.com/characters/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ara3dgen.com/characters/" />
+    <meta property="og:site_name" content="Ara 3D Gen" />
+    <meta property="og:title" content="Ready-made 3D characters, free" />
+    <meta property="og:description" content="Rigged and animated characters to open in the builder or download as .glb." />
+    <meta property="og:image" content="https://ara3dgen.com/og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#09090b" />
+    <link rel="stylesheet" href="/src/landing/landing.css" />
+    <link rel="stylesheet" href="/src/characters/characters.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to characters</a>
+    <header class="nav">
+      <a class="brand" href="../" aria-label="Ara 3D Gen home"><span class="brand-mark">Ara</span> <span class="brand-sub">3D Gen</span></a>
+      <nav id="site-nav" aria-label="Main">
+        <a href="../app/">Builder</a>
+        <a href="./" aria-current="page">Characters</a>
+        <a href="../studio/">Studio</a>
+        <a href="../play/">Play</a>
+        <a href="../developers/">Developers</a>
+        <a href="../docs/">Docs</a>
+      </nav>
+      <div class="nav-end">
+        <a class="btn btn-primary btn-sm" href="../app/">Open Builder</a>
+        <button type="button" class="nav-menu" aria-expanded="false" aria-controls="site-nav" aria-label="Menu"><span></span><span></span></button>
+      </div>
+    </header>
+
+    <main id="main" class="chars">
+      <section class="chars-head">
+        <p class="chars-eyebrow">Characters</p>
+        <h1>Start from a character.</h1>
+        <p class="chars-lede">Every one is rigged and animated. Open it in the builder to change anything, or download it as a .glb for your game or 3D app.</p>
+      </section>
+
+      <div class="chars-tools" role="search">
+        <label class="chars-search">
+          <span class="sr-only">Search characters</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input id="chars-q" type="search" placeholder="Search: nurse, warrior, helmet…" autocomplete="off" />
+        </label>
+        <div class="chars-filters" id="chars-filters" aria-label="Filter"></div>
+      </div>
+      <p class="chars-count" id="chars-count" aria-live="polite"></p>
+      <ul class="chars-grid" id="chars-grid"></ul>
+      <p class="chars-empty" id="chars-empty" hidden>No characters match. Try another word, or <a href="../app/">build your own</a>.</p>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-brand">
+        <a class="brand" href="../"><span class="brand-mark">Ara</span> <span class="brand-sub">3D Gen</span></a>
+        <p><i>Ara</i> is Yoruba for “body”.</p>
+      </div>
+      <nav class="footer-cols" aria-label="Footer">
+        <div><h3>Make</h3><a href="../app/">Builder</a><a href="./">Characters</a><a href="../studio/">Studio</a><a href="../play/">Play</a></div>
+        <div><h3>Develop</h3><a href="../developers/">Developers</a><a href="../docs/library/">Library</a><a href="../docs/embed/">Embed</a><a href="../docs/cli/">Command line</a><a href="../docs/mcp/">MCP</a></div>
+        <div><h3>Project</h3><a href="../docs/">Docs</a><a href="https://github.com/olatunde85/3d-gen">GitHub</a><a href="../terms/">Terms</a><a href="../privacy/">Privacy</a></div>
+      </nav>
+      <p class="footer-credits">Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a></p>
+    </footer>
+    <script type="module" src="/src/characters/characters.ts"></script>
+  </body>
+</html>

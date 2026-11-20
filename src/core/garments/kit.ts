@@ -35,6 +35,8 @@ export interface GarmentDef {
   fullLength?: boolean;
   /** Only worn as part of an outfit set (not listed with the separate pieces), e.g. a suit's shirt front. */
   setOnly?: boolean;
+  /** On a top: keep it whole under a loose, open jacket. On a jacket (a sleeveless vest): keep any top whole under it. */
+  preserveUnderJacket?: boolean;
   color: string;
   color2: string;
   /**
@@ -96,11 +98,13 @@ export interface GCtx {
   /** Registers a generated texture, returns its file name. */
   texture(key: string, make: () => TexOut): { map: string; normalMap?: string; alpha: boolean };
   /** True when a top / bottom garment is worn (accessories sit a bit further out). */
-  layered: { top: boolean; bottom: boolean };
+  layered: { top: boolean; bottom: boolean; topId?: string; bottomId?: string };
   /** Briefs under wrappers / aprons / loincloths (always on for under-18 characters). */
   underwear: boolean;
   /** Vertices of the bottom and top already dressed, for things worn over them (necklaces lie on the top). */
   worn?: Vec3[];
+  /** Top garment pieces already dressed, for accessories that follow its surface. */
+  topParts?: GPart[];
   /** MakeHuman outfits fitted to the body (and rigged), for garments cut from them. */
   outfits?: Record<string, FittedOutfit>;
   /** Vertices of the jacket over the top, for things worn over everything (a backpack). */
@@ -307,4 +311,57 @@ export function cylinderUVs(m: PolyMesh, cx: number, cz: number, tile: number, c
     for (let i = 0; i < k; i++) fu[c + i] = uvs.add(corner[i][0], corner[i][1]);
   }
   return { ...m, faceUVs: fu, uvs: Float32Array.from(uvs.data) };
+}
+
+/**
+ * An offset for cloth worn over other clothes (a vest over a shirt): at each body point, far enough out along the
+ * skin's normal to clear whatever is already worn there, plus `gap`; never less than `min`.
+ */
+export function overWorn(g: GCtx, min: number, gap: number): (v: VInfo, p: Vec3) => number {
+  const b = g.body, cell = cm(3);
+  const at = (x: number, y: number, z: number) => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+  // Cloth on the arms (sleeves) is left out: where an arm hangs close to the torso, a sleeve would otherwise read as a
+  // thick layer at the side and push the cloth out into a point.
+  const bodyGrid = new Map<string, number[]>();
+  for (let v = 0; v < b.regions.length; v++) { const q = b.p(v), k = at(q[0], q[1], q[2]); (bodyGrid.get(k) ?? bodyGrid.set(k, []).get(k)!).push(v); }
+  const arm = (q: Vec3) => {
+    let best = -1, bestD = Infinity;
+    const cx = Math.floor(q[0] / cell), cy = Math.floor(q[1] / cell), cz = Math.floor(q[2] / cell);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++)
+      for (const v of bodyGrid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+        const r = b.p(v), d = (r[0] - q[0]) ** 2 + (r[1] - q[1]) ** 2 + (r[2] - q[2]) ** 2;
+        if (d < bestD) { bestD = d; best = v; }
+      }
+    const region = best < 0 ? -1 : b.regions[best];
+    return region === REGION.upperarm || region === REGION.lowerarm || region === REGION.hand;
+  };
+  const worn = [...(g.worn ?? []), ...(g.jacket ?? [])].filter(q => !arm(q));
+  const grid = new Map<string, Vec3[]>();
+  for (const q of worn) { const k = at(q[0], q[1], q[2]); (grid.get(k) ?? grid.set(k, []).get(k)!).push(q); }
+  const index = new Map<string, number>();
+  for (let v = 0; v < b.regions.length; v++) { const q = b.p(v); index.set(`${q[0]},${q[1]},${q[2]}`, v); }
+  return (_v, p) => {
+    const v = index.get(`${p[0]},${p[1]},${p[2]}`);
+    if (v === undefined || !worn.length) return min;
+    const n: Vec3 = [b.normals[v * 3], b.normals[v * 3 + 1], b.normals[v * 3 + 2]];
+    const hits: number[] = [];
+    // Look along the normal up to 12 cm out for worn points within 3.5 cm of that line.
+    for (let t = 0; t <= cm(12); t += cell) {
+      const c: Vec3 = [p[0] + n[0] * t, p[1] + n[1] * t, p[2] + n[2] * t];
+      const cx = Math.floor(c[0] / cell), cy = Math.floor(c[1] / cell), cz = Math.floor(c[2] / cell);
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++)
+        for (const q of grid.get(`${cx + dx},${cy + dy},${cz + dz}`) ?? []) {
+          const d: Vec3 = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], along = d[0] * n[0] + d[1] * n[1] + d[2] * n[2];
+          if (along <= 0) continue;
+          const side = Math.hypot(d[0] - n[0] * along, d[1] - n[1] * along, d[2] - n[2] * along);
+          if (side < cm(3.5)) hits.push(along);
+        }
+    }
+    // Only the layers stacked against the body count: walking out, a gap of more than 1.2 cm ends the stack, so cloth
+    // further out (a sleeve beside the armpit) doesn't push this one into a point.
+    hits.sort((a, c) => a - c);
+    let out = 0;
+    for (const h of hits) { if (h - out > cm(1.2) + (out === 0 ? cm(1.5) : 0)) break; out = h; }
+    return Math.max(min, out + gap);
+  };
 }

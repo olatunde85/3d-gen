@@ -14,6 +14,10 @@ export interface ShellSpec {
   tile?: number;
   /** Laplacian relaxation passes: cloth bridges over small skin detail. */
   relax?: number;
+  /** Passes along an open hem; fewer passes preserve the radius of wide leg openings. */
+  edgeRelax?: number;
+  /** Keep lower hem loops as wide as the original cut after boundary smoothing. */
+  preserveEdgeRadius?: boolean;
   /**
    * Depth of the hem's turned-in edge. By default the rim runs back down to the skin (right for
    * fitted clothes); loose clothes set a small depth so their edges read as thin fabric.
@@ -21,6 +25,8 @@ export interface ShellSpec {
   hemDepth?: number;
   /** Leave the hems open (no rim), for garments that continue the surface from a hem. */
   noRim?: boolean;
+  /** Return the smoothed boundary contours for fitted cuffs or waistbands. */
+  edgeLoops?: boolean;
 }
 
 /** Collects face-varying UVs with value de-duplication. */
@@ -63,6 +69,8 @@ export interface ShellResult {
   mesh: PolyMesh;
   /** Body-face mask covered by this shell (for hiding skin underneath). */
   covered: Uint8Array;
+  /** Ordered outer cut edges, when requested by cutShell, for stitched bindings. */
+  edgeLoops?: [number, number, number][][];
 }
 
 /**
@@ -217,12 +225,34 @@ export function buildShell(body: Body, faceVerts: Uint32Array, spec: ShellSpec):
         else bnbr.set(x, [y]);
       }
     }
+  const boundaryLoops: number[][] = [];
+  if (spec.edgeLoops || spec.preserveEdgeRadius) {
+    const seen = new Set<number>();
+    for (const start of bnbr.keys()) {
+      if (seen.has(start)) continue;
+      const vertices: number[] = [];
+      let current = start, previous = -1, closed = false;
+      while (!seen.has(current) && vertices.length <= bnbr.size) {
+        seen.add(current);vertices.push(current);
+        const next = (bnbr.get(current) ?? []).find(v => v !== previous);
+        if (next === undefined) break;
+        if (next === start) { closed = true; break; }
+        previous = current;current = next;
+      }
+      if (closed && vertices.length > 8) boundaryLoops.push(vertices);
+    }
+  }
   const bp = new Map<number, [number, number, number]>();
   for (const v of bnbr.keys()) {
     const i = remap.get(v)!;
     bp.set(v, [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]]);
   }
-  for (let it = 0; it < 24; it++) {
+  const radiusOf = (loop: number[]) => {
+    const centre = loop.reduce((p, v) => [p[0] + bp.get(v)![0] / loop.length, p[1] + bp.get(v)![2] / loop.length], [0, 0]);
+    return loop.reduce((r, v) => r + Math.hypot(bp.get(v)![0] - centre[0], bp.get(v)![2] - centre[1]) / loop.length, 0);
+  };
+  const originalRadii = boundaryLoops.map(radiusOf);
+  for (let it = 0; it < (spec.edgeRelax ?? 24); it++) {
     const next = new Map<number, [number, number, number]>();
     for (const [v, nb] of bnbr) {
       const p = bp.get(v)!;
@@ -235,6 +265,20 @@ export function buildShell(body: Body, faceVerts: Uint32Array, spec: ShellSpec):
     }
     for (const [v, p] of next) bp.set(v, p);
   }
+  if (spec.preserveEdgeRadius && boundaryLoops.length > 1) {
+    const top = boundaryLoops.reduce((best, loop, i) =>
+      loop.reduce((y, v) => y + bp.get(v)![1] / loop.length, 0) >
+      boundaryLoops[best].reduce((y, v) => y + bp.get(v)![1] / boundaryLoops[best].length, 0) ? i : best, 0);
+    boundaryLoops.forEach((loop, i) => {
+      if (i === top) return;
+      const centre = loop.reduce((p, v) => [p[0] + bp.get(v)![0] / loop.length, p[1] + bp.get(v)![2] / loop.length], [0, 0]);
+      const scale = originalRadii[i] / (radiusOf(loop) || 1);
+      for (const v of loop) {
+        const p = bp.get(v)!;
+        bp.set(v, [centre[0] + (p[0] - centre[0]) * scale, p[1], centre[1] + (p[2] - centre[1]) * scale]);
+      }
+    });
+  }
   const shift = new Map<number, [number, number, number]>();
   for (const [v, p] of bp) {
     const i = remap.get(v)!;
@@ -243,6 +287,8 @@ export function buildShell(body: Body, faceVerts: Uint32Array, spec: ShellSpec):
     pos[i * 3 + 1] = p[1];
     pos[i * 3 + 2] = p[2];
   }
+  const edgeLoops: [number, number, number][][] = [];
+  if (spec.edgeLoops) for (const loop of boundaryLoops) edgeLoops.push(loop.map(v => bp.get(v)!));
 
   // Rims: boundary edges get a strip back down to the skin.
   const inner = new Map<number, number>();
@@ -280,6 +326,7 @@ export function buildShell(body: Body, faceVerts: Uint32Array, spec: ShellSpec):
       ref: Int32Array.from(ref),
     },
     covered,
+    ...(spec.edgeLoops ? { edgeLoops } : {}),
   };
 }
 
@@ -295,6 +342,10 @@ export interface CutSpec {
   tile?: number;
   /** Laplacian relaxation passes: cloth bridges over small skin detail. */
   relax?: number;
+  /** Return the outer cut contours before sewing their narrow inner rims. */
+  edgeLoops?: boolean;
+  /** Smooth the cutline along its closed contours before adding rims. */
+  edgeSmooth?: number;
 }
 
 /**
@@ -374,18 +425,33 @@ export function cutShell(body: Body, faceVerts: Uint32Array, spec: CutSpec): She
     const uv = q.map((v) => bodyUV(body, v, tile));
     const reps = Math.max(...uv.map((x) => Math.ceil(x[0])));
     if (Math.max(...uv.map((x) => x[0])) - Math.min(...uv.map((x) => x[0])) > reps / 2) for (const x of uv) if (x[0] < reps / 2) x[0] += reps;
+    const crossing = (k: number) => {
+      const a=q[k], b=q[(k+1)%4], t=value[a]/(value[a]-value[b]), next=uv[(k+1)%4];
+      return {i:cut(a,b,t),uv:[uv[k][0]+(next[0]-uv[k][0])*t,uv[k][1]+(next[1]-uv[k][1])*t] as [number,number]};
+    };
+    const emit = (poly: {i:number;uv:[number,number]}[]) => {
+      if(poly.length<3)return;
+      sizes.push(poly.length);
+      for(const c of poly){fv.push(c.i);fu.push(uvs.add(c.uv[0],c.uv[1]));}
+    };
+    // Opposite inside corners form two separate cloth islands within a quad. Joining them into one face folds across
+    // exposed skin at the shoulder and gives the cut boundary an invalid branch.
+    if((value[q[0]]>0)===(value[q[2]]>0) && (value[q[1]]>0)===(value[q[3]]>0) && (value[q[0]]>0)!==(value[q[1]]>0)){
+      for(let k=0;k<4;k+=2){
+        const corner=value[q[k]]>0?k:k+1;
+        emit([crossing((corner+3)%4),{i:at.get(q[corner])!,uv:uv[corner]},crossing(corner)]);
+      }
+      continue;
+    }
     const poly: { i: number; uv: [number, number] }[] = [];
     for (let k = 0; k < 4; k++) {
       const a = q[k], b = q[(k + 1) % 4], va = value[a], vb = value[b];
       if (va > 0) poly.push({ i: at.get(a)!, uv: uv[k] });
       if ((va > 0) !== (vb > 0)) {
-        const t = va / (va - vb), u2 = uv[(k + 1) % 4];
-        poly.push({ i: cut(a, b, t), uv: [uv[k][0] + (u2[0] - uv[k][0]) * t, uv[k][1] + (u2[1] - uv[k][1]) * t] });
+        poly.push(crossing(k));
       }
     }
-    if (poly.length < 3) continue;
-    sizes.push(poly.length);
-    for (const c of poly) { fv.push(c.i);fu.push(uvs.add(c.uv[0], c.uv[1])); }
+    emit(poly);
   }
 
   // Rims: each edge of the cloth that only one face uses gets a strip back toward the skin.
@@ -406,6 +472,43 @@ export function cutShell(body: Body, faceVerts: Uint32Array, spec: CutSpec): She
     return j;
   };
   const faceCount = sizes.length;
+  const edgeLoops: [number, number, number][][] = [];
+  if (spec.edgeLoops || spec.edgeSmooth) {
+    const neighbours = new Map<number, number[]>();
+    const edgeKey = (a: number, b: number) => a < b ? `${a},${b}` : `${b},${a}`;
+    for (const [key, n] of count) {
+      if (n !== 1) continue;
+      const [a, b] = key.split(',').map(Number);
+      neighbours.set(a, [...(neighbours.get(a) ?? []), b]);
+      neighbours.set(b, [...(neighbours.get(b) ?? []), a]);
+    }
+    const visited = new Set<string>();
+    const loops: number[][] = [];
+    for (const [start, linked] of neighbours) for (const first of linked) {
+      if (visited.has(edgeKey(start, first))) continue;
+      const vertices = [start];
+      let previous = start, current = first;
+      visited.add(edgeKey(start, first));
+      while (current !== start && vertices.length <= neighbours.size) {
+        vertices.push(current);
+        const next = (neighbours.get(current) ?? []).find(v => v !== previous && !visited.has(edgeKey(current, v)));
+        if (next === undefined) break;
+        visited.add(edgeKey(current, next));
+        previous = current; current = next;
+      }
+      if (current === start && vertices.length > 3) loops.push(vertices);
+    }
+    for (const loop of loops) {
+      for (let pass = 0; pass < (spec.edgeSmooth ?? 0); pass++) {
+        const next = loop.map((v, k) => {
+          const a = loop[(k - 1 + loop.length) % loop.length], b = loop[(k + 1) % loop.length];
+          return [0, 1, 2].map(d => (pos[a * 3 + d] + 6 * pos[v * 3 + d] + pos[b * 3 + d]) / 8);
+        });
+        loop.forEach((v, k) => { for (let d = 0; d < 3; d++) pos[v * 3 + d] = next[k][d]; });
+      }
+      if (spec.edgeLoops) edgeLoops.push(loop.map(i => [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]]));
+    }
+  }
   for (let face = 0, s = 0; face < faceCount; s += sizes[face++]) {
     const c = corners(face, s);
     for (let k = 0; k < c.length; k++) {
@@ -427,5 +530,6 @@ export function cutShell(body: Body, faceVerts: Uint32Array, spec: CutSpec): She
       ref: Int32Array.from(ref, (v, i) => (onCut.has(i) ? -1 : v)),
     },
     covered,
+    ...(spec.edgeLoops ? { edgeLoops } : {}),
   };
 }

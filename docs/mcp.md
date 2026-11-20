@@ -51,7 +51,7 @@ Other apps take the same command: `npx -y ara3d mcp`.
 | Tool | |
 |---|---|
 | `create_character` | Builds a character and writes GLB, FBX, OBJ or ZIP files. Starts from a preset, a random seed, a builder share link, or a character the assistant designs. Takes animations, detail, root motion, a weapon, something to carry, a vehicle and colours |
-| `list_presets` | The 32 preset characters |
+| `list_presets` | The 50 preset characters |
 | `list_animations` | The 218 animation clips, searchable, such as "dance" or "rifle" |
 | `list_props` | Weapons, carried items, vehicles and expressions |
 | `character_schema` | Every field of a character, so the assistant can design one: body, face, hair, clothes, colours and rig |
