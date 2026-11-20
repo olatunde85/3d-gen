@@ -157,8 +157,11 @@ export async function buildLooks(lib: AssetLibrary, i: LooksInput): Promise<Look
     if (m) out.hair.push([m, hairMat('Buzz cut', tex(lib, 'gen_hair_card', hairCardTexture), { alpha: 'mask', doubleSided: true, roughness: 0.8 })]);
   }
   const beard = facial === 'none' || facial === 'stubble' ? undefined : grown(`beard:${facial}`, () => beardCards(ctx, facial));
-  if (beard)
-    out.beard.push([beard, hairMat('Beard', tex(lib, 'gen_hair_card', hairCardTexture), { color: beardColor, alpha: 'mask', doubleSided: true, roughness: 0.75 })]);
+  if (beard) {
+    // Facial hair sits in the light round the mouth; a dark colour reads as black there, so it is lifted a little.
+    const color = lifted(beardColor);
+    out.beard.push([beard, hairMat('Beard', tex(lib, 'gen_hair_card', hairCardTexture), { color, alpha: 'mask', doubleSided: true, roughness: 0.75 })]);
+  }
 
   const ear = p.earrings ?? 'none';
   const rings = merge(earrings(ear, base, i.coords, i.normals));
@@ -166,4 +169,12 @@ export async function buildLooks(lib: AssetLibrary, i: LooksInput): Promise<Look
   const drops = merge(earringPearls(ear, base, i.coords, i.normals));
   if (drops) out.jewelry.push([drops, { name: 'Earring pearls', color: '#f4efe4', roughness: 0.16, metalness: 0.1, alpha: 'opaque', doubleSided: false }]);
   return out;
+}
+
+/** A colour brightened in proportion to how dark it is (near-black gains the most, light colours almost nothing). */
+function lifted(hex: string): string {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const lum = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
+  const f = 1 + 0.75 * (1 - lum) ** 2;
+  return '#' + c.map((v) => Math.min(255, Math.round(v * f + 4)).toString(16).padStart(2, '0')).join('');
 }
