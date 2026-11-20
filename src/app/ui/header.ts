@@ -1,5 +1,6 @@
 /** Header: presets, name, seed and randomize; and the viewport's view toggles. */
 import { DEFAULT_PARAMS, PRESETS, randomParams } from '../../core/params';
+import { presetsByGroup } from '../../core/preset-groups';
 import type { Ctx } from './context';
 import {characterSettings,characterSettingsName,readCharacterSettings} from '../character-file';
 import { $ } from './dom';
@@ -16,8 +17,13 @@ export function header(ctx: Ctx): void {
     catch(error){status.textContent=(error as Error).message;}finally{fileInput.value='';}
   });
   const presetSel = $<HTMLSelectElement>('#preset');
-  presetSel.append(new Option('Presets…', ''));
-  for (const name of Object.keys(PRESETS)) presetSel.append(new Option(name, name));
+  presetSel.append(new Option(`Presets (${Object.keys(PRESETS).length})…`, ''));
+  for (const [group, names] of presetsByGroup(Object.keys(PRESETS))) {
+    const og = document.createElement('optgroup');
+    og.label = group;
+    for (const name of names) og.append(new Option(name, name));
+    presetSel.append(og);
+  }
   presetSel.addEventListener('change', () => {
     const name = presetSel.value;
     if (!name) return;

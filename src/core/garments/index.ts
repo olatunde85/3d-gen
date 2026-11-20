@@ -112,6 +112,7 @@ export function buildGarments(lib: AssetLibrary, coords: Float32Array, normals: 
     const built = garmentById.get(id)!.build(g, styleOf(id, d.styles));
     parts.push(...built);
     if (id === d.top) g.topParts = built;
+    if (id === d.jacket) g.jacketParts = built;
     if (id === d.top && d.jacket) built.forEach((p) => tops.top.add(p));
     if (id === d.jacket) built.forEach((p) => tops.jacket.add(p));
     // The bottom and top, and the jacket over them: what later layers rest on.

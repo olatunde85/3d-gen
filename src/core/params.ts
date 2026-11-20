@@ -186,6 +186,18 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     outfit: 'none', top: 'scrub_top', bottom: 'suit_trousers', shoes: 'sneakers', accessories: ['stethoscope', 'watch_silver'],
     garmentStyles: { scrub_top: { pattern: 'solid', color: '#1f9aa2', color2: '#1c8f97' }, suit_trousers: { pattern: 'suiting', color: '#1c8890', color2: '#1c8890' }, stethoscope: { pattern: 'solid', color: '#17181b', color2: '#c9ccd1' }, sneakers: { pattern: 'workwear', color: '#eef0f2' } },
   },
+  'The Doctor': {
+    gender: 1, age: 0.58, muscle: 0.5, weight: 0.5, height: 0.6,
+    african: 0.2, asian: 0.62, caucasian: 0.18, eyes: 'darkbrown', hair: 'short02', expression: 'happy',
+    outfit: 'none', top: 'scrub_top', jacket: 'overcoat', bottom: 'suit_trousers', shoes: 'shoes02', accessories: ['stethoscope', 'watch_silver'],
+    garmentStyles: { scrub_top: { pattern: 'solid', color: '#3d5f8f', color2: '#38598a' }, overcoat: { pattern: 'solid', color: '#f3f4f2', color2: '#e6e8e6' }, suit_trousers: { pattern: 'suiting', color: '#38598a', color2: '#38598a' }, stethoscope: { pattern: 'solid', color: '#17181b', color2: '#c9ccd1' } },
+  },
+  'The Lab Scientist': {
+    gender: 0, age: 0.5, muscle: 0.42, weight: 0.45, height: 0.54, proportions: 0.85,
+    african: 0.08, asian: 0.12, caucasian: 0.8, eyes: 'green', hair: 'bob02', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'determined',
+    outfit: 'none', top: 'silk_blouse', jacket: 'overcoat', bottom: 'suit_trousers', shoes: 'shoes03', accessories: ['watch_silver'],
+    garmentStyles: { silk_blouse: { pattern: 'solid', color: '#9fb6cc' }, overcoat: { pattern: 'solid', color: '#f3f4f2', color2: '#e6e8e6' }, suit_trousers: { pattern: 'suiting', color: '#2b2f36', color2: '#30343b' } },
+  },
   'The Flight Attendant': {
     gender: 0, age: 0.5, muscle: 0.46, weight: 0.48, height: 0.58, proportions: 0.9, breastSize: 0.72, breastFirmness: 0.67,
     modifiers: { 'torso/torso-scale-horiz': -0.22, 'hip/hip-scale-horiz': 0.45, 'buttocks/buttocks-volume': 0.38 },
@@ -414,6 +426,12 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     african: 0.05, asian: 0.05, caucasian: 0.9, hair: 'braid01', eyes: 'brownlight', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02',
     outfit: 'none', top: 'tank_top', bottom: 'cargo_shorts', shoes: 'combat_boots', accessories: ['utility_belt'],
     garmentStyles: { tank_top: { pattern: 'solid', color: '#3b6f73' }, cargo_shorts: { pattern: 'khaki', color: '#8f7a55' } },
+  },
+  'The Explorer': {
+    gender: 1, age: 0.5, muscle: 0.72, weight: 0.42, height: 0.62,
+    african: 0.55, asian: 0.05, caucasian: 0.4, eyes: 'brown', hair: 'short02', hairTint: '#1c1611', facialHair: 'stubble', expression: 'determined',
+    outfit: 'none', top: 'singlet', bottom: 'cargo_pants', shoes: 'combat_boots', accessories: ['utility_belt', 'watch_silver'], carry: 'backpack',
+    garmentStyles: { singlet: { pattern: 'rib', color: '#2f7f82' }, cargo_pants: { pattern: 'camo', color: '#2f7376', color2: '#5b3f27' } },
   },
   'The Secret Agent': {
     gender: 1, age: 0.6, muscle: 0.62, weight: 0.45, height: 0.5, proportions: 0.9,

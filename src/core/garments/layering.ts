@@ -93,9 +93,17 @@ export function layerUnderJacket(body: Body, parts: GPart[], tops: Set<GPart>, j
     // A face goes once all its corners are covered, or most of them away from the front's middle
     // (part-covered faces at the sides poke through; in the V they show at its edges).
     const mid = (c: Uint32Array) => Array.from(c).every((v) => Math.abs(P[v * 3]) < 0.45 * L.shoulderX && P[v * 3 + 2] > L.torsoZ);
+    // Covered corners of the faces that stay (at the edges of the V) are drawn back 3 mm behind the jacket's front, so
+    // a loose top can't show over the lapels.
+    const Q = new Float32Array(P);
+    for (let v = 0; v < under.length; v++) {
+      if (!under[v] || Q[v * 3 + 2] <= L.torsoZ || Q[v * 3 + 1] > L.neckY - 0.4) continue;
+      const h = front.hit(Q[v * 3], Q[v * 3 + 1]);
+      if (h && Q[v * 3 + 2] > h.p[2] - 0.03 && Q[v * 3 + 2] - h.p[2] < 0.6) Q[v * 3 + 2] = h.p[2] - 0.03;
+    }
     parts[i] = {
       ...p,
-      mesh: compact(p.mesh, (_, c) => {
+      mesh: compact({ ...p.mesh, positions: Q }, (_, c) => {
         const n = Array.from(c).filter((v) => under[v]).length;
         return mid(c) ? n < c.length : n * 2 < c.length;
       }),
