@@ -50,6 +50,10 @@ export function scalpMask(p: Vec3): number {
 const cheekLine = pchip([0, 0.15, 0.25, 0.4, 0.55, 0.68, 0.76], [6.88, 6.87, 6.84, 6.86, 6.95, 7.15, 7.3]);
 const mouth = (x: number, y: number, z: number) => (z > 1.2 ? (x / 0.205) ** 2 + ((y - 6.645) / 0.085) ** 2 : 9);
 
+// A mustache is an arch: highest under the nose, its ends drooping past the corners of the mouth.
+const mustacheTop = pchip([0, 0.08, 0.14, 0.2, 0.26, 0.3], [6.845, 6.842, 6.83, 6.8, 6.75, 6.7]);
+const mustacheBottom = pchip([0, 0.12, 0.18, 0.23, 0.28], [6.69, 6.69, 6.675, 6.64, 6.615]);
+
 /** A mustache, alone or over stubble. */
 const isMustache = (style: FacialHairId) => style === 'mustache' || style === 'mustache_stubble';
 
@@ -68,15 +72,30 @@ export function beardMask(p: Vec3, style: FacialHairId, region: number): number 
   }
   if (region !== REGION.head) return 0;
   const below = 1 - smoothstep(cheekLine(x) - 0.035, cheekLine(x) + 0.035, y);
-  const mus = (1 - smoothstep(0.23, 0.28, x)) * smoothstep(6.69, 6.72, y) * below * smoothstep(1.15, 1.25, z);
-  if (isMustache(style)) return mus * lips;
+  if (isMustache(style)) {
+    const top = mustacheTop(x), bottom = mustacheBottom(x);
+    return (1 - smoothstep(0.26, 0.3, x)) * smoothstep(bottom, bottom + 0.03, y) * (1 - smoothstep(top - 0.012, top + 0.012, y)) * smoothstep(1.0, 1.12, z) * lips;
+  }
+  // A goatee's mustache keeps the same edge under the nose.
+  const trimmed = (1 - smoothstep(0.23, 0.28, x)) * smoothstep(6.69, 6.72, y) * smoothstep(1.0, 1.12, z) * (1 - smoothstep(mustacheTop(x) - 0.03, mustacheTop(x) - 0.008, y));
   const chin = (1 - smoothstep(0.22, 0.27, x)) * (1 - smoothstep(6.55, 6.6, y)) * smoothstep(0.8, 1.0, z);
-  const corners = smoothstep(0.15, 0.17, x) * (1 - smoothstep(0.25, 0.28, x)) * smoothstep(6.48, 6.52, y) * (1 - smoothstep(6.7, 6.74, y)) * smoothstep(1.1, 1.2, z);
-  if (style === 'goatee') return Math.max(mus, chin, corners) * lips;
+  // A goatee stays on the front of the chin, trimmed off underneath the jaw, with a clean edge round
+  // the lips. Beside the corners of the mouth the hair runs right up to the lips, joining the mustache to the chin.
+  if (style === 'goatee') {
+    const sides = smoothstep(0.15, 0.17, x) * (1 - smoothstep(0.27, 0.3, x)) * smoothstep(6.48, 6.52, y) * (1 - smoothstep(6.72, 6.76, y)) * smoothstep(0.85, 0.95, z);
+    // Over the upper lip the hair comes down to the lip line, as a mustache does.
+    const m = mouth(x, y, z);
+    const clean = Math.max(y > 6.645 ? smoothstep(1.0, 1.3, m) : smoothstep(1.2, 1.45, m), smoothstep(0.2, 0.225, x));
+    return Math.max(trimmed, chin * smoothstep(1.06, 1.18, z), sides) * clean;
+  }
   // Full zone: everything under the cheek line, in front of the ears / jaw angle.
   // (Below the jaw, the same as on the neck: the two regions meet there.)
   const front = y > 6.55 ? smoothstep(0.5, 0.64, z) : smoothstep(0.45, 0.65, z);
-  return below * front * lips;
+  if (style === 'stubble') return below * front * lips;
+  // A beard is trimmed under the nose, and stops a little in front of the ears.
+  const nose = 1 - (1 - smoothstep(0.13, 0.19, x)) * smoothstep(6.81, 6.835, y);
+  const ears = y > 6.55 ? smoothstep(0.58, 0.7, z) : 1;
+  return below * front * ears * nose * lips;
 }
 
 /** Card length (dm) for a beard style at a base-body point. */
@@ -87,10 +106,10 @@ function beardLength(p: Vec3, style: FacialHairId): number {
   switch (style) {
     case 'mustache':
     case 'mustache_stubble':
-      // Longer toward the mouth's corners.
-      return 0.07 + 0.05 * Math.min(1, x / 0.24);
+      // Longer toward the mouth's corners; the drooping ends are kept short so they stay tidy.
+      return (0.085 + 0.055 * Math.min(1, x / 0.24)) * (y < 6.68 ? 0.7 : 1);
     case 'goatee':
-      return y > 6.69 ? 0.085 : 0.11 + 0.12 * chin;
+      return y > 6.69 ? 0.09 : 0.08 + 0.04 * chin;
     case 'short_beard':
       return 0.065 + 0.03 * chin;
     case 'full_beard':
@@ -436,6 +455,8 @@ interface Scatter {
   mask(p: V, region: number): number;
   /** Chance of keeping a hair at coverage m (default m). */
   keep?(m: number): number;
+  /** Extra chance of keeping a hair at a base-body point (default 1): fewer hairs where they barely show. */
+  thin?(p: V): number;
   /** Shape one hair rooted at `root` (normal N), at base-body point bp with coverage m. */
   strand(h: { root: V; N: V; bp: V; m: number; r: () => number }): Strand;
 }
@@ -465,7 +486,7 @@ function scatterCards(c: HeadCtx, o: Scatter): PolyMesh | undefined {
         const lerp3 = (A: V, Bv: V, D: V): V => add(A, add(mul(sub(Bv, A), u), mul(sub(D, A), w)));
         const bp = lerp3(at(B, ids[a]), at(B, ids[b]), at(B, ids[d]));
         const m = o.mask(bp, region);
-        if (m <= 0 || r() > (o.keep ? o.keep(m) : m)) continue;
+        if (m <= 0 || r() > (o.keep ? o.keep(m) : m) * (o.thin ? o.thin(bp) : 1)) continue;
         const root = lerp3(pa, pb, pd);
         const N = norm(lerp3(at(Nn, ids[a]), at(Nn, ids[b]), at(Nn, ids[d])));
         const h = o.strand({ root, N, bp, m, r });
@@ -493,6 +514,17 @@ function scatterCards(c: HeadCtx, o: Scatter): PolyMesh | undefined {
   };
 }
 
+/**
+ * Share of beard hairs kept at a base-body point: fewer under the jaw and on the neck, and a few
+ * fewer on the cheeks toward the ears, where they barely show; all of them on the front of the face.
+ */
+function beardThin(p: V): number {
+  const y = p[1], z = p[2];
+  const underJaw = (1 - smoothstep(6.45, 6.6, y)) * (1 - smoothstep(0.85, 1.05, z));
+  const nearEars = 1 - smoothstep(0.7, 0.88, z);
+  return 1 - Math.max(0.6 * underJaw, 0.3 * nearEars);
+}
+
 /** Beard / mustache hair cards rooted on the face. */
 export function beardCards(c: HeadCtx, style: FacialHairId): PolyMesh | undefined {
   if (style === 'none' || style === 'stubble') return undefined;
@@ -500,23 +532,38 @@ export function beardCards(c: HeadCtx, style: FacialHairId): PolyMesh | undefine
   return scatterCards(c, {
     seed: c.seed * 31 + 7,
     regions: [REGION.head, REGION.neck],
-    density: (style === 'full_beard' ? 6 : style === 'short_beard' ? 9 : isMustache(style) ? 24 : 12) * (c.low ? 0.5 : 1) * 100,
+    density: (style === 'full_beard' ? 20 : style === 'short_beard' ? 26 : isMustache(style) ? 42 : 34) * (c.low ? 0.5 : 1) * 100,
     mask: (p, region) => beardMask(p, style, region),
+    // Goatees and beards have a crisp outline: no thinning, ragged hairs along the edge.
+    keep: style === 'goatee' || style === 'short_beard' || style === 'full_beard' ? (m) => smoothstep(0.15, 0.45, m) : undefined,
+    thin: style === 'short_beard' || style === 'full_beard' ? beardThin : undefined,
     strand({ root, N, bp, r }) {
       let D = sub(down, mul(N, dot(down, N)));
       if (Math.hypot(...D) < 0.25) D = sub([0, -0.3, 1], mul(N, dot([0, -0.3, 1], N)));
       D = norm(D);
       // Mustache hairs fan out from the midline, more toward the corners of the mouth, and lie
       // close to the lip: a groomed mustache, not a brush.
-      const mus = isMustache(style);
-      if (style !== 'full_beard' && style !== 'short_beard' && bp[1] > 6.69) D = norm(add(D, [Math.sign(root[0] || 1) * (mus ? 0.15 + 1.1 * Math.min(1, Math.abs(bp[0]) / 0.24) : 0.6), 0, 0]));
-      const L = beardLength(bp, style) * (0.8 + 0.4 * r());
-      // Lift off the skin gives volume; random sway breaks up the "curtain".
-      const lift = (mus ? 0.14 : style === 'short_beard' ? 0.5 : 0.38) + (mus ? 0.14 : 0.3) * r();
-      D = norm(add(D, mul(cross(N, D), (r() - 0.5) * (mus ? 0.4 : 0.8))));
+      // A goatee's mustache lies the same way.
+      const mus = isMustache(style) || (style === 'goatee' && bp[1] > 6.69);
+      // Beside the mouth a goatee hangs straight down, joining the mustache to the chin in one even band.
+      const side = style === 'goatee' && Math.abs(bp[0]) > 0.19 && bp[1] > 6.5 && bp[1] < 6.76;
+      if (style !== 'full_beard' && style !== 'short_beard' && bp[1] > 6.69 && !side) D = norm(add(D, [Math.sign(root[0] || 1) * (mus ? 0.1 + (style === 'goatee' ? 0.15 : 0.45) * Math.min(1, Math.abs(bp[0]) / 0.24) : 0.6), 0, 0]));
+      let L = beardLength(bp, style) * (0.8 + 0.4 * r());
+      // Lift off the skin gives volume; random sway breaks up the "curtain". Round the mouth a goatee
+      // lies flat and straight, so nothing pokes out at the corners or over the lower lip.
+      const nearMouth = style === 'goatee' && Math.abs(bp[0]) < 0.3 && bp[1] > 6.5 && bp[1] < 6.75;
+      // Hairs rooted at the lip line are shorter and even, so the edge over each lip is a clean arc.
+      if (side) L = beardLength(bp, style) * (0.95 + 0.1 * r());
+      else if (nearMouth) L = beardLength(bp, style) * (0.92 + 0.16 * r()) * ((bp[1] > 6.645 ? 0.7 : 0.45) + (bp[1] > 6.645 ? 0.3 : 0.55) * smoothstep(1.45, 2.4, mouth(Math.abs(bp[0]), bp[1], bp[2])));
+      D = norm(add(D, mul(cross(N, D), (r() - 0.5) * (side ? 0.12 : mus || nearMouth ? 0.3 : 0.8))));
+      let lift = (mus || nearMouth ? 0.2 : style === 'short_beard' ? 0.32 : 0.3) + (mus || nearMouth ? 0.18 : 0.3) * r();
+      // The middle of the upper lip bulges forward; hairs above it stand off a little more to lie over it, not sink behind it.
+      if (mus) lift += 0.35 * (1 - smoothstep(0.03, 0.12, Math.abs(bp[0])));
       const S = norm(add(mul(D, Math.cos(lift)), mul(N, Math.sin(lift))));
-      const width = (style === 'full_beard' ? 0.042 : mus ? 0.02 : 0.032) * (0.8 + 0.4 * r());
-      const W = mul(norm(cross(N, S)), width / 2);
+      const width = (style === 'full_beard' ? 0.046 : style === 'short_beard' ? 0.038 : mus || nearMouth ? 0.03 : style === 'goatee' ? 0.038 : 0.032) * (0.8 + 0.4 * r());
+      // Where a beard is thinned, each hair is a little wider so it still looks full.
+      const thinned = style === 'short_beard' || style === 'full_beard' ? 1 + 0.5 * (1 - beardThin(bp)) : 1;
+      const W = mul(norm(cross(N, S)), (width * thinned) / 2);
       const droop = style === 'full_beard' ? 0.2 : 0.1;
       const curl = (r() - 0.5) * 0.3;
       const base0 = add(root, mul(N, -0.004));
