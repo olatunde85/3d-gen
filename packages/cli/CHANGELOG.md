@@ -2,6 +2,14 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.12.0 — 2026-11-20
+
+- **Fuller facial hair:** mustaches, goatees and beards are denser and even, with crisp edges, and stop just below the nostrils.
+- **Mustache:** bulkier and arched, highest under the nose with the ends drooping past the corners of the mouth.
+- **Goatee:** clean edges round both lips, solid sides joining the mustache to the chin, and nothing under the jaw.
+- **Short and full beards:** stop a little in front of the ears.
+- Dark `beardColor` values render slightly lighter, so dark facial hair looks dark brown, not black.
+
 ## 0.11.0 — 2026-11-20
 
 - **63 preset characters:** 13 new ones: The Doctor, The Lab Scientist, The Explorer, The Chef, The Photographer, The DJ, The Basketball Player, The Footballer, The Beach Dude, The Gamer, and three teens: The Schoolboy, The Schoolgirl and The Cool Kid. See them on the [characters page](https://ara3dgen.com/characters/).
