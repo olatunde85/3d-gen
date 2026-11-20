@@ -57,6 +57,13 @@ const FACES: Record<string, FaceFn> = {
   hit_right: hitFace,
   wave: constant({ mouthSmile: 0.7, eyeSquintLeft: 0.25, eyeSquintRight: 0.25, browOuterUpLeft: 0.2, browOuterUpRight: 0.2 }),
   cheer: constant({ mouthSmile: 0.9, jawOpen: 0.4, eyeSquintLeft: 0.3, eyeSquintRight: 0.3 }),
+  soccer_shoot: keyed([0, 0.2, 0.32, 0.6, 1], { ...both('browDownLeft', 'browDownRight', [0, 0.6, 0.8, 0.3, 0]), mouthPress: [0, 0.6, 0.8, 0.3, 0] }),
+  soccer_pass: keyed([0, 0.3, 1], { ...both('browDownLeft', 'browDownRight', [0, 0.35, 0]), mouthPress: [0, 0.3, 0] }),
+  slide_tackle: keyed([0, 0.2, 0.6, 1], { ...both('eyeSquintLeft', 'eyeSquintRight', [0, 0.6, 0.5, 0]), mouthStretch: [0, 0.5, 0.4, 0] }),
+  keeper_ready: constant({ browDownLeft: 0.3, browDownRight: 0.3, mouthPress: 0.2 }),
+  keeper_dive_left: keyed([0, 0.15, 0.4, 0.75, 1], { ...both('eyeSquintLeft', 'eyeSquintRight', [0, 0.5, 0.8, 0.4, 0]), mouthStretch: [0, 0.4, 0.7, 0.3, 0] }),
+  // "Siuuu": the mouth opens into a long, rounded shout on landing.
+  siu_celebration: keyed([0, 0.15, 0.4, 0.5, 0.85, 1], { jawOpen: [0, 0.1, 0.45, 0.5, 0.45, 0.1], mouthPucker: [0, 0, 0.75, 0.8, 0.7, 0.1], browInnerUp: [0, 0.2, 0.5, 0.5, 0.4, 0], ...both('eyeWideLeft', 'eyeWideRight', [0, 0.3, 0.5, 0.5, 0.3, 0]) }),
   // Asleep: eyes closed, face relaxed. Lying down settles into it.
   sleep: constant({ eyeBlinkLeft: 1, eyeBlinkRight: 1 }),
   lie_down: keyed([0, 0.7, 1], { ...both('eyeBlinkLeft', 'eyeBlinkRight', [0, 0, 0.6]) }),
@@ -185,6 +192,8 @@ const FACES: Record<string, FaceFn> = {
 // Rifle and gunshot deaths fall the same way as the unarmed deaths.
 FACES.rifle_death_forward = FACES.shot_back = FACES.shot_stomach = FACES.death_forward;
 FACES.rifle_death_backward = FACES.shot_chest = FACES.death_backward;
+FACES.soccer_side_pass_left = FACES.soccer_side_pass_forward = FACES.soccer_side_pass_right = FACES.soccer_pass;
+FACES.keeper_dive_right = FACES.keeper_low_dive_left = FACES.keeper_low_dive_right = FACES.keeper_dive_left;
 FACES.shot_head = keyed([0, 0.04, 0.1, 1], {
   ...both('eyeBlinkLeft', 'eyeBlinkRight', [0, 0, 0.7, 0.8]),
   ...both('eyeWideLeft', 'eyeWideRight', [0, 0.8, 0, 0]),

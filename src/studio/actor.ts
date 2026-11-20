@@ -1,6 +1,6 @@
 import {flightHeight} from './helicopter-flight';
 import {jetAttitude,type JetAttitude} from './jet-flight';
-import {stagePropFor,stageScenery} from '../core/props/stage-props';
+import {placeBall,stagePropFor,stageScenery} from '../core/props/stage-props';
 import {Blood,type BloodHit} from '../core/props/blood';
 import {manoeuvre} from '../core/props/vehicle-motion';
 /** Studio's render adapter. Uses the generator's unmodified mesh, materials and Animator. */
@@ -225,7 +225,7 @@ export class StudioActor {
       if(current.vehicle?.id===state.id&&state.visible){this.framingBounds=ride.framingBounds;const size=this.framingBounds.getSize(new THREE.Vector3());this.framingPadding=Math.max(size.x,size.z)*.43;}
     }
     for(const [id,ride]of this.rides)if(!keep.has(id)){ride.group.removeFromParent();ride.dispose();this.rides.delete(id);}
-    this.stageScenery(project,track);
+    this.stageScenery(project,track,time);
     this.blood(project,time,track);
   }
   /**
@@ -233,9 +233,10 @@ export class StudioActor {
    * ledge hang shares its wall with the climb up) places its scenery where the span begins, for the whole film.
    * Switching the prop off on any action of a span hides it for that span.
    */
-  private stageScenery(project:StudioProject,track:ActorTrack){
-    const kind=stagePropFor,spans:{key:string;clip:string;start:number;hidden:boolean}[]=[];
-    let start=0;track.beats.forEach((b,i)=>{const prop=kind(b.clip);if(prop&&(i===0||kind(track.beats[i-1].clip)!==prop))spans.push({key:`${prop}:${i}:${this.scale}`,clip:b.clip==='ladder_down'?'ladder_up':b.clip,start,hidden:false});if(prop&&b.showProp===false)spans.at(-1)!.hidden=true;start+=b.duration;});
+  private stageScenery(project:StudioProject,track:ActorTrack,time:number){
+    const kind=stagePropFor,spans:{key:string;clip:string;start:number;end:number;hidden:boolean}[]=[];
+    // Each football action has its own ball; other props are shared by consecutive actions that use them.
+    let start=0;track.beats.forEach((b,i)=>{const prop=kind(b.clip);if(prop&&(i===0||prop==='football'||kind(track.beats[i-1].clip)!==prop))spans.push({key:`${prop}:${i}:${b.clip}:${this.scale}`,clip:b.clip==='ladder_down'?'ladder_up':b.clip,start,end:start+b.duration,hidden:false});if(prop&&b.showProp===false)spans.at(-1)!.hidden=true;start+=b.duration;});
     const keep=new Set(spans.map(x=>x.key));
     for(const [key,g]of this.stageGroups)if(!keep.has(key)){g.removeFromParent();g.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.stageGroups.delete(key);}
     for(const span of spans){
@@ -245,6 +246,7 @@ export class StudioActor {
       const origin=this.stage(project,span.start,track).actor(track);
       g.position.copy(new THREE.Vector3(origin.x-this.base.position.x,origin.y-this.base.position.y,origin.z-this.base.position.z).applyAxisAngle(new THREE.Vector3(0,1,0),-this.base.yaw));
       g.rotation.set(0,origin.yaw*Math.PI/180-this.base.yaw,0);g.visible=!span.hidden;
+      if(g.userData.ball){g.visible&&=time>=span.start&&time<=span.end;placeBall(g,Math.min(time-span.start,clipById.get(span.clip)!.duration),this.scale);}
     }
   }
   /**

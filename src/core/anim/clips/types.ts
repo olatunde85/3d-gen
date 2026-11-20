@@ -17,6 +17,8 @@ export interface Root {
   /** Degrees about world up (+ = turn left) and world X (+ = pitch forward). */
   yaw?: number;
   pitch?: number;
+  /** Degrees about the character's forward axis (+ = the body tips over to its left, as in a goalkeeper's dive). */
+  roll?: number;
   /** 0..1: lowers the hips from standing height to lying height. */
   drop?: number;
   /** Keep the lowest foot on the floor (adjusts hip height after posing). */
@@ -105,7 +107,7 @@ export interface Sample {
  * spreading under that bone once the body is down.
  */
 export interface Wound { t: number; bone: 'Head' | 'Spine2' | 'Spine' | 'LeftUpLeg' | 'RightArm'; dir: [number, number, number]; pool?: number }
-export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday' | 'Climbing' | 'Combat';
+export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday' | 'Climbing' | 'Combat' | 'Sports';
 
 export interface Clip {
   id: string;

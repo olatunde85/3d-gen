@@ -1,6 +1,6 @@
 /**
  * Wrist and hand accessories: bangles, gold and silver bracelet watches, bead bracelets, a gold
- * signet ring and leather gloves.
+ * signet ring, leather gloves, fingerless sport gloves and goalkeeper gloves.
  */
 import type { PolyMesh } from '../geometry';
 import type { Vec3 } from '../math';
@@ -187,9 +187,30 @@ function sportGloves(g: GCtx, st: GarmentStyle): GPart[] {
   return parts;
 }
 
+/**
+ * Goalkeeper gloves: thick padded latex over the whole hand and every finger, a wide cuff up the wrist and a strap
+ * round it in the second colour.
+ */
+function keeperGloves(g: GCtx, st: GarmentStyle): GPart[] {
+  const b = g.body;
+  const r = shell(g, {
+    covers: (v) => v.region === REGION.hand || (v.region === REGION.lowerarm && v.t > 0.7),
+    // Padded hands; the cuff stands off the wrist and flares toward its open end.
+    offset: (v) => (v.region === REGION.lowerarm ? cm(0.55) + cm(0.35) * clamp((0.9 - v.t) / 0.2, 0, 1) : cm(0.34)),
+    tile: 0.08, relax: 1, edgeRelax: 12, hemDepth: cm(0.3),
+  });
+  if (!r) return [];
+  const parts: GPart[] = [{ mesh: r.mesh, material: cloth(g, 'Goalkeeper gloves latex', st, { roughness: 0.6 }), hides: r.covered, smooth: true }];
+  const straps: PolyMesh[] = [];
+  for (const s of [-1, 1]) { const band = limbBand(b, REGION.lowerarm, s, 0.86, cm(3.2), cm(0.22), cm(0.85)); if (band) straps.push(band); }
+  if (straps.length) parts.push({ mesh: merge(straps)!, material: mat('Goalkeeper gloves wrist strap', null, { color: st.color2 || '#1b1f27', roughness: 0.55 }), smooth: true });
+  return parts;
+}
+
 export const WRIST: GarmentDef[] = [
   { id: 'gloves', label: 'Leather gloves', slot: 'acc', patterns: ['nappa', 'leather'], color: '#121212', color2: '#000000', build: gloves },
   { id: 'sport_gloves', label: 'Sport gloves (fingerless)', slot: 'acc', patterns: ['nappa', 'leather', 'solid'], color: '#1c1d20', color2: '#35363a', colorLabels: ['Glove', 'Trim'], build: sportGloves },
+  { id: 'keeper_gloves', label: 'Goalkeeper gloves', slot: 'acc', patterns: ['solid'], color: '#e4ef3d', color2: '#1b1f27', colorLabels: ['Glove', 'Strap'], build: keeperGloves },
   { id: 'gold_ring', label: 'Gold signet ring', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000', build: signetRing },
   { id: 'bangles', label: 'Bangles', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#000000', build: bangles },
   { id: 'watch_gold', label: 'Gold watch', slot: 'acc', patterns: ['solid'], color: '#d9a441', color2: '#f4efe4', build: (g, st) => braceletWatch(g, st, 'Gold watch') },
