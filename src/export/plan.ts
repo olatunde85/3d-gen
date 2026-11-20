@@ -34,6 +34,8 @@ export interface ExportSettings {
   vehicleFile?: boolean;
   /** Show the ladder, vault obstacle, ledge wall and cover with their clips, and include them as separate prop files. Defaults to true. */
   stageProps?: boolean;
+  /** Sports clips performed left-footed: mirrored, so kicks use the left foot and throws the other hand. */
+  leftFooted?: boolean;
   /** Builder preview action used to fit a static/rigged vehicle prop. */
   vehiclePreviewClip?:string;
 }

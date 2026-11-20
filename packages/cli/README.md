@@ -50,7 +50,7 @@ The first run downloads the character data (about 50 MB) and caches it. Needs No
 ## Both
 
 - **63 presets**, random characters from a seed, or your own character files, checked against a [published JSON schema](https://ara3dgen.com/schemas/character.v1.json) that editors autocomplete and AI assistants can follow.
-- **219 animations:** pick only the ones you need, with optional root motion.
+- **239 animations:** pick only the ones you need, with optional root motion.
 - **Props:** weapons, carried items and 13 vehicles fitted to the rider.
 - **In the browser:** random characters from a seed, characters designed in the [Ara builder](https://ara3dgen.com/app/) from their share link, new colours for clothes, bags and vehicles, and faces that change expression, blink and lip-sync (Oculus viseme names).
 - **Licence:** the code is MIT. Characters are built from CC0 MakeHuman data, with animations from the CMU Graphics Lab Motion Capture Database, so you can use them in commercial projects.

@@ -1,6 +1,7 @@
 /** The Export panel, the export bar's summary and download button, and running exports. */
 import { CLIPS } from '../../core/anim/clips';
 import { stagePropFor } from '../../core/anim/stage';
+import { clipById } from '../../core/anim/clips';
 import { RIG_LABELS, type RigType } from '../../core/rig/skeletons';
 import { DEFAULT_EXPORT, MODE_LABELS, planExport, type ExportSettings } from '../../export';
 import type { Ctx } from './context';
@@ -134,7 +135,9 @@ export function exportPanel(ctx: Ctx): { open: () => void; downloadGlb: () => Pr
     }
 
     const staged = (s.mode === 'animated' ? s.clips : [viewer.playing?.id ?? '']).some((id) => stagePropFor(id));
-    if (current.rig && staged) kids.push(check('Include stage props (ladder, obstacle, ledge wall, cover) as separate files', s.stageProps !== false, (v) => setExport({ stageProps: v })));
+    if (current.rig && staged) kids.push(check('Include stage props (ladder, obstacle, ledge wall, cover, football) as separate files', s.stageProps !== false, (v) => setExport({ stageProps: v })));
+    const sporty = s.mode === 'animated' && s.clips.some((id) => clipById.get(id)?.category === 'Sports');
+    if (current.rig && sporty) kids.push(check('Left-footed sports clips (kicks with the left foot, throws with the other hand)', !!s.leftFooted, (v) => setExport({ leftFooted: v })));
     if(current.params.vehicle!=='none')kids.push(check('Include fitted vehicle props as separate files',s.vehicleFile!==false,v=>setExport({vehicleFile:v})));
     // Summary of exactly what will be downloaded
     kids.push(h('You will download'));

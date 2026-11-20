@@ -14,6 +14,7 @@ import { boneFor } from '../rig/poses';
 import { boneFrame, quatOf, type Rig } from '../rig/rig';
 import { clipById, type Ch, type Clip, type HandTarget, type Sample } from './clips';
 import { fist,grip } from './clips/helpers';
+import { mirrored } from './clips/mirror';
 import { PARCEL_REST, PROP_REST } from '../props/carry';
 import { carriesParcel, parcelHold } from './clips/interaction';
 import { qaxis, qconj, qfromTo, QI, qmul, qrot, type Q, qslerp } from './quat';
@@ -327,7 +328,8 @@ export class Animator {
    * `faceTime`: blink and glance on this continuous clock (seconds) instead of at fixed times inside
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
-  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;/** false: Studio supplies vehicle flight motion. */vehicleMotion?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): Frame {
+  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;/** false: Studio supplies vehicle flight motion. */vehicleMotion?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number;/** Perform a keyframed clip with the other side of the body (a left-footed kick, a left-hand throw). */mirror?:boolean } = {}): Frame {
+    if(opts.mirror&&!clip.vehicleTransition)clip=mirrored(clip);
     const weapon=this.rig.weapon??'none',pose=ENCLOSED_CLIPS.has(clip.id)?'hidden':opts.weaponPose??(clip.vehicleTransition||clip.vehicleStunt||clip.category==='Aerial'||clip.category==='Swimming'||weapon==='grenade'&&RIDING_VEHICLES[clip.id]?'hidden':'hold');
     const mounted=weapon!=='none'&&weapon!=='grenade'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
     let sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
@@ -770,7 +772,7 @@ export class Animator {
     // Floor-space contacts travel with root motion, so they stay put relative to the moving body's world.
     this.floorShift = opts.rootMotion && clip.travel ? clip.travel.map((v) => v * time * this.scale) as Vec3 : [0, 0, 0];
     const k = this.scale;
-    const rootRot = qmul(qaxis([0, 1, 0], r.yaw ?? 0), qaxis([1, 0, 0], r.pitch ?? 0));
+    const rootRot = qmul(qmul(qaxis([0, 1, 0], r.yaw ?? 0), qaxis([1, 0, 0], r.pitch ?? 0)), qaxis([0, 0, 1], -(r.roll ?? 0)));
     const ikDone: Record<string, { T: Vec3 } | undefined> = {};
     // Motion capture: its floor offset is needed while solving (toes), so it's settled first.
     const mocapShift = s.mocap ? this.mocapGround(s.mocap, clip) : 0;
@@ -966,7 +968,7 @@ export class Animator {
   }
 
   /** Frames sampled at `fps` over the clip (inclusive end), quaternion signs kept continuous. */
-  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number } = {}): { times: number[]; frames: Frame[] } {
+  bake(clip: Clip, fps = 30, opts: { rootMotion?: boolean;vehicleLift?:number;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number;mirror?:boolean } = {}): { times: number[]; frames: Frame[] } {
     const n = Math.max(2, Math.round(clip.duration * fps) + 1);
     const times: number[] = [], frames: Frame[] = [];
     for (let f = 0; f < n; f++) {

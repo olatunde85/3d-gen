@@ -94,7 +94,7 @@ export function parseProject(text: string): StudioProject {
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
       const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,MAX_TRAVEL_SPEED,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');
-      if(b.showProp!==undefined&&(typeof b.showProp!=='boolean'||!stagePropFor(clip)))throw Error('Prop visibility is only available for actions with a stage prop (climbing and cover).');
+      if(b.showProp!==undefined&&(typeof b.showProp!=='boolean'||!stagePropFor(clip)))throw Error('Prop visibility is only available for actions with a stage prop (climbing, cover and football).');
       if(b.showBlood!==undefined&&(typeof b.showBlood!=='boolean'||!clipById.get(clip)?.wounds))throw Error('Blood visibility is only available for gunshot reactions.');
       if(speed!==undefined&&!RIDING_VEHICLES[clip]&&!manoeuvre(clip))throw Error('Travel speed is only available for riding/driving actions.');
       const height=b.flightHeight===undefined?undefined:number(b.flightHeight,0,30,'helicopter flight height');if(height!==undefined&&!isFlightClip(clip)&&!isAerialClip(clip))throw Error('Flight height is only available for aircraft and aerial actions.');

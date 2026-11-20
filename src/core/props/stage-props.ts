@@ -6,7 +6,7 @@
 import * as T from 'three';
 import { LADDER, LEDGE, VAULT } from '../anim/clips/climbing';
 import { COVER, TAKE_COVER_STEP } from '../anim/clips/cover';
-import { stagePropFor, type StageProp } from '../anim/stage';
+import { FOOTBALL_RADIUS, footballAt, stagePropFor, type StageProp } from '../anim/stage';
 import type { Material, MeshData } from '../mesh';
 
 export { STAGE_PROP_LABELS, stagePropFor, type StageProp } from '../anim/stage';
@@ -37,6 +37,19 @@ export function stagePropModel(prop: StageProp, scale: number, preview = true, a
     g.userData.repeat = LADDER.rung * s;
   } else if (prop === 'obstacle') {
     g.add(box([1.4 * s, VAULT.height * s, VAULT.depth * s], [0, (VAULT.height / 2) * s, (VAULT.near + VAULT.depth / 2) * s], concrete()));
+  } else if (prop === 'football') {
+    // White leather with the twelve dark pentagon patches of a classic ball.
+    const ball = new T.Group(), r = FOOTBALL_RADIUS * s;
+    const white = new T.MeshStandardMaterial({ name: 'Football leather', color: '#f4f3ee', roughness: 0.55 }), dark = new T.MeshStandardMaterial({ name: 'Football patches', color: '#1d1f22', roughness: 0.6 });
+    const shell = new T.Mesh(new T.SphereGeometry(r, 24, 16), white);shell.castShadow = true;ball.add(shell);
+    const ico = new T.IcosahedronGeometry(1, 0), p = ico.getAttribute('position'), seen = new Set<string>();
+    for (let i = 0; i < p.count; i++) {
+      const n = new T.Vector3(p.getX(i), p.getY(i), p.getZ(i)).normalize(), key = n.toArray().map((x) => x.toFixed(3)).join();
+      if (seen.has(key)) continue;seen.add(key);
+      const patch = new T.Mesh(new T.CircleGeometry(r * 0.36, 5), dark);
+      patch.position.copy(n.clone().multiplyScalar(r * 1.004));patch.lookAt(n.clone().multiplyScalar(2 * r));ball.add(patch);
+    }
+    ico.dispose();ball.name = 'football';ball.position.set(0, r, 0.4 * s);g.add(ball);g.userData.ball = ball;
   } else if (prop === 'cover') {
     g.add(box([COVER.width * s, COVER.height * s, COVER.depth * s], [0, (COVER.height / 2) * s, (COVER.near + ahead + COVER.depth / 2) * s], concrete()));
   } else {
@@ -47,10 +60,12 @@ export function stagePropModel(prop: StageProp, scale: number, preview = true, a
 }
 
 /** Preview prop for a clip, or undefined for clips without one. */
-export function stageScenery(clipId: string, scale: number): T.Group | undefined {
+export function stageScenery(clipId: string, scale: number, mirror = false): T.Group | undefined {
   const prop = stagePropFor(clipId);
   // Take cover steps up to the wall, so from where it starts the wall is a step further away.
-  return prop && stagePropModel(prop, scale, true, clipId === 'take_cover' ? TAKE_COVER_STEP : 0);
+  const g = prop && stagePropModel(prop, scale, true, clipId === 'take_cover' ? TAKE_COVER_STEP : 0);
+  if (g?.userData.ball) g.userData.path = (t: number) => { const at = footballAt(clipId, t);return at && mirror ? [-at[0], at[1], at[2]] : at; };
+  return g;
 }
 
 /**
@@ -62,6 +77,13 @@ export function placeStageProp(g: T.Group, travel: [number, number, number] | un
   const repeat = g.userData.repeat as number | undefined;
   if (repeat) off[1] = ((off[1] % repeat) + repeat) % repeat - repeat;
   g.position.set(off[0], off[1], off[2]);
+  placeBall(g, t, scale);
+}
+
+/** Move a football prop along its clip's path (measured from where the clip started). */
+export function placeBall(g: T.Group, t: number, scale: number) {
+  const ball = g.userData.ball as T.Object3D | undefined, at = (g.userData.path as ((t: number) => [number, number, number] | undefined) | undefined)?.(t);
+  if (ball) { ball.visible = !!at; if (at) { ball.position.set(at[0] * scale, at[1] * scale, at[2] * scale); ball.rotation.x = at[2] * 6; } }
 }
 
 /** The prop as a static export mesh, origin at the character's position (for cover, where Cover idle plays). */

@@ -27,6 +27,8 @@ export class Viewer {
   rootMotion = false;
   /** Show the ladder, vault obstacle, ledge wall or cover with the clips built against them. */
   stageProps = true;
+  /** Play sports clips left-footed (mirrored). */
+  leftFooted = false;
   /** Show blood with the gunshot reactions. */
   blood = true;
   private bleed: Blood | null = null;
@@ -278,7 +280,7 @@ export class Viewer {
     if (this.clip) {
       el = (now - this.clipStart) * this.speed;
       t = this.clip.loop ? el % this.clip.duration : Math.min(el, this.clip.duration);
-      frame = this.animator.frame(this.clip, t, { rootMotion: this.rootMotion, faceTime: now,vehicleLift:vehicleFor(this.vehicle,this.clip.id)?vehicleLift(vehicleFor(this.vehicle,this.clip.id)!,this.riderScale):0 });
+      frame = this.animator.frame(this.clip, t, { rootMotion: this.rootMotion, mirror: this.leftFooted && this.clip.category === 'Sports', faceTime: now,vehicleLift:vehicleFor(this.vehicle,this.clip.id)?vehicleLift(vehicleFor(this.vehicle,this.clip.id)!,this.riderScale):0 });
     } else frame = { ...this.animator.bind(), morph: this.animator.restFace(now) };
     // Crossfade from the previous clip over 0.25 s.
     if (this.blendFrom) {
@@ -339,10 +341,11 @@ export class Viewer {
   }
   /** The clip's stage prop (rebuilt when the clip, character or switch changes). */
   private updateStageProp(t: number) {
-    const key = this.stageProps && this.clip && stagePropFor(this.clip.id) ? `${this.clip.id}:${this.riderScale}` : '';
+    const mirror = this.leftFooted && this.clip?.category === 'Sports';
+    const key = this.stageProps && this.clip && stagePropFor(this.clip.id) ? `${this.clip.id}:${this.riderScale}:${mirror}` : '';
     if (key !== this.stageKey) {
       if (this.propGroup) { this.scene.remove(this.propGroup); this.propGroup.traverse((o) => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); } }); }
-      this.propGroup = key ? stageScenery(this.clip!.id, this.riderScale) ?? null : null;
+      this.propGroup = key ? stageScenery(this.clip!.id, this.riderScale, mirror) ?? null : null;
       if (this.propGroup) this.scene.add(this.propGroup);
       this.stageKey = key;
     }

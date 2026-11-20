@@ -1,6 +1,6 @@
 # Animations
 
-There are 219 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 239 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -16,6 +16,7 @@ There are 219 clips. The character loads playing **Idle**. The animation bar at 
 | Sitting & lying | Sit down, Sit idle, Stand up (on a chair); Lie down, Sleep (on the back) |
 | Swimming | Tread water, Swim forward (front crawl), Swim breaststroke, Swim backstroke (loops); Dive into water, Climb out of water |
 | Climbing | Climb ladder up / down, Ledge hang (loops); Vault over obstacle, Climb up ledge |
+| Sports | Shoot (football), Pass (straight), Side pass left / forward / right (inside foot), Slide tackle; Goalkeeper ready (loop), Goalkeeper catch, Goalkeeper dive left/right, Goalkeeper low dive left/right; Pick up ball, Bounce ball (loop), Side throw (right / left hand), Two-hand throw forward, Low throw (right / left hand); Siu celebration |
 | Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Take cover, Cover idle (loop), Cover fire (pop up). Rifle hit from front / back, Rifle death (fall forward / backward). Throw grenade |
 | Aerial | Skydive, Activate parachute (deploy), Use parachute (glide), Land parachute |
 | Vehicles | Riding, driving and piloting for fourteen vehicles, with boarding/alighting, stunt rolls, crash escapes, jet runway manoeuvres, parachute bail-outs and the tank gunner. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) |
@@ -126,6 +127,31 @@ The wall is a stage prop like the climbing props: **Props** shows or hides it, a
 
 The deaths end where Death (fall backward) (head, chest) or Death (fall forward) (back, stomach) end, so Get up follows. The preview adds blood: a wound on the body, a spray along the bullet's path that lands as drops on the floor and, after the deaths, a pool spreading under the body. **Blood** in the animation bar turns it off. Blood is a preview effect and is not exported; each clip lists its wounds (time, bone and bullet direction) as `Clip.wounds` for engines that add their own.
 
+## Sports
+
+The football clips kick with the right foot while the left stays planted:
+
+| Clip | Length | Move |
+|---|---|---|
+| Shoot (football) | 0.95 s | A long stride on to the left foot, the knee cocks back and the laces meet the ball at 0.3 s, following through high. |
+| Pass (straight) | 0.7 s | A short backswing and a firm swing straight through the ball, which leaves at 0.22 s. |
+| Side pass left / forward / right (inside foot) | 0.75 s | The thigh turns out so the toes point outward and the inside of the foot meets the ball at 0.24 s. To the left the leg swings across the body; forward it swings straight through; to the right the body opens on the planted left foot. |
+| Slide tackle | 1.25 s | Down on to the left hip with the right leg sweeping straight and low, then back up; 2.6 m carried in `travel`. |
+| Goalkeeper ready | 0.9 s loop | Knees bent, weight forward and hands ready, with a small bounce. |
+| Goalkeeper catch | 0.9 s | Open hands meet the ball in front of the chest and gather it in, one either side of it. |
+| Goalkeeper dive left/right | 1.7 s | A spring sideways with both hands reaching past the head, palms toward the ball; land on the side and get back up. 1.1 m carried in `travel`. |
+| Goalkeeper low dive left/right | 1.7 s | The same dive flat along the ground for shots at the foot of the post. |
+| Pick up ball | 1.5 s | Squat, take the ball from the floor with a hand either side of it and stand holding it at the chest. |
+| Bounce ball | 0.7 s loop | The right hand pushes the ball down and meets it again as it comes back up. |
+| Side throw (right / left hand) | 1.1 s | Step on to the front foot and sling the ball round from behind at shoulder height; it leaves the hand at 0.5 s. |
+| Two-hand throw forward | 1.3 s | The ball goes back over the head with the back arched, then both arms whip it forward; it leaves the hands at 0.62 s. |
+| Low throw (right / left hand) | 1.4 s | A long step and a low underarm swing that bowls the ball along the ground; it leaves the hand at 0.72 s. |
+| Siu celebration | 2.4 s | Ara's original keyframed Jump with a half turn in the air, landing feet wide with both arms flung down and out and a long, rounded shout. It ends facing the other way. |
+
+**Left-footed**, next to Props in the builder, plays every sports clip mirrored, so kicks use the left foot and throws the other hand; the export uses it too, and `Animator.frame` and `bake` take `mirror: true` for the same.
+
+A **football** stage prop comes with the kicks, the tackle, the catch, the dives and the ball handling clips. It waits at the foot until the kick's contact and then flies; the keeper's ball arrives from in front, meets the hands and is held or pushed wide. **Props** shows or hides it in the builder; the export includes it as a separate file at its starting spot. `footballAt(clipId, time)` in `src/core/anim/stage.ts` gives its path, so a game can hand over to its own ball at the contact or release time (`KICK_CONTACT` and `THROW_RELEASE` in `src/core/anim/clips/sports.ts`).
+
 ## Weapons
 
 Pick an assault rifle, pistol, sword, combat knife or grenade under *Props*. Weapons are held in the right hand on the `WeaponR` socket (see [Rigging](rigging.md#weapon-socket)), and the viewer switches to the matching idle.
@@ -220,7 +246,7 @@ The **Aerial** category has `skydive`, `parachute_deploy`, `parachute_glide` and
 ## How clips work
 
 - **Keyframed clips** are defined once (`src/core/anim/clips/`, one file per set). Each bone is posed in its own frame (X = flex forward, Y = twist, Z = side), on an "animation rest" with relaxed arms and nearly straight elbows.
-- **Hand targets** are given relative to the chest (most clips) or to the floor (`HandTarget.space: 'floor'`, for hands on something fixed, like handlebars, a broom or a ladder rung). `HandTarget.tip` targets the index fingertip instead of the wrist, using the rig's own finger length. `Sample.feet` places the ankles on floor-space holds the same way, and `Sample.ikWeight` eases a hand onto or off its hold. `Sample.plant` keeps a foot where it stood in the clip's first frame on each body, so turning hips and twisting stances (punches, kicks, sword cuts) don't slide it.
+- **Hand targets** are given relative to the chest (most clips) or to the floor (`HandTarget.space: 'floor'`, for hands on something fixed, like handlebars, a broom or a ladder rung). `HandTarget.tip` targets the index fingertip instead of the wrist, using the rig's own finger length. `Sample.feet` places the ankles on floor-space holds the same way, and `Sample.ikWeight` eases a hand onto or off its hold. `Root.yaw`, `pitch` and `roll` turn the whole body (a dive rolls it on to its side). `Sample.plant` keeps a foot where it stood in the clip's first frame on each body, so turning hips and twisting stances (punches, kicks, sword cuts) don't slide it.
 - **One evaluator:** `src/core/anim/evaluate.ts` drives the viewer and both exporters, so one clip works on every skeleton type and on A- or T-pose binds, and the preview matches the export exactly.
 
 GLB has one glTF animation per clip (30 fps, rotation channels plus root translation), and FBX has one AnimationStack (take) per clip. `scripts/blender_anim_check.py` imports the files into Blender and renders key frames of every action.

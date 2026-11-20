@@ -52,7 +52,7 @@ Other apps take the same command: `npx -y ara3d mcp`.
 |---|---|
 | `create_character` | Builds a character and writes GLB, FBX, OBJ or ZIP files. Starts from a preset, a random seed, a builder share link, or a character the assistant designs. Takes animations, detail, root motion, a weapon, something to carry, a vehicle and colours |
 | `list_presets` | The 63 preset characters |
-| `list_animations` | The 219 animation clips, searchable, such as "dance" or "rifle" |
+| `list_animations` | The 239 animation clips, searchable, such as "dance" or "rifle" |
 | `list_props` | Weapons, carried items, vehicles and expressions |
 | `character_schema` | Every field of a character, so the assistant can design one: body, face, hair, clothes, colours and rig |
 | `create_film` | Checks an [Ara Studio](studio.md) film as Studio does, saves it as `.ara-studio.json` and returns a link that opens it in Studio, to watch, edit and record as a video |
@@ -73,5 +73,5 @@ Films and games are small files, so they are written straight away; there is not
 
 ## Good to know
 
-- **Smaller, faster files:** ask for only the animations you need. Every clip makes the file bigger and the build slower; a character with all 219 is about 28 MB.
+- **Smaller, faster files:** ask for only the animations you need. Every clip makes the file bigger and the build slower; a character with all 239 is about 28 MB.
 - **Licence:** characters are built from CC0 MakeHuman data, with animations from the CMU Graphics Lab Motion Capture Database, so you can use them in commercial projects.

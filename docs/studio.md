@@ -51,7 +51,7 @@ Removing a character also tidies up camera shots and captions that pointed at th
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **219 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **239 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. **Check staging** finds land/water and conservative static-obstacle conflicts, but playback does not stop at walls, furniture or other characters. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
 - **Vehicles:** choosing a riding or driving action brings its vehicle. See [Vehicles](#vehicles).
@@ -255,6 +255,8 @@ Place swimmers inside a set’s water (beach, pools, spa, lake, harbour, yacht d
 ### Climbing
 
 Climbing actions bring a prop: a ladder for **Climb ladder up / down**, an obstacle for **Vault over obstacle**, and a wall with a ledge for **Ledge hang** and **Climb up ledge**. It is placed where each climb starts and stays in the set for the whole film, so later actions continue from the top of a ledge or ladder. Consecutive ladder actions share one ladder, and a hang shares its wall with the climb up. Untick **Show ladder** (or obstacle, or ledge wall) on a climbing action to hide the prop for that climb; the motion stays the same. Climbs always travel. Start each climb clear of the set's own walls and furniture, facing the way it should go: the vault needs about 3 m ahead.
+
+Football actions (the shot, the passes, the slide tackle, the goalkeeper catch and dives, and picking up, bouncing and throwing the ball) bring their own football. It sits at the foot, in the hands or arrives at the keeper's hands as each action starts, and flies off on the kick or throw. Untick **Show football** to hide it.
 
 ### Combat and cover
 

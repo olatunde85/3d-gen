@@ -354,7 +354,7 @@ export const GLASSES: Option[] = [
   { id: 'none', label: 'None' }, { id: 'sunglasses', label: 'Sunglasses' }, { id: 'aviators', label: 'Aviators' }, { id: 'sunglasses_sleek', label: 'Cat-eye' },
 ];
 export const JEWELLERY: Option[] = [
-  'watch_gold', 'watch_silver', 'gold_necklace', 'fine_pendant', 'gold_chains', 'cuban_chain', 'pearl_necklace', 'silver_cross', 'gold_ring', 'bangles', 'wrist_beads', 'gloves', 'sport_gloves', 'earpiece',
+  'watch_gold', 'watch_silver', 'gold_necklace', 'fine_pendant', 'gold_chains', 'cuban_chain', 'pearl_necklace', 'silver_cross', 'gold_ring', 'bangles', 'wrist_beads', 'gloves', 'sport_gloves', 'keeper_gloves', 'earpiece',
 ].map((id) => ({ id, label: garmentById.get(id)?.label.replace(/ \(.*\)$/, '') ?? id }));
 /** Hats: the ready-made ones (the hat setting) and procedural ones (accessories). */
 export const HATS: Option[] = [

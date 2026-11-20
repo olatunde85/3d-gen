@@ -106,7 +106,7 @@ export async function runExport(lib: AssetLibrary, ch: Character, plan: ExportPl
         const c = clipById.get(id)!;
         progress(`Baking ${c.name}`);
         const vehicle=vehicleFor(ch.params.vehicle,id);
-        b = { name: exportClipName(id, plan.settings), loop: c.loop, ...animator!.bake(c, 30, { rootMotion: plan.settings.rootMotion,vehicleLift:vehicle?vehicleLift(vehicle,riderScale):0 }) };
+        b = { name: exportClipName(id, plan.settings), loop: c.loop, ...animator!.bake(c, 30, { rootMotion: plan.settings.rootMotion,mirror:!!plan.settings.leftFooted&&c.category==='Sports',vehicleLift:vehicle?vehicleLift(vehicle,riderScale):0 }) };
         baked.set(id, b);extras.onBaked?.(id, b);
       }
       return b;
