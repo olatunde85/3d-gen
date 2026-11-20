@@ -2,6 +2,12 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.10.0 — 2026-11-20 (with ara3d-data 1.2.0)
+
+- **50 preset characters:** 18 new ones: The Resort Guest, The Lifeguard, The Paramedic, The Nurse, The Flight Attendant, The Airline Pilot, The Dispatch Rider, The Road Worker, The Street Racer, The Police Officer (USA), The MMA Fighter, The Mob Boss, The Clown, The Masked Robber, The Getaway Driver, The Security Guard, The Motorcycle Cop and The Army Medic. See them all on the [characters page](https://ara3dgen.com/characters/).
+- **New clothes and gear** for them: scrubs, a resort shirt, loose shorts, a singlet, a racing jacket and racer shirt, a biker vest, a fur jacket, a neck scarf, epaulettes, a hard hat and an open-face helmet.
+- **Fixed:** the hi-vis vest stays on the chest over a long shirt, and the singlet keeps clean armholes when the arms rise.
+
 ## 0.9.0 — 2026-11-18
 
 - **Handshake:** a two-person clip. Both characters play it, standing face to face 0.75 m apart, each 0.1 m to the other's right; their right hands meet, shake three times and let go. See [Two people](https://ara3dgen.com/docs/animations/) in the animations guide.

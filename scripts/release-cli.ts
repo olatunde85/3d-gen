@@ -1,10 +1,13 @@
 /**
  * Prepares the ara3d package (CLI and browser library) and the ara3d-data package for npm.
  *   npm run release-cli              packs public/assets, uploads it to the cli-data release if it changed, builds the CLI
- *   npm run release-cli -- --publish --otp 123456   also publishes to npm (npm login first; the code is from your authenticator app)
+ *   npm run release-cli -- --publish --otp 123456   also publishes ara3d to npm (npm login first; the code is from your authenticator app)
+ *   npm run release-cli -- --publish --data-only    publishes only ara3d-data, when public/assets changed (raise packages/data/package.json's version first)
+ *   npm run release-cli -- --publish --keep-data    publishes ara3d while new data waits, still loading the ara3d-data version it loads now
  * The data zip is deterministic, so unchanged assets keep the same file and nothing is uploaded. The library loads the
- * same files from the ara3d-data npm package through jsDelivr; when they change, raise packages/data/package.json's
- * version and it is published first.
+ * same files from the ara3d-data npm package through jsDelivr, at the version in packages/cli/src/data-pin.json. npm can
+ * take days to approve a new ara3d-data, so it is published on its own; ara3d moves to it once jsDelivr serves it, and
+ * is never published pointing at data that isn't there.
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -51,15 +54,37 @@ cpSync(assets, join(dataPackage, 'assets'), { recursive: true, filter: (src) => 
 const webHash = createHash('sha256').update(sha);
 for (const file of files(join(assets, 'web'))) webHash.update(relative(assets, file)).update(readFileSync(file));
 const dataSha = webHash.digest('hex'), dataChanged = published.sha256 !== dataSha;
-if (dataChanged && published.version === dataManifest.version) throw Error(`The character data changed: raise the version in packages/data/package.json (now ${dataManifest.version}).`);
-console.log(`ara3d-data ${dataManifest.version}: ${dataChanged ? 'new data, to publish' : 'unchanged'}`);
+const dataOnly = process.argv.includes('--data-only'), keepData = process.argv.includes('--keep-data'), publishing = process.argv.includes('--publish');
+if (dataChanged && published.version === dataManifest.version && !(keepData && !dataOnly)) throw Error(`The character data changed: raise the version in packages/data/package.json (now ${dataManifest.version}), then publish it with --data-only.`);
+console.log(`ara3d-data ${dataManifest.version}: ${dataChanged ? 'new data, not yet published' : 'published'}`);
+// npm requires two-factor authentication to publish: pass the current code from your authenticator app with --otp.
+const otp = process.argv[process.argv.indexOf('--otp') + 1], publish = (cwd: string) => execFileSync('npm', ['publish', '--access', 'public', ...(process.argv.includes('--otp') && otp ? [`--otp=${otp}`] : [])], { cwd, stdio: 'inherit' });
+if (dataOnly) {
+  if (!publishing) console.log('Ready. Publish the data with: npm run release-cli -- --publish --data-only');
+  else if (!dataChanged) console.log('ara3d-data is unchanged: nothing to publish');
+  else {
+    publish(dataPackage);writeFileSync(hashFile, JSON.stringify({ version: dataManifest.version, sha256: dataSha }, null, 2) + '\n');
+    console.log(`Published ara3d-data ${dataManifest.version}; commit packages/data/data-hash.json. Once npm approves it, release ara3d to load it.`);
+  }
+  process.exit(0);
+}
+
+// The ara3d-data version the library loads: the newest data once jsDelivr serves it, otherwise (with --keep-data) the one it loads now.
+const pinFile = join(cli, 'src/data-pin.json'), pinned: string = JSON.parse(readFileSync(pinFile, 'utf8')).version;
+const served = async (version: string) => (await fetch(`https://cdn.jsdelivr.net/npm/ara3d-data@${version}/package.json`).catch(() => undefined))?.ok === true;
+if (publishing) {
+  const ready = !dataChanged && await served(dataManifest.version);
+  if (ready) { if (pinned !== dataManifest.version) { writeFileSync(pinFile, JSON.stringify({ version: dataManifest.version }, null, 2) + '\n');console.log(`ara3d loads ara3d-data ${dataManifest.version}; commit packages/cli/src/data-pin.json`); } }
+  else if (!keepData) throw Error(dataChanged
+    ? 'The character data changed: publish it first with --data-only, or release ara3d with --keep-data to keep loading the data it loads now.'
+    : `ara3d-data ${dataManifest.version} isn't on npm yet (npm may still be approving it). Release ara3d with --keep-data to keep loading ara3d-data ${pinned}, or wait.`);
+  else if (!(await served(pinned))) throw Error(`ara3d-data ${pinned} isn't served by jsDelivr; check packages/cli/src/data-pin.json.`);
+  else console.log(`ara3d keeps loading ara3d-data ${pinned}`);
+}
 
 for (const config of ['vite.config.ts', 'vite.lib.config.ts', 'vite.embed.config.ts']) execFileSync('npx', ['vite', 'build', '--config', join(cli, config)], { cwd: root, stdio: 'inherit' });
 execFileSync('npx', ['tsc', '-p', join(cli, 'tsconfig.types.json')], { cwd: root, stdio: 'inherit' });
-// npm requires two-factor authentication to publish: pass the current code from your authenticator app with --otp.
-const otp = process.argv[process.argv.indexOf('--otp') + 1], publish = (cwd: string) => execFileSync('npm', ['publish', '--access', 'public', ...(process.argv.includes('--otp') && otp ? [`--otp=${otp}`] : [])], { cwd, stdio: 'inherit' });
-if (process.argv.includes('--publish')) {
-  if (dataChanged) { publish(dataPackage);writeFileSync(hashFile, JSON.stringify({ version: dataManifest.version, sha256: dataSha }, null, 2) + '\n');console.log('Published ara3d-data; commit packages/data/data-hash.json'); }
+if (publishing) {
   publish(cli);
   // jsDelivr caches what "ara3d@0" means for up to 12 hours. Once npm shows the new version (it takes a minute or two),
   // ask jsDelivr to look again, so pages using @0 get this release.
@@ -75,4 +100,4 @@ if (process.argv.includes('--publish')) {
     console.log(response?.ok ? `jsDelivr refreshed ara3d@0/${file}` : `Could not refresh ara3d@0/${file} on jsDelivr; it updates within 12 hours anyway.`);
   }
 }
-else console.log('Ready. Publish with: npm run release-cli -- --publish');
+else console.log(`Ready. Publish with: npm run release-cli -- --publish${keepData ? ' --keep-data' : ''}`);

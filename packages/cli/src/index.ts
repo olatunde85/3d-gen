@@ -19,7 +19,7 @@ import { parseSteps, type SequenceStep } from './library/sequence';
 import { lipSync, locomotion, lookControls, type LipSync, type LipSyncSource, type Locomotion, type LocomotionOptions, type LookOptions } from './library/motion';
 import type { WorkerReply, WorkerRequest } from './library/worker';
 import type { HumanParams } from '../../../src/core/params';
-import DATA from '../../data/package.json';
+import DATA from './data-pin.json';
 // Built from the generator's own lists at build time (see vite.lib.config.ts).
 import CATALOG from 'virtual:ara-catalog';
 

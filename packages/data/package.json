@@ -1,6 +1,6 @@
 {
   "name": "ara3d-data",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Character data for ara3d: the base body, body shapes, clothing, hair and textures it builds characters from. Served by jsDelivr for the ara3d library.",
   "keywords": ["ara3d", "3d", "character", "makehuman"],
   "homepage": "https://ara3dgen.com/docs/library/",
