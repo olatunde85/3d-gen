@@ -52,17 +52,17 @@ Other apps take the same command: `npx -y ara3d mcp`.
 |---|---|
 | `create_character` | Builds a character and writes GLB, FBX, OBJ or ZIP files. Starts from a preset, a random seed, a builder share link, or a character the assistant designs. Takes animations, detail, root motion, a weapon, something to carry, a vehicle and colours |
 | `list_presets` | The 63 preset characters |
-| `list_animations` | The 239 animation clips, searchable, such as "dance" or "rifle" |
+| `list_animations` | The 248 animation clips, searchable, such as "dance" or "rifle" |
 | `list_props` | Weapons, carried items, vehicles and expressions |
-| `character_schema` | Every field of a character, so the assistant can design one: body, face, hair, clothes, colours and rig |
-| `create_film` | Checks an [Ara Studio](studio.md) film as Studio does, saves it as `.ara-studio.json` and returns a link that opens it in Studio, to watch, edit and record as a video |
-| `film_guide` | How to write a film: the core rules, then topics on request (sets, animations, sounds, the full format) |
+| `character_schema` | Every field of a character, so the assistant can design one: body, face, hair, clothes, colours and rig. It comes in parts |
+| `create_film` | Checks an [Ara Studio](studio.md) film as Studio does, saves it as `.ara-studio.json` and returns a link that opens it in Studio, to watch, edit and record as a video. It also runs Studio's staging check and lists any place a character or vehicle walks or drives through something, so the assistant can fix the route |
+| `film_guide` | How to write a film: the core rules, then topics on request (sets, animations, sounds, the full format), and the staging map of any set (`location-map` with a set's ID) |
 | `create_game` | Checks an [Ara Play](play.md) game as Play does, including where everything goes on the map, saves it as `.ara-play.json` and returns a link that opens it in Play, to play, edit, download or publish |
 | `game_guide` | How to write a game: the core rules, then topics on request (game modes, the map library, appearance rules) |
 
 Assistants usually ask before running a tool, and show what they're about to make.
 
-Films and games are small files, so they are written straight away; there is nothing to build until Studio or Play opens them. The guides come in parts because a whole guide is larger than many assistants accept in one answer. Film and game links carry the file after the `#` in the address, which stays in the browser, so opening one sends nothing to ara3dgen.com.
+Films and games are small files, so they are written straight away; there is nothing to build until Studio or Play opens them. No answer is longer than 20,000 characters, which every assistant accepts in one go: the guides come as topics, and a long topic, a big set's map or the character schema comes in numbered parts. Chapters of a game can come in any order of modes, such as a runner, then a race, then a rescue mission, and `create_game` describes each chapter. Film and game links carry the file after the `#` in the address, which stays in the browser, so opening one sends nothing to ara3dgen.com.
 
 ## Options
 
@@ -73,5 +73,5 @@ Films and games are small files, so they are written straight away; there is not
 
 ## Good to know
 
-- **Smaller, faster files:** ask for only the animations you need. Every clip makes the file bigger and the build slower; a character with all 239 is about 28 MB.
+- **Smaller, faster files:** ask for only the animations you need. Every clip makes the file bigger and the build slower; a character with all 248 is about 28 MB.
 - **Licence:** characters are built from CC0 MakeHuman data, with animations from the CMU Graphics Lab Motion Capture Database, so you can use them in commercial projects.

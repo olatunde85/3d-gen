@@ -4,7 +4,7 @@
  * Kicks strike with the right foot while the left stays planted; dives play in place (the game moves the keeper).
  */
 import { type Ch, type Clip, type HandTarget, type Sample } from './types';
-import { fingers, lerp3, normV, side, track, v } from './helpers';
+import { FISTS, fingers, fist, lerp3, normV, side, track, v } from './helpers';
 import { mirrorClip, mirrorSample } from './mirror';
 
 const keys = (T: number[], t: number) => (vals: number[]) => track(T, vals)(t);
@@ -250,7 +250,7 @@ const fly = (from: V3, vel: V3, dt: number): V3 => [from[0] + vel[0] * dt, Math.
 /** Ball paths for the handling clips (character floor space, metres at 1.8 m). */
 export const BALL_PATHS: Record<string, (t: number) => V3> = {};
 /** When the ball leaves the hand in each throw (seconds into the clip). */
-export const THROW_RELEASE = { throw_side_right: 0.5, throw_side_left: 0.5, throw_two_hands: 0.62, throw_low_right: 0.72, throw_low_left: 0.72 } as const;
+export const THROW_RELEASE = { throw_side_right: 0.5, throw_side_left: 0.5, throw_two_hands: 0.62, throw_in: 0.8, throw_low_right: 0.72, throw_low_left: 0.72 } as const;
 
 /**
  * Bend at the hips and knees over a ball in front of the feet, take it in both hands, one either side of it, and stand
@@ -348,6 +348,37 @@ export const throwTwoHands: Clip = {
 const twoBall = (t: number) => twoMid(t);
 BALL_PATHS.throw_two_hands = (t) => t < 0.62 ? twoBall(t) : fly(twoBall(0.62), [0, 3, 11], t - 0.62);
 
+/**
+ * Throw-in: both hands take the ball back behind the head with the back arched and knees bent, then the arms whip
+ * it forward over the head, releasing above the forehead with both feet on the ground (the back toe drags).
+ */
+const inT = [0, 0.3, 0.55, 0.68, 0.8, 0.98, 1.22, 1.5];
+const inMid = path(inT, [[0, 1.15, 0.32], [0, 1.8, 0.08], [0, 1.82, -0.24], [0, 1.86, -0.2], [0, 2.0, 0.26], [0, 1.45, 0.6], [0, 1.25, 0.45], [0, 1.15, 0.32]]);
+export const throwIn: Clip = {
+  id: 'throw_in', name: 'Throw-in (overhead)', category: 'Sports', duration: 1.5, loop: false,
+  sample: (t) => {
+    const k = keys(inT, t), out: Record<string, Ch> = {
+      Spine: [k([0, -4, -22, -24, 2, 12, 6, 0]), 0, 0], Spine1: [k([0, -4, -14, -16, 2, 6, 2, 0]), 0, 0],
+      Neck: [k([0, 4, 8, 8, 2, 0, 0, 0]), 0, 0], Head: [k([0, 0, 2, 2, -2, 4, 2, 0]), 0, 0],
+    };
+    // A short step on to the left foot; the right stays back with its toe on the ground.
+    side(out, 'UpLeg', [k([0, 14, 24, 26, 30, 26, 12, 0]), 0, -3], [k([0, -6, -14, -16, -12, -8, -4, 0]), 0, -3]);
+    side(out, 'Leg', [k([-4, -14, -26, -28, -22, -20, -10, -4]), 0, 0], [k([-4, -16, -28, -30, -24, -16, -8, -4]), 0, 0]);
+    side(out, 'Foot', [k([0, 2, 4, 4, 0, 0, 0, 0]), 0, 0], [k([0, 10, 22, 24, 20, 12, 4, 0]), 0, 0]);
+    fingers(out, 8);
+    // Collarbones lift well clear so the shoulders and neck keep their shape with the arms overhead.
+    const up = k([0, 0.8, 1.15, 1.2, 1.15, 0.6, 0.2, 0]);
+    side(out, 'Shoulder', [0, 0, 22 * up], [0, 0, 22 * up]);
+    // Hands behind and either side of the ball, fingers up, elbows forward and out behind the head, then out and down.
+    const m = inMid(t), on = k([1, 1, 1, 1, 1, 0.85, 0.35, 0]), back = k([0, 0.6, 1, 1, 0.3, 0, 0, 0]);
+    // Once the ball has gone the hands part to shoulder width instead of closing on each other.
+    const apart = 0.095 + k([0, 0, 0, 0, 0, 0.12, 0.12, 0.1]), low = k([0.03, 0.08, 0.09, 0.09, 0.08, 0.03, 0.03, 0.03]);
+    const hand = (x: 1 | -1) => floorHand([m[0] + x * apart, m[1] - low, m[2] - 0.05], [-x * 0.85, 0, 0.5], [x * 0.2, 1, 0.2 - back * 0.35], [x, -0.5 + back * 0.9, -0.4 + back * 0.9]);
+    return { bones: out, root: { ground: true }, ik: { Left: hand(1), Right: hand(-1) }, ikWeight: { Left: on, Right: on } };
+  },
+};
+BALL_PATHS.throw_in = (t) => t < 0.8 ? inMid(t) : fly(inMid(0.8), [0, 2.2, 10], t - 0.8);
+
 /** Low one-hand throw: a long step on to the left foot, the right arm swings back and bowls the ball along the ground. */
 const lowT = [0, 0.25, 0.45, 0.62, 0.72, 0.9, 1.15, 1.4];
 const lowHand = path(lowT, [[-0.22, 1, 0.3], [-0.25, 0.9, 0.1], [-0.3, 0.72, -0.45], [-0.25, 0.32, 0.18], [-0.18, 0.22, 0.52], [-0.12, 0.5, 0.85], [-0.2, 0.85, 0.5], [-0.22, 1, 0.3]]);
@@ -376,7 +407,159 @@ export { throwLowRight };
 export const throwLowLeft = mirrorClip(throwLowRight, 'throw_low_left', 'Low throw (left hand)');
 BALL_PATHS.throw_low_left = (t) => { const q = BALL_PATHS.throw_low_right(t);return [-q[0], q[1], q[2]]; };
 
-export const SPORTS: Clip[] = [soccerShoot, soccerPass, sidePassLeft, sidePassForward, sidePassRight, slideTackle, keeperReady, keeperCatch, keeperDiveLeft, keeperDiveRight, keeperLowDiveLeft, keeperLowDiveRight, ballPickUp, ballBounce, throwSideRight, throwSideLeft, throwTwoHands, throwLowRight, throwLowLeft, siuCelebration];
+/** Receive a pass: the right thigh turns out and the inside of the foot meets the ball at 0.2 s, then gives with it to kill its pace. */
+export const soccerReceive: Clip = {
+  id: 'soccer_receive', name: 'Receive ball (inside foot)', category: 'Sports', duration: 0.7, loop: false,
+  sample: (t) => {
+    const k = keys([0, 0.1, 0.2, 0.32, 0.5, 0.7], t);
+    const out: Record<string, Ch> = {
+      Spine: [k([4, 10, 14, 10, 6, 4]), 0, 0], Spine1: [k([2, 4, 6, 4, 2, 2]), 0, 0], Head: [k([4, 16, 22, 16, 8, 4]), 0, 0],
+    };
+    // The foot reaches a little forward to meet the ball, then draws back with it (the "cushion").
+    side(out, 'UpLeg', [k([0, 14, 18, 16, 8, 0]), 0, -3], [k([0, 18, 22, 6, 2, 0]), k([0, -40, -52, -46, -20, 0]), k([-3, 4, 4, 2, 0, -3])]);
+    side(out, 'Leg', [k([-4, -24, -30, -26, -14, -4]), 0, 0], [k([-4, -40, -34, -30, -16, -4]), 0, 0]);
+    side(out, 'Foot', [k([0, 8, 10, 8, 4, 0]), 0, 0], [k([0, 14, 16, 12, 4, 0]), 0, 0]);
+    side(out, 'Arm', [k([2, 8, 14, 12, 6, 2]), 0, k([4, 18, 24, 20, 10, 4])], [k([2, 8, 10, 8, 4, 2]), 0, k([4, 16, 20, 16, 8, 4])]);
+    side(out, 'ForeArm', [k([12, 20, 22, 20, 16, 12]), 0, 0], [k([12, 20, 22, 20, 16, 12]), 0, 0]);
+    fingers(out, 10);
+    return { bones: out, root: { ground: true }, plant: { Left: planted(t, 0.04, 0.62) } };
+  },
+};
+
+/** Standing tackle: drop on to the bent left leg and poke the right foot out low and across to take the ball, then recover. */
+export const standingTackle: Clip = {
+  id: 'standing_tackle', name: 'Standing tackle', category: 'Sports', duration: 0.85, loop: false,
+  sample: (t) => {
+    // The toe reaches the ball at 0.28 s.
+    const k = keys([0, 0.14, 0.28, 0.42, 0.64, 0.85], t);
+    const out: Record<string, Ch> = {
+      Spine: [k([6, 14, 18, 16, 8, 4]), k([0, -6, -10, -8, -2, 0]), 0], Spine1: [k([2, 6, 8, 6, 2, 0]), 0, 0], Head: [k([4, 14, 20, 16, 8, 2]), 0, 0],
+    };
+    side(out, 'UpLeg', [k([0, 30, 42, 40, 18, 0]), 0, -3], [k([0, 10, 56, 50, 16, 0]), k([0, -10, -22, -18, -6, 0]), k([-3, 4, 10, 8, 2, -3])]);
+    side(out, 'Leg', [k([-4, -52, -72, -68, -30, -4]), 0, 0], [k([-4, -60, -10, -14, -30, -4]), 0, 0]);
+    side(out, 'Foot', [k([0, 18, 26, 24, 10, 0]), 0, 0], [k([0, -10, -12, -8, 0, 0]), 0, 0]);
+    side(out, 'Arm', [k([2, 20, 34, 30, 12, 2]), 0, k([4, 26, 40, 36, 14, 4])], [k([2, -10, -24, -20, -6, 2]), 0, k([4, 24, 34, 30, 12, 4])]);
+    side(out, 'ForeArm', [k([12, 28, 30, 28, 18, 12]), 0, 0], [k([12, 30, 34, 30, 18, 12]), 0, 0]);
+    fingers(out, 12);
+    return { bones: out, root: { ground: true, z: k([0, 0.08, 0.22, 0.24, 0.16, 0]) }, plant: { Left: planted(t, 0.12, 0.72) } };
+  },
+};
+
+/** Goalkeeper punch: spring up and punch the ball away with both fists together, then land back in the ready stance. */
+export const keeperPunch: Clip = {
+  id: 'keeper_punch', name: 'Goalkeeper punch', category: 'Sports', duration: 0.9, loop: false,
+  sample: (t) => {
+    // The fists meet the ball at 0.26 s.
+    const k = keys([0, 0.12, 0.26, 0.4, 0.62, 0.9], t), out: Record<string, Ch> = {};
+    keeperStance(out, k([0, 1, 0, 0, 0.6, 0]));
+    out.Spine = [k([20, 22, 2, 4, 14, 20]), 0, 0];
+    out.Head = [k([-14, -20, -26, -18, -14, -14]), 0, 0];
+    side(out, 'UpLeg', [k([36, 50, 6, 10, 40, 36]), 0, 10], [k([36, 50, 6, 10, 40, 36]), 0, 10]);
+    side(out, 'Leg', [k([-58, -82, -6, -14, -66, -58]), 0, 0], [k([-58, -82, -6, -14, -66, -58]), 0, 0]);
+    side(out, 'Foot', [k([16, 26, -30, -20, 18, 16]), 0, 0], [k([16, 26, -30, -20, 18, 16]), 0, 0]);
+    fist(out);
+    // Fists together in front of the chest, driven up and out through the ball. The collarbones lift with them.
+    const reach = k([0, 0.1, 1, 0.8, 0.2, 0]), on = k([0, 1, 1, 1, 0.6, 0]);
+    side(out, 'Shoulder', [0, 0, 16 * reach], [0, 0, 16 * reach]);
+    const fistAt = (x: 1 | -1): HandTarget => ({ pos: v(x * 0.06, -0.12 + 0.5 * reach, 0.28 + 0.24 * reach), pole: v(x, -0.5, -0.4), dir: normV(v(0, 0.6, 1)), palm: v(-x, 0, 0) });
+    return { bones: out, root: { ground: true, lift: 0.16 * k([0, 0, 1, 0.6, 0, 0]) }, ik: { Left: fistAt(1), Right: fistAt(-1) }, ikWeight: { Left: on, Right: on }, thumbs: FISTS };
+  },
+};
+
+/** Standing header: lean back with the eyes on the ball, then snap the neck and upper body through it (forehead contact at 0.3 s). */
+export const soccerHeader: Clip = {
+  id: 'soccer_header', name: 'Header', category: 'Sports', duration: 0.8, loop: false,
+  sample: (t) => {
+    const k = keys([0, 0.15, 0.3, 0.42, 0.6, 0.8], t);
+    const out: Record<string, Ch> = {
+      Spine: [k([0, -12, 14, 10, 4, 0]), 0, 0], Spine1: [k([0, -8, 8, 6, 2, 0]), 0, 0], Neck: [k([0, -10, 10, 8, 2, 0]), 0, 0], Head: [k([0, -16, 18, 12, 4, 0]), 0, 0],
+    };
+    side(out, 'UpLeg', [k([0, 18, 8, 10, 6, 0]), 0, -2], [k([0, 18, 8, 10, 6, 0]), 0, -2]);
+    side(out, 'Leg', [k([-3, -36, -10, -16, -10, -3]), 0, 0], [k([-3, -36, -10, -16, -10, -3]), 0, 0]);
+    side(out, 'Foot', [k([0, 14, -4, 6, 4, 0]), 0, 0], [k([0, 14, -4, 6, 4, 0]), 0, 0]);
+    side(out, 'Arm', [k([0, 20, 30, 25, 10, 0]), 0, k([4, 30, 40, 35, 15, 4])], [k([0, 20, 30, 25, 10, 0]), 0, k([4, 30, 40, 35, 15, 4])]);
+    side(out, 'ForeArm', [k([12, 40, 35, 35, 25, 12]), 0, 0], [k([12, 40, 35, 35, 25, 12]), 0, 0]);
+    fingers(out, 12);
+    return { bones: out, root: { ground: true, lift: k([0, 0, 0.05, 0.02, 0, 0]) } };
+  },
+};
+
+/** Jumping header: crouch, spring up with the arms driving, arch back at the top and snap forward through the ball (0.48 s). */
+export const soccerJumpHeader: Clip = {
+  id: 'soccer_jump_header', name: 'Jumping header', category: 'Sports', duration: 1.1, loop: false,
+  sample: (t) => {
+    const k = keys([0, 0.2, 0.38, 0.48, 0.62, 0.85, 1.1], t);
+    const out: Record<string, Ch> = {
+      Spine: [k([0, 20, -14, 16, 8, 6, 0]), 0, 0], Spine1: [k([0, 6, -8, 8, 4, 2, 0]), 0, 0], Neck: [k([0, -6, -12, 10, 6, 2, 0]), 0, 0], Head: [k([0, -10, -20, 18, 10, 4, 0]), 0, 0],
+    };
+    side(out, 'UpLeg', [k([0, 50, 0, 10, 20, 30, 0]), 0, -2], [k([0, 50, 4, 16, 24, 30, 0]), 0, -2]);
+    side(out, 'Leg', [k([-3, -80, -5, -20, -40, -50, -3]), 0, 0], [k([-3, -80, -12, -34, -46, -50, -3]), 0, 0]);
+    side(out, 'Foot', [k([0, 28, -30, -20, -10, 10, 0]), 0, 0], [k([0, 28, -30, -22, -12, 10, 0]), 0, 0]);
+    // The arms drive up and out for height and to hold off a challenger.
+    side(out, 'Arm', [k([0, -30, 60, 40, 30, 10, 0]), 0, k([4, 20, 45, 50, 30, 15, 4])], [k([0, -30, 60, 40, 30, 10, 0]), 0, k([4, 20, 45, 50, 30, 15, 4])]);
+    side(out, 'ForeArm', [k([12, 30, 60, 50, 40, 20, 12]), 0, 0], [k([12, 30, 60, 50, 40, 20, 12]), 0, 0]);
+    fingers(out, 12);
+    return { bones: out, root: { ground: true, lift: k([0, 0, 0.12, 0.38, 0.26, 0, 0]) } };
+  },
+};
+
+/** Chest control: lean back to present the chest, arms wide, cushion the ball at 0.25 s and let it drop to the feet. */
+export const soccerChestControl: Clip = {
+  id: 'soccer_chest_control', name: 'Chest control', category: 'Sports', duration: 0.9, loop: false,
+  sample: (t) => {
+    const k = keys([0, 0.12, 0.25, 0.4, 0.6, 0.9], t);
+    const out: Record<string, Ch> = {
+      Spine: [k([0, -14, -20, -8, 4, 0]), 0, 0], Spine1: [k([0, -8, -12, -4, 2, 0]), 0, 0], Spine2: [k([0, -4, -6, -2, 0, 0]), 0, 0],
+      // Eyes stay on the ball as it lands on the chest and drops.
+      Neck: [k([0, 6, 10, 14, 8, 0]), 0, 0], Head: [k([0, 10, 18, 24, 12, 0]), 0, 0],
+    };
+    side(out, 'UpLeg', [k([0, 10, 14, 10, 4, 0]), 0, -2], [k([0, 10, 14, 10, 4, 0]), 0, -2]);
+    side(out, 'Leg', [k([-3, -24, -30, -20, -8, -3]), 0, 0], [k([-3, -24, -30, -20, -8, -3]), 0, 0]);
+    side(out, 'Foot', [k([0, 8, 10, 6, 2, 0]), 0, 0], [k([0, 8, 10, 6, 2, 0]), 0, 0]);
+    // Arms wide and a little back, well clear of the ball (no handball).
+    side(out, 'Arm', [k([0, -6, -12, -8, 0, 0]), 0, k([4, 55, 66, 52, 20, 4])], [k([0, -6, -12, -8, 0, 0]), 0, k([4, 55, 66, 52, 20, 4])]);
+    side(out, 'ForeArm', [k([12, 18, 14, 14, 12, 12]), 0, 0], [k([12, 18, 14, 14, 12, 12]), 0, 0]);
+    fingers(out, k([12, 6, 6, 8, 10, 12]));
+    return { bones: out, root: { ground: true, z: k([0, -0.02, -0.05, -0.03, 0, 0]) } };
+  },
+};
+
+/** A defensive wall's stance: feet together, hands one over the other in front of the body, bracing (loops). */
+function wallPose(out: Record<string, Ch>, f: number) {
+  out.Spine = [6 + 2 * f, 0, 0];out.Spine1 = [3, 0, 0];out.Head = [4 + 3 * f, 0, 0];
+  side(out, 'UpLeg', [8 + 6 * f, 0, -5], [8 + 6 * f, 0, -5]);
+  side(out, 'Leg', [-14 - 10 * f, 0, 0], [-14 - 10 * f, 0, 0]);
+  side(out, 'Foot', [6 + 4 * f, 0, 0], [6 + 4 * f, 0, 0]);
+  fingers(out, 10);
+}
+const wallHands = (): { Left: HandTarget; Right: HandTarget } => ({
+  // One hand flat over the other, low in front of the body.
+  Left: { pos: v(0.0, -0.58, 0.14), pole: v(1, 0, -0.5), dir: normV(v(-0.6, -0.8, 0)), palm: v(0, 0, -1) },
+  Right: { pos: v(0.0, -0.55, 0.18), pole: v(-1, 0, -0.5), dir: normV(v(0.6, -0.8, 0)), palm: v(0, 0, -1) },
+});
+export const wallStance: Clip = {
+  id: 'wall_stance', name: 'Defensive wall (stance)', category: 'Sports', duration: 1.4, loop: true,
+  sample: (t) => {
+    const out: Record<string, Ch> = {};
+    wallPose(out, 0.5 - 0.5 * Math.cos((t / 1.4) * Math.PI * 2));
+    return { bones: out, root: { ground: true }, ik: wallHands() };
+  },
+};
+/** The wall jumps as the free kick is struck, hands still covering. */
+export const wallJump: Clip = {
+  id: 'wall_jump', name: 'Defensive wall (jump)', category: 'Sports', duration: 0.85, loop: false,
+  sample: (t) => {
+    const k = keys([0, 0.18, 0.32, 0.45, 0.62, 0.85], t), out: Record<string, Ch> = {};
+    wallPose(out, k([0.5, 1, 0, 0, 1, 0.5]));
+    out.Spine = [k([7, 14, 2, 4, 12, 7]), 0, 0];
+    side(out, 'UpLeg', [k([11, 40, 2, 6, 36, 11]), 0, -5], [k([11, 40, 2, 6, 36, 11]), 0, -5]);
+    side(out, 'Leg', [k([-19, -70, -4, -12, -62, -19]), 0, 0], [k([-19, -70, -4, -12, -62, -19]), 0, 0]);
+    side(out, 'Foot', [k([8, 24, -30, -24, 20, 8]), 0, 0], [k([8, 24, -30, -24, 20, 8]), 0, 0]);
+    return { bones: out, root: { ground: true, lift: k([0, 0, 0.18, 0.34, 0.06, 0]) }, ik: wallHands() };
+  },
+};
+
+export const SPORTS: Clip[] = [soccerShoot, soccerPass, sidePassLeft, sidePassForward, sidePassRight, slideTackle, keeperReady, keeperCatch, keeperDiveLeft, keeperDiveRight, keeperLowDiveLeft, keeperLowDiveRight, soccerReceive, soccerChestControl, soccerHeader, soccerJumpHeader, standingTackle, keeperPunch, wallStance, wallJump, ballPickUp, ballBounce, throwSideRight, throwSideLeft, throwTwoHands, throwIn, throwLowRight, throwLowLeft, siuCelebration];
 
 /** When a kick's foot meets the ball (seconds into the clip), for games that release the ball on contact. */
-export const KICK_CONTACT = { soccer_shoot: 0.3, soccer_pass: 0.22, soccer_side_pass_left: 0.24, soccer_side_pass_forward: 0.24, soccer_side_pass_right: 0.24 } as const;
+export const KICK_CONTACT = { soccer_shoot: 0.3, soccer_pass: 0.22, soccer_side_pass_left: 0.24, soccer_side_pass_forward: 0.24, soccer_side_pass_right: 0.24, soccer_receive: 0.2, soccer_chest_control: 0.25, soccer_header: 0.3, soccer_jump_header: 0.48, standing_tackle: 0.28, keeper_punch: 0.26 } as const;

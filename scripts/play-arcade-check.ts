@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { nodeLibrary } from './node-assets';
 import { castsCompanion, chapterProject, chapterSettings, defaultProject, parseProject, posesOf, resizeEnemies } from '../src/play/project';
 import { skyLook } from '../src/play/arcade/weather';
+import { missionContract } from '../src/play/staging';
 import { parsePlayInput, raceExample, runnerExample, generatePlayGuide, describeGame } from '../src/play/assist';
 import { type RunnerSettings, runnerGunman, runnerWeapon, RUNNER_THEMES, RUNNER_THEME_NAMES, defaultRace, defaultRunner, gameTitle, isAutomaticTitle, parseRace, parseRunner, retitle, runnerGoalLabel, runnerMedalTargets } from '../src/play/arcade/modes';
 import { DEFAULT_RUNNER_MEDALS, raceMedal, runnerMedal } from '../src/play/arcade/medals';
@@ -65,12 +66,12 @@ check('race and runner games round-trip through portable JSON, chapters and LLM 
   chapter.chapters[0].race = {};assert.throws(() => parsePlayInput(JSON.stringify(chapter), cat), /need mode/);
 });
 check('race and runner chapters never stage mission cargo inherited from the first chapter', () => {
-  // A depot package fits the first mission by day; the chapter's night lighting props block it, which only matters if the race is staged as a mission.
+  // A depot package fits the first mission by day; at night the floodlights stand on its usual spots, so it moves in from them.
   const race = raceExample() as unknown as Record<string, any>, riders = Array.from({ length: 5 }, (_, i) => ({ ...race.enemies[0], id: `rider-${i + 1}` }));
   const game = { ...race, mode: 'mission', race: undefined, mission: { story: 'escape', extraction: 'pickup', location: 'depot', layout: 'balanced', variation: 0, cargo: 'package' }, chapters: [{ id: 'night-ride', mode: 'race', identity: { title: 'Night Ride', briefing: '' }, enemies: riders, race: race.race, mission: { environment: { time: 'night', weather: 'clear' } } }] };
   const p = parsePlayInput(JSON.stringify(game), cat);assert.equal(chapterProject(p, 1).mode, 'race');
   const asMission = { ...game, chapters: [{ ...game.chapters[0], mode: 'mission', race: undefined }] };
-  assert.throws(() => parsePlayInput(JSON.stringify(asMission), cat), /night-ride › cargo \(package\).*inherited from chapter-1 › mission\.cargo/);
+  const night = chapterProject(parsePlayInput(JSON.stringify(asMission), cat), 1);assert.equal(night.mode, undefined);assert.equal(night.mission.cargo, 'package');assert.equal(missionContract(night).cargo?.kind, 'package');
 });
 check('runner enemies stand in one lane, fall to a shot down that lane, and fire once if left standing', () => {
   const settings = { ...defaultRunner(), obstacles: ['gunman'] as RunnerSettings['obstacles'], powerUps: [] as RunnerSettings['powerUps'], chaser: 'none' };

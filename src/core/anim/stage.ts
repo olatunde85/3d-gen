@@ -11,7 +11,8 @@ const PROP_FOR_CLIP: Record<string, StageProp> = {
   ladder_up: 'ladder', ladder_down: 'ladder', vault_over: 'obstacle', ledge_hang: 'ledge', ledge_climb_up: 'ledge',
   take_cover: 'cover', cover_idle: 'cover', cover_fire: 'cover',
   soccer_shoot: 'football', soccer_pass: 'football', soccer_side_pass_left: 'football', soccer_side_pass_forward: 'football', soccer_side_pass_right: 'football',
-  ball_pick_up: 'football', ball_bounce: 'football', throw_side_right: 'football', throw_side_left: 'football', throw_two_hands: 'football', throw_low_right: 'football', throw_low_left: 'football', slide_tackle: 'football', keeper_catch: 'football',
+  soccer_receive: 'football', soccer_header: 'football', soccer_jump_header: 'football', soccer_chest_control: 'football', standing_tackle: 'football', keeper_punch: 'football',
+  ball_pick_up: 'football', ball_bounce: 'football', throw_side_right: 'football', throw_side_left: 'football', throw_two_hands: 'football', throw_in: 'football', throw_low_right: 'football', throw_low_left: 'football', slide_tackle: 'football', keeper_catch: 'football',
   keeper_dive_left: 'football', keeper_dive_right: 'football', keeper_low_dive_left: 'football', keeper_low_dive_right: 'football',
 };
 
@@ -35,6 +36,19 @@ export function footballAt(clipId: string, t: number): [number, number, number] 
   if (clipId === 'soccer_side_pass_left') return t < 0.24 ? [-0.06, r, 0.24] : [-0.06 + 6.5 * (t - 0.24), r, 0.24 + 3 * (t - 0.24)];
   if (clipId === 'soccer_side_pass_forward') return t < 0.24 ? [-0.1, r, 0.32] : [-0.1, r, 0.32 + 8 * (t - 0.24)];
   if (clipId === 'soccer_side_pass_right') return t < 0.24 ? [-0.31, r, 0.13] : [-0.31 - 6.1 * (t - 0.24), r, 0.13 + 5.1 * (t - 0.24)];
+  // A pass arrives and stops dead at the inside of the right foot.
+  if (clipId === 'soccer_receive') return t < 0.2 ? [-0.08, r, 0.3 + (0.2 - t) * 9] : [-0.08, r, 0.3 - 0.3 * Math.min(1, (t - 0.2) / 0.3) * 0.4];
+  // Headers: the ball drops on to the forehead and is nodded forward and down.
+  if (clipId === 'soccer_header' || clipId === 'soccer_jump_header') {
+    const c = clipId === 'soccer_header' ? 0.3 : 0.48, at: [number, number, number] = [0, clipId === 'soccer_header' ? 1.76 : 2.12, 0.16];
+    return t < c ? [0, at[1] + (c - t) * 2.5, at[2] + (c - t) * 10] : flight(at, [0, -1.5, 9], t - c);
+  }
+  // Chest control: the ball meets the chest, loses its pace and drops to the feet.
+  if (clipId === 'soccer_chest_control') return t < 0.25 ? [0, 1.32 + (0.25 - t) * 1.5, 0.12 + (0.25 - t) * 10] : flight([0, 1.3, 0.14], [0, -0.6, 1.1], t - 0.25);
+  // The poking toe knocks the ball away to the side.
+  if (clipId === 'standing_tackle') return t < 0.28 ? [-0.22, r, 0.95] : [-0.22 - 3 * (t - 0.28), r, 0.95 + 1.5 * (t - 0.28)];
+  // A high ball arrives over the keeper and is punched up and away.
+  if (clipId === 'keeper_punch') return t < 0.26 ? [0, 2.05, 0.5 + (0.26 - t) * 12] : flight([0, 2.05, 0.5], [0, 4, 9], t - 0.26);
   const held = BALL_PATHS[clipId];
   if (held) return held(t);
   if (clipId === 'slide_tackle') return t < 0.36 ? [-0.1, r, 1.55] : flight([-0.1, r, 1.55], [-1.6, 1.5, 3.2], t - 0.36);
