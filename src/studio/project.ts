@@ -27,7 +27,10 @@ export interface View { azimuth: number; elevation: number; zoom: number }
 export interface StudioProject {
   kind: 'ara-studio'; version: 2; title: string; template: SetId; actors: ActorTrack[]; shots: CameraShot[];
   camera: CameraMove; view: View; aspect: 'landscape' | 'portrait'; caption: boolean; texts: TextCue[]; audio: FilmAudio;
+  /** In a film of several scenes: this scene's name, and how it follows the one before (a cut, or a fade through black). */
+  sceneName?: string; transition?: Transition;
 }
+export type Transition = 'cut' | 'fade';
 export const CAST = ['The Female Executive', 'The Adventurer', 'The Priest', 'The Miami Dealer', 'The Corporate High-Flier', 'The Gangster'];
 export const MAX_DURATION = 60, MAX_ACTIONS = 16, MAX_SHOTS = 12, MAX_ACTORS = 5;
 let nextId = 0;
@@ -121,6 +124,8 @@ export function parseProject(text: string): StudioProject {
   });
   const result: StudioProject = { kind: 'ara-studio', version: 2, template: p.template as SetId, title: typeof p.title === 'string' ? p.title.trim().slice(0, 60) : '', actors, shots,
     camera: p.camera, aspect: p.aspect, caption: p.caption === true, texts:parseTextCues(p.texts,ids), audio:parseAudio(p.audio,ids), view: parseView(p.view) };
+  if(p.sceneName!==undefined){if(typeof p.sceneName!=='string')throw Error('Invalid scene name.');const name=p.sceneName.trim().slice(0,60);if(name)result.sceneName=name;}
+  if(p.transition!==undefined){if(!member(p.transition,['cut','fade']))throw Error('Choose a cut or a fade between scenes.');if(p.transition==='fade')result.transition='fade';}
   const music=result.audio.music;if(music.track!=='none'&&music.duration===undefined&&(music.start??0)>=durationOf(result))throw Error('Music starts beyond the film. Set its duration or move its start earlier.');
   if (durationOf(result) > MAX_DURATION) throw new Error(`Keep films under ${MAX_DURATION} seconds.`);
   validateVehicleLinks(result);

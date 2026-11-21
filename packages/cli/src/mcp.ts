@@ -26,7 +26,8 @@ import { applyColors, COLOR_SLOTS, colorsOf, type CharacterColors } from './libr
 import { loadLibrary } from './data';
 import { explain, writeSafely } from './safety';
 import PACKAGE from '../package.json';
-import { generateAssistGuide, parseStudioInput, summarizeAssistProject } from '../../../src/studio/assist';
+import { generateAssistGuide, parseStudioFilm, summarizeAssistProject } from '../../../src/studio/assist';
+import { filmDuration, filmJson } from '../../../src/studio/film';
 import { checkPlayPlacements, describeGame, generatePlayGuide, parsePlayInput } from '../../../src/play/assist';
 import { gameProjects } from '../../../src/play/project';
 import { fileLink } from '../../../src/app/links';
@@ -46,7 +47,7 @@ Start from a preset (list_presets), a random seed, a share link from the Ara bui
 Choose only the animations needed (list_animations): every clip makes the file bigger and the build slower.
 Each result includes a link that opens the character in the Ara builder, so the user can see it and keep editing.
 Films and games: read film_guide or game_guide (an overview, then the topics you need), write the file, then call create_film or create_game. They check it as Ara Studio and Ara Play do, save it, and return a link that opens it in Studio (to watch, edit and record as a video) or Play (to play, edit and download).
-Every set's staging map comes from film_guide (topic "location-map" with the location): never ask the user to export one. create_film also runs Studio's staging check and lists anything a character walks through; fix those and call it again.
+Every set's staging map comes from film_guide (topic "location-map" with the location): never ask the user to export one. create_film also runs Studio's staging check and lists anything a character walks through; fix those and call it again. A film can have up to five scenes in different sets (a version 3 film, in film_guide); use them when the story moves between places.
 Every answer fits in one tool result: a long topic or schema comes in numbered parts. Read them with these tools, not with shell commands on saved files.
 People: follow the user's description of who a character is. Don't assume a nationality, ethnicity or culture they didn't ask for, and don't carry one character's background over to the next. The catalogue includes clothes, props and places from many cultures; none is a default. When the brief leaves it open, choose to suit the story or ask.`;
 
@@ -106,7 +107,7 @@ const TOOLS = [
   },
   {
     name: 'create_film',
-    description: 'Checks an Ara Studio film as Studio does, including its staging check (characters and vehicles against the set\'s ground, water and obstacles), saves it as .ara-studio.json and returns a summary, any staging problems and a link that opens it in Ara Studio. Errors name the field to fix.',
+    description: 'Checks an Ara Studio film (one scene, or up to five scenes in order) as Studio does, including its staging check (characters and vehicles against the set\'s ground, water and obstacles), saves it as .ara-studio.json and returns a summary, any staging problems and a link that opens it in Ara Studio. Errors name the field to fix.',
     inputSchema: { type: 'object', properties: { film: { type: 'object', description: 'The film, written following film_guide.' }, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['film'], additionalProperties: false },
   },
   {
@@ -196,15 +197,16 @@ const fileName = (title: string, fallback: string) => (title.trim().replace(/[^\
 /** Checks a film, saves it and returns where it went and the link that opens it in Studio. */
 async function createFilm(args: Args) {
   if (!args.film || typeof args.film !== 'object') throw Error('Pass the film as an object in "film".');
-  const json = JSON.stringify(args.film), film = parseStudioInput(json, (await data()).catalog);
-  const path = join(outDir(args), `${fileName(film.title, 'film')}.ara-studio.json`);
-  writeSafely(path, new TextEncoder().encode(JSON.stringify(film, null, 2) + '\n'));
-  // Studio's staging check, at reference body sizes: what walks or drives through something, or off the set.
-  const staging = stagingReport(film), issues = staging.issues;
+  const json = JSON.stringify(args.film), scenes = parseStudioFilm(json, (await data()).catalog), file = filmJson(scenes), many = scenes.length > 1;
+  const path = join(outDir(args), `${fileName(scenes[0].title, 'film')}.ara-studio.json`);
+  writeSafely(path, new TextEncoder().encode(JSON.stringify(file, null, 2) + '\n'));
+  // Studio's staging check for every scene, at reference body sizes: what walks or drives through something, or off the set.
+  const issues = scenes.flatMap((scene, i) => stagingReport(scene).issues.map((issue) => `${many ? `Scene ${i + 1}, ` : ''}${issue.entity}, ${issue.start}–${issue.end} s: ${issue.message}`));
   const report = issues.length
-    ? `Staging check: ${issues.length} problem${issues.length === 1 ? '' : 's'} at reference body sizes. Fix them (positions, yaw or durations) and call create_film again:\n  ${issues.slice(0, 12).map((i) => `${i.entity}, ${i.start}–${i.end} s: ${i.message}`).join('\n  ')}${issues.length > 12 ? `\n  and ${issues.length - 12} more` : ''}`
-    : 'Staging check: every character and vehicle stays clear of the set\'s obstacles and water and inside its bounds (at reference body sizes).';
-  return [`Checked: ${summarizeAssistProject(film)}`, report, `Saved: ${path}`, `Open it in Ara Studio to watch, edit and record it as a video: ${fileLink('film', json)}`].join('\n\n');
+    ? `Staging check: ${issues.length} problem${issues.length === 1 ? '' : 's'} at reference body sizes. Fix them (positions, yaw or durations) and call create_film again:\n  ${issues.slice(0, 12).join('\n  ')}${issues.length > 12 ? `\n  and ${issues.length - 12} more` : ''}`
+    : `Staging check: every character and vehicle${many ? ' in every scene' : ''} stays clear of the set's obstacles and water and inside its bounds (at reference body sizes).`;
+  const summary = many ? `${scenes.length} scenes, ${Math.round(filmDuration(scenes))}s in all:\n${scenes.map((s, i) => `  Scene ${i + 1}${s.sceneName ? ` (${s.sceneName})` : ''}${i && s.transition === 'fade' ? ', fading in' : ''}: ${summarizeAssistProject(s)}`).join('\n')}` : summarizeAssistProject(scenes[0]);
+  return [`Checked: ${summary}`, report, `Saved: ${path}`, `Open it in Ara Studio to watch, edit and record it as a video: ${fileLink('film', json)}`].join('\n\n');
 }
 
 /** Checks a game (settings and placement on the map), saves it and returns where it went and the link that opens it in Play. */
@@ -247,7 +249,7 @@ async function callTool(name: string, args: Args, progress: (done: number, messa
       if (n < 1 || n > parts.length) throw Error(`The ${location} map has ${parts.length} part${parts.length === 1 ? '' : 's'}.`);
       return `STAGING MAP: ${location}${parts.length > 1 ? ` (part ${n} of ${parts.length})` : ''}\n${parts[n - 1]}${n < parts.length ? `\n\n(Continue with topic "location-map-${n + 1}" and the same location.)` : ''}`;
     }
-    const guide = generateAssistGuide((await data()).catalog, brief, undefined, location, undefined, undefined, { mapRequest: 'call film_guide with { "topic": "location-map", "location": "<its id>" } to get its full staging map, then plan the routes from it' });
+    const guide = generateAssistGuide((await data()).catalog, brief, undefined, location, undefined, undefined, { scenes: true, mapRequest: 'call film_guide with { "topic": "location-map", "location": "<its id>" } to get its full staging map, then plan the routes from it' });
     return guideAnswer(guide, args.topic, 'film_guide', '\n\nSTAGING MAPS: once you choose a set, call film_guide with { "topic": "location-map", "location": "<set id>" } for its full map (land, water, obstacles, seats, routes). Plan every walk and drive from it.');
   }
   if (name === 'game_guide') return guideAnswer(generatePlayGuide((await data()).catalog, brief), args.topic, 'game_guide');

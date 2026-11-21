@@ -10,6 +10,8 @@
 >
 > *Write a 20-second film of two agents arguing in the warehouse, with a slow push-in.*
 >
+> *Make a three-scene film: she rides the bus, takes the train, then flies home.*
+>
 > *Make a rescue mission at the military base with three guards and a pickup getaway.*
 
 Everything runs on your computer. The first character downloads the character data (about 50 MB, once), and the files land in `ara3d-characters` in your home folder unless you ask for another place. Each answer includes a link that opens the character in the [Ara builder](https://ara3dgen.com/app/), so you can see it and keep editing. It needs [Node.js](https://nodejs.org) 20 or newer.
@@ -55,8 +57,8 @@ Other apps take the same command: `npx -y ara3d mcp`.
 | `list_animations` | The 248 animation clips, searchable, such as "dance" or "rifle" |
 | `list_props` | Weapons, carried items, vehicles and expressions |
 | `character_schema` | Every field of a character, so the assistant can design one: body, face, hair, clothes, colours and rig. It comes in parts |
-| `create_film` | Checks an [Ara Studio](studio.md) film as Studio does, saves it as `.ara-studio.json` and returns a link that opens it in Studio, to watch, edit and record as a video. It also runs Studio's staging check and lists any place a character or vehicle walks or drives through something, so the assistant can fix the route |
-| `film_guide` | How to write a film: the core rules, then topics on request (sets, animations, sounds, the full format), and the staging map of any set (`location-map` with a set's ID) |
+| `create_film` | Checks an [Ara Studio](studio.md) film of one scene, or up to five scenes in different sets, as Studio does, saves it as `.ara-studio.json` and returns a link that opens it in Studio, to watch, edit and record as a video. It also runs Studio's staging check on every scene and lists any place a character or vehicle walks or drives through something, so the assistant can fix the route |
+| `film_guide` | How to write a film: the core rules (including films of several scenes), then topics on request (sets, animations, sounds, the full format), and the staging map of any set (`location-map` with a set's ID) |
 | `create_game` | Checks an [Ara Play](play.md) game as Play does, including where everything goes on the map, saves it as `.ara-play.json` and returns a link that opens it in Play, to play, edit, download or publish |
 | `game_guide` | How to write a game: the core rules, then topics on request (game modes, the map library, appearance rules) |
 

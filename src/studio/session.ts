@@ -2,7 +2,8 @@
 import type { AssistDraft } from '../app/assist/panel';
 import { ANIMATION_CATEGORIES } from './animations';
 import { SCENE_CATEGORIES } from './catalog';
-import { durationOf, parseProject, type StudioProject } from './project';
+import { durationOf, type StudioProject } from './project';
+import { parseFilm, readHistoryEntry } from './film';
 export const SESSION_KEY = 'ara.studio.editor.v1';
 export interface EditorState {
   selectedActor: string; selected: number; characterSelected: boolean; cameraSelection: boolean;
@@ -14,7 +15,8 @@ export interface EditorState {
   assist: AssistDraft;
   scroll: { library: number; inspector: number; sets: number; page: number };
 }
-export interface EditorSession { version: 1; project: StudioProject; editor: EditorState; history: string[] }
+/** `film` holds every scene; `scene` is the one open, which `project` repeats. */
+export interface EditorSession { version: 1; project: StudioProject; film: StudioProject[]; scene: number; editor: EditorState; history: string[] }
 const record = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const text = (value: unknown, max = 200) => typeof value === 'string' ? value.slice(0, max) : '';
 const finite = (value: unknown, min: number, max: number, fallback = 0) => typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
@@ -23,7 +25,7 @@ export function readEditorSession(source: string | null): EditorSession | undefi
   try {
     const raw = record(JSON.parse(source));
     if (raw.version !== 1) return;
-    const project = parseProject(JSON.stringify(raw.project)), state = record(raw.editor), assist = record(state.assist), scroll = record(state.scroll);
+    const film = parseFilm(JSON.stringify(raw.film ?? raw.project)), scene = Math.floor(finite(raw.scene, 0, film.length - 1)), project = film[scene], state = record(raw.editor), assist = record(state.assist), scroll = record(state.scroll);
     const actor = project.actors.find(a => a.id === state.selectedActor) ?? project.actors[0];
     const characterSelected = state.characterSelected === true && actor.id === state.selectedActor;
     const cameraSelection = !characterSelected || state.cameraSelection === true;
@@ -43,8 +45,8 @@ export function readEditorSession(source: string | null): EditorSession | undefi
     const history: string[] = [];
     if (Array.isArray(raw.history)) for (const item of raw.history.slice(-30)) {
       if (typeof item !== 'string') continue;
-      try { history.push(JSON.stringify(parseProject(item))); } catch { /* Recover the film even if an old undo entry no longer validates. */ }
+      try { readHistoryEntry(item);history.push(item); } catch { /* Recover the film even if an old undo entry no longer validates. */ }
     }
-    return { version: 1, project, editor, history };
+    return { version: 1, project, film, scene, editor, history };
   } catch { return; }
 }

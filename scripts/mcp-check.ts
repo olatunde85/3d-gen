@@ -105,6 +105,18 @@ try {
   assert.ok(filmFile.startsWith(out) && existsSync(filmFile) && filmFile.endsWith('.ara-studio.json'));
   assert.deepEqual(JSON.parse((await linkedFile(new URL(filmLink).hash, 'film'))!), assistExample());
   console.log('OK create_film:', filmText.split('\n')[0]);
+  // A film of three scenes in different sets: each scene is checked and summarised, the link carries all of them.
+  const scene = (template: string, sceneName: string, extra = {}) => { const { kind, version, title, aspect, caption, ...rest } = assistExample() as Record<string, unknown>;void kind;void version;void title;void aspect;void caption;return { ...rest, template, sceneName, ...extra }; };
+  const threeStops = { kind: 'ara-studio', version: 3, title: 'Three stops', aspect: 'landscape', caption: true, scenes: [scene('city-bus', 'On the bus'), scene('train-carriage', 'The train', { transition: 'fade' }), scene('airliner-cabin', 'Flying home')] };
+  const multi = await call('create_film', { film: threeStops }), multiText = multi.content[0].text;
+  assert.equal(multi.isError, false, multiText);assert.match(multiText, /^Checked: 3 scenes/m);assert.match(multiText, /Scene 2 \(The train\), fading in: Train carriage/);
+  const multiFile = JSON.parse(readFileSync(/Saved: (.+)$/m.exec(multiText)![1], 'utf8'));assert.equal(multiFile.version, 3);assert.equal(multiFile.scenes.length, 3);assert.equal(multiFile.scenes[1].transition, 'fade');
+  assert.deepEqual(JSON.parse((await linkedFile(new URL(/(https:\/\/ara3dgen\.com\/studio\/#film=[\w-]+)/.exec(multiText)![1]).hash, 'film'))!), threeStops);
+  const tooMany = await call('create_film', { film: { ...threeStops, scenes: Array(6).fill(threeStops.scenes[0]) } });assert.equal(tooMany.isError, true);assert.match(tooMany.content[0].text, /one to 5 scenes/);
+  const badScene = await call('create_film', { film: { ...threeStops, scenes: [threeStops.scenes[0], { ...threeStops.scenes[1], template: 'the-moon' }] } });assert.equal(badScene.isError, true);assert.match(badScene.content[0].text, /Scene 2/);
+  const filmWide = await call('create_film', { film: { ...threeStops, scenes: [{ ...threeStops.scenes[0], title: 'Wrong place' }] } });assert.equal(filmWide.isError, true);assert.match(filmWide.content[0].text, /on the film/);
+  assert.match((await call('film_guide', {})).content[0].text, /FILMS OF SEVERAL SCENES/);
+  console.log('OK create_film with scenes:', multiText.split('\n')[0]);
   const game = await call('create_game', { game: playExample() });
   assert.equal(game.isError, false, game.content[0].text);
   const gameText = game.content[0].text, gameLink = /(https:\/\/ara3dgen\.com\/play\/#game=[\w-]+)/.exec(gameText)![1];

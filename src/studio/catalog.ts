@@ -1,5 +1,5 @@
 /** Scene metadata is cheap to search. Geometry is created only for the active scene. */
-export type SceneCategory = 'Studios' | 'Workplaces' | 'Homes' | 'Leisure' | 'City' | 'Outdoors';
+export type SceneCategory = 'Studios' | 'Workplaces' | 'Homes' | 'Leisure' | 'City' | 'Outdoors' | 'Travel';
 export type SceneFamily = 'studio' | 'office' | 'bedroom' | 'lounge' | 'kitchen' | 'beach' | 'pool' | 'garden' | 'street' | 'transit' | 'warehouse' | 'restaurant' | 'landscape' | 'yacht' | 'civic' | 'bathroom' | 'venue' | 'road';
 export type Mood = 'day' | 'sunset' | 'night';
 const entries = [
@@ -69,6 +69,10 @@ const entries = [
   ['night-club', 'Night club', 'Leisure', 'venue', 'night', 'A luminous dance floor, DJ booth, speaker stacks, booths and a neon bar.'],
   ['elevator', 'Elevator', 'City', 'civic', 'day', 'A brushed-metal lift cabin, door panels, floor indicator and handrails.'],
   ['church', 'Church', 'City', 'civic', 'day', 'An open central aisle, timber pews, stained-glass windows and an altar.'],
+  ['train-carriage', 'Train carriage', 'Travel', 'transit', 'day', 'Inside a passenger train: facing seats around tables, luggage racks and countryside at the windows.'],
+  ['city-bus', 'City bus', 'Travel', 'transit', 'day', 'Inside a city bus: paired seats, grab poles and straps, a standing area by the doors.'],
+  ['private-jet', 'Private jet', 'Travel', 'transit', 'sunset', 'Inside a private jet: cream leather club seats, walnut tables and a divan above the clouds.'],
+  ['airliner-cabin', 'Airliner cabin', 'Travel', 'transit', 'day', 'Inside a passenger plane: rows of three-and-three seats, overhead bins and a galley by the door.'],
 ] as const;
 export type SetId = typeof entries[number][0];
 /** Direction notes describe actual floor plans, not collision or interaction simulation. */
@@ -88,6 +92,10 @@ const staging:Partial<Record<SetId,string>>={
  'fine-dining':'Tables and registered dining seats at x=±3.4,z=-2.4. Use the central aisle/foreground for arrivals. Decorative candlelight does not animate.',
  'night-club':'Dance floor centred at origin; DJ booth behind at z=-4.5, bar and seating to the sides. Lighting is static; add music and dance clips explicitly.',
  'elevator':'Cabin interior x=-2.5..2.5,z=-2.4..2.4. Stage cast near origin and use medium/close shots. Doors, floor indicator and buttons are static; no elevator travel/door animation.',
+ 'train-carriage':'Carriage interior x=-1.45..1.45,z=-9..9; the train’s front is +Z. Facing bays of four seats around tables at z≈-7.1,-4.6,-2.1 and 5.2 (seats at x=±.58,±1.08). The vestibule z=0..3 is open, with doors on both sides at z=1.5; stand there or in the aisle x=-0.3..0.3. Use sitting actions to take the seats. The train does not move; the window views are painted.',
+ 'city-bus':'Bus interior x=-1.25..1.25,z=-5.5..5.5; the front is +Z, with the driver’s seat at (-.72,4.75). Paired seats at the back (z=-1.3..-3.7) and a rear bench at z=-4.8; open standing area z=-.6..3 by the middle door, with grab poles. Use the aisle x=-0.3..0.3 and the standing area for walking. The bus does not move.',
+ 'private-jet':'Jet cabin x=-1.3..1.3,z=-5..5; the front is +Z. Club seats in facing pairs at x=±.78 (z=-1.55 facing forward, z=.15 facing back) around tables at z=-.7; a divan on the right at z=-3.3 and a single seat on the left at z=-3.6. Open entry area z=1..4.5 with the door on the left. Cabin height is 2 m: keep jumps and lifts out. The jet does not move; clouds are painted.',
+ 'airliner-cabin':'Cabin x=-1.8..1.8,z=-8..8; the front is +Z. Nine rows of three-and-three seats from z=-7.1 to -.4 (seats at x=±.5,±.98,±1.46), aisle x=-0.25..0.25. Open galley area z=0..7 with exit doors on both sides at z=2.6: stage standing scenes there and use sitting actions for passengers. The plane does not move; the sky is painted.',
  'church':'Altar at z=-5.0; pews flank the central aisle. Stage cast in aisle x=-1.7..1.7,z=-1..4 or use registered pew seats, facing the altar. Stained glass is original decorative art.'
 };
 const aliases:Partial<Record<SetId,string>>={
@@ -95,7 +103,9 @@ const aliases:Partial<Record<SetId,string>>={
  'highway':'motorway freeway road', 'military-base':'army barracks checkpoint', 'prison-cell':'jail jailhouse', 'prison-yard':'jail exercise',
  'public-restroom':'public toilet washroom wc', 'private-bathroom':'ensuite washroom shower bath', 'neon-street':'neon avenue cyberpunk',
  'back-alley':'backstreet service delivery', 'football-stadium':'soccer pitch field', 'fine-dining':'fine dining luxury restaurant',
- 'night-club':'nightclub disco dancefloor', 'elevator':'lift', 'church':'chapel sanctuary worship'
+ 'night-club':'nightclub disco dancefloor', 'elevator':'lift', 'church':'chapel sanctuary worship',
+ 'train-carriage':'inside train railway rail coach commuter interior vehicle', 'city-bus':'inside bus coach public transport interior vehicle',
+ 'private-jet':'inside jet plane airplane aeroplane aircraft luxury business interior vehicle flight', 'airliner-cabin':'inside plane airplane aeroplane aircraft airline flight passenger economy interior vehicle'
 };
 export interface SceneDefinition { staging?:string; id: SetId; name: string; category: SceneCategory; family: SceneFamily; mood: Mood; subtitle: string; index: number; tags: string; accent: string; }
 export const SETS: SceneDefinition[] = entries.map(([id, name, category, family, mood, subtitle], index) => ({

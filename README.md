@@ -11,7 +11,7 @@ Create realistic 3D characters, direct them in films, and build games with missi
 Ara has three apps that share the same characters:
 
 - **The character builder:** shape a body, dress it, give it hair, tattoos and a weapon, pick from 248 animations and export **GLB, FBX, OBJ or a ZIP bundle** for any engine.
-- **Ara 3D Studio:** direct up to five characters on 66 sets, with dialogue, sound and music, and export an MP4.
+- **Ara 3D Studio:** direct films of up to five scenes, with up to five characters on 70 sets, with dialogue, sound and music, and export an MP4.
 - **Ara Play:** build games from missions, arcade races and endless runs, string them into a campaign, and publish it online in about a minute.
 
 ![Presets: Female Executive, Miami Dealer, Gangster, Priest, Corporate High-Flier, Prison Escapee, Arabian Oil Tycoon, Adventurer](docs/media/presets.jpg)
@@ -56,7 +56,7 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 
 ### Ara 3D Studio
 
-- **Films:** open your character in `/studio/`, search 66 categorized sets, direct up to five preset or saved custom characters with 248 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with voice effects, timed sound effects and nine recorded music options. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
+- **Films:** open your character in `/studio/`, search 70 categorized sets, chain up to five scenes, direct up to five preset or saved custom characters with 248 animations, orbit the scene, add subtitles or comic bubbles that follow characters, and add typed, recorded or uploaded speech with voice effects, timed sound effects and nine recorded music options. Export a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
 
 ### Ara Play
 

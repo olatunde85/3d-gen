@@ -1,6 +1,6 @@
 # Ara Studio
 
-Studio turns Ara characters into short films with dialogue, sound and music. Open **Studio** in the character builder's bottom toolbar, or go to `/studio/`. It's an early preview: films run up to 60 seconds with up to five characters.
+Studio turns Ara characters into short films with dialogue, sound and music. Open **Studio** in the character builder's bottom toolbar, or go to `/studio/`. It's an early preview: a film has up to five scenes, each up to 60 seconds long with up to five characters.
 
 ## First visit
 
@@ -11,7 +11,7 @@ Replay it from **Quick tour of Studio** in the left panel, or press **?** with t
 ## The workspace
 
 - **Left:** locations, the cast, their equipment and the quick tour.
-- **Centre:** the film preview, with the timeline below it.
+- **Centre:** the film preview, the film's scenes, and the open scene's timeline.
 - **Right:** the selected action, placement and camera settings.
 - **More room for the picture:** **Expand** (or **F**) hides the side panels and the timeline rows. Drag the bar between the preview and the timeline to resize them; double-click it to reset. Both are remembered.
 
@@ -21,17 +21,19 @@ To start afresh, click **New** in the top bar. Choose **Save & start new** to do
 
 ## Find a location
 
-Search **66 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City** and **Outdoors**. They include executive and open-plan offices, a boardroom, a classroom, a newsroom, bedrooms, a living room, a kitchen, beaches, pools, a hotel lobby, a café, a forest trail and a harbour.
+Search **70 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City**, **Outdoors** and **Travel**. They include executive and open-plan offices, a boardroom, a classroom, a newsroom, bedrooms, a living room, a kitchen, beaches, pools, a hotel lobby, a café, a forest trail and a harbour.
 
 There are also hospital and police rooms, a military base, a prison cell and yard, public and private bathrooms, a highway, a neon-lit street, a neon alley, a daylight alley, a football stadium, fine dining, a nightclub, an elevator and a church.
 
+**Travel** has four vehicle interiors: a train carriage, a city bus, a private jet and an airliner cabin. The camera looks from the front of the vehicle towards the back, so seated passengers face it, and every seat is a real seat. Each has an open area for standing scenes: the train's vestibule, the bus's standing area by the middle door, and the jet's and airliner's entry areas by the door. The views through the windows are painted, and the vehicles stand still.
+
 Each location has its own layout, with clear acting space, and its chairs, pews and benches are real seats. The highway and base have long driving routes; outdoor sets extend across a 360 m area with paths, landscaping and waterfronts, and characters can be placed up to ±200 m on X/Z. The stadium has a 68 × 105 m association-football pitch without crowd or players. Doors, toilets, taps and lift controls are scenery. Assist includes the layouts and staging notes; plan movement around obstacles yourself.
 
-Use **Check staging & location map** in the left panel for a top-down map and a review of the entire film. It checks land/water and conservative obstacle envelopes using the loaded characters’ scales and fitted vehicle bounds. Findings link to their time in the film. Save a location map and a staging report containing every action’s world start/end position and facing. Checks are advisory; they do not change the film or add collision response.
+Use **Check staging & location map** in the left panel for a top-down map and a review of the open scene. It checks land/water and conservative obstacle envelopes using the loaded characters’ scales and fitted vehicle bounds. Findings link to their time in the film. Save a location map and a staging report containing every action’s world start/end position and facing. Checks are advisory; they do not change the film or add collision response.
 
-In **Assist**, choose **Location for this film** before copying the guide. Locations are grouped into six categories, with all 66 real set thumbnails in a horizontal scrolling strip. Filter by category or search, swipe/scroll or use the arrow buttons, then click a thumbnail for a larger preview. **Use this location** selects it; closing the preview keeps your previous choice. The selected location is shown above the strip. Use Left/Right to browse focused thumbnail cards and Enter to expand. Every guide enumerates the sets’ terrain, paths and seats and includes the selected set’s full map. **Save map .json** exports that contract; **All location maps** exports all 66. Reference lanes, starts and harbour boarding anchors are checked at reference scale; custom sizes and tight dock contacts require **Check staging** after building. See [Location staging maps](studio-location-maps.md) for coordinates, centring and boarding rules.
+In **Assist**, choose **Location for this film** before copying the guide. Locations are grouped into seven categories, with all 70 real set thumbnails in a horizontal scrolling strip. Filter by category or search, swipe/scroll or use the arrow buttons, then click a thumbnail for a larger preview. **Use this location** selects it; closing the preview keeps your previous choice. The selected location is shown above the strip. Use Left/Right to browse focused thumbnail cards and Enter to expand. Every guide enumerates the sets’ terrain, paths and seats and includes the selected set’s full map. **Save map .json** exports that contract; **All location maps** exports all 70. Reference lanes, starts and harbour boarding anchors are checked at reference scale; custom sizes and tight dock contacts require **Check staging** after building. See [Location staging maps](studio-location-maps.md) for coordinates, centring and boarding rules.
 
-Changing the set keeps your cast, performances, camera shots and title. Every set is original, built in the browser, with no downloads.
+Changing the set of a scene keeps its cast, performances, camera shots and the film's title. Every set is original, built in the browser, with no downloads.
 
 ## Direct the cast
 
@@ -47,6 +49,19 @@ Changing the set keeps your cast, performances, camera shots and title. Every se
 
 Removing a character also tidies up camera shots and captions that pointed at them. Their recordings and sound effects stay, assigned to the narrator.
 
+## Scenes
+
+A film can have up to **five scenes**, played in order, so a story can move from place to place: on a bus, then a street, then an office. Each scene has its own set, cast, actions, camera shots, text and sound, and its own timeline of up to 60 seconds. The title, frame shape (16:9 or 9:16) and title card belong to the whole film; the title card shows over the first scene.
+
+The **Scenes** row under the play controls lists them with their lengths. Click a scene to open it; everything else in Studio then edits that scene.
+
+- **+ Scene** adds a scene after the open one, in the same set, with the same cast standing where they were, each holding an idle pose, and one wide shot. Change its set and direct it from there.
+- **Duplicate** copies the open scene, with all its actions, shots, text and sound.
+- With two or more scenes, the open scene has a **name**, **Into this scene** (a **Cut**, or a **Fade through black** of 0.4 seconds each way), arrows to move it earlier or later, and **Delete scene**.
+- **All scenes** beside the play button plays on from one scene into the next; with **Repeat**, the film starts again from scene 1. Without it, play and repeat stay within the open scene.
+
+A character who appears in several scenes is built once, so moving between scenes is quick. Sound, music and text belong to each scene: music set in a scene plays in that scene only. Undo covers adding, removing, moving and renaming scenes.
+
 ## Actions and camera shots
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
@@ -58,7 +73,7 @@ The timeline has a **camera lane** and a **performance lane for each character**
 - **Custom cast:** in the builder, **Save character** downloads a small `.ara-character.json` with all editable settings; **Open character** reopens it. In Studio, **+ Custom** imports that file as another cast member, preserving the existing characters and film. Custom characters count toward the five-character limit, can be edited via Character builder, survive reload, and can be removed with Undo.
 
 - **Camera shots:** full-body, medium or close framing, on the **whole cast** or **one character**.
-- **Limits:** up to **16 actions per character**, **12 camera shots** and **60 seconds** per film. Each item lasts 0.1–12 seconds.
+- **Limits:** up to **16 actions per character**, **12 camera shots** and **60 seconds** per scene. Each item lasts 0.1–12 seconds.
 
 Drag a timeline clip to rearrange it. Actions and camera shots reorder within their own track: the others close up around the dragged clip, and the film keeps its length. Text, speech, sound effects and music move in time with their length and source trims unchanged, within the 60-second limit. **Alt + Left/Right** on a selected clip does the same from the keyboard: one place for actions and shots, one frame (Shift: 0.1 seconds) for the others. A click without a drag selects the clip. On touch screens, drag a clip sideways to move it.
 
@@ -117,7 +132,7 @@ A voiced line is fitted to the length of its audio. Dialogue still waiting for a
 
 1. **Describe your film,** or pick one of the **Ideas**. Tick **Start from my current film** to revise what you have.
 2. **Write the film** with your connected AI, or **Get the film JSON:** **Copy guide** (or **Save as .txt**) and give it to your assistant. The guide holds your description and everything the assistant needs: the locations, character controls, animations, equipment, text, speech, sound effects, music, the JSON format, an example and Studio's limits.
-3. **Review and build:** **Paste reply**, paste into the box, or **Open file**. You can paste the whole reply; Studio finds the JSON inside it. A summary card lists the location, cast, length, shots, actions, text, sound and music. If something's wrong, it says what and offers **Copy fix request** to send back. **Copy guide**, **Save as .txt** and **Build film** stay at the foot of the panel. **Build film** shows each character as it is built, then replaces your project; Undo brings the old one back.
+3. **Review and build:** **Paste reply**, paste into the box, or **Open file**. You can paste the whole reply; Studio finds the JSON inside it. A summary card lists the location, cast, length, shots, actions, text, sound and music. If something's wrong, it says what and offers **Copy fix request** to send back. **Copy guide**, **Save as .txt** and **Build film** stay at the foot of the panel. **Build film** shows each character as it is built, then replaces the open scene (in a one-scene film, the whole film); Undo brings the old one back. To write a film of several scenes, open each scene in turn and describe it, or use the [AI assistant tools](mcp.md), which write whole films.
 
 - **Voices are prepared for you:** typed dialogue in a valid reply is voiced while you review, with progress, **Stop generation** and retry. With Gemini or ElevenLabs connected, the guide lists their voices, so the AI can cast each character and direct their lines; **Voice new dialogue automatically** in Keys turns this off for provider voices.
 - **Try an example:** choose a film to load. Nine are the scenes of the Ara 3D Studio reel on the home page: a tank and a helicopter at the military base, a jet takeoff, a skydive and parachute landing, a shootout from cover, a highway race, a street café, an alley fight, a rooftop chase and a sunset beach. Each comes with its sound effects, caption and music. The tenth, *Agents of Mild Competence: The Warehouse*, is a 30-second, five-character spy comedy with its original dialogue, a shootout with blood and a cover wall; no speech download is needed.
@@ -278,7 +293,7 @@ With a rifle equipped, **Take cover** steps forward and crouches behind a 1.1 m 
 - **Save project:** downloads an editable `.ara-studio.json`. Films with recorded or generated voices save as a `.ara-studio.zip` bundle with the audio included (up to 128 MB). **Open** loads either one, on any device.
 - **Save frame:** the current picture as a PNG.
 - **Film links:** a link can open Studio with a film loaded, as a builder share link does with a character. `https://ara3dgen.com/studio/#film=…` carries the film in the link, packed the way share links are; `https://ara3dgen.com/studio/#src=https://…/film.json` opens a film file hosted elsewhere, on a host that lets other sites read it, such as GitHub's raw files or a gist. The film after `#` stays in the browser, and it goes through the same checks as a file opened from disk; Undo returns to the film you had. The [AI assistant tools](mcp.md) return these links.
-- **Export film:** a 30 fps MP4 at 720p or 1080p, with sound. **Save soundtrack WAV** exports the audio on its own.
+- **Export film:** a 30 fps MP4 at 720p or 1080p, with sound, playing every scene in order. **Save soundtrack WAV** exports the open scene's audio on its own.
 
 Recordings and generated voices are stored in your browser, which can clear them; save a project bundle to keep them safe. Projects point to Ara's built-in characters, sets and sounds rather than copying them, so keep the same Ara version to reopen them exactly.
 

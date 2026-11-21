@@ -15,6 +15,8 @@ export function measureLocation(id:SetId,set:StudioSet):LocationMap {
   const m=o as T.Mesh;if(!m.isMesh)return;
   m.geometry.computeBoundingBox();const b=m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld);
   // Flush floor paint, water, road markings and overhead decor are surfaces, not barriers.
+  // A ceiling covers the whole room overhead: nothing walks into it.
+  if(m.userData.ceiling)return;
   if(b.max.y<=.12||b.min.y>=40||b.max.x<bounds[0]||b.min.x>bounds[2]||b.max.z<bounds[1]||b.min.z>bounds[3])return;
   const footprint:Rect=[b.min.x,b.min.z,b.max.x,b.max.z].map(round)as Rect;
   // Give rendered planes their physical barrier semantics even when the camera sees a cutaway.

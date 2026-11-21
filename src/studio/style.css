@@ -1743,3 +1743,127 @@ textarea:disabled { opacity: .55; }
 .sound-make textarea { min-height:56px; }
 .sound-make #fx-make-wait:not(:empty),.sound-make #sound-compose-wait:not(:empty) { margin-top:10px; }
 .sound-make .form-row .check-label { margin-top:30px; }
+
+/* Scenes: a film's scenes in order, between the play controls and the timeline. */
+.scene-strip {
+  flex: none;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+.scene-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.scene-label {
+  flex: none;
+  font-size: 8px;
+  letter-spacing: .13em;
+  color: #afafb2;
+}
+.scene-label small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0;
+  color: #767679;
+}
+.scene-cards {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.scene-actions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+.scene-strip button {
+  padding: 4px 8px;
+  font-size: 9px;
+  letter-spacing: 0;
+  background: none;
+}
+.scene-strip .scene-chip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 200px;
+  padding: 5px 10px;
+  text-align: left;
+  background: #18181a;
+  border: 1px solid #333336;
+  border-radius: 6px;
+}
+.scene-chip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+}
+.scene-chip small {
+  flex: none;
+  font-size: 9px;
+  color: #8d8d91;
+}
+.scene-strip .scene-chip[aria-pressed="true"] {
+  border-color: var(--gold);
+  background: #202023;
+}
+.scene-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 9px;
+  color: #a6a6a9;
+}
+.scene-details input {
+  flex: 0 1 180px;
+  min-width: 0;
+  padding: 3px 7px;
+  font-size: 10px;
+}
+.scene-details select {
+  margin-left: 5px;
+  padding: 2px 5px;
+  font-size: 9px;
+}
+.play-all[aria-pressed="true"] {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.workspace.wide .scene-strip {
+  display: none;
+}
+.scene-details input,.scene-details select {
+  height: 26px;
+  min-height: 26px;
+  margin-top: 0;
+}
+.scene-details select {
+  width: auto;
+}
+.scene-details #scene-transition-field:not([hidden]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.scene-details label {
+  display: inline;
+  margin: 0;
+  font-size: 9px;
+}
+@media (max-width: 700px) {
+  .scene-row { flex-wrap: wrap; }
+  .scene-label { flex: 1 1 auto; }
+  .scene-cards { order: 3; flex-basis: 100%; }
+}

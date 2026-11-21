@@ -1,6 +1,6 @@
 # Location staging maps
 
-Studio's maps come from the geometry recipes that render all 66 sets. In **Assist**, choose **Location for this film**, then copy the guide or save the map as JSON. The guide contains an index of every set and the selected set’s full contract. **All location maps** downloads the collection. These are reference documents; do not add their fields to a film project.
+Studio's maps come from the geometry recipes that render all 70 sets. In **Assist**, choose **Location for this film**, then copy the guide or save the map as JSON. The guide contains an index of every set and the selected set’s full contract. **All location maps** downloads the collection. These are reference documents; do not add their fields to a film project.
 
 ## Reading a map
 
