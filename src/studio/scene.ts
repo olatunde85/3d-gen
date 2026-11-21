@@ -17,6 +17,10 @@ export class StudioScene {
   selectionId?: string;
   textLayouts: TextLayout[] = [];
   freezeCamera = false;
+  /** The film's title card shows only in a film's first scene. */
+  titleCard = true;
+  /** Black over the picture, 0 to 1: the fades between scenes. */
+  darkness = 0;
   private readonly raycaster = new THREE.Raycaster();
   get actor() { return this.actors.values().next().value as StudioActor | undefined; }
   private set?: StudioSet;
@@ -42,7 +46,8 @@ export class StudioScene {
     this.output.width = this.canvas.width = width; this.output.height = this.canvas.height = height;
     this.renderer.setSize(width, height, false); this.camera.aspect = width / height; this.camera.updateProjectionMatrix();
   }
-  async setActors(next: Map<string, StudioActor>, project: StudioProject) {
+  /** Puts a cast on the stage. Characters leaving it are released: disposed, unless `release` keeps them for another scene. */
+  async setActors(next: Map<string, StudioActor>, project: StudioProject, release = (actor: StudioActor) => actor.dispose()) {
     const previous = new Map(this.actors);
     for(const actor of previous.values())actor.detach();
     this.actors.clear();for(const [id,actor]of next){this.actors.set(id,actor);this.scene.add(actor.group);}
@@ -51,7 +56,7 @@ export class StudioScene {
       for(const actor of next.values())actor.detach();this.actors.clear();
       for(const [id,actor]of previous){this.actors.set(id,actor);this.scene.add(actor.group);}throw error;
     }
-    for(const [id,actor]of previous)if(next.get(id)!==actor)actor.dispose();
+    const staying=new Set(next.values());for(const actor of previous.values())if(!staying.has(actor))release(actor);
   }
   async ready() { await Promise.all([...this.actors.values()].map(a => a.ready())); }
   /** The seats in the project's set, building the set if it isn't showing yet. */
@@ -108,7 +113,7 @@ export class StudioScene {
     // Compositing in one output canvas makes preview, PNG and MP4 use exactly the same picture.
     const ctx = this.output.getContext('2d')!, W = this.output.width, H = this.output.height;
     ctx.drawImage(this.renderer.domElement, 0, 0);
-    if (project.caption && project.title) {
+    if (project.caption && project.title && this.titleCard) {
       const duration = durationOf(project),titleLift=(project.texts??[]).some(c=>c.style==='subtitle'&&c.anchor==='screen'&&c.y>.7&&time>=c.start&&time<c.start+c.duration)?.11:0;
       const opacity = Math.min(1, time / 0.65, (duration - time) / 0.4);
       ctx.save(); ctx.globalAlpha = Math.max(0, opacity);
@@ -130,6 +135,7 @@ export class StudioScene {
       point.project(this.camera);if(point.z< -1||point.z>1||Math.abs(point.x)>1.1||Math.abs(point.y)>1.3)return;
       return{x:(point.x+1)/2,y:(1-point.y)/2};
     });
+    if (this.darkness > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, this.darkness); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     const visible = this.canvas.getContext('2d')!; visible.clearRect(0, 0, W, H); visible.drawImage(this.output, 0, 0);
     this.drawSelection(visible);
   }
@@ -192,5 +198,5 @@ export class StudioScene {
     ctx.restore();
   }
   async warmup(project: StudioProject) { this.render(project, 0); await this.renderer.compileAsync(this.scene, this.camera); this.render(project, 0); }
-  dispose() { this.actors.forEach(a => a.dispose()); if (this.set) disposeSet(this.set.group); this.environment.dispose(); this.key.shadow.map?.dispose(); this.renderer.dispose(); }
+  dispose() { new Set(this.actors.values()).forEach(a => a.dispose()); if (this.set) disposeSet(this.set.group); this.environment.dispose(); this.key.shadow.map?.dispose(); this.renderer.dispose(); }
 }

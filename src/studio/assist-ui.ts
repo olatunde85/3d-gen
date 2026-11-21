@@ -77,12 +77,12 @@ export function setupAssist(editor: AssistEditor) {
     snapshot: () => structuredClone(editor.project()),
     peek: text => peekFilm(text, id => SETS.find(s => s.id === id)?.name), launcher: 'open-assist',
     canOpen: async () => { voices = await voiceGuide().catch(() => voices); return editor.canEdit(); },
-    footnote: 'Building replaces the current film. Undo brings it back. Use Check staging in the left panel to review paths with your loaded characters before exporting.',
+    footnote: 'Building replaces the scene that’s open (in a one-scene film, the whole film). Undo brings it back. Use Check staging in the left panel to review paths with your loaded characters before exporting.',
   });
   document.getElementById('open-assist')!.addEventListener('click', () => void panel.open());
   mountAskAra({
     appName: 'Studio', noun: 'film', storageKey: 'ara.chat.studio.v1',
-    primer: () => { const p = editor.project(); return `Studio directs short 3D films (up to 60 seconds) with Ara characters on ${SETS.length} locations: actions on a timeline, camera shots, dialogue with voices, music, sound effects and on-screen text, exported as MP4. The film open now is "${p.title}" at ${SETS.find(s => s.id === p.template)?.name ?? p.template}, with ${p.actors.length} character${p.actors.length === 1 ? '' : 's'} and ${p.audio.speech.length} lines of dialogue. Voices: Sound › Dialogue. Keys (your own AI and voice accounts) is under Ask Ara's model button.`; },
+    primer: () => { const p = editor.project(); return `Studio directs short 3D films with Ara characters on ${SETS.length} locations: up to five scenes, each up to 60 seconds, with actions on a timeline, camera shots, dialogue with voices, music, sound effects and on-screen text, exported as MP4. You write and revise one scene at a time: the scene open now; the user adds scenes in the Scenes row. The film open now is "${p.title}" at ${SETS.find(s => s.id === p.template)?.name ?? p.template}, with ${p.actors.length} character${p.actors.length === 1 ? '' : 's'} and ${p.audio.speech.length} lines of dialogue. Voices: Sound › Dialogue. Keys (your own AI and voice accounts) is under Ask Ara's model button.`; },
     guide: async () => { voices = await voiceGuide().catch(() => voices); return generateAssistGuide(editor.catalog(), '(See the conversation.)', editor.project(), editor.project().template, filmContext(), voices); },
     parse: json => parseStudioInput(json, editor.catalog()), describe: value => describeAssistProject(value as StudioProject),
     peek: text => peekFilm(text, id => SETS.find(s => s.id === id)?.name),

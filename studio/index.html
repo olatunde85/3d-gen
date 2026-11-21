@@ -49,12 +49,20 @@
         <span class="frame-corner top-left"></span><span class="frame-corner bottom-right"></span>
       </div>
       <div class="transport">
-        <div class="transport-left"><button id="restart" class="icon-button" title="Back to the beginning" aria-label="Back to the beginning">↤</button><button id="play" class="play-button" title="Play / pause (Space)" aria-label="Play film">▶</button><button id="repeat" class="icon-button on" title="Repeat preview" aria-label="Repeat preview" aria-pressed="true">↻</button></div>
+        <div class="transport-left"><button id="restart" class="icon-button" title="Back to the beginning" aria-label="Back to the beginning">↤</button><button id="play" class="play-button" title="Play / pause (Space)" aria-label="Play film">▶</button><button id="repeat" class="icon-button on" title="Repeat preview" aria-label="Repeat preview" aria-pressed="true">↻</button><button id="play-all" class="text-button play-all" title="Play every scene in order, not just the open one" aria-pressed="false" hidden>All scenes</button></div>
         <output id="timecode">00:00:00 <span>/ 00:09:00</span></output>
         <div class="frame-spec"><span>PREVIEW</span> <b>30 FPS</b><span class="sound-off" id="sound-readout">Silent film</span></div>
       </div>
       <div id="speech-needed" class="sound-prompt" hidden>
         <span id="speech-needed-copy"></span><button id="prepare-speech">Add speech audio <span aria-hidden="true">↗</span></button>
+      </div>
+      <div class="scene-strip" aria-label="Scenes">
+        <div class="scene-row"><span class="scene-label">SCENES <small id="scene-total">1 scene · up to 5</small></span><div class="scene-cards" id="scene-cards" role="group" aria-label="Open a scene"></div><div class="scene-actions"><button id="scene-add" title="Add a scene after this one, with the same set and cast">+ Scene</button><button id="scene-duplicate" title="Copy this scene, then change what you like">Duplicate</button></div></div>
+        <div class="scene-details" id="scene-details" hidden>
+          <label class="sr-only" for="scene-title">Scene name</label><input id="scene-title" maxlength="60" placeholder="Scene 1" />
+          <span id="scene-transition-field"><label for="scene-transition">Into this scene</label><select id="scene-transition"><option value="cut">Cut</option><option value="fade">Fade through black</option></select></span>
+          <button id="scene-earlier" title="Move this scene earlier" aria-label="Move this scene earlier">←</button><button id="scene-later" title="Move this scene later" aria-label="Move this scene later">→</button><button id="scene-remove" title="Delete this scene">Delete scene</button>
+        </div>
       </div>
       <div class="timeline-resizer" id="timeline-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize the preview and timeline" tabindex="0" title="Drag to give the preview or the timeline more room · double-click to reset"></div>
       <section class="timeline" aria-label="Film timeline">

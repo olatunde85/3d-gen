@@ -9,14 +9,17 @@ import { Engine } from '../app/engine';
 import { decodeCharacter, encodeCharacter } from '../app/share';
 import { StudioActor } from './actor';
 import { StudioScene } from './scene';
-import { exportMovie, supportsMp4, audioCodec } from './export';
+import { exportMovie, exportFilm, supportsMp4, audioCodec } from './export';
+import { MAX_SCENES, filmDuration, filmJson, historyEntry, parseFilm, readHistoryEntry, sceneLabel, shareFilmSettings, fadeLevel } from './film';
+import { setupScenes } from './scenes-ui';
+import { defaultAudio } from './audio/schema';
 import { CAST, MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, blankProject, propSpan, durationOf, newProject, parseProject, presetCode, shotAt, timelineAt, trackDuration, type ActorTrack, type StudioProject } from './project';
 import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
 import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations';
 import { orbitControls } from './orbit';
 import {timelineHandles} from './timeline-handles';
 import {clipWindow} from './timeline-resize';
-import { parseStudioInput } from './assist';
+import { parseStudioFilm } from './assist';
 import { clearLinkedFile, hasLinkedFile, linkedFile } from '../app/links';
 import { resolveTextActor } from './text';
 import { setupTextEditor } from './text-ui';
@@ -51,11 +54,13 @@ if (import.meta.env.DEV) $<HTMLAnchorElement>('video-licence').href = 'https://g
 const soundtrack=new AudioPlayback();let playToken=0,preparingSound=false;
 const scene = new StudioScene($<HTMLCanvasElement>('film'));
 // A film opens with no character selected: the whole picture shows, without a selection ring.
-let project = newProject(), time = 0, selectedActor = project.actors[0].id, selected = 0, cameraSelection = true;
+let project = newProject(), scenes: StudioProject[] = [project], sceneIndex = 0, playAll = false, time = 0, selectedActor = project.actors[0].id, selected = 0, cameraSelection = true;
 let characterSelected=false;
 let playing = false, repeat = true, loading = true, exporting = false, dirty = true, titleEditing = false;
 let engine: Engine, lib: AssetLibrary;
-let speechToFix:string|undefined;
+let speechToFix:string|undefined,speechScene=0;
+/** The first dialogue line in the film still waiting for a voice, and its scene. */
+const filmPendingSpeech=()=>{const all=film();for(const [index,s]of all.entries()){const cue=s.audio.muted?undefined:s.audio.speech.find(c=>c.volume>0&&!c.asset);if(cue)return{index,id:cue.id};}return undefined;};
 let movieUrl = '', renderedRecipe = '', movieInfo = '', noticeTimer = 0, capabilityToken = 0;
 let controller: AbortController | undefined;
 let clickToPlace=false,importing=false,placementBefore:string|undefined,timelineDragBefore:string|undefined;
@@ -67,7 +72,15 @@ const filename = () => (project.title || 'ara-film').normalize('NFKD').replace(/
 function notify(text: string) { $('notice').textContent = text; $('notice').classList.add('show'); clearTimeout(noticeTimer); noticeTimer = window.setTimeout(() => $('notice').classList.remove('show'), 6000); }
 function download(blob: Blob, name: string) { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 60_000); }
 const codeTime = (t: number) => `${Math.floor(t / 60).toString().padStart(2, '0')}:${Math.floor(t % 60).toString().padStart(2, '0')}:${Math.min(29, Math.floor((t % 1) * 30 + 0.001)).toString().padStart(2, '0')}`;
-function remember() { history.push(JSON.stringify(project)); if (history.length > 30) history.shift(); }
+/** Every scene, with the open one as it is now; the film-wide settings follow the open scene. */
+function film(open: StudioProject = project): StudioProject[] { return shareFilmSettings(scenes.map((s, i) => i === sceneIndex ? open : s), open); }
+function setFilm(list: StudioProject[], index: number) { scenes = list; sceneIndex = Math.max(0, Math.min(list.length - 1, index)); project = scenes[sceneIndex]; }
+/** Undo keeps the last 30 steps, and no more than about 2.5 MB of them so the saved session stays loadable. */
+function remember(open: StudioProject = project) {
+  history.push(historyEntry(film(open), sceneIndex));
+  let size = history.reduce((n, h) => n + h.length, 0);
+  while (history.length > 30 || (history.length > 1 && size > 2_500_000)) size -= history.shift()!.length;
+}
 let sessionTimer=0,lastSessionSave=0;
 function editorState(): EditorState {
   return {selectedActor,selected,characterSelected,cameraSelection,time,repeat,clickToPlace,
@@ -83,8 +96,8 @@ function saveSession():boolean {
   if(loading||importing)return false; // Never replace the last complete film with a model build in progress.
   try {
     const before=timelineDragBefore??placementBefore;const savedProject=before?JSON.parse(before) as StudioProject:project;
-    localStorage.setItem(SESSION_KEY,JSON.stringify({version:1,project:savedProject,editor:editorState(),history}));
-    localStorage.setItem(STORAGE,JSON.stringify(savedProject));
+    const all=film(savedProject);localStorage.setItem(SESSION_KEY,JSON.stringify({version:1,project:savedProject,film:filmJson(all),scene:sceneIndex,editor:editorState(),history}));
+    localStorage.setItem(STORAGE,JSON.stringify(filmJson(all)));
     lastSessionSave=performance.now();$('save-status').textContent='Saved on this device';return true;
   } catch { $('save-status').textContent='Use Save project to keep a copy';return false; }
 }
@@ -106,13 +119,22 @@ for(const element of document.querySelectorAll('.library,.inspector,#set-list'))
 window.addEventListener('scroll',scheduleSessionSave,{passive:true});
 window.addEventListener('pagehide',()=>{saveSession();setPlaying(false);});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveSession();});
+/** The film-wide picture settings for the open scene: the title card only in scene 1, and fades between scenes. */
+function frame(at = time) { scene.titleCard = sceneIndex === 0; scene.darkness = fadeLevel(film(), sceneIndex, at); }
+/** At the end of a scene: carry on into the next one when playing the whole film, or repeat, or stop. */
+function sceneEnded() {
+  if (playAll && sceneIndex < scenes.length - 1) { void showScene(sceneIndex + 1, true); return; }
+  if (!repeat) { time = durationOf(project); setPlaying(false); return; }
+  if (playAll && scenes.length > 1 && sceneIndex > 0) { void showScene(0, true); return; }
+  time = 0; setPlaying(true);
+}
 function setPlaying(on: boolean) {
   const token=++playToken;soundtrack.stop();soundEditor.stop();preparingSound=false;
   playing=on&&!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore;
   if(playing&&time>=durationOf(project)-.001)time=0;
   if(playing&&hasAudio(project.audio)){
     preparingSound=true;
-    void soundtrack.play(project,time,()=>{if(token!==playToken)return;time=durationOf(project);if(repeat){time=0;setPlaying(true);}else setPlaying(false);}).then(started=>{
+    void soundtrack.play(project,time,()=>{if(token!==playToken)return;time=durationOf(project);sceneEnded();}).then(started=>{
       if(token!==playToken)return;preparingSound=false;if(!started)setPlaying(false);
     }).catch(error=>{if(token===playToken){setPlaying(false);if(error instanceof SpeechAudioRequired)soundEditor.open(error.cueId,true);else notify((error as Error).message);}});
   }
@@ -141,6 +163,8 @@ function lock() {
   $('edit-character').tabIndex=characterSelected?0:-1;
   for(const pinned of document.querySelectorAll<HTMLButtonElement>('[data-pinned]'))pinned.disabled=true;
   $('loading').hidden = !loading;
+  scenesUI?.render();
+  button('play-all').hidden=scenes.length<2;button('play-all').disabled=loading||exporting||importing;button('play-all').setAttribute('aria-pressed',String(playAll&&scenes.length>1));
 }
 function dimensions(size = 720) { return project.aspect === 'landscape' ? { width: Math.round(size * 16 / 9), height: size } : { width: size, height: Math.round(size * 16 / 9) }; }
 function renderCameraControls(){
@@ -245,7 +269,7 @@ function renderUI() {
   if(!characterSelected){cameraSelection=true;clickToPlace=false;button('place-actor').setAttribute('aria-pressed','false');button('place-actor').textContent='Click to place';$('film').classList.remove('click-placement');}
   const a=actorTrack(), ai=project.actors.indexOf(a), items=cameraSelection?project.shots:a.beats;
   selected=Math.max(0,Math.min(selected,items.length-1));
-  scene.selectionId=characterSelected?selectedActor:undefined;$('scene-name').textContent=sceneById.get(project.template)!.name;renderScenes();
+  scene.selectionId=characterSelected?selectedActor:undefined;$('scene-name').textContent=(scenes.length>1?`Scene ${sceneIndex+1} · `:'')+sceneById.get(project.template)!.name;renderScenes();
   $('cast-roster').replaceChildren();for(const [i,actor]of project.actors.entries()){
     const b=document.createElement('button');b.className='cast-member';b.setAttribute('aria-pressed',String(characterSelected&&actor.id===selectedActor));b.textContent=`${i+1} · ${actorName(actor)}`;
     b.addEventListener('click',()=>{characterSelected=true;selectedActor=actor.id;cameraSelection=false;selected=0;renderUI();$('film').focus({preventScroll:true});});$('cast-roster').append(b);
@@ -291,22 +315,31 @@ function renderUI() {
 }
 /** Set while Assist builds a film: it shows each character's progress. */
 let castProgress:((p:BuildProgress)=>void)|undefined;
+/** Built characters not in the open scene, kept so that moving between scenes doesn't rebuild them. */
+const spareActors:StudioActor[]=[],actorRecipes=new Map<StudioActor,string>(),MAX_SPARE=8;
+const recipeOf=(a:ActorTrack)=>`${a.detail}:${a.character}`;
 async function syncActors() {
-  const next=new Map<string,StudioActor>(),made:StudioActor[]=[];
-  const todo=project.actors.filter(a=>!(scene.actors.get(a.id)&&builtRecipes.get(a.id)===`${a.detail}:${a.character}`));
-  const report=(stage:string,fraction:number)=>castProgress?.({stage,fraction,items:project.actors.map(a=>({label:actorName(a),state:next.has(a.id)?'done':a===todo[made.length]&&todo.includes(a)?'active':'waiting'}))});
+  const next=new Map<string,StudioActor>(),made:StudioActor[]=[],free=[...scene.actors.values(),...spareActors];
+  // Keep each character on the same track where possible, then reuse any free copy of the same recipe.
+  for(const a of project.actors){const existing=scene.actors.get(a.id);if(existing&&actorRecipes.get(existing)===recipeOf(a)&&free.includes(existing)){free.splice(free.indexOf(existing),1);next.set(a.id,existing);}}
+  for(const a of project.actors){if(next.has(a.id))continue;const i=free.findIndex(actor=>actorRecipes.get(actor)===recipeOf(a));if(i>=0)next.set(a.id,free.splice(i,1)[0]);}
+  const todo=project.actors.filter(a=>!next.has(a.id));
+  const report=(stage:string,fraction:number)=>castProgress?.({stage,fraction,items:project.actors.map(a=>({label:actorName(a),state:next.has(a.id)&&!todo.slice(made.length).includes(a)?'done':a===todo[made.length]?'active':'waiting'}))});
   try{
-    for(const a of project.actors){const recipe=`${a.detail}:${a.character}`,existing=scene.actors.get(a.id);
-      if(existing&&builtRecipes.get(a.id)===recipe){next.set(a.id,existing);continue;}
+    for(const a of todo){
       const params=decodeCharacter(a.character,a.detail);if(!params)throw Error('The character recipe could not be opened.');
       const step=`Building ${actorName(a)} · ${made.length+1} of ${todo.length}`,share=(k:number,frac:number)=>.05+.85*(k+frac)/todo.length;
       $('loading-label').textContent=`Building character ${project.actors.indexOf(a)+1}…`;report(step,share(made.length,0));
       const ch=await engine.build({...params,rig:params.rig==='none'?'game':params.rig,animations:true},(label,frac)=>{$('loading-label').textContent=label;report(step,share(made.length,frac??0));});
-      const actor=new StudioActor(ch,file=>lib.textureUrl(file));made.push(actor);await actor.ready();next.set(a.id,actor);
+      const actor=new StudioActor(ch,file=>lib.textureUrl(file));made.push(actor);actorRecipes.set(actor,recipeOf(a));await actor.ready();next.set(a.id,actor);
     }
     if(todo.length)report('Placing the cast on the set',.95);
-    await scene.setActors(next,project);builtRecipes.clear();for(const a of project.actors)builtRecipes.set(a.id,`${a.detail}:${a.character}`);
-  }catch(e){for(const actor of made)if(![...scene.actors.values()].includes(actor))actor.dispose();throw e;}
+    const ordered=new Map(project.actors.map(a=>[a.id,next.get(a.id)!]));
+    for(const actor of ordered.values()){const i=spareActors.indexOf(actor);if(i>=0)spareActors.splice(i,1);}
+    await scene.setActors(ordered,project,actor=>{spareActors.push(actor);
+      while(spareActors.length>MAX_SPARE){const old=spareActors.shift()!;actorRecipes.delete(old);old.dispose();}});
+    builtRecipes.clear();for(const a of project.actors)builtRecipes.set(a.id,recipeOf(a));
+  }catch(e){for(const actor of made)if(![...scene.actors.values()].includes(actor)){actorRecipes.delete(actor);actor.dispose();}throw e;}
 }
 /** Characters who sit use the set's furniture: move them onto the nearest free seat (part of the same edit). */
 function seatCharacters(announce:boolean){
@@ -315,20 +348,62 @@ function seatCharacters(announce:boolean){
   project=parseProject(JSON.stringify(project));
   if(announce)notify(`${moved.map(id=>actorName(project.actors.find(a=>a.id===id)!)).join(' and ')} ${moved.length>1?'take':'takes'} the nearest seat in the set.`);
 }
+const needsBuild=()=>project.actors.length!==scene.actors.size||project.actors.some(a=>builtRecipes.get(a.id)!==`${a.detail}:${a.character}`);
 async function apply(next: StudioProject, keepHistory=true) {
   if(loading||exporting)return false;
   let valid:StudioProject;try{valid=parseProject(JSON.stringify(next));}catch(e){notify((e as Error).message);renderUI();return false;}
   let applied=true;
   const previous=project;if(keepHistory)remember();project=valid;soundtrack.invalidate();time=Math.min(time,durationOf(project));setPlaying(false);
-  const needsBuild=project.actors.length!==scene.actors.size||project.actors.some(a=>builtRecipes.get(a.id)!==`${a.detail}:${a.character}`);
-  if(needsBuild){loading=true;renderUI();try{await syncActors();}catch(e){applied=false;project=previous;if(keepHistory)history.pop();notify(`Character unchanged: ${(e as Error).message}`);}finally{loading=false;}}
+  if(needsBuild()){loading=true;renderUI();try{await syncActors();}catch(e){applied=false;project=previous;if(keepHistory)history.pop();notify(`Character unchanged: ${(e as Error).message}`);}finally{loading=false;}}
   if(applied)seatCharacters(true);
   const {width,height}=dimensions();scene.resize(width,height);renderUI();save();return applied;
 }
 function edit(fn:(p:StudioProject)=>void){const next=structuredClone(project);fn(next);
   for(const actor of next.actors)if(project.actors.find(a=>a.id===actor.id)?.character!==actor.character)reconcileWeaponActions(actor);
   return apply(next);}
-function undo(){if(loading||exporting||importing||placementBefore||timelineDragBefore||!history.length)return;void apply(parseProject(history.pop()!),false);}
+function undo(){if(loading||exporting||importing||placementBefore||timelineDragBefore||!history.length)return;
+  const step=readHistoryEntry(history.pop()!);void applyFilm(step.scenes,step.index,false);}
+/** Replaces every scene and opens one of them, building any characters it needs. */
+async function applyFilm(list: StudioProject[], index = 0, keepHistory = true) {
+  if(loading||exporting)return false;
+  const before={scenes:film(),index:sceneIndex};if(keepHistory)remember();
+  scenes=list;sceneIndex=Math.max(0,Math.min(list.length-1,index));
+  if(await apply(list[sceneIndex],false))return true;
+  setFilm(before.scenes,before.index);if(keepHistory)history.pop();renderUI();return false;
+}
+/** Opens another scene of the film for editing (or as playback reaches it). */
+async function showScene(index: number, play = false) {
+  if(exporting||index<0||index>=scenes.length)return;
+  const keep=play;setFilm(film(),index);time=0;soundtrack.invalidate();if(!keep)setPlaying(false);else{playing=false;}
+  selectedActor=project.actors[0].id;characterSelected=false;cameraSelection=true;selected=0;
+  if(needsBuild()){loading=true;renderUI();try{await syncActors();}catch(e){notify((e as Error).message);}finally{loading=false;}}
+  seatCharacters(false);renderUI();save();if(keep)setPlaying(true);
+}
+/** A change to the film's scenes (adding, removing, reordering, naming): returns the scene to open afterwards. */
+function editFilm(change:(list:StudioProject[])=>number|void){
+  if(loading||exporting||importing||placementBefore||timelineDragBefore)return;
+  const list=structuredClone(film()),open=change(list);void applyFilm(list,open??sceneIndex).then(ok=>{if(ok)selectSceneStart();});
+}
+function selectSceneStart(){time=0;selectedActor=project.actors[0].id;characterSelected=false;cameraSelection=true;selected=0;setPlaying(false);renderUI();}
+/** A new scene in the same set with the same cast, standing where they were, and one wide shot. */
+function nextScene(base:StudioProject):StudioProject{
+  const fresh=structuredClone(base);
+  fresh.actors=fresh.actors.map(a=>({...a,beats:[beat('idle',3)]}));
+  fresh.shots=[{id:beatId(),duration:3,shot:'wide',target:'all'}];
+  fresh.texts=[];fresh.audio=defaultAudio();delete fresh.sceneName;delete fresh.transition;
+  return fresh;
+}
+let scenesUI:ReturnType<typeof setupScenes>|undefined;
+scenesUI=setupScenes({film:()=>film(),index:()=>sceneIndex,
+  canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
+  open:index=>void showScene(index),
+  add:duplicate=>editFilm(list=>{if(list.length>=MAX_SCENES)return;const copy=duplicate?structuredClone(list[sceneIndex]):nextScene(list[sceneIndex]);if(duplicate&&copy.sceneName)copy.sceneName=`${copy.sceneName} (copy)`.slice(0,60);list.splice(sceneIndex+1,0,copy);return sceneIndex+1;}),
+  remove:()=>editFilm(list=>{if(list.length<2)return;list.splice(sceneIndex,1);notify('Scene deleted. Undo brings it back.');return Math.min(sceneIndex,list.length-1);}),
+  move:offset=>editFilm(list=>{const to=sceneIndex+offset;if(to<0||to>=list.length)return;[list[sceneIndex],list[to]]=[list[to],list[sceneIndex]];return to;}),
+  rename:name=>void edit(p=>{const n=name.trim().slice(0,60);if(n)p.sceneName=n;else delete p.sceneName;}),
+  transition:kind=>void edit(p=>{if(kind==='fade')p.transition='fade';else delete p.transition;}),
+});
+button('play-all').addEventListener('click',()=>{playAll=!playAll;lock();});
 const timeline=timelineHandles(document.querySelector<HTMLElement>('.timeline-scroll')!,{
   project:()=>project,canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore&&!document.querySelector('dialog[open]'),
   begin:ref=>{timelineDragBefore=JSON.stringify(project);setPlaying(false);scene.freezeCamera=true;
@@ -342,7 +417,7 @@ const timeline=timelineHandles(document.querySelector<HTMLElement>('.timeline-sc
   },
   end:cancelled=>{const before=timelineDragBefore;timelineDragBefore=undefined;scene.freezeCamera=false;if(!before)return;
     if(cancelled)project=JSON.parse(before)as StudioProject;
-    else if(JSON.stringify(project)!==before){history.push(before);if(history.length>30)history.shift();soundtrack.invalidate();}
+    else if(JSON.stringify(project)!==before){remember(JSON.parse(before) as StudioProject);soundtrack.invalidate();}
     time=Math.min(time,durationOf(project));renderUI();save();
   },error:notify,
 });
@@ -475,7 +550,7 @@ input('vehicle-delivery-box').addEventListener('change',()=>editVehicleStyle(sty
 input('vehicle-number').addEventListener('change',()=>editVehicleStyle(style=>{const n=Math.round(Number(input('vehicle-number').value));return Number.isFinite(n)&&n>=0&&n<100?{...style,number:n}:style;}));
 for(const [id,slot]of [['actor-weapon','weapon'],['actor-carry','carry']]as const)select(id).addEventListener('change',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!;a.character=equipActor(a,slot,select(id).value);}));
 orbitControls($<HTMLCanvasElement>('film'),()=>shotAt(project,time).shot.view??project.view,()=>!loading&&!exporting&&!importing&&!timelineDragBefore,()=>{remember();setPlaying(false);},v=>{const shot=shotAt(project,time).shot;if(shot.view||shot.camera)shot.view=v;else project.view=v;dirty=true;renderCameraControls();},()=>{lock();save();},{
-  pick:(x,y)=>{setPlaying(false);scene.render(project,time);return scene.pickActor(x,y);},
+  pick:(x,y)=>{setPlaying(false);frame();scene.render(project,time);return scene.pickActor(x,y);},
   select:id=>{characterSelected=true;selectedActor=id;cameraSelection=false;selected=timelineAt(project,time,actorTrack()).index;setPlaying(false);renderUI();},
   selected:()=>{if(!characterSelected)return;const a=actorTrack(),rendered=scene.actors.get(a.id);if(!rendered)return;const position=rendered.stagePosition,p=position.clone().project(scene.camera),r=scene.canvas.getBoundingClientRect();return{id:a.id,x:a.x,y:a.y,z:a.z,worldX:position.x,worldZ:position.z,screenX:r.left+(p.x+1)*r.width/2,screenY:r.top+(1-p.y)*r.height/2};},
   deselect:clearSelection,
@@ -495,8 +570,8 @@ orbitControls($<HTMLCanvasElement>('film'),()=>shotAt(project,time).shot.view??p
   move:(x,z)=>{const a=actorTrack();a.x=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,x));a.z=Math.max(-STAGE_LIMIT,Math.min(STAGE_LIMIT,z));input('actor-x').value=String(Number(a.x.toFixed(2)));input('actor-z').value=String(Number(a.z.toFixed(2)));dirty=true;},
   end:cancelled=>{const before=placementBefore;placementBefore=undefined;scene.freezeCamera=false;if(!before)return;
     if(cancelled)project=JSON.parse(before) as StudioProject;
-    else if(JSON.stringify(project)!==before){history.push(before);if(history.length>30)history.shift();const a=actorTrack();a.x=Number(a.x.toFixed(3));a.z=Number(a.z.toFixed(3));save();}
-    renderUI();scene.render(project,time);dirty=false;
+    else if(JSON.stringify(project)!==before){remember(JSON.parse(before) as StudioProject);const a=actorTrack();a.x=Number(a.x.toFixed(3));a.z=Number(a.z.toFixed(3));save();}
+    renderUI();frame();scene.render(project,time);dirty=false;
   },
 });
 button('add-beat').addEventListener('click',()=>void edit(p=>{const a=p.actors.find(a=>a.id===selectedActor)!;const d=Math.min(3,MAX_DURATION-trackDuration(a));if(d<0.1||a.beats.length>=MAX_ACTIONS)return;a.beats.push(beat('idle',d));cameraSelection=false;selected=a.beats.length-1;}));
@@ -504,8 +579,9 @@ button('add-shot').addEventListener('click',()=>void edit(p=>{const d=Math.min(3
 button('remove-beat').addEventListener('click',()=>void edit(p=>{const items=cameraSelection?p.shots:p.actors.find(a=>a.id===selectedActor)!.beats;if(items.length>1)items.splice(selected,1);selected=Math.max(0,selected-1);}));
 for(const [id,offset]of [['earlier',-1],['later',1]]as const)button(id).addEventListener('click',()=>void edit(p=>{const items=cameraSelection?p.shots:p.actors.find(a=>a.id===selectedActor)!.beats,to=selected+offset;if(to<0||to>=items.length)return;[items[selected],items[to]]=[items[to],items[selected]];selected=to;}));
 async function saveProject():Promise<boolean>{save();button('save-project').disabled=true;try{
-  if(project.audio.speech.some(c=>c.asset))download(await audioProjectBundle(project),`${filename()}.ara-studio.zip`);
-  else download(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),`${filename()}.ara-studio.json`);
+  const all=film();
+  if(all.some(s=>s.audio.speech.some(c=>c.asset)))download(await audioProjectBundle(all),`${filename()}.ara-studio.zip`);
+  else download(new Blob([JSON.stringify(filmJson(all),null,2)],{type:'application/json'}),`${filename()}.ara-studio.json`);
   notify('Editable project saved, including attached audio.');return true;
 }catch(error){notify((error as Error).message);return false;}finally{lock();}}
 button('save-project').addEventListener('click',()=>void saveProject());
@@ -523,7 +599,7 @@ async function startNewProject(keepCopy:boolean){
   $('new-project-message').textContent=keepCopy?'Saving your current film…':'Preparing a fresh project…';
   try{
     if(keepCopy&&!await saveProject()){$('new-project-message').textContent=$('notice').textContent;return;}
-    if(!await apply(blankProject())){$('new-project-message').textContent=$('notice').textContent;return;}
+    if(!await applyFilm([blankProject()])){$('new-project-message').textContent=$('notice').textContent;return;}
     selectedActor=project.actors[0].id;selected=0;characterSelected=true;cameraSelection=false;time=0;repeat=true;clickToPlace=false;titleEditing=false;
     for(const id of ['scene-search','scene-category','animation-search','animation-category'])input(id).value='';
     button('repeat').classList.add('on');button('repeat').setAttribute('aria-pressed','true');
@@ -548,9 +624,21 @@ async function importStudioProject(source: string | File): Promise<boolean> {
   saveSession();importing=true;setPlaying(false);lock();
   try {
     const bundle=typeof source!=='string'&&(/\.zip$/i.test(source.name)||source.type==='application/zip');
-    if(!bundle&&typeof source!=='string'&&source.size>100_000)throw Error('Use JSON smaller than 100 KB.');
-    const next=bundle?await openAudioBundle(source as File,lib.catalog):parseStudioInput(typeof source==='string'?source:await source.text(),lib.catalog);
-    if(!await apply(next))return false;
+    if(!bundle&&typeof source!=='string'&&source.size>500_000)throw Error('Use JSON smaller than 500 KB.');
+    const next=bundle?await openAudioBundle(source as File,lib.catalog):parseStudioFilm(typeof source==='string'?source:await source.text(),lib.catalog);
+    if(!await applyFilm(next))return false;
+    selectedActor=project.actors[0].id;characterSelected=false;cameraSelection=true;selected=0;time=0;
+    renderUI();return true;
+  } finally {importing=false;lock();saveSession();}
+}
+/** Assist writes one scene: it replaces the open scene, keeping that scene's name and place in the film. */
+async function replaceOpenScene(next: StudioProject): Promise<boolean> {
+  if(loading||exporting||importing||placementBefore||timelineDragBefore)return false;
+  saveSession();importing=true;setPlaying(false);lock();
+  try {
+    const list=film(),old=list[sceneIndex],scene={...next};delete scene.sceneName;delete scene.transition;
+    if(old.sceneName)scene.sceneName=old.sceneName;if(old.transition)scene.transition=old.transition;
+    list[sceneIndex]=scene;if(!await applyFilm(list,sceneIndex))return false;
     selectedActor=project.actors[0].id;characterSelected=false;cameraSelection=true;selected=0;time=0;
     renderUI();return true;
   } finally {importing=false;lock();saveSession();}
@@ -561,50 +649,50 @@ input('project-file').addEventListener('change',async()=>{
   try{await importStudioProject(file);}catch(e){notify((e as Error).message);}
   finally{input('project-file').value='';input('project-file').setAttribute('aria-busy','false');}
 });
-const soundEditor=setupSoundEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,pause:()=>setPlaying(false),
+const soundEditor=setupSoundEditor({project:()=>project,film:()=>film(),time:()=>time,actor:()=>characterSelected?selectedActor:undefined,pause:()=>setPlaying(false),
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,edit:(fn,remember=true)=>{const next=structuredClone(project);fn(next);return apply(next,remember);},download,changed:()=>soundtrack.invalidate()});
 const textEditor=setupTextEditor({project:()=>project,time:()=>time,actor:()=>characterSelected?selectedActor:undefined,
   canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,edit:(fn,keepHistory=true)=>{const next=structuredClone(project);fn(next);return apply(next,keepHistory);},
   seek:t=>{time=t;setPlaying(false);renderPosition();dirty=true;},download});
 useCapableModels();
 const assist=setupAssist({project:()=>project,catalog:()=>lib.catalog,update:next=>apply(next),bodies:()=>fittedSpatialBodies(scene.actors),canEdit:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,
-  load:(next,progress)=>{castProgress=progress;return importStudioProject(JSON.stringify(next)).finally(()=>castProgress=undefined);}});
+  load:(next,progress)=>{castProgress=progress;return replaceOpenScene(next).finally(()=>castProgress=undefined);}});
 setupSpatialReview({project:()=>project,actors:()=>scene.actors,canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,pause:()=>setPlaying(false),seek:t=>{time=t;renderPosition();dirty=true;},download});
 const tour=setupStudioTour({canOpen:()=>!loading&&!exporting&&!importing&&!placementBefore&&!timelineDragBefore,begin:()=>{
   const wide=document.querySelector('.workspace')!.classList.contains('wide');setPlaying(false);setWide(false,false);
   return()=>setWide(wide,false);
 }});
 button('prepare-speech').addEventListener('click',()=>soundEditor.open(pendingSpeech()[0]?.id,true));
-button('snapshot').addEventListener('click',()=>{scene.render(project,time);scene.output.toBlob(b=>{if(b)download(b,`${filename()}-frame.png`);},'image/png');});
-$('edit-character').addEventListener('click',e=>{if(!characterSelected||loading||exporting||importing||placementBefore){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});
+button('snapshot').addEventListener('click',()=>{frame();scene.render(project,time);scene.output.toBlob(b=>{if(b)download(b,`${filename()}-frame.png`);},'image/png');});
+$('edit-character').addEventListener('click',e=>{if(!characterSelected||loading||exporting||importing||placementBefore){e.preventDefault();return;}try{const token=crypto.randomUUID();sessionStorage.setItem(HANDOFF,JSON.stringify({token,actorId:actorTrack().id,project,film:filmJson(film()),scene:sceneIndex}));$<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:actorTrack().character,detail:actorTrack().detail,studioReturn:token})}`;}catch{ /* The ordinary character link still works if session storage is unavailable. */ }});
 document.addEventListener('keydown',e=>{if((e.target as HTMLElement).closest('input,select,textarea,button')||document.querySelector('dialog[open]'))return;if(e.code==='Space'){e.preventDefault();setPlaying(!playing);}if(e.key.toLowerCase()==='f'&&!e.metaKey&&!e.ctrlKey&&!e.altKey)button('expand-view').click();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}});
 let lastTime=performance.now();
 function tick(now:number){const elapsed=Math.min(.1,Math.max(0,(now-lastTime)/1000));lastTime=now;
   if(!exporting&&!loading&&scene.actors.size){
-    if(playing&&!preparingSound){time=soundtrack.position()??time+elapsed;const total=durationOf(project);if(time>=total){if(repeat){time=0;setPlaying(true);}else{time=total;setPlaying(false);}}dirty=true;if(now-lastSessionSave>1000)saveSession();}
-    if(dirty){scene.render(project,time);renderPosition();dirty=false;}
+    if(playing&&!preparingSound){time=soundtrack.position()??time+elapsed;const total=durationOf(project);if(time>=total){time=total;sceneEnded();}dirty=true;if(now-lastSessionSave>1000)saveSession();}
+    if(dirty){frame();scene.render(project,time);renderPosition();dirty=false;}
   }requestAnimationFrame(tick);}
 requestAnimationFrame(tick);
 const dialog = $<HTMLDialogElement>('export-dialog');
 async function updateCapability() {
   const token = ++capabilityToken, size = Number(select('resolution').value), { width, height } = dimensions(size);
-  speechToFix=pendingSpeech()[0]?.id;$('export-fix-audio').hidden=!speechToFix;$('export-audio-label').textContent=hasAudio(project.audio)?'Stereo soundtrack':'Silent MP4';
-  if(speechToFix){button('start-export').disabled=true;$('export-message').textContent='Add a voice to your dialogue before exporting. Generate speech or attach your own recording.';return;}
+  const waiting=filmPendingSpeech(),sound=film().some(s=>hasAudio(s.audio));speechToFix=waiting?.id;speechScene=waiting?.index??sceneIndex;$('export-fix-audio').hidden=!speechToFix;$('export-audio-label').textContent=sound?'Stereo soundtrack':'Silent MP4';
+  if(speechToFix){button('start-export').disabled=true;$('export-message').textContent=`Add a voice to your dialogue${scenes.length>1?` in ${sceneLabel(film(),speechScene)}`:''} before exporting. Generate speech or attach your own recording.`;return;}
   button('start-export').disabled = true; $('export-message').textContent = 'Checking video export on this browser…';
-  const supported = await supportsMp4(width, height),soundSupported=!hasAudio(project.audio)||!!await audioCodec();
+  const supported = await supportsMp4(width, height),soundSupported=!sound||!!await audioCodec();
   if (token !== capabilityToken || !dialog.open) return;
   button('start-export').disabled = !supported||!soundSupported;
   $('export-message').textContent = !soundSupported?'This browser cannot encode MP4 audio. Save the WAV soundtrack, use another browser, or mute the film.':supported ? '' : 'This browser cannot encode this MP4 size. Try 720p, or use a current Chrome, Edge or Safari browser. You can still save a frame or project.';
 }
 button('open-export').addEventListener('click', () => {
-  setPlaying(false); $('export-length').textContent = `${Number(durationOf(project).toFixed(1))} seconds`;
+  setPlaying(false); $('export-length').textContent = `${Number(filmDuration(film()).toFixed(1))} seconds${scenes.length>1?` · ${scenes.length} scenes`:''}`;
   $('export-options').hidden = false; $('export-progress').hidden = true; $('cancel-export').hidden = true;
-  const hasFilm = !!movieUrl && renderedRecipe === JSON.stringify(project);
+  const hasFilm = !!movieUrl && renderedRecipe === JSON.stringify(film());
   $('download-film').hidden = !hasFilm; $('export-preview').hidden = !hasFilm; $('render-again').hidden = !hasFilm; $('start-export').hidden = hasFilm;
   $('export-options').hidden = hasFilm; $('export-message').textContent = hasFilm ? movieInfo : '';
   $('export-fix-audio').hidden=true;dialog.showModal(); if (!hasFilm) void updateCapability();
 });
-button('export-fix-audio').addEventListener('click',()=>{dialog.close();soundEditor.open(speechToFix,true);});
+button('export-fix-audio').addEventListener('click',async()=>{dialog.close();const cue=speechToFix;if(speechScene!==sceneIndex)await showScene(speechScene);soundEditor.open(cue,true);});
 button('render-again').addEventListener('click', () => { $('render-again').hidden = true; $('export-options').hidden = false; $('start-export').hidden = false; $('download-film').hidden = true; $('export-preview').hidden = true; void updateCapability(); });
 select('resolution').addEventListener('change', () => void updateCapability());
 button('close-export').addEventListener('click', () => { if (exporting) controller?.abort(); else dialog.close(); });
@@ -612,13 +700,16 @@ button('cancel-export').addEventListener('click', () => controller?.abort());
 dialog.addEventListener('cancel', (e) => { if (exporting) { e.preventDefault(); controller?.abort(); } });
 button('start-export').addEventListener('click', async () => {
   if (exporting || loading) return;
-  const recipe = JSON.stringify(project), snapshot = parseProject(recipe), before = time, size = Number(select('resolution').value), { width, height } = dimensions(size);
+  const all = film(), recipe = JSON.stringify(all), snapshot = parseFilm(JSON.stringify(filmJson(all))), openScene = sceneIndex, before = time, size = Number(select('resolution').value), { width, height } = dimensions(size);
   controller = new AbortController(); exporting = true; lock(); $('export-options').hidden = true; $('export-progress').hidden = false;
   $('start-export').hidden = true; $('render-again').hidden = true; $('cancel-export').hidden = false; $('export-message').textContent = '';
   $<HTMLProgressElement>('render-progress').value = 0; $('render-status').textContent = 'Preparing frames…'; $('export-preview').hidden = true; $('download-film').hidden = true;
   const started = performance.now();
   try {
-    const blob = await exportMovie(scene, snapshot, { width, height, signal: controller.signal, progress: (done, total) => {
+    // Each scene's cast goes on the stage in turn; the open scene and its cast come back afterwards.
+    const cast = async (index: number) => { project = snapshot[index]; sceneIndex = index; await syncActors(); };
+    if (snapshot.length > 1) await cast(0);
+    const blob = await exportFilm(scene, snapshot, { width, height, signal: controller.signal, prepare: cast, progress: (done, total) => {
       $<HTMLProgressElement>('render-progress').value = done / total * 100;
       $('render-status').textContent = `Frame ${done} of ${total} · ${Math.round(done / total * 100)}% · ${Math.round((performance.now() - started) / 1000)}s elapsed`;
     } });
@@ -631,9 +722,10 @@ button('start-export').addEventListener('click', async () => {
   } catch (e) {
     $('export-message').textContent = controller.signal.aborted ? 'Export cancelled. Your project is safe.' : (e as Error).message;
     $('export-options').hidden = false; $('start-export').hidden = false;
-    if(e instanceof SpeechAudioRequired){speechToFix=e.cueId;$('export-fix-audio').hidden=false;}
+    if(e instanceof SpeechAudioRequired){speechToFix=e.cueId;speechScene=Math.max(0,snapshot.findIndex(s=>s.audio.speech.some(c=>c.id===e.cueId)));$('export-fix-audio').hidden=false;}
   } finally {
-    exporting = false; controller = undefined; time = before; dirty = true; $('cancel-export').hidden = true; lock();
+    if (snapshot.length > 1) { setFilm(all, openScene); try { await syncActors(); } catch (error) { notify((error as Error).message); } }
+    exporting = false; controller = undefined; time = before; dirty = true; $('cancel-export').hidden = true; renderUI(); lock();
     if (!button('start-export').hidden) button('start-export').disabled = false;
   }
 });
@@ -644,8 +736,8 @@ async function start() {
   let recovered:ReturnType<typeof readEditorSession>,resume:EditorState|undefined,acceptedLink=false,returned=false;
   try{recovered=readEditorSession(localStorage.getItem(SESSION_KEY));}catch{ /* Storage may be unavailable. */ }
   function recover(){
-    if(recovered){project=recovered.project;restoreEditor(recovered.editor,recovered.history);resume=recovered.editor;}
-    else{const saved=localStorage.getItem(STORAGE)||localStorage.getItem('ara.studio.project.v1');if(saved)project=parseProject(saved);}
+    if(recovered){setFilm(recovered.film,recovered.scene);restoreEditor(recovered.editor,recovered.history);resume=recovered.editor;}
+    else{const saved=localStorage.getItem(STORAGE)||localStorage.getItem('ara.studio.project.v1');if(saved)setFilm(parseFilm(saved),0);}
   }
   try{
     if(code){
@@ -653,15 +745,15 @@ async function start() {
       const d=hash.get('detail'),detail=d==='low'||d==='high'?d:'medium';
       const pending=hash.get('studioReturn')?JSON.parse(sessionStorage.getItem(HANDOFF)||'null'):null;
       if(pending&&pending.token===hash.get('studioReturn')){
-        project=parseProject(JSON.stringify(pending.project));
+        if(pending.film)setFilm(parseFilm(JSON.stringify(pending.film)),Number(pending.scene)||0);else setFilm([parseProject(JSON.stringify(pending.project))],0);
         if(recovered){restoreEditor(recovered.editor,recovered.history);resume=recovered.editor;}
         const a=project.actors.find(a=>a.id===pending.actorId);if(!a)throw Error('The selected character is missing.');
         remember();a.character=code;a.detail=detail;reconcileWeaponActions(a);selectedActor=a.id;characterSelected=true;cameraSelection=false;
-        project=parseProject(JSON.stringify(project));returned=true;
+        project=parseProject(JSON.stringify(project));scenes[sceneIndex]=project;returned=true;
       }else if(!recovered&&(performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming|undefined)?.type==='reload'&&(localStorage.getItem(STORAGE)||localStorage.getItem('ara.studio.project.v1'))){
         // Recover edits made by older versions that left the original character recipe in the URL.
         recover();
-      }else project=newProject('portrait',code,detail);
+      }else setFilm([newProject('portrait',code,detail)],0);
       acceptedLink=true;
     }else recover();
   }catch(e){notify((e as Error).message);try{recover();}catch{ /* Keep the default project if saved data is invalid. */ }}
@@ -686,6 +778,6 @@ async function start() {
 function historyReplaceHash(hash:string){const url=new URL(location.href);url.hash=hash;window.history.replaceState(window.history.state,'',url);}
 
 void start();
-if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&!importing&&scene.actors.size===project.actors.length;},exportMovie,supportsMp4,setProject:apply,sets:SETS,audio:{playback:soundtrack,editor:soundEditor}}});
+if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&!importing&&scene.actors.size===project.actors.length;},exportMovie,exportFilm,supportsMp4,setProject:apply,get film(){return film();},get sceneIndex(){return sceneIndex;},setFilm:applyFilm,showScene,sets:SETS,audio:{playback:soundtrack,editor:soundEditor}}});
 
 input('beat-weapon-pitch').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].weaponPitch=Number(input('beat-weapon-pitch').value);}));

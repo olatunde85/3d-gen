@@ -15,6 +15,7 @@ import { MAX_TEXT_CUES, TEXT_STYLES } from './text';
 import { actionNote } from './animations';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 import { MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, parseProject, presetCode, durationOf, type StudioProject } from './project';
+import { MAX_FILM_SIZE, MAX_SCENES, filmScenes, sceneSource, shareFilmSettings } from './film';
 
 import {VEHICLE_FOR_CLIP} from '../core/props/vehicles';
 import {WEAPON_POSES} from '../core/anim/riding-weapons';
@@ -34,6 +35,22 @@ function fields(value: Record<string, unknown>, allowed: string[], path: string)
   if (unsupported.length) throw Error(`${path}: unsupported field ${unsupported.join(', ')}. Use the fields in the LLM guide.`);
 }
 
+/** A film of one or more scenes, saved or written by an assistant: version 3 lists scenes, each checked like a one-scene film. */
+export function parseStudioFilm(text: string, catalog?: Catalog): StudioProject[] {
+  if (text.length > MAX_FILM_SIZE) throw Error('Use JSON smaller than 500 KB.');
+  const source = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, '$1');
+  let value: unknown;
+  try { value = JSON.parse(source); }
+  catch { throw Error('This is not valid JSON. Paste the complete JSON object, without surrounding explanation.'); }
+  if (!object(value) || value.version !== 3) return [parseStudioInput(source, catalog)];
+  fields(value, ['kind', 'version', 'title', 'aspect', 'caption', 'scenes'], 'Film');
+  const scenes = filmScenes(value).map((scene, i) => {
+    try { return parseStudioInput(JSON.stringify(sceneSource(value, scene)), catalog); }
+    catch (error) { throw Error(`Scene ${i + 1}: ${(error as Error).message}`); }
+  });
+  return shareFilmSettings(scenes);
+}
+
 /** Accept saved projects or LLM-friendly preset/equipment names; keep the canonical validator authoritative. */
 export function parseStudioInput(text: string, catalog?: Catalog): StudioProject {
   if (text.length > 100_000) throw Error('Use JSON smaller than 100 KB.');
@@ -42,7 +59,7 @@ export function parseStudioInput(text: string, catalog?: Catalog): StudioProject
   try { value = JSON.parse(source); }
   catch { throw Error('This is not valid JSON. Paste the complete JSON object, without surrounding explanation.'); }
   if (!object(value) || value.version !== 2) return parseProject(source);
-  fields(value, ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption', 'texts', 'audio'], 'Film');
+  fields(value, ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption', 'texts', 'audio', 'sceneName', 'transition'], 'Film');
   if (object(value.view)) fields(value.view, ['azimuth', 'elevation', 'zoom'], 'View');
   if (Array.isArray(value.shots)) value.shots.forEach((shot, i) => {
     if (object(shot)) {fields(shot, ['id', 'duration', 'shot', 'target','view','camera'], `Shot ${i + 1}`);if(object(shot.view))fields(shot.view,['azimuth','elevation','zoom'],`Shot ${i+1} view`);}
@@ -167,7 +184,7 @@ export function needsBoats(location:SetId,text:string,current?:StudioProject){
   const water=(locationMapFile(location).location as {water?:unknown[]}).water;
   return !!water?.length||WATER.test(text)||!!current?.actors.some(a=>a.beats.some(b=>BOAT_CLIPS.test(b.clip)));
 }
-export function generateAssistGuide(catalog:Catalog,brief = '', current?: StudioProject,location?:SetId,currentStaging?:StagingReport,voiceList=ARA_VOICE_GUIDE,options:{boats?:boolean;/** How an assistant with tools gets another location's map, in place of asking the user for the file. */mapRequest?:string}={}): string {
+export function generateAssistGuide(catalog:Catalog,brief = '', current?: StudioProject,location?:SetId,currentStaging?:StagingReport,voiceList=ARA_VOICE_GUIDE,options:{boats?:boolean;/** How an assistant with tools gets another location's map, in place of asking the user for the file. */mapRequest?:string;/** Include films of several scenes (version 3). */scenes?:boolean}={}): string {
   const voices=voiceList;
   const json = (value: unknown) => JSON.stringify(value);
   const selected=location??current?.template??'portrait';
@@ -241,9 +258,9 @@ ${voices}
 - Music: track must be one of the exact IDs in MUSIC LIBRARY below, volume 0..1 (default .22), ducking true/false (default true lowers music during speech), fadeIn/fadeOut 0..10 seconds. Music is one recorded track from the library, loaded on demand and played from its beginning; none disables it. Omit start/duration to follow the whole film (default). Optional start (0..59.9) and duration (.1..60, end<=60) place a music window, with fades relative to its edges. An explicit music duration can extend the film; without one, start must precede the film end. Timeline music edges edit this window; disable Custom music timing to follow the whole film again. Muted true exports a silent film. Library duration is the full source-song duration, not the film duration; movies remain at most 60 seconds. The full-song files are FFmpeg-compressed and loudness-matched; the renderer retains at most one 60-second decoded excerpt. No arbitrary audio URLs, soundtrack uploads, music seek offsets, multiple music beds or per-clip audio paths.
 - Sound effects: optional audio.effects array, up to ${MAX_SOUND_EFFECTS} independent recorded cues. The library includes weapon shots, an impact, vehicle engines and outdoor ambience. Use sound (an exact SOUND EFFECT LIBRARY ID), optional id/name, start in seconds (0–59.9), duration (0.01–60; end <=60), offset in source seconds, speed 0.5–2 (changes timing and pitch), volume 0–2, and pan -1..1. Defaults: start 0, offset 0, speed 1, volume 1, pan 0; omitted duration uses the recording's remaining duration divided by speed. A shorter window trims the take. Optional loop:true repeats the recording from offset to its end, at speed, until exactly start+duration; use it for sustained engines/ambience. Default loop:false plays once and leaves silence if its cue window is longer than the source. Looping is explicit, not automatic; individual shots/impacts usually stay loop:false. Engine takes last 8 seconds, outdoor ambience 4 seconds, rifle shot 1 second; use the library's exact durations. Do not use boat-engine for canoe/kayak/rowing. Effects may overlap speech, music and each other, and can extend the film. Cue IDs must be unique within effects. Sounds do not trigger automatically from animation or physics.
 - Optional effect.actor is an existing actor ID for organization only; omit it for a scene sound. It does not follow an actor acoustically or automate spatial panning. Align start with the visual firing/landing/contact moment yourself. Sounds do not add weapons, projectiles, damage, ragdolls, collisions or animations. Use existing performances and equipment independently. Effects are included in preview, WAV/MP4, project files and reload recovery; they never need speech generation.
-- No automatic lip-sync, imported GLBs, paired handshakes/hugs/fights, automatic hand-to-object contact, collisions, prop handover, free prop placement, lighting overrides, custom backgrounds or location changes during a film. Talk is a visual performance; schedule speech separately. Do not invent fields for unsupported features.
+- No automatic lip-sync, imported GLBs, paired handshakes/hugs/fights, automatic hand-to-object contact, collisions, prop handover, free prop placement, lighting overrides, custom backgrounds or location changes within ${options.scenes?'a scene (use several scenes instead)':'a film'}. Talk is a visual performance; schedule speech separately. Do not invent fields for unsupported features.
 - Actor ids must be unique, 1–50 letters/numbers/underscores/hyphens, excluding all and camera. Shot targets must exist. Beat/shot ids are optional and regenerated on import. Keep the JSON under 100 KB. Review the result in Studio and refine after import; staging is not physically solved.
-
+${options.scenes?`\n${SCENES_GUIDE}\n`:''}
 COMPLETE LOCATION CATALOGUE
 Use template as a location ID. Staging notes describe the actual floor plan and are guidance, not additional project fields.
 ${JSON.stringify(SETS.map(s => ({ id: s.id, name: s.name, category: s.category, mood: s.mood, description: s.subtitle,...(s.staging?{staging:s.staging}:{}) })))}
@@ -304,6 +321,15 @@ export function describeAssistProject(project: StudioProject) {
   };
 }
 
+/** How to write a film of several scenes; offered where version 3 films are accepted. */
+const SCENES_GUIDE = `FILMS OF SEVERAL SCENES
+A film has up to ${MAX_SCENES} scenes, played in order. Each scene is a complete one-location film as this guide describes: its own template (location), actors, shots, camera, view, texts and audio, up to ${MAX_DURATION} seconds, with its own timeline starting at 0. Use scenes when the story moves between places (for example on a bus, then a street, then an office); keep a one-place story to one scene (a version 2 project).
+Write a version 3 film: {"kind":"ara-studio","version":3,"title":"…","aspect":"landscape","caption":true,"scenes":[{"sceneName":"On the bus","template":"city-bus","actors":[…],"shots":[…],"camera":"locked","view":{"azimuth":0,"elevation":0,"zoom":1},"texts":[],"audio":{…}},{"sceneName":"Arrival","transition":"fade","template":"…",…}]}
+- title, aspect and caption belong to the film, never to a scene; the title card shows over the first scene only.
+- sceneName (optional, up to 60 characters) names a scene in the editor. transition (optional, scenes 2 onwards): "cut" (the default) or "fade", which fades the previous scene to black and this one in, 0.4 seconds each way.
+- The same person across scenes: give their actor the same character (same preset and params) and the same actor id in each scene; Studio builds each distinct character once. Stage every scene for its own location, with that location's map.
+- Sound, music and text belong to each scene: music set in a scene plays in that scene only, so set it again to carry it on.
+- Every scene is checked as a one-scene film is; an error names the scene. The whole file stays under 500 KB.`;
 export function summarizeAssistProject(project: StudioProject): string {
   const names = project.actors.map(a => decodeCharacter(a.character, a.detail)?.name || a.id).join(' + ');
   return `${sceneById.get(project.template)!.name} · ${names} · ${durationOf(project)}s · ${project.shots.length} shots · ${project.actors.reduce((sum, a) => sum + a.beats.length, 0)} actions · ${project.texts.length} text cues`;

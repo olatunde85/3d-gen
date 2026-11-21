@@ -21,6 +21,9 @@ export async function buildLocationThumbnails(h:Harness){
     harbour:{eye:[15,13,17],target:[0,0,-6]},'football-stadium':{eye:[108,82,136],target:[0,0,0]},
     highway:{eye:[35,22,45],target:[-8,0,-25]},'military-base':{eye:[55,32,60],target:[0,0,-10]},
     'prison-yard':{eye:[52,32,62],target:[0,0,-5]},'neon-street':{eye:[2,7,24],target:[0,1,-15]},
+    // Vehicle interiors are photographed from inside, at the front, looking back down the aisle.
+    'train-carriage':{eye:[.75,1.75,4.6],target:[-.1,1.05,-6]},'city-bus':{eye:[.55,1.75,4.4],target:[-.05,1,-4]},
+    'private-jet':{eye:[.45,1.5,4],target:[0,.85,-3]},'airliner-cabin':{eye:[.6,1.75,6.2],target:[0,1,-6]},
    };
    if(views[set.id])({eye,target}=views[set.id]);
    const frame=await h.evaluate<string>("(()=>{const s=studio.scene,p=__thumbnailProject;p.template="+JSON.stringify(set.id)+";s.camera.position.set(..."+JSON.stringify(eye)+");s.camera.lookAt(..."+JSON.stringify(target)+");s.render(p,1);return s.output.toDataURL('image/png')})()");

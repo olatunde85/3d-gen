@@ -18,7 +18,10 @@ import { keySettings, onKeysChange } from '../../app/keys/store';
 import { PROVIDERS } from '../../app/keys/providers';
 
 interface SoundEditor {
-  project():StudioProject;time():number;actor():string|undefined;pause():void;canEdit():boolean;
+  project():StudioProject;
+  /** Every scene of the film, for saving it with its audio. */
+  film():StudioProject[];
+  time():number;actor():string|undefined;pause():void;canEdit():boolean;
   edit(fn:(project:StudioProject)=>void,remember?:boolean):Promise<boolean>;
   download(blob:Blob,name:string):void;changed():void;
 }
@@ -359,7 +362,7 @@ export function setupSoundEditor(editor:SoundEditor){
   for(const [id,key]of [['fade-in','fadeIn'],['fade-out','fadeOut']]as const)input(id).addEventListener('change',()=>void musicEdit(p=>p.audio.music[key]=Number(input(id).value)));
   button('music-preview').addEventListener('click',async()=>{if(preview.active){stopPreview();return;}try{const p=structuredClone(project());p.audio.speech=[];p.audio.effects=[];p.audio.muted=false;if(p.audio.music.track==='none')throw Error('Choose a track first.');button('music-preview').textContent='…';await preview.play(p,p.audio.music.start??0,()=>{button('music-preview').textContent='▶ Play music';},p.audio.music.duration);button('music-preview').textContent='■ Stop';}catch(error){stopPreview();status((error as Error).message);}});button('stop').addEventListener('click',stopPreview);
   button('wav').addEventListener('click',async()=>{busy=true;lock();try{status('Mixing the soundtrack…');const buffer=await renderSoundtrack(project());if(!buffer)throw Error('There’s no sound to save. Add some and unmute the film.');editor.download(wavBlob(Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i)),buffer.sampleRate),'ara-soundtrack.wav');status('Soundtrack saved.');}catch(error){status((error as Error).message);}finally{busy=false;render();}});
-  button('bundle').addEventListener('click',async()=>{busy=true;lock();try{editor.download(await audioProjectBundle(project()),'ara-film.ara-studio.zip');status('Film saved with its audio.');}catch(error){status((error as Error).message);}finally{busy=false;render();}});
+  button('bundle').addEventListener('click',async()=>{busy=true;lock();try{editor.download(await audioProjectBundle(editor.film()),'ara-film.ara-studio.zip');status('Film saved with its audio.');}catch(error){status((error as Error).message);}finally{busy=false;render();}});
   window.addEventListener('pagehide',()=>{stopPreview();stopRecording(true);controller?.abort();releaseSpeechEngine();});
 
   return{render,open,openEffects,tab:()=>activeTab,selected:()=>selected,selectedEffect:effects.selected,
