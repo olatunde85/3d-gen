@@ -44,8 +44,12 @@ try {
   const dances = (await call('list_animations', { search: 'dance' })).content[0].text;
   assert.match(dances, /dance_groove/);assert.doesNotMatch(dances, /\brun\b \(/);
   assert.match((await call('list_props')).content[0].text, /Vehicles: .*motorcycle/);
-  const schema = JSON.parse((await call('character_schema')).content[0].text);
-  assert.ok(schema.properties?.params || schema.properties, 'schema has fields');
+  // The character schema comes in parts that each fit one answer, and ends with the detail sliders' list.
+  const LIMIT = 20_000;
+  const schemaParts: string[] = [];
+  for (let part = 1; part < 10; part++) { const t = (await call('character_schema', { part })).content[0].text;schemaParts.push(t);assert.ok(t.length <= LIMIT, `character_schema part ${part}: ${t.length} characters`);if (!/Continue with/.test(t)) break; }
+  assert.match(schemaParts[0], /"\$schema"/);assert.match(schemaParts.join(''), /Slider IDs with range and meaning: \S+ -?\d/);
+  assert.equal((await call('character_schema', { part: 99 })).isError, true);
   console.log('OK lists and schema');
 
   // A preset with changes, in two formats, with progress messages.
@@ -71,17 +75,32 @@ try {
     assert.equal(r.isError, true);assert.match(r.content[0].text, expected);
   }
   // Films and games: guides in parts small enough for one tool answer, then files checked, saved and linked.
-  const LIMIT = 90_000; // about 25k tokens, which some assistants cap a tool answer at
   for (const tool of ['film_guide', 'game_guide']) {
     const overview = (await call(tool, { brief: 'A short chase' })).content[0].text;
-    const topics = [...overview.matchAll(/^- ([a-z0-9-]+): /gm)].map((m) => m[1]);
-    assert.ok(overview.length < LIMIT && topics.length >= 5, `${tool} overview: ${overview.length} characters, ${topics.length} topics`);
-    for (const topic of topics) { const t = (await call(tool, { topic })).content[0].text;assert.ok(t.length < LIMIT, `${tool} ${topic}: ${t.length} characters`); }
+    const topics = [...overview.matchAll(/^- ([a-z0-9-]+): .*?(?:, (\d+) parts)?\)$/gm)].map((m) => [m[1], Number(m[2] ?? 1)] as const);
+    assert.ok(overview.length <= LIMIT && topics.length >= 5, `${tool} overview: ${overview.length} characters, ${topics.length} topics`);
+    for (const [topic, parts] of topics) for (let n = 1; n <= parts; n++) {
+      const t = (await call(tool, { topic: n === 1 ? topic : `${topic}-${n}` }));assert.equal(t.isError, false, t.content[0].text);
+      assert.ok(t.content[0].text.length <= LIMIT, `${tool} ${topic} part ${n}: ${t.content[0].text.length} characters`);
+      // A JSON piece of a split topic is valid JSON on its own.
+      for (const line of t.content[0].text.split('\n')) { const j = /^(?:JSON at [^:]+: )?([[{].*)$/.exec(line);if (j && parts > 1) JSON.parse(j[1]); }
+    }
     const wrong = await call(tool, { topic: 'nope' });assert.equal(wrong.isError, true);assert.match(wrong.content[0].text, /Unknown topic/);
     console.log(`OK ${tool}: overview ${Math.round(overview.length / 1000)}k characters, topics ${topics.join(', ')}`);
   }
+  // Any set's staging map comes from the guide: no asking the user to export one.
+  const court = (await call('film_guide', { topic: 'location-map', location: 'sports-court' })).content[0].text;
+  assert.match(court, /"id":"sports-court"/);assert.ok(court.length <= LIMIT);
+  const guideText = (await call('film_guide', { topic: 'coordinates-and-travel-calculation' })).content[0].text;assert.doesNotMatch(guideText, /ask the user to send/);
+  for (let n = 1, more = true; more; n++) { const t = (await call('film_guide', { topic: n === 1 ? 'location-map' : `location-map-${n}`, location: 'forest-trail' })).content[0].text;assert.ok(t.length <= LIMIT, `forest-trail map part ${n}`);more = /Continue with/.test(t);if (n > 1) assert.match(t, /^STAGING MAP: forest-trail \(part/); }
+  assert.equal((await call('film_guide', { topic: 'location-map', location: 'the-moon' })).isError, true);
+  assert.equal((await call('film_guide', { topic: 'location-map' })).isError, true);
   const film = await call('create_film', { film: assistExample() });
-  assert.equal(film.isError, false, film.content[0].text);
+  assert.equal(film.isError, false, film.content[0].text);assert.match(film.content[0].text, /^Staging check: /m);
+  // A walk straight through the set's walls is reported, so the assistant can fix it.
+  const blocked = assistExample();blocked.actors[0] = { ...blocked.actors[0], x: 0, z: 0, yaw: 90, beats: [{ id: 'cross', clip: 'walk', duration: 12, move: true }] };
+  const walls = (await call('create_film', { film: blocked })).content[0].text;
+  assert.match(walls, /Staging check: \d+ problems?/, walls);
   const filmText = film.content[0].text, filmFile = /Saved: (.+)$/m.exec(filmText)![1], filmLink = /(https:\/\/ara3dgen\.com\/studio\/#film=[\w-]+)/.exec(filmText)![1];
   assert.ok(filmFile.startsWith(out) && existsSync(filmFile) && filmFile.endsWith('.ara-studio.json'));
   assert.deepEqual(JSON.parse((await linkedFile(new URL(filmLink).hash, 'film'))!), assistExample());
@@ -91,6 +110,21 @@ try {
   const gameText = game.content[0].text, gameLink = /(https:\/\/ara3dgen\.com\/play\/#game=[\w-]+)/.exec(gameText)![1];
   assert.ok(existsSync(/Saved: (.+)$/m.exec(gameText)![1]));assert.deepEqual(JSON.parse((await linkedFile(new URL(gameLink).hash, 'game'))!), playExample());
   console.log('OK create_game:', gameText.split('\n')[0]);
+  // Chapters in any order: a mission after a runner and a race, a rescue after a chapter with objective steps, and
+  // a briefcase at night; the summary covers every chapter.
+  const runner = { theme: 'market-street', lanes: 3, startSpeed: 10, maxSpeed: 24, speedRamp: 'steady', obstacles: ['barrier-low', 'gap'], powerUps: ['magnet'], chaser: 'none', goal: { type: 'distance', target: 1500 }, revive: true };
+  const base = playExample(), night = { time: 'night', weather: 'rain' };
+  const story = await call('create_game', { game: { ...base, mode: 'runner', runner, chapters: [
+    { id: 'race', mode: 'race', identity: { title: 'Chase', briefing: 'Catch them.' }, race: { track: 'harbour-sprint', laps: 2, opponents: 3, aiSkill: 'medium' } },
+    { id: 'depot', mode: 'mission', identity: { title: 'Depot', briefing: 'Find the case.' }, mission: { story: 'escape', extraction: 'foot', location: 'depot', layout: 'dense', variation: 3, cargo: 'briefcase', environment: night } },
+  ] } });
+  assert.equal(story.isError, false, story.content[0].text);
+  assert.match(story.content[0].text, /Chapter 1: [^]*Endless runner[^]*Chapter 2: [^]*Arcade race[^]*Chapter 3: [^]*Escape/);
+  const steps = await call('create_game', { game: { ...base, mission: { ...base.mission, story: 'escape', extraction: 'foot', steps: [{ type: 'reach', label: 'Find the office' }, { type: 'download', duration: 10 }] }, companion: undefined, chapters: [
+    { id: 'rescue', mode: 'mission', identity: { title: 'Rescue', briefing: 'Free her.' }, mission: { story: 'rescue', location: 'urban-block' }, companion: base.companion },
+  ] } });
+  assert.equal(steps.isError, false, steps.content[0].text);
+  console.log('OK chapters in any order, briefcase at night, every chapter summarised');
   const badGame = await call('create_game', { game: { ...playExample(), mission: { ...playExample().mission, story: 'flee' } } });
   assert.equal(badGame.isError, true);assert.match(badGame.content[0].text, /Escape|story/);
   const badFilm = await call('create_film', { film: { ...assistExample(), template: 'the-moon' } });

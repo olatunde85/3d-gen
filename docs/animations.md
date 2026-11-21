@@ -1,6 +1,6 @@
 # Animations
 
-There are 239 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 248 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -16,7 +16,7 @@ There are 239 clips. The character loads playing **Idle**. The animation bar at 
 | Sitting & lying | Sit down, Sit idle, Stand up (on a chair); Lie down, Sleep (on the back) |
 | Swimming | Tread water, Swim forward (front crawl), Swim breaststroke, Swim backstroke (loops); Dive into water, Climb out of water |
 | Climbing | Climb ladder up / down, Ledge hang (loops); Vault over obstacle, Climb up ledge |
-| Sports | Shoot (football), Pass (straight), Side pass left / forward / right (inside foot), Slide tackle; Goalkeeper ready (loop), Goalkeeper catch, Goalkeeper dive left/right, Goalkeeper low dive left/right; Pick up ball, Bounce ball (loop), Side throw (right / left hand), Two-hand throw forward, Low throw (right / left hand); Siu celebration |
+| Sports | Shoot (football), Pass (straight), Side pass left / forward / right (inside foot), Receive ball (inside foot), Chest control, Header, Jumping header, Standing tackle, Slide tackle, Defensive wall (stance, loop) and (jump); Goalkeeper ready (loop), Goalkeeper catch, Goalkeeper punch, Goalkeeper dive left/right, Goalkeeper low dive left/right; Pick up ball, Bounce ball (loop), Side throw (right / left hand), Two-hand throw forward, Throw-in (overhead), Low throw (right / left hand); Siu celebration |
 | Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Take cover, Cover idle (loop), Cover fire (pop up). Rifle hit from front / back, Rifle death (fall forward / backward). Throw grenade |
 | Aerial | Skydive, Activate parachute (deploy), Use parachute (glide), Land parachute |
 | Vehicles | Riding, driving and piloting for fourteen vehicles, with boarding/alighting, stunt rolls, crash escapes, jet runway manoeuvres, parachute bail-outs and the tank gunner. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) |
@@ -136,21 +136,29 @@ The football clips kick with the right foot while the left stays planted:
 | Shoot (football) | 0.95 s | A long stride on to the left foot, the knee cocks back and the laces meet the ball at 0.3 s, following through high. |
 | Pass (straight) | 0.7 s | A short backswing and a firm swing straight through the ball, which leaves at 0.22 s. |
 | Side pass left / forward / right (inside foot) | 0.75 s | The thigh turns out so the toes point outward and the inside of the foot meets the ball at 0.24 s. To the left the leg swings across the body; forward it swings straight through; to the right the body opens on the planted left foot. |
+| Receive ball (inside foot) | 0.7 s | The thigh turns out and the inside of the foot meets a pass at 0.2 s, then gives with it to kill its pace. |
+| Chest control | 0.9 s | Lean back with the arms wide and clear, cushion the ball on the chest at 0.25 s and let it drop to the feet. |
+| Header | 0.8 s | Lean back watching the ball, then snap the neck and upper body through it; forehead contact at 0.3 s. |
+| Jumping header | 1.1 s | Crouch, spring up with the arms driving, arch at the top and snap forward through the ball at 0.48 s. |
+| Defensive wall (stance / jump) | 1.4 s loop / 0.85 s | Feet together and one hand over the other in front of the body; the jump keeps the hands covering. |
+| Standing tackle | 0.85 s | Down on to the bent left leg, poking the right toe out low to the ball at 0.28 s, then back up. |
 | Slide tackle | 1.25 s | Down on to the left hip with the right leg sweeping straight and low, then back up; 2.6 m carried in `travel`. |
 | Goalkeeper ready | 0.9 s loop | Knees bent, weight forward and hands ready, with a small bounce. |
 | Goalkeeper catch | 0.9 s | Open hands meet the ball in front of the chest and gather it in, one either side of it. |
+| Goalkeeper punch | 0.9 s | A spring upward, both fists together meeting a high ball at 0.26 s and driving it up and away. |
 | Goalkeeper dive left/right | 1.7 s | A spring sideways with both hands reaching past the head, palms toward the ball; land on the side and get back up. 1.1 m carried in `travel`. |
 | Goalkeeper low dive left/right | 1.7 s | The same dive flat along the ground for shots at the foot of the post. |
 | Pick up ball | 1.5 s | Squat, take the ball from the floor with a hand either side of it and stand holding it at the chest. |
 | Bounce ball | 0.7 s loop | The right hand pushes the ball down and meets it again as it comes back up. |
 | Side throw (right / left hand) | 1.1 s | Step on to the front foot and sling the ball round from behind at shoulder height; it leaves the hand at 0.5 s. |
 | Two-hand throw forward | 1.3 s | The ball goes back over the head with the back arched, then both arms whip it forward; it leaves the hands at 0.62 s. |
+| Throw-in (overhead) | 1.5 s | Both hands take the ball back behind the head with the back arched and knees bent, then whip it over the head with a short step and the back toe dragging; it leaves the hands above the forehead at 0.8 s. |
 | Low throw (right / left hand) | 1.4 s | A long step and a low underarm swing that bowls the ball along the ground; it leaves the hand at 0.72 s. |
 | Siu celebration | 2.4 s | Ara's original keyframed Jump with a half turn in the air, landing feet wide with both arms flung down and out and a long, rounded shout. It ends facing the other way. |
 
 **Left-footed**, next to Props in the builder, plays every sports clip mirrored, so kicks use the left foot and throws the other hand; the export uses it too, and `Animator.frame` and `bake` take `mirror: true` for the same.
 
-A **football** stage prop comes with the kicks, the tackle, the catch, the dives and the ball handling clips. It waits at the foot until the kick's contact and then flies; the keeper's ball arrives from in front, meets the hands and is held or pushed wide. **Props** shows or hides it in the builder; the export includes it as a separate file at its starting spot. `footballAt(clipId, time)` in `src/core/anim/stage.ts` gives its path, so a game can hand over to its own ball at the contact or release time (`KICK_CONTACT` and `THROW_RELEASE` in `src/core/anim/clips/sports.ts`).
+A **football** stage prop comes with the kicks, the receive, the chest control, the headers, the tackles, the catch, the punch, the dives and the ball handling clips. It waits at the foot until the kick's contact and then flies; the keeper's ball arrives from in front, meets the hands and is held or pushed wide. **Props** shows or hides it in the builder; the export includes it as a separate file at its starting spot. `footballAt(clipId, time)` in `src/core/anim/stage.ts` gives its path, so a game can hand over to its own ball at the contact or release time (`KICK_CONTACT` and `THROW_RELEASE` in `src/core/anim/clips/sports.ts`).
 
 ## Weapons
 

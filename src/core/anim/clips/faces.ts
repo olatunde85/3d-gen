@@ -193,6 +193,12 @@ const FACES: Record<string, FaceFn> = {
 FACES.rifle_death_forward = FACES.shot_back = FACES.shot_stomach = FACES.death_forward;
 FACES.rifle_death_backward = FACES.shot_chest = FACES.death_backward;
 FACES.soccer_side_pass_left = FACES.soccer_side_pass_forward = FACES.soccer_side_pass_right = FACES.soccer_pass;
+FACES.soccer_receive = FACES.soccer_pass;
+FACES.standing_tackle = FACES.slide_tackle;
+FACES.soccer_header = FACES.soccer_jump_header = FACES.soccer_shoot;
+FACES.soccer_chest_control = FACES.soccer_pass;
+FACES.wall_jump = FACES.wall_stance = keyed([0, 1], { ...both('eyeSquintLeft', 'eyeSquintRight', [0.4, 0.4]), mouthPress: [0.5, 0.5] });
+FACES.keeper_punch = FACES.keeper_dive_left;
 FACES.keeper_dive_right = FACES.keeper_low_dive_left = FACES.keeper_low_dive_right = FACES.keeper_dive_left;
 FACES.shot_head = keyed([0, 0.04, 0.1, 1], {
   ...both('eyeBlinkLeft', 'eyeBlinkRight', [0, 0, 0.7, 0.8]),

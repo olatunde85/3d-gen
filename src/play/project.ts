@@ -45,6 +45,14 @@ export const MAX_CHAPTERS=10;
 export const chapterMode=(root:{mode?:unknown},row:{mode?:unknown}):PlayMode=>parseMode(row.mode===undefined?root.mode:row.mode);
 /** The settings a chapter inherits from the first chapter: race or runner settings carry over only within the same mode. */
 export function chapterBase<T extends {mode?:unknown;race?:unknown;runner?:unknown;chapters?:unknown}>(root:T,row:{mode?:unknown}):T{const mode=chapterMode(root,row),{chapters,race,runner,...rest}=root;return {...rest,mode:mode==='mission'?undefined:mode,...(mode==='race'&&parseMode(root.mode)==='race'?{race}:{}),...(mode==='runner'&&parseMode(root.mode)==='runner'?{runner}:{})} as unknown as T;}
+/**
+ * A chapter's mission: the first chapter's mission with the chapter's own changes. A chapter that names its own story
+ * plays that story, so the first chapter's objective steps carry over only when it lists none of its own and keeps
+ * the story; an empty steps list also means none.
+ */
+export function chapterMission(root:unknown,row:unknown):Record<string,unknown>{const base=root&&typeof root==='object'?root as Record<string,unknown>:{},own=row&&typeof row==='object'&&!Array.isArray(row)?{...row as Record<string,unknown>}:{};
+ const merged={...base,...own},none=Array.isArray(own.steps)&&!own.steps.length,newStory=own.steps===undefined&&own.story!==undefined&&own.story!==base.story;
+ if(none||newStory)delete merged.steps;return merged;}
 /** Only the settings that belong to a project's own mode. */
 function modeOnly(p:PlayProject):PlayProject{const mode=p.mode??'mission';if(mode!=='race')delete p.race;if(mode!=='runner')delete p.runner;if(mode==='mission')delete p.mode;return p;}
 export function heroGuns(p:PlayProject):Gun[]{const result=new Set<Gun>();for(const g of gameProjects(p)){if(isGun(g.loadout.weapon))result.add(g.loadout.weapon);if(g.progression.reward)result.add(g.progression.reward);if(g.progression.weapon!=='loadout')result.add(g.progression.unlock??'pistol');}return [...result];}
@@ -106,7 +114,7 @@ export function parseProject(text:string,catalog:Catalog,validateCampaignLinks=t
    for(const field of Object.keys(row))if(!['id','story','identity','mission','enemies','companion','loadout','progression','vehicle','camera','music','branch','race','runner','mode'].includes(field))throw Error(`Unsupported chapter setting: ${field}. The player is shared by all chapters.`);
    if(typeof row.id!=='string'||!/^[a-zA-Z0-9_-]{1,50}$/.test(row.id)||ids.has(row.id))throw Error('Use unique chapter IDs; chapter-1 is reserved for the first mission.');ids.add(row.id);
    const suppliedLives=row.mission&&typeof row.mission==='object'?(row.mission as Record<string,unknown>).lives:undefined;if(suppliedLives!==undefined&&suppliedLives!==mission.lives)throw Error(`${row.id} › lives: shared across chapters. Set the life budget on the first mission.`);
-   const {id,...patch}=row;try{const own=chapterMode(result,row),chapter=parseProject(JSON.stringify({...chapterBase(result,row),...patch,mode:own==='mission'?undefined:own,branch:undefined,character,mission:{...mission,...(row.mission as object??{})}}),catalog,false);modeOnly(chapter);if(row.branch!==undefined)chapter.branch=parseBranch(row.branch);chapter.mission.lives=mission.lives;return chapterSettings(chapter,id);}catch(error){throw Error(`${id} › ${(error as Error).message}`);}
+   const {id,...patch}=row;try{const own=chapterMode(result,row),chapter=parseProject(JSON.stringify({...chapterBase(result,row),...patch,mode:own==='mission'?undefined:own,branch:undefined,character,mission:chapterMission(mission,row.mission)}),catalog,false);modeOnly(chapter);if(row.branch!==undefined)chapter.branch=parseBranch(row.branch);chapter.mission.lives=mission.lives;return chapterSettings(chapter,id);}catch(error){throw Error(`${id} › ${(error as Error).message}`);}
   });
  }
  if(!validateCampaignLinks){storyMedia(result);return result;}

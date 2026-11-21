@@ -125,6 +125,21 @@ export function characterSchema(cat:Catalog){
   for(const [key,description] of Object.entries(FIELD_NOTES))if(properties[key])properties[key]={...(properties[key] as object),description};
   return{$schema:'https://json-schema.org/draft/2020-12/schema',title:'Ara character input',type:'object',additionalProperties:false,required:['kind','version'],anyOf:[{required:['preset']},{required:['params']}],properties:{$schema:{type:'string',description:'Optional link to this schema, for editors.'},kind:{const:'ara-character'},version:{const:1},preset:enumeration(Object.keys(PRESETS)),params:{type:'object',additionalProperties:false,properties,not:{required:['age','ageYears']}}}};
 }
+/**
+ * A schema as assistants read it: the detail sliders (hundreds of entries, most of the schema's size) become one
+ * compact list in the modifiers description. Values are still checked against each slider's range on import.
+ */
+export function compactSchema<T>(schema:T):T{
+  const walk=(v:unknown,key=''):unknown=>{
+    if(Array.isArray(v))return v.map(x=>walk(x));
+    if(!v||typeof v!=='object')return v;
+    const o=v as Record<string,unknown>,props=o.properties as Record<string,{minimum:number;maximum:number;description?:string}>|undefined;
+    if(key==='modifiers'&&props&&Object.keys(props).length>50)return {type:'object',maxProperties:o.maxProperties,additionalProperties:{type:'number',minimum:-1,maximum:1},
+      description:`${FIELD_NOTES.modifiers} Slider IDs with range and meaning: ${Object.entries(props).map(([id,r])=>`${id} ${r.minimum}..${r.maximum}${r.description&&r.description!==id?` ${r.description}`:''}`).join('; ')}.`};
+    return Object.fromEntries(Object.entries(o).map(([k,x])=>[k,walk(x,k)]));
+  };
+  return walk(schema) as T;
+}
 /** Shared appearance instructions and live assets, without an LLM task or output schema. */
 export function characterReference(cat:Catalog):string{
   const json=(value:unknown)=>JSON.stringify(value);
