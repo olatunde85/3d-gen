@@ -2,6 +2,15 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.13.0 — 2026-11-21
+
+- **248 animations, with football:** shots, straight and inside-foot passes (to the left, forward and to the right), receiving, chest control, headers and jumping headers, standing and slide tackles, a defensive wall (stance and jump), goalkeeper ready, catch, punch and high and low dives, picking up, bouncing and throwing the ball (side, two-hand, low and an overhead throw-in), and the Siu celebration. These clips bring their own football prop.
+- **Goalkeeper gloves:** `keeper_gloves`, padded gloves that cover the fingers.
+- **MCP answers fit:** no answer is longer than 20,000 characters. Guide topics, big set maps and `character_schema` come in numbered parts.
+- **MCP set maps:** `film_guide` gives any set's staging map (`topic: "location-map"` with `location`), and `create_film` runs Studio's staging check and lists anything a character or vehicle walks through.
+- **MCP games:** `create_game` describes every chapter. Chapter modes come in any order, such as a mission after a runner or a race. A chapter with a different story leaves the first chapter's objective steps behind.
+- **Fixed:** a briefcase or package in a night mission now has a reachable spot on every map.
+
 ## 0.12.0 — 2026-11-20
 
 - **Fuller facial hair:** mustaches, goatees and beards are denser and even, with crisp edges, and stop just below the nostrils.
