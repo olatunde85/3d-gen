@@ -89,6 +89,8 @@
           <label class="check-label"><input id="movement" type="checkbox" /><span>Move through the set</span></label>
           <label id="show-prop-row" class="check-label" hidden><input id="show-prop" type="checkbox" /><span id="show-prop-label">Show prop</span></label>
           <label id="show-blood-row" class="check-label" hidden><input id="show-blood" type="checkbox" /><span>Show blood</span></label>
+          <div class="form-row"><div><label for="beat-face">Facing (°)</label><input id="beat-face" type="number" min="-180" max="180" step="5" placeholder="Keep" title="The way the character faces from this action on: 0 faces the front of the set, 90 to the right, 180 the back. Empty keeps the earlier facing." /></div><div><label for="beat-expression">Expression</label><select id="beat-expression"><option value="">Keep</option></select></div></div>
+          <label class="check-label" title="Not drawn or framed during this action, and left out of the staging check: for entrances and exits."><input id="beat-hidden" type="checkbox" /><span>Off stage</span></label>
         </div>
         <div id="shot-settings" hidden>
           <label for="shot">Framing</label><select id="shot"><option value="wide">Full body</option><option value="medium">Medium</option><option value="close">Close-up</option></select>

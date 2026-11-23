@@ -4,7 +4,7 @@ import {clipById,type Clip} from '../core/anim/clips';
 import {boardingStand,ridingClip} from '../core/props/vehicle-actions';
 import {VEHICLE_FOR_CLIP,VEHICLE_CLIP,vehicleLift,type VehicleId} from '../core/props/vehicles';
 import type {Vec3} from '../core/math';
-import {timelineAt,trackDuration,type ActorTrack,type Beat,type StudioProject} from './project';
+import {beatTurns,offsetAt,timelineAt,trackDuration,type ActorTrack,type Beat,type StudioProject} from './project';
 import {vehicleCatalog,vehicleKey,type VehicleSeat} from './vehicle-seats';
 import {HELICOPTER} from '../core/props/helicopter-layout';
 import {helicopterHeight} from './helicopter-flight';
@@ -31,10 +31,10 @@ export class VehicleStage {
     const model=VEHICLE_FOR_CLIP[beat.clip],vehicle=model?vehicleKey(actor,beat):undefined,transition=clipById.get(beat.clip)?.vehicleTransition;
     if(vehicle){
      const prev=rows.at(-1),continuing=prev?.vehicle===vehicle&&!(transition?.direction==='board'&&clipById.get(prev.beat.clip)?.vehicleTransition?.direction==='alight');
-     if(!continuing){const stand=transition?.direction==='board'?boardingStand(ridingClip(beat.clip)):[0,0],known=parked.get(vehicle),at=timelineAt(project,start,actor);offset=known?[known[0]-at.x*body.scale,0,known[2]-at.z*body.scale]:[standing[0]-stand[0]*body.boardingScale,0,standing[2]-stand[1]*body.boardingScale];}
+     if(!continuing){const stand=transition?.direction==='board'?boardingStand(ridingClip(beat.clip)):[0,0],known=parked.get(vehicle),at=timelineAt(project,start,actor);offset=known?[known[0]-offsetAt(at,body.scale).x,0,known[2]-offsetAt(at,body.scale).z]:[standing[0]-stand[0]*body.boardingScale,0,standing[2]-stand[1]*body.boardingScale];}
     }else offset=[...standing];
     rows.push({actor,beat,index,start,end:start+beat.duration,offset:[...offset],vehicle});
-    if(vehicle){const end=timelineAt(project,start+beat.duration,actor);parked.set(vehicle,[end.x*body.scale+offset[0],0,end.z*body.scale+offset[2]]);}
+    if(vehicle){const end=timelineAt(project,start+beat.duration,actor);parked.set(vehicle,[offsetAt(end,body.scale).x+offset[0],0,offsetAt(end,body.scale).z+offset[2]]);}
     if(transition?.direction==='alight'){const stand=boardingStand(ridingClip(beat.clip));standing=[offset[0]+stand[0]*body.boardingScale,0,offset[2]+stand[1]*body.boardingScale];}
     start+=beat.duration;
    });this.rows.set(actor.id,rows);
@@ -46,15 +46,15 @@ export class VehicleStage {
    const clip=clipById.get(row.beat.clip)!,scale=bodies.get(entry.actor.id)?.scale??1;let flying=false,visible=row.beat.showVehicle??entry.actor.vehicle!=='none',phase=active?at.phase:clip.duration;
    // Abandoned in the air: the empty aircraft flies on, climbing away, and leaves the shot.
    if(!active&&manoeuvre(row.beat.clip)==='bailout'&&time>=row.end){
-    const dt=time-row.end,speed=row.beat.move?Math.abs(studioTravel(row.beat.clip,row.beat.travelSpeed)![2]):0,ahead=speed?speed*dt:2*Math.min(dt,2.5)**2+Math.max(0,dt-2.5)*10,d=turn(0,ahead*scale,entry.actor.yaw);
+    const dt=time-row.end,speed=row.beat.move?Math.abs(studioTravel(row.beat.clip,row.beat.travelSpeed)![2]):0,ahead=speed?speed*dt:2*Math.min(dt,2.5)**2+Math.max(0,dt-2.5)*10,d=turn(0,ahead*scale,entry.actor.yaw+(beatTurns(entry.actor)[entry.actor.beats.indexOf(row.beat)]??0));
     point.x+=d.x;point.z+=d.z;point.y+=1.5*dt;phase=clip.duration+dt;visible&&=dt<8;flying=true;
    }
    this.vehicles.set(entry.id,{...point,id:entry.id,model:entry.model,scale,owner:entry.actor,clip,reference:clipById.get(entry.beat.clip)!,phase,distance:at.z*(bodies.get(entry.actor.id)?.scale??1),parked:!active&&!flying,visible,active:active?row:undefined});
   }
  }
  private nominal(row:Row,time:number):StagePoint{
-  const at=timelineAt(this.project,time,row.actor),body=this.bodies.get(row.actor.id)??fallback,d=turn(at.x*body.scale+row.offset[0],at.z*body.scale+row.offset[2],row.actor.yaw);
-  return{x:row.actor.x+d.x,y:row.actor.y+at.y*body.scale+helicopterHeight(row.actor,row.index,time)+aerialHeight(row.actor,row.index,time,this.project.actors),z:row.actor.z+d.z,yaw:row.actor.yaw};
+  const at=timelineAt(this.project,time,row.actor),body=this.bodies.get(row.actor.id)??fallback,yaw=row.actor.yaw+at.turn,o=offsetAt(at,body.scale),path=turn(o.x,o.z,row.actor.yaw),shift=turn(row.offset[0],row.offset[2],yaw),d={x:path.x+shift.x,z:path.z+shift.z};
+  return{x:row.actor.x+d.x,y:row.actor.y+at.y*body.scale+helicopterHeight(row.actor,row.index,time)+aerialHeight(row.actor,row.index,time,this.project.actors),z:row.actor.z+d.z,yaw};
  }
  private seat(row:Row,vehicle:StagedVehicle):{shift:Vec3;stand?:[number,number]}{
   const seat=row.beat.vehicleSeat??'operator';if(seat==='operator')return{shift:[0,0,0]};

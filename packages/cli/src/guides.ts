@@ -76,8 +76,11 @@ export function textParts(text: string, max = LIMIT - 400): string[] {
 }
 
 /** One answer from a guide: the overview with a list of topics, or one topic (or one part of a long topic). */
-export function guideAnswer(text: string, topic: unknown, tool: string, extra = ''): string {
-  const { overview, topics } = splitGuide(text);
+export function guideAnswer(text: string, topic: unknown, tool: string, extra = '', intro?: string): string {
+  const split = splitGuide(text);
+  // With a short intro, the guide's own overview becomes the core-rules topic.
+  const topics = intro ? [{ key: 'core-rules', title: 'CORE RULES (the full staging rules, several scenes and character reference)', text: split.overview }, ...split.topics] : split.topics;
+  const overview = intro ?? split.overview;
   const keys = topics.map((t) => ({ t, parts: textParts(t.text) }));
   if (topic === undefined || topic === '') {
     return `${overview}${extra}\n\nMORE TOPICS (call ${tool} with { "topic": "<key>" } for each one you need; a topic in parts continues in <key>-2, <key>-3 and so on)\n${keys.map(({ t, parts }) => `- ${t.key}: ${t.title.toLowerCase()} (${Math.round(t.text.length / 1000)}k characters${parts.length > 1 ? `, ${parts.length} parts` : ''})`).join('\n')}`;

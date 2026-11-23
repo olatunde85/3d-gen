@@ -166,8 +166,30 @@ The assistant can design each character with the same controls as the [character
 }
 ```
 
-- **Or embed a builder character:** put a whole character-builder reply (`"kind": "ara-character"`) or a `.params.json` in the actor's `character` field. Don't combine `preset` with `character`.
+- **Or embed a builder character:** put a whole character-builder reply (`"kind": "ara-character"`), a `.params.json` or a builder share link (`https://ara3dgen.com/app/#c=…`) in the actor's `character` field. Don't combine `preset` with `character`.
 - **What's kept:** anything left out keeps the preset's value, or the default. Arrays and maps you supply replace the inherited ones. The actor's own `detail`, `weapon` and `carry` win over the character's.
+
+### Routes, entrances and expressions in film JSON
+
+Instead of `x` and `z`, a character can have a `start` point, where its first action begins. An action can then walk or run to a point:
+
+```json
+{
+  "id": "mum", "preset": "Businesswoman", "detail": "medium", "start": { "x": 0, "z": 5 },
+  "beats": [
+    { "clip": "idle", "duration": 7, "move": false, "hidden": true },
+    { "clip": "walk", "to": { "x": 0, "z": 1.5 }, "move": true, "expression": "happy" },
+    { "clip": "look_around", "duration": 3, "move": false, "expression": "afraid" },
+    { "clip": "phone_call", "duration": 4, "move": false, "face": 0 }
+  ]
+}
+```
+
+- **`to`:** walks or runs straight to the point. Studio works out the facing, the travel and the duration. The walk covers the same distance whatever the character's size; a smaller character takes more steps.
+- **`face`:** the direction the character faces from that action on, in degrees: 0 faces the front of the set, 90 faces +x and 180 faces the back. Later actions keep it, and walking goes that way.
+- **`hidden`:** the character is off stage for that action. It isn't drawn or framed, and the staging check skips it. Use it before an entrance and after an exit through an open side of the set.
+- **Items the actions need:** a character doing a phone call or texting gets a phone, sweeping brings a broom, the carry clips a box, the head-load clips the basin, the parachute clips the rig and the lifts their gym weights. A character carries one item, so a film that sets a different `carry` for such a character, or gives one character actions needing two different items, is rejected with the fix. In the editor, choosing such an action gives a character who carries nothing that item.
+- **`expression`:** neutral, happy, laughing, angry, sad, crying, surprised, afraid or determined. It lasts until another action sets one; the face eases from one expression to the next.
 
 A sound effect cue goes in the film's `audio` object:
 
