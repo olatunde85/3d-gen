@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -14,6 +14,7 @@ import { decodeCharacter } from '../src/app/share';
 import { linkedFile } from '../src/app/links';
 import { assistExample } from '../src/studio/assist';
 import { playExample } from '../src/play/assist';
+import { QUICKSTART_EXAMPLE } from '../packages/cli/src/film-quickstart';
 
 const root = resolve(import.meta.dirname, '..'), cli = join(root, 'packages/cli/dist/cli.js');
 if (!existsSync(cli)) throw Error('Build the CLI first: npx vite build --config packages/cli/vite.config.ts');
@@ -68,6 +69,17 @@ try {
   const designed = await call('create_character', { character: { preset: 'The Adventurer', params: { name: 'Desert scout', ageYears: 40 } }, animations: [], detail: 'low' });
   assert.equal(designed.isError, false, designed.content[0].text);assert.match(designed.content[0].text, /Made Desert scout/);
   console.log('OK designed character:', designed.content[0].text.split('\n')[0]);
+  // Without formats, only the link: no file, and the assistant is told to ask which format the user wants.
+  const before = existsSync(out) ? readdirSync(out).length : 0;
+  const linkOnly = await call('create_character', { preset: 'Teen', name: 'Linked teen', height_cm: 158 }), linkText = linkOnly.content[0].text;
+  assert.equal(linkOnly.isError, false, linkText);assert.match(linkText, /No files written \(link only\)\. Ask the user/);assert.match(linkText, /https:\/\/ara3dgen\.com\/app\/#c=/);
+  assert.equal(existsSync(out) ? readdirSync(out).length : 0, before, 'a link-only character wrote a file');
+  // height_cm fits the height slider to the centimetres asked for.
+  const cm = Number(/(\d+) cm tall/.exec(linkText)![1]);assert.ok(Math.abs(cm - 158) <= 1, `asked for 158 cm, got ${cm} cm`);
+  console.log('OK link only and height_cm:', linkText.split('\n')[0]);
+  // A wrong ID lists the ones allowed.
+  const pattern = await call('create_character', { character: { preset: 'Teen', params: { garmentStyles: { pencil_skirt_midi: { pattern: 'tartan' } } } } });
+  assert.equal(pattern.isError, true);assert.match(pattern.content[0].text, /use one of solid, ankara_web/);
 
   // Mistakes come back as tool errors the assistant can read and fix.
   for (const [args, expected] of [[{ preset: 'Nobody' }, /Unknown preset "Nobody"/], [{ preset: 'The Bride', random: 3 }, /exactly one of/], [{ preset: 'The Bride', animations: ['moonwalk'] }, /Unknown animation "moonwalk"/], [{ preset: 'The Bride', colors: { shirt: '#ffffff' } }, /Unknown colour "shirt"/]] as const) {
@@ -88,6 +100,15 @@ try {
     const wrong = await call(tool, { topic: 'nope' });assert.equal(wrong.isError, true);assert.match(wrong.content[0].text, /Unknown topic/);
     console.log(`OK ${tool}: overview ${Math.round(overview.length / 1000)}k characters, topics ${topics.join(', ')}`);
   }
+  // The quickstart is one short answer and brings the set's map when the location is given.
+  const quick = (await call('film_guide', { brief: 'A mother finds her daughter gone', location: 'bedroom-night' })).content[0].text;
+  assert.match(quick, /^ARA STUDIO FILM QUICKSTART/);assert.match(quick, /STAGING MAP: bedroom-night/);assert.match(quick, /- core-rules: /);
+  assert.ok(quick.length < 14_000, `the quickstart with its map is ${quick.length} characters`);
+  // Its worked example, with a character made earlier passed as its builder link, is a clean film.
+  const example = structuredClone(QUICKSTART_EXAMPLE) as { actors: Record<string, unknown>[] };delete example.actors[0].preset;example.actors[0].character = /https:\/\/ara3dgen\.com\/app\/#c=\S+/.exec(linkText)![0];
+  const routed = (await call('create_film', { film: example })).content[0].text;
+  assert.match(routed, /^Checked: Bedroom at night · Linked teen \+ Businesswoman/m, routed);assert.match(routed, /Staging check: every character/);
+  console.log(`OK quickstart: ${Math.round(quick.length / 1000)}k characters with the map; its example film checks clean`);
   // Any set's staging map comes from the guide: no asking the user to export one.
   const court = (await call('film_guide', { topic: 'location-map', location: 'sports-court' })).content[0].text;
   assert.match(court, /"id":"sports-court"/);assert.ok(court.length <= LIMIT);
@@ -115,7 +136,7 @@ try {
   const tooMany = await call('create_film', { film: { ...threeStops, scenes: Array(6).fill(threeStops.scenes[0]) } });assert.equal(tooMany.isError, true);assert.match(tooMany.content[0].text, /one to 5 scenes/);
   const badScene = await call('create_film', { film: { ...threeStops, scenes: [threeStops.scenes[0], { ...threeStops.scenes[1], template: 'the-moon' }] } });assert.equal(badScene.isError, true);assert.match(badScene.content[0].text, /Scene 2/);
   const filmWide = await call('create_film', { film: { ...threeStops, scenes: [{ ...threeStops.scenes[0], title: 'Wrong place' }] } });assert.equal(filmWide.isError, true);assert.match(filmWide.content[0].text, /on the film/);
-  assert.match((await call('film_guide', {})).content[0].text, /FILMS OF SEVERAL SCENES/);
+  assert.match((await call('film_guide', { topic: 'core-rules' })).content[0].text, /FILMS OF SEVERAL SCENES/);
   console.log('OK create_film with scenes:', multiText.split('\n')[0]);
   const game = await call('create_game', { game: playExample() });
   assert.equal(game.isError, false, game.content[0].text);

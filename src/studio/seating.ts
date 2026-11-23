@@ -18,9 +18,11 @@ export function seatedAt(project: StudioProject, track: ActorTrack) {
 }
 
 /** World position of the sitting hips for a placement and travel offset. */
-export function hipsAt(track: Pick<ActorTrack, 'x' | 'z' | 'yaw'>, at: { x: number; z: number }, sitter: Sitter) {
-  const yaw = track.yaw * Math.PI / 180, c = Math.cos(yaw), s = Math.sin(yaw);
-  const ox = at.x * sitter.scale + sitter.hips[0], oz = at.z * sitter.scale + sitter.hips[2];
+export function hipsAt(track: Pick<ActorTrack, 'x' | 'z' | 'yaw'>, at: { x: number; z: number; turn?: number; fx?: number; fz?: number }, sitter: Sitter) {
+  const yaw = track.yaw * Math.PI / 180, c = Math.cos(yaw), s = Math.sin(yaw), t = (at.turn ?? 0) * Math.PI / 180;
+  // The hips are in the sitter's own frame, which has turned by the action's facing.
+  const hx = sitter.hips[0] * Math.cos(t) + sitter.hips[2] * Math.sin(t), hz = -sitter.hips[0] * Math.sin(t) + sitter.hips[2] * Math.cos(t);
+  const ox = at.x * sitter.scale + (at.fx ?? 0) + hx, oz = at.z * sitter.scale + (at.fz ?? 0) + hz;
   return { x: track.x + ox * c + oz * s, z: track.z - ox * s + oz * c };
 }
 
@@ -47,10 +49,13 @@ export function seatCast(project: StudioProject, seats: readonly Seat[], sitters
     if (!found) continue;
     taken.push(found.seat);
     const yaw = Math.round(found.seat.yaw * 180 / Math.PI);
-    if (found.distance < 0.02 && Math.abs(((track.yaw - yaw) % 360 + 540) % 360 - 180) < 1) continue;
-    // Solve the placement that puts the sitting hips on the seat.
-    const placed = { ...track, x: 0, z: 0, yaw }, offset = hipsAt(placed, at, sitter);
-    track.x = round(found.seat.x - offset.x); track.z = round(found.seat.z - offset.z); track.yaw = yaw;
+    if (found.distance < 0.02 && Math.abs(((track.yaw + at.turn - yaw) % 360 + 540) % 360 - 180) < 1) continue;
+    // Solve the placement that puts the sitting hips on the seat. A character whose actions set their own facing
+    // turns to the seat on the seated action; otherwise the whole track turns.
+    const faced = track.beats.some(b => b.face !== undefined);
+    if (faced) track.beats[at.index].face = yaw;
+    const sat = faced ? seatedAt(project, track)! : at, placed = { ...track, x: 0, z: 0, yaw: faced ? track.yaw : yaw }, offset = hipsAt(placed, sat, sitter);
+    track.x = round(found.seat.x - offset.x); track.z = round(found.seat.z - offset.z); if (!faced) track.yaw = yaw;
     moved.push(track.id);
   }
   return moved;

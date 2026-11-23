@@ -13,7 +13,8 @@ import type { ActorTrack, StudioProject, Beat } from './project';
 import {Vehicle} from '../core/props/vehicle';
 import {vehicleFor,vehicleLift,VEHICLE_FOR_CLIP,type VehicleChoice} from '../core/props/vehicles';
 import { boneFor } from '../core/rig/poses';
-import { timelineAt } from './project';
+import { beatTurns, timelineAt } from './project';
+import { EXPRESSION_WEIGHTS, weightsArray } from '../core/face';
 import { parcelStateAt } from './parcel';
 import {VehicleStage,type VehicleBody} from './vehicle-stage';
 import {passengerFrame} from './vehicle-performance';
@@ -29,6 +30,8 @@ export class StudioActor {
   readonly scale: number;
   readonly height: number;
   framingPadding = 0;
+  /** Off stage for the current action (not drawn or framed). */
+  hidden = false;
   framingBounds?:THREE.Box3;
   private blockingOffset = new THREE.Vector3();
   /** Camera/selection follow authored entry footwork as well as the actor's travel track. */
@@ -112,21 +115,24 @@ export class StudioActor {
   frame(project: StudioProject, time: number, track = project.actors[0]): Frame {
     const at = timelineAt(project, time, track), b = track.beats[at.index], clip = clipById.get(b.clip)!;
     const faceTime = time + Math.max(0, project.actors.indexOf(track)) * 0.83;
-    const local = clip.loop ? at.phase % clip.duration : Math.min(at.phase, clip.duration);
+    // An exact walk covers its metres at any size: a smaller body steps faster.
+    const pace = b.exact && b.move ? 1 / this.scale : 1, local = clip.loop ? (at.phase * pace) % clip.duration : Math.min(at.phase * pace, clip.duration);
     const parcel=parcelStateAt(track,at.time),id=vehicleFor(this.vehicleChoice(track,b),clip.id);
     const lift=id?vehicleLift(id,this.scale):0;
     const stage=this.stage(project,time,track),state=stage.actor(track);
     let frame = state.passenger?passengerFrame(this.animator,b,local,state,this.scale,faceTime):this.animator.frame(clip, local, { vehicleMotion:false,faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift,weaponPose:b.weaponPose,weaponPitch:b.weaponPitch,weaponYaw:b.weaponYaw });
+    frame=this.withExpression(frame,track,at.index);
     const previousClip=clipById.get(track.beats[Math.max(0,at.index-1)].clip)!,fromVehicle=VEHICLE_FOR_CLIP[previousClip.id],toVehicle=VEHICLE_FOR_CLIP[clip.id];
     // Also ease between actions on the same vehicle (driving ↔ gunner, flying ↔ bail-out) and from a bail-out into free fall.
     const blend=(!fromVehicle&&!toVehicle)||(!!fromVehicle&&fromVehicle===toVehicle&&!clip.vehicleTransition&&!previousClip.vehicleTransition&&!clip.vehicleStunt&&!previousClip.vehicleStunt)||(manoeuvre(previousClip.id)==='bailout'&&!toVehicle)||(!toVehicle&&previousClip.vehicleTransition?.direction==='alight')||(!fromVehicle&&clip.vehicleTransition?.direction==='board')||(clip.vehicleTransition?.direction==='alight'&&ridingClip(previousClip.id)===clip.vehicleTransition.ride);
-    if (blend&&at.index && at.local < 0.3 && (track.beats[at.index - 1].clip !== b.clip || !clip.loop)) {
+    const turns=beatTurns(track),changed=at.index>0&&(turns[at.index-1]!==turns[at.index]||this.expressionOf(track,at.index-1)!==this.expressionOf(track,at.index));
+    if (blend&&at.index && at.local < 0.3 && (track.beats[at.index - 1].clip !== b.clip || !clip.loop || changed)) {
       const previous = track.beats[at.index - 1], fromClip = clipById.get(previous.clip)!;
       const prior = timelineAt(project, Math.max(0, at.start - 0.000001), track);
-      const priorPhase = prior.phase + 0.000001;
+      const priorPhase = (prior.phase + 0.000001) * (previous.exact && previous.move ? 1 / this.scale : 1);
       const fromTime = fromClip.loop ? priorPhase % fromClip.duration : Math.min(priorPhase, fromClip.duration);
       const priorState=this.stage(project,prior.time,track).actor(track);
-      const from = priorState.passenger?passengerFrame(this.animator,previous,fromTime,priorState,this.scale,faceTime):this.animator.frame(fromClip, fromTime, { vehicleMotion:false,faceTime,parcelGrounded:parcelStateAt(track,prior.time).grounded,weaponPose:previous.weaponPose,weaponPitch:previous.weaponPitch,weaponYaw:previous.weaponYaw,vehicleLift:vehicleFor(this.vehicleChoice(track,previous),fromClip.id)?vehicleLift(vehicleFor(this.vehicleChoice(track,previous),fromClip.id)!,this.scale):0 });
+      const from = this.withExpression(priorState.passenger?passengerFrame(this.animator,previous,fromTime,priorState,this.scale,faceTime):this.animator.frame(fromClip, fromTime, { vehicleMotion:false,faceTime,parcelGrounded:parcelStateAt(track,prior.time).grounded,weaponPose:previous.weaponPose,weaponPitch:previous.weaponPitch,weaponYaw:previous.weaponYaw,vehicleLift:vehicleFor(this.vehicleChoice(track,previous),fromClip.id)?vehicleLift(vehicleFor(this.vehicleChoice(track,previous),fromClip.id)!,this.scale):0 }),track,at.index-1);
       // Blend in the current group's coordinates, so a door/seat offset cannot slide a foot at a join.
       const inv=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),-state.yaw*Math.PI/180),turn=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),priorState.yaw*Math.PI/180).premultiply(inv),delta=new THREE.Vector3(priorState.x-state.x,priorState.y-state.y,priorState.z-state.z).applyQuaternion(inv);
       for(const [i,p]of from.rootPos)from.rootPos.set(i,new THREE.Vector3(...p).applyQuaternion(turn).add(delta).toArray());
@@ -151,7 +157,7 @@ export class StudioActor {
     if(lift){const i=this.character.rig!.bones.findIndex(b=>b.name==='Parcel'),p=frame.rootPos.get(i);if(p)frame.rootPos.set(i,[p[0],p[1]+lift,p[2]]);}
     if(parcel.grounded&&parcel.releasedAt!==undefined){
       const index=this.character.rig!.bones.findIndex(b=>b.name==='Parcel'),position=frame.rootPos.get(index);
-      if(position){const dropped=timelineAt(project,parcel.releasedAt,track);frame.rootPos.set(index,[position[0]+(dropped.x-at.x)*this.scale,position[1],position[2]+(dropped.z-at.z)*this.scale]);}
+      if(position){const dropped=timelineAt(project,parcel.releasedAt,track);frame.rootPos.set(index,[position[0]+(dropped.x-at.x)*this.scale+dropped.fx-at.fx,position[1],position[2]+(dropped.z-at.z)*this.scale+dropped.fz-at.fz]);}
     }
     // A released grenade belongs to the set, so a later walk cannot pull it back into the hand.
     if(this.character.params.weapon==='grenade'&&clip.id!=='throw_grenade'){
@@ -159,6 +165,17 @@ export class StudioActor {
       if(last!==undefined){const g=this.character.rig!.bones.findIndex(b=>b.name==='Grenade'),source=this.animator.frame(clipById.get('throw_grenade')!,Math.min(2.2,time-last)),origin=this.stage(project,last+.82,track).actor(track),rotation=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),(origin.yaw-state.yaw)*Math.PI/180),position=new THREE.Vector3(...source.rootPos.get(g)!).applyAxisAngle(new THREE.Vector3(0,1,0),origin.yaw*Math.PI/180).add(new THREE.Vector3(origin.x-state.x,origin.y-state.y,origin.z-state.z)).applyAxisAngle(new THREE.Vector3(0,1,0),-state.yaw*Math.PI/180);frame.rootPos.set(g,position.toArray());frame.rot[g]=new THREE.Quaternion(...source.rot[g]).premultiply(rotation).toArray();if(b.weaponPose!=='hidden')frame.scale?.delete(g);}
     }
     return frame;
+  }
+  /** The expression in force at action `index`: the last one an action set, or undefined for the character's own. */
+  private expressionOf(track: ActorTrack, index: number) {
+    for (let i = index; i >= 0; i--) if (track.beats[i].expression) return track.beats[i].expression;
+  }
+  /** The frame with action `index`'s expression in place of the character's resting one. */
+  private withExpression(frame: Frame, track: ActorTrack, index: number): Frame {
+    const id = this.expressionOf(track, index), face = this.character.face;
+    if (!id || !face || !frame.morph) return frame;
+    const w = weightsArray(EXPRESSION_WEIGHTS[id] ?? {}, face.names);
+    return { ...frame, morph: frame.morph.map((v, i) => Math.min(1, Math.max(0, v - face.defaults[i] + w[i]))) };
   }
   pose(project: StudioProject, time: number, track: ActorTrack = project.actors[0], seats: readonly Seat[] = [],vehicles?:VehicleStage) {
     this.vehiclePlan=vehicles;
@@ -174,6 +191,7 @@ export class StudioActor {
       if(p)this.blockingOffset.set(p[0]-rest.head[0],0,p[2]-rest.head[2]);
     }
     this.group.position.set(state.x,state.y,state.z);this.group.rotation.set(0,state.yaw*Math.PI/180,0);
+    this.hidden=!!track.beats[at.index].hidden;this.group.visible=!this.hidden;
     this.group.position.y += this.seatLift(project, track, seats, track.beats[at.index].clip, at.phase);
     this.base={position:this.group.position.clone(),yaw:this.group.rotation.y};
     // A flown jet pitches and banks about its main-gear contact; the pilot rides in the same frame.

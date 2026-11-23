@@ -67,11 +67,17 @@ export function characterRules(cat:Catalog){
   return rules;
 }
 const object=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
+/** The allowed IDs: all of them when the list is short, otherwise the ones that look like what was asked for. */
+function choices(allowed:readonly string[],value:unknown){
+  if(allowed.length<=40)return`one of ${allowed.join(', ')}`;
+  const words=String(value).toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>2),near=allowed.filter(id=>words.some(w=>id.toLowerCase().includes(w))).slice(0,25);
+  return`one of the ${allowed.length} IDs in character_schema${near.length?`, such as ${near.join(', ')}`:''}`;
+}
 function check(value:unknown,rule:Rule,path:string){
   if(rule.type==='number'||rule.type==='integer'){
     if(typeof value!=='number'||!Number.isFinite(value)||rule.type==='integer'&&!Number.isInteger(value)||value<(rule.minimum??-Infinity)||value>(rule.maximum??Infinity))throw Error(`${path}: use ${rule.type==='integer'?'an integer':'a number'} from ${rule.minimum} to ${rule.maximum}.`);
   }else if(rule.type==='string'){
-    if(typeof value!=='string'||rule.maxLength!==undefined&&value.length>rule.maxLength||rule.enum&&!rule.enum.includes(value)||rule.pattern&&!new RegExp(rule.pattern).test(value))throw Error(`${path}: use ${rule.enum?'an exact ID from the guide':rule.pattern?'a #RRGGBB colour':'a string of up to 80 characters'}.`);
+    if(typeof value!=='string'||rule.maxLength!==undefined&&value.length>rule.maxLength||rule.enum&&!rule.enum.includes(value)||rule.pattern&&!new RegExp(rule.pattern).test(value))throw Error(`${path}: use ${rule.enum?choices(rule.enum,value):rule.pattern?'a #RRGGBB colour':'a string of up to 80 characters'}.`);
   }else if(rule.type==='boolean'){if(typeof value!=='boolean')throw Error(`${path}: use true or false.`);}
   else if(rule.type==='array'){if(!Array.isArray(value))throw Error(`${path}: use an array.`);}
   else if(!object(value))throw Error(`${path}: use an object.`);

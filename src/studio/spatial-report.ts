@@ -94,7 +94,7 @@ export function stagingReport(project:StudioProject,bodies:ReadonlyMap<string,Sp
    }else check(`vehicle:${v.id}`,mode,v,next,bounds,height,watercraft(v.model)?0:.08,t0,t1);
   }
   for(const track of project.actors){const state=a.actor(track),beat=track.beats[timelineAt(project,t0+1e-8,track).index],transition=clipById.get(beat.clip)?.vehicleTransition;
-   if(isSeated(beat.clip))continue;if(state.vehicle&&!transition)continue;
+   if(isSeated(beat.clip)||beat.hidden)continue;if(state.vehicle&&!transition)continue;
    const p=ground(track,t0+1e-8,a),q=ground(track,t1-1e-8,b),body=bodies.get(track.id),r=.28*(body?.scale??1),height=body?.height??1.8;
    const decks:Polygon[]=[];
    // An entering/exiting person is supported by the visible vessel's real deck across the gap.

@@ -15,12 +15,22 @@ import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES,type VehicleChoice} fro
 import {WEAPON_POSES,type WeaponPose} from '../core/anim/riding-weapons';
 import {isFirearm} from '../core/props/weapons';
 import {stagePropFor} from '../core/anim/stage';
+import {EXPRESSIONS} from '../core/face';
+export type Expression=typeof EXPRESSIONS[number];
 export { SETS, type SetId } from './catalog';
 export const ACTIONS = CLIPS.map(c => c.id);
 export type Action = string;
 export type Shot = 'wide' | 'medium' | 'close';
 export type CameraMove = 'locked' | 'orbit' | 'dolly';
-export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;flightHeight?:number;showVehicle?:boolean;showProp?:boolean;showBlood?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number;vehicleId?:string;vehicleSeat?:VehicleSeat }
+export interface Beat { id: string; clip: Action; duration: number; move: boolean;travelSpeed?:number;flightHeight?:number;showVehicle?:boolean;showProp?:boolean;showBlood?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number;vehicleId?:string;vehicleSeat?:VehicleSeat;
+  /** The way the character faces from this action on (degrees, like the actor's yaw); later actions keep it until another sets it. Walking goes this way. */
+  face?:number;
+  /** Off stage for this action: not drawn, not framed and left out of the staging check. */
+  hidden?:boolean;
+  /** The facial expression from this action on (the character's own until one is set). */
+  expression?:Expression;
+  /** Travels its distance in metres whatever the body size (a smaller body takes more steps): route actions. */
+  exact?:boolean }
 export interface ActorTrack { id: string; character: string; detail: Detail; x: number; y: number; z: number; yaw: number; beats: Beat[];vehicle?:VehicleChoice }
 export interface CameraShot { view?: View; camera?: CameraMove; id: string; duration: number; shot: Shot; target: string }
 export interface View { azimuth: number; elevation: number; zoom: number }
@@ -111,7 +121,11 @@ export function parseProject(text: string): StudioProject {
       if(pose==='fire'&&!isFirearm(weapon))throw Error('Only a pistol or rifle can use Fire.');
       if(b.vehicleId!==undefined&&(typeof b.vehicleId!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(b.vehicleId)))throw Error('Use a vehicle ID of 1–80 letters, numbers, underscores or hyphens.');
       if(b.vehicleSeat!==undefined&&!member(b.vehicleSeat,VEHICLE_SEATS))throw Error('Choose a supported vehicle seat.');
-      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: (b.move||forcedTravel(clip)) && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(b.showProp!==undefined?{showProp:b.showProp as boolean}:{}),...(b.showBlood!==undefined?{showBlood:b.showBlood as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}) };
+      const face=b.face===undefined?undefined:angle(b.face,'facing');
+      if(b.hidden!==undefined&&typeof b.hidden!=='boolean')throw Error('Hidden is true or false.');
+      if(b.exact!==undefined&&typeof b.exact!=='boolean')throw Error('Exact is true or false.');
+      if(b.expression!==undefined&&!member(b.expression,EXPRESSIONS))throw Error(`Choose an expression: ${EXPRESSIONS.join(', ')}.`);
+      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: (b.move||forcedTravel(clip)) && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(b.showProp!==undefined?{showProp:b.showProp as boolean}:{}),...(b.showBlood!==undefined?{showBlood:b.showBlood as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}),...(face!==undefined?{face}:{}),...(b.hidden===true?{hidden:true}:{}),...(b.exact===true?{exact:true}:{}),...(b.expression!==undefined?{expression:b.expression as Expression}:{}) };
     });
     if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');
     return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -STAGE_LIMIT, STAGE_LIMIT, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -STAGE_LIMIT, STAGE_LIMIT, 'character Z'), yaw: angle(a.yaw, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
@@ -146,17 +160,35 @@ export function propSpan<B extends { clip: string }>(beats: B[], index: number):
   while (last < beats.length - 1 && stagePropFor(beats[last + 1].clip) === prop) last++;
   return beats.slice(first, last + 1);
 }
-export interface TimelinePoint { index: number; time: number; local: number; phase: number; start: number; x: number; y: number; z: number }
+export interface TimelinePoint { index: number; time: number; local: number; phase: number; start: number; x: number; y: number; z: number;
+  /** Degrees the character has turned from its yaw by this action (its actions' face). */
+  turn: number;
+  /** Travel of exact actions, in metres whatever the body size (x and z above scale with the body). */
+  fx: number; fz: number }
+/** The local offset in metres for a body of this scale. */
+export const offsetAt = (at: Pick<TimelinePoint, 'x' | 'z' | 'fx' | 'fz'>, scale: number) => ({ x: at.x * scale + at.fx, z: at.z * scale + at.fz });
+/** Each action's facing relative to the actor's yaw: the last face set, or 0. */
+export function beatTurns(actor: Pick<ActorTrack, 'yaw' | 'beats'>): number[] {
+  let turn = 0;
+  return actor.beats.map(b => { if (b.face !== undefined) turn = ((b.face - actor.yaw) % 360 + 540) % 360 - 180; return turn; });
+}
 export function timelineAt(p: StudioProject, time: number, actor = p.actors[0]): TimelinePoint {
-  const t = Math.max(0, Math.min(trackDuration(actor), time));
-  let start = 0, x = 0, y = 0, z = 0, index = actor.beats.length - 1;
-  const travel = (b: Beat, axis: 0 | 1 | 2) => b.move ? studioTravel(b.clip,b.travelSpeed)?.[axis] ?? 0 : 0, span = (b: Beat, local: number) => travelTime(b.clip, local, b.duration);
+  const t = Math.max(0, Math.min(trackDuration(actor), time)), turns = beatTurns(actor);
+  let start = 0, x = 0, y = 0, z = 0, fx = 0, fz = 0, index = actor.beats.length - 1;
+  const span = (b: Beat, local: number) => travelTime(b.clip, local, b.duration);
+  /** Local travel over `local` seconds of action i, turned by its facing (in the actor's own frame). */
+  const step = (i: number, local: number): [number, number, number] => {
+    const b = actor.beats[i], v = b.move ? studioTravel(b.clip, b.travelSpeed) : undefined;
+    if (!v) return [0, 0, 0];
+    const k = span(b, local), a = turns[i] * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), tx = v[0] * k, tz = v[2] * k;
+    return [tx * c + tz * s, v[1] * k, -tx * s + tz * c];
+  };
   for (let i = 0; i < actor.beats.length; i++) { const b = actor.beats[i]; if (t < start + b.duration || i === actor.beats.length - 1) { index = i; break; }
-    x += travel(b, 0) * span(b, b.duration); y += travel(b, 1) * span(b, b.duration); z += travel(b, 2) * span(b, b.duration); start += b.duration; }
+    const d = step(i, b.duration); if (b.exact) { fx += d[0]; fz += d[2]; } else { x += d[0]; z += d[2]; } y += d[1]; start += b.duration; }
   const b = actor.beats[index], local = t - start;
   let phase = local; for (let i = clipById.get(b.clip)?.loop ? index - 1 : -1; i >= 0 && actor.beats[i].clip === b.clip; i--) phase += actor.beats[i].duration;
-  x += travel(b, 0) * span(b, local); y += travel(b, 1) * span(b, local); z += travel(b, 2) * span(b, local);
-  x -= actor.beats.reduce((sum, b) => sum + travel(b, 0) * span(b, b.duration), 0) / 2;
-  z -= actor.beats.reduce((sum, b) => sum + travel(b, 2) * span(b, b.duration), 0) / 2;
-  return { index, time: t, local, phase, start, x, y, z };
+  const d = step(index, local); if (b.exact) { fx += d[0]; fz += d[2]; } else { x += d[0]; z += d[2]; } y += d[1];
+  // The placement is the middle of all the travel, scaled and exact parts each.
+  actor.beats.forEach((e, i) => { const s = step(i, e.duration); if (e.exact) { fx -= s[0] / 2; fz -= s[2] / 2; } else { x -= s[0] / 2; z -= s[2] / 2; } });
+  return { index, time: t, local, phase, start, x, y, z, turn: turns[index], fx, fz };
 }

@@ -32,6 +32,7 @@ import { checkPlayPlacements, describeGame, generatePlayGuide, parsePlayInput } 
 import { gameProjects } from '../../../src/play/project';
 import { fileLink } from '../../../src/app/links';
 import { guideAnswer, textParts } from './guides';
+import { filmQuickstart } from './film-quickstart';
 import { compactSchema } from '../../../src/app/character-assist';
 import { stagingReport } from '../../../src/studio/spatial-report';
 import { sceneById, type SetId } from '../../../src/studio/catalog';
@@ -42,12 +43,14 @@ const FORMATS: readonly ExportFormat[] = ['glb', 'fbx', 'obj', 'zip'];
 /** Where characters go unless the assistant names a folder: assistants' working folders vary, so a fixed home. */
 const OUT = process.env.ARA3D_OUT || join(homedir(), 'ara3d-characters');
 
-const INSTRUCTIONS = `ara3d makes realistic, rigged and animated 3D humans on this machine and writes GLB, FBX or OBJ files.
+const INSTRUCTIONS = `ara3d makes realistic, rigged and animated 3D humans on this machine and can write GLB, FBX or OBJ files.
+create_character returns a builder link and writes no file unless you pass formats. After making a character, ask the user whether they want a file and in which format (GLB for the web, Godot or Blender; FBX for Unity or Unreal; OBJ for a static model; or all of them); pass formats only when they ask for one.
+For a height in centimetres, pass height_cm: Ara sets the height slider to match.
 Start from a preset (list_presets), a random seed, a share link from the Ara builder, or a character you design: call character_schema for every field, then pass { preset, params } to create_character.
-Choose only the animations needed (list_animations): every clip makes the file bigger and the build slower.
+When writing files, choose only the animations needed (list_animations): every clip makes the file bigger and the build slower.
 Each result includes a link that opens the character in the Ara builder, so the user can see it and keep editing.
-Films and games: read film_guide or game_guide (an overview, then the topics you need), write the file, then call create_film or create_game. They check it as Ara Studio and Ara Play do, save it, and return a link that opens it in Studio (to watch, edit and record as a video) or Play (to play, edit and download).
-Every set's staging map comes from film_guide (topic "location-map" with the location): never ask the user to export one. create_film also runs Studio's staging check and lists anything a character walks through; fix those and call it again. A film can have up to five scenes in different sets (a version 3 film, in film_guide); use them when the story moves between places.
+Films: call film_guide once with the brief and the set's location. It returns a short quickstart (the format, a worked example, sets, presets and everyday clips) and that set's map; it is enough for most films. Give characters a start point and walk them with "to" points; Ara works out facing, travel and timing. Use hidden for entrances and exits, and builder links from create_character for characters made earlier. Then call create_film: it checks the film as Studio does (including the staging check), saves it and returns a Studio link; fix anything it reports and call it again. Read further film_guide topics only when the film needs them. Never ask the user to export a set's map.
+Games: read game_guide (an overview, then the topics you need), write the game, then call create_game, which checks it as Ara Play does, saves it and returns a Play link.
 Every answer fits in one tool result: a long topic or schema comes in numbered parts. Read them with these tools, not with shell commands on saved files.
 People: follow the user's description of who a character is. Don't assume a nationality, ethnicity or culture they didn't ask for, and don't carry one character's background over to the next. The catalogue includes clothes, props and places from many cultures; none is a default. When the brief leaves it open, choose to suit the story or ask.`;
 
@@ -74,7 +77,7 @@ const TOOLS = [
   },
   {
     name: 'create_character',
-    description: 'Builds a character and writes its 3D files. Give exactly one of preset, random, share_link or character. Returns the files written and a link that opens the character in the Ara builder.',
+    description: 'Builds a character and returns its height and a link that opens it in the Ara builder (also usable as a film character). Writes 3D files only when formats is given. Give exactly one of preset, random, share_link or character.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -84,7 +87,8 @@ const TOOLS = [
         character: { type: 'object', description: 'A designed character: { "preset": "The Adventurer", "params": { ...changes } }, with fields from character_schema.' },
         name: { type: 'string', description: 'A name for the character, used for the file names.' },
         animations: { type: 'array', items: { type: 'string' }, description: 'Clip IDs or categories from list_animations. Leave out for every clip (large files), or pass [] for none.' },
-        formats: { type: 'array', items: { enum: FORMATS }, description: 'glb (default; web, Godot, Blender), fbx (Unity, Unreal), obj (static) or zip (all of them).' },
+        formats: { type: 'array', items: { enum: FORMATS }, description: 'Files to write, only when the user asks for them: glb (web, Godot, Blender), fbx (Unity, Unreal), obj (static) or zip (all of them). Leave out for the link alone.' },
+        height_cm: { type: 'number', minimum: 50, maximum: 230, description: 'The height in centimetres (shoes included), such as 158. Sets the height slider to match.' },
         detail: { enum: DETAILS, description: 'low (about 25-50k triangles dressed; for crowds), medium (default, about 45-65k) or high (about 130-170k).' },
         root_motion: { type: 'boolean', description: 'Walks and runs move forward instead of playing in place.' },
         weapon: { enum: WEAPONS, description: 'A weapon in the hand; "none" takes away a preset\'s own.' },
@@ -98,11 +102,11 @@ const TOOLS = [
   },
   {
     name: 'film_guide',
-    description: 'How to write an Ara Studio film (sets, cast, actions, camera, dialogue, sound, music). Without a topic: the core rules and a list of topics; then ask for each topic you need, such as the animation catalogue or the JSON schema.',
+    description: 'How to write an Ara Studio film. Without a topic: a short quickstart (format, worked example, sets, presets, everyday clips, music), plus the set\'s map when location is given, and a list of further topics to read only when needed.',
     inputSchema: { type: 'object', properties: {
       topic: { type: 'string', description: 'A topic key from the overview\'s list.' },
       brief: { type: 'string', description: 'What the user wants, included in the overview so the rules can point at it.' },
-      location: { enum: [...sceneById.keys()], description: 'With topic "location-map": the set whose full staging map (land, water, obstacles, seats, routes and boarding points) you want.' },
+      location: { enum: [...sceneById.keys()], description: 'The set the film uses: its staging map (obstacles, seats, routes) comes with the quickstart, or alone with topic "location-map".' },
     }, additionalProperties: false },
   },
   {
@@ -141,11 +145,23 @@ function listAnimations(args: Args) {
   return [...groups].map(([group, clips]) => `${group}:\n  ${clips.join('\n  ')}`).join('\n\n');
 }
 
+/** The height slider (0 to 1) that gives `metres` with these settings, found with quick low-detail builds. */
+async function heightFor(lib: AssetLibrary, params: HumanParams, metres: number) {
+  const measure = async (h: number) => (await buildHuman(lib, { ...params, height: h, detail: 'low', faceShapes: false, animations: false })).height;
+  let a = 0.15, b = 0.85, ha = await measure(a), hb = await measure(b);
+  for (let i = 0; i < 4 && Math.abs(hb - metres) > 0.004 && Math.abs(hb - ha) > 1e-4; i++) {
+    const next = Math.min(1, Math.max(0, b + (metres - hb) * (b - a) / (hb - ha)));
+    a = b;ha = hb;b = next;hb = await measure(b);
+    if ((b === 0 && hb > metres) || (b === 1 && hb < metres)) break;
+  }
+  return Math.round(b * 1000) / 1000;
+}
+
 /** Builds the character and writes its files; reports progress to the assistant as it goes. */
 async function createCharacter(args: Args, progress: (done: number, message: string) => void) {
   const sources = (['preset', 'random', 'share_link', 'character'] as const).filter((k) => args[k] !== undefined);
   if (sources.length !== 1) throw Error('Give exactly one of preset, random, share_link or character.');
-  const formats = (args.formats as ExportFormat[] | undefined) ?? ['glb'];
+  const formats = (args.formats as ExportFormat[] | undefined) ?? [];
   for (const f of formats) if (!FORMATS.includes(f)) throw Error(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
   const clips = args.animations === undefined ? CLIPS.map((c) => c.id) : clipIds(args.animations as string[]);
   progress(0.05, 'Loading the character data');
@@ -164,10 +180,17 @@ async function createCharacter(args: Args, progress: (done: number, message: str
   };
   if (args.colors) params = applyColors(params, args.colors as CharacterColors);
   const out = typeof args.out_dir === 'string' && args.out_dir ? (isAbsolute(args.out_dir) ? args.out_dir : resolve(OUT, args.out_dir)) : OUT;
-  mkdirSync(out, { recursive: true });
+  if (formats.length) mkdirSync(out, { recursive: true });
 
+  const started = performance.now();
+  if (args.height_cm !== undefined) {
+    const cm = Number(args.height_cm);
+    if (!Number.isFinite(cm) || cm < 50 || cm > 230) throw Error('height_cm: use a number of centimetres from 50 to 230.');
+    progress(0.1, `Fitting ${params.name} to ${Math.round(cm)} cm`);
+    params = { ...params, height: await heightFor(lib, params, cm / 100) };
+  }
   progress(0.2, `Building ${params.name}`);
-  const started = performance.now(), character = await buildHuman(lib, params), written: string[] = [];
+  const character = await buildHuman(lib, params), written: string[] = [];
   for (const [i, format] of formats.entries()) {
     progress(0.35 + (0.6 * i) / formats.length, `Writing ${format.toUpperCase()}`);
     const settings: ExportSettings = {
@@ -180,8 +203,8 @@ async function createCharacter(args: Args, progress: (done: number, message: str
   }
   const colors = colorsOf(params);
   return [
-    `Made ${params.name}: ${(character.height * 100).toFixed(0)} cm tall, ${triangleCount(character.mesh).toLocaleString('en')} triangles, ${clips.length} animation${clips.length === 1 ? '' : 's'}, in ${((performance.now() - started) / 1000).toFixed(1)} s.`,
-    `Files:\n  ${written.join('\n  ')}`,
+    `Made ${params.name}: ${(character.height * 100).toFixed(0)} cm tall, ${triangleCount(character.mesh).toLocaleString('en')} triangles${written.length ? `, ${clips.length} animation${clips.length === 1 ? '' : 's'}` : ''}, in ${((performance.now() - started) / 1000).toFixed(1)} s.`,
+    written.length ? `Files:\n  ${written.join('\n  ')}` : 'No files written (link only). Ask the user whether they want a file, and which format: GLB (web, Godot, Blender), FBX (Unity, Unreal), OBJ (static) or all of them.',
     `See it and keep editing in the Ara builder: https://ara3dgen.com/app/#c=${encodeCharacter(params)}`,
     ...(Object.keys(colors).length ? [`Colours that can be changed: ${Object.entries(colors).map(([k, v]) => `${k} ${v}`).join(', ')}`] : []),
   ].join('\n\n');
@@ -250,7 +273,9 @@ async function callTool(name: string, args: Args, progress: (done: number, messa
       return `STAGING MAP: ${location}${parts.length > 1 ? ` (part ${n} of ${parts.length})` : ''}\n${parts[n - 1]}${n < parts.length ? `\n\n(Continue with topic "location-map-${n + 1}" and the same location.)` : ''}`;
     }
     const guide = generateAssistGuide((await data()).catalog, brief, undefined, location, undefined, undefined, { scenes: true, mapRequest: 'call film_guide with { "topic": "location-map", "location": "<its id>" } to get its full staging map, then plan the routes from it' });
-    return guideAnswer(guide, args.topic, 'film_guide', '\n\nSTAGING MAPS: once you choose a set, call film_guide with { "topic": "location-map", "location": "<set id>" } for its full map (land, water, obstacles, seats, routes). Plan every walk and drive from it.');
+    // The quickstart, with the chosen set's map when there is one, so most films need this one answer.
+    const extra = location && !args.topic ? `\n\nSTAGING MAP: ${location} (obstacles and seats; walk round them)\n${JSON.stringify(locationMapFile(location))}` : '\n\nSTAGING MAPS: once you choose a set, call film_guide with { "location": "<set id>" } (or the topic "location-map" with the location) for its map.';
+    return guideAnswer(guide, args.topic, 'film_guide', extra, filmQuickstart(brief));
   }
   if (name === 'game_guide') return guideAnswer(generatePlayGuide((await data()).catalog, brief), args.topic, 'game_guide');
   if (name === 'create_film') return createFilm(args);

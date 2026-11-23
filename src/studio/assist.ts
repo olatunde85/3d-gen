@@ -21,7 +21,11 @@ import {VEHICLE_FOR_CLIP} from '../core/props/vehicles';
 import {WEAPON_POSES} from '../core/anim/riding-weapons';
 import {VEHICLE_TRANSITIONS} from '../core/props/vehicle-actions';
 
-import {studioTravel,VEHICLE_SPEED,MAX_TRAVEL_SPEED,STAGE_LIMIT} from './motion';
+import {studioTravel,travelTime,VEHICLE_SPEED,MAX_TRAVEL_SPEED,STAGE_LIMIT} from './motion';
+import {placeStart} from './spatial-report';
+import {clipById} from '../core/anim/clips';
+import {EXPRESSIONS} from '../core/face';
+import {carryForClipList,carryNeeded,provides} from '../core/props/clip-carry';
 import {VEHICLE_SEATS,seatsForVehicle} from './vehicle-seats';
 import {VEHICLE_IDS} from '../core/props/vehicles';
 import type {SetId} from './catalog';
@@ -68,10 +72,13 @@ export function parseStudioInput(text: string, catalog?: Catalog): StudioProject
   if (Array.isArray(value.actors)) value.actors = value.actors.map((raw, i) => {
     if (!object(raw)) return raw;
     const path = `Character ${i + 1}`;
-    fields(raw, ['id', 'preset', 'character', 'params', 'detail', 'weapon', 'carry', 'vehicle', 'x', 'y', 'z', 'yaw', 'beats'], path);
+    fields(raw, ['id', 'preset', 'character', 'params', 'detail', 'weapon', 'carry', 'vehicle', 'x', 'y', 'z', 'yaw', 'start', 'beats'], path);
     if (Array.isArray(raw.beats)) raw.beats.forEach((beat, j) => {
-      if (object(beat)) fields(beat, ['id', 'clip', 'duration', 'move', 'travelSpeed', 'flightHeight', 'showVehicle', 'showProp', 'showBlood', 'weaponPose', 'weaponYaw', 'weaponPitch', 'vehicleId', 'vehicleSeat'], `${path}, action ${j + 1}`);
+      if (object(beat)) fields(beat, ['id', 'clip', 'duration', 'move', 'travelSpeed', 'flightHeight', 'showVehicle', 'showProp', 'showBlood', 'weaponPose', 'weaponYaw', 'weaponPitch', 'vehicleId', 'vehicleSeat', 'face', 'hidden', 'expression', 'to', 'exact'], `${path}, action ${j + 1}`);
+      if (object(beat) && beat.expression !== undefined && !(EXPRESSIONS as readonly unknown[]).includes(beat.expression)) throw Error(`${path}, action ${j + 1}: expression must be one of ${EXPRESSIONS.join(', ')}.`);
     });
+    route(raw, path);
+    if (typeof raw.character === 'string') raw.character = shareCode(raw.character);
     const detail=raw.detail;
     if(!['low','medium','high'].includes(String(detail)))throw Error(`${path}: choose low, medium or high detail.`);
     let character=raw.character;
@@ -102,9 +109,70 @@ export function parseStudioInput(text: string, catalog?: Catalog): StudioProject
       try { actor.character = equipActor(actor, slot, raw[slot]); }
       catch (error) { throw Error(`${path}: ${(error as Error).message}`); }
     }
+    // Clips that need a carried item get it (a phone for calls and texting, and so on); a different chosen item is an error.
+    const clips = Array.isArray(raw.beats) ? raw.beats.flatMap(b => object(b) && typeof b.clip === 'string' ? [b.clip] : []) : [];
+    const need = carryForClipList(clips), has = decodeCharacter(actor.character, actor.detail)?.carry;
+    if (need.clash) throw Error(`${path}: these actions need different carried items, ${need.clash}, and a character carries one. Give them to different characters.`);
+    if (need.carry && !provides(has, need.carry)) {
+      if ('carry' in raw) throw Error(`${path}: ${clips.filter(c => carryNeeded(c) && !provides(has, carryNeeded(c)!)).join(', ')} needs carry "${need.carry}", but the character carries "${has}". Set carry to "${need.carry}" or choose other actions.`);
+      actor.character = equipActor(actor, 'carry', need.carry);
+    }
     return { ...raw, character: actor.character };
   });
-  return parseProject(JSON.stringify(value));
+  const starts = Array.isArray(value.actors) ? value.actors.map(a => object(a) ? a.start as { x: number; z: number } | undefined : undefined) : [];
+  if (Array.isArray(value.actors)) for (const a of value.actors) if (object(a) && a.start) { delete a.start; a.x = 0; a.z = 0; }
+  const project = parseProject(JSON.stringify(value));
+  // A character given a start point is moved so that its first action begins there.
+  project.actors.forEach((a, i) => {
+    const start = starts[i];if (!start) return;
+    placeStart(project, a.id, start);a.x = Math.round(a.x * 1000) / 1000;a.z = Math.round(a.z * 1000) / 1000;
+    if (Math.abs(a.x) > STAGE_LIMIT || Math.abs(a.z) > STAGE_LIMIT) throw Error(`Character ${i + 1}: the route goes too far from the middle of the set (more than ${STAGE_LIMIT} m).`);
+  });
+  return project;
+}
+
+/** A builder link or a bare character code: the code. */
+const shareCode = (text: string) => /#c=([^&\s]+)/.exec(text)?.[1] ?? text.trim();
+const wrap = (deg: number) => Math.round((((deg % 360) + 540) % 360 - 180) * 10) / 10 || 0;
+
+/**
+ * Routes: with "start": { x, z } a character's first action begins there, and an action with "to": { x, z } walks
+ * (or runs) straight there: its facing, travel and duration are worked out at reference body size. "face" turns the
+ * character for that action and the ones after it.
+ */
+function route(raw: Record<string, unknown>, path: string) {
+  const point = (v: unknown, what: string) => {
+    if (!object(v) || typeof v.x !== 'number' || typeof v.z !== 'number' || !Number.isFinite(v.x) || !Number.isFinite(v.z)) throw Error(`${path}: ${what} needs numbers x and z, such as { "x": 1.5, "z": -2 }.`);
+    fields(v, ['x', 'z'], `${path}, ${what}`);return { x: v.x, z: v.z };
+  };
+  const beats = Array.isArray(raw.beats) ? raw.beats.filter(object) : [];
+  const start = raw.start === undefined ? undefined : point(raw.start, 'start');
+  if (start) { if ('x' in raw || 'z' in raw) throw Error(`${path}: give either start or x and z, not both.`);raw.start = start; }
+  if (!start && beats.some(b => b.to !== undefined)) throw Error(`${path}: an action with "to" needs the character's "start".`);
+  if (!start) return;
+  // Faces are compass directions; yaw (default 0) is only the facing before the first action that sets one.
+  let heading = typeof raw.yaw === 'number' ? raw.yaw : 0, x = start.x, z = start.z;
+  beats.forEach((b, j) => {
+    const where = `${path}, action ${j + 1}`, clip = typeof b.clip === 'string' ? b.clip : '';
+    if (typeof b.face === 'number') heading = b.face;
+    if (b.to !== undefined) {
+      const to = point(b.to, `action ${j + 1} "to"`), v = clipById.has(clip) && !VEHICLE_FOR_CLIP[clip] ? studioTravel(clip) : undefined, speed = v ? Math.hypot(v[0], v[2]) : 0;
+      if (!speed) throw Error(`${where}: "to" needs an on-foot clip that travels, such as walk, run or jog; ${clip || 'this clip'} does not.`);
+      const dx = to.x - x, dz = to.z - z, distance = Math.hypot(dx, dz);
+      if (distance > 1e-3) heading = Math.atan2(dx, dz) * 180 / Math.PI - Math.atan2(v![0], v![2]) * 180 / Math.PI;
+      // The shortest action that covers the distance (travel eases in and out on some clips).
+      let lo = 0.1, hi = 12;
+      if (travelTime(clip, hi, hi) * speed < distance) throw Error(`${where}: ${distance.toFixed(1)} m is too far for one action (at most ${(travelTime(clip, hi, hi) * speed).toFixed(1)} m). Add a point on the way.`);
+      for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (travelTime(clip, mid, mid) * speed < distance) lo = mid; else hi = mid; }
+      b.duration = Math.max(0.1, Math.round(hi * 100) / 100);b.move = distance > 1e-3;b.face = wrap(heading);b.exact = true;delete b.to;
+    } else if (typeof b.face === 'number') b.face = wrap(b.face);
+    const v = b.move === true && clipById.has(clip) ? studioTravel(clip, typeof b.travelSpeed === 'number' ? b.travelSpeed : undefined) : undefined;
+    if (v && typeof b.duration === 'number') {
+      const k = travelTime(clip, b.duration, b.duration), a = heading * Math.PI / 180, tx = v[0] * k, tz = v[2] * k;
+      x += tx * Math.cos(a) + tz * Math.sin(a);z += -tx * Math.sin(a) + tz * Math.cos(a);
+    }
+  });
+  if (typeof raw.yaw !== 'number') raw.yaw = typeof beats[0]?.face === 'number' ? beats[0].face : 0;
 }
 
 /** The examples Assist offers: the reel's films (with the reel's music), then the warehouse comedy, which is also the example in the guide. */
@@ -122,12 +190,19 @@ export function assistSchema(catalog:Catalog) {
   const enumeration = (values: readonly string[]) => ({ type: 'string', enum: values });
   const id = { type: 'string', pattern: '^[a-zA-Z0-9_-]{1,50}$', not: { enum: ['all', 'camera'] } };
   const detail = enumeration(['low', 'medium', 'high']);
-  const action = { type: 'object', additionalProperties: false, required: ['clip', 'duration', 'move'], properties: {
+  const point={type:'object',additionalProperties:false,required:['x','z'],properties:{x:num(-STAGE_LIMIT,STAGE_LIMIT),z:num(-STAGE_LIMIT,STAGE_LIMIT)}};
+  const action = { type: 'object', additionalProperties: false, required: ['clip', 'move'], anyOf:[{required:['duration']},{required:['to']}], properties: {
+    to:{...point,description:'Walk or run straight to this point (needs the character\'s start): facing, travel and duration are worked out; leave duration out.'},
+    face:{...num(-180,180),description:'Facing from this action on: 0 the front of the set, 90 +x, 180 the back. Later actions keep it; walking goes this way.'},
+    hidden:{type:'boolean',description:'Off stage for this action: not drawn, not framed, not staging-checked. For entrances and exits.'},
+    expression:{...enumeration(EXPRESSIONS),description:'Facial expression from this action on, until another action sets one.'},
+    exact:{type:'boolean',description:'Set by "to": the walk covers its metres whatever the body size.'},
     id: { type: 'string' }, vehicleId:{type:'string',pattern:'^[a-zA-Z0-9_-]{1,80}$',description:'Physical vehicle identity shared across actors and entry/ride/exit beats. Omit for an actor-owned model.'},vehicleSeat:{...enumeration(VEHICLE_SEATS),description:'operator by default. Passengers reference the operator’s vehicleId and use a seat supported by its model.'}, clip: enumeration(CLIPS.map(c => c.id)), duration: num(0.1, 12), move: { type: 'boolean' },showVehicle:{type:'boolean',description:'Operator vehicle visibility. Shared passengers use the existing physical prop, without duplicates.'},showProp:{type:'boolean',description:'Climbing, cover and football actions only: false hides the ladder, obstacle, ledge wall, cover wall or football for that span (the motion is unchanged), e.g. when the set already has one.'},showBlood:{type:'boolean',description:'Gunshot reactions (shot_*) only: false shows the reaction without blood.'},flightHeight:{...num(0,30),description:'Aircraft: flight altitude with takeoff/landing, default 3m moving or 0 stationary. Aerial actions: START altitude, easing to the next aerial start height. Defaults skydive20/deploy12/glide8/land2 m; land reaches ground at touchdown. Passengers inherit pilot height.'},travelSpeed:{...num(.1,MAX_TRAVEL_SPEED),description:'Vehicle travel metres per second. Does not change animation playback. Only for riding/driving actions; not boarding/alighting.'},weaponPose:{...enumeration(WEAPON_POSES),description:'Mounted and pistol/rifle performances: hold/aim/fire. Fire requires pistol/rifle. Hidden works on any beat. Omitted: wield while riding, hide during entry/exit, native pose otherwise.'},weaponPitch:{...num(-45,60),description:'Weapon elevation in degrees: positive up, negative down. Works on mounted and pistol/rifle performances.'},weaponYaw:{...num(-110,110),description:'Weapon heading in degrees: 0 forwards, positive left, negative right.'},
   } };
   const builder=characterSchema(catalog),builderDefinition=Object.fromEntries(Object.entries(builder).filter(([key])=>!['$schema','title'].includes(key)));
   const characterSpecification={...builderDefinition,properties:{...builder.properties,params:{$ref:'#/$defs/characterParams'}}};
-  const actor = { type: 'object', additionalProperties: false, required: ['id', 'detail', 'x', 'y', 'z', 'yaw', 'beats'],
+  const actor = { type: 'object', additionalProperties: false, required: ['id', 'detail', 'beats'],
+    anyOf:[{required:['x','z','yaw']},{required:['start']}],
     oneOf: [
       {required:['preset'],not:{required:['character']}},
       {required:['character'],not:{required:['preset']}},
@@ -138,6 +213,7 @@ export function assistSchema(catalog:Catalog) {
       id, preset: enumeration(Object.keys(PRESETS)), params:{$ref:'#/$defs/characterParams',description:'Custom character parameters; override the preset or existing encoded character, or build from defaults.'},
       character:{oneOf:[{type:'string',description:'An existing encoded character recipe copied verbatim.'},{$ref:'#/$defs/characterSpecification'},{$ref:'#/$defs/characterParams'}]},
       detail, weapon: enumeration(WEAPONS), carry: enumeration(CARRIED), vehicle: enumeration(['auto','none']), x: num(-STAGE_LIMIT, STAGE_LIMIT), y: num(0, 3), z: num(-STAGE_LIMIT, STAGE_LIMIT), yaw: num(-180, 180),
+      start:{...point,description:'Where the first action begins, instead of x and z (the middle of all the travel). yaw is then optional: the facing before any action sets face.'},
       beats: { type: 'array', minItems: 1, maxItems: MAX_ACTIONS, items: action },
     } };
   return {
@@ -204,7 +280,8 @@ The guide includes a compact index for EVERY location, then the FULL machine-rea
 COORDINATES AND TRAVEL CALCULATION
 All map poses and bounds are world metres; rect=[minX,minZ,maxX,maxZ], yaw in degrees, 0=+Z, 90=+X, 180=-Z, -90=-X. Seats are [x,y,z,yaw], y=seat-top height. Land is map.bounds minus all water rectangles, plus walkable dock overlays. Regions mark exact rendered walkway/road/court/dock edges; obstacles are conservative geometry envelopes with bottom/top heights. Remain within map.bounds even though the actor placement fields allow ±${STAGE_LIMIT}. Static floor colour outside those bounds does not certify a route. Keep ordinary actor.y=0: raising a character does not make water into ground. Helicopter flight is checked in 3D against obstacle heights; takeoff/landing still require clear ground.
 
-Actor x/z are the CENTRE of the complete enabled local travel, NOT the start. For each beat i let v_i be the catalogue local travel (vehicle speed override applied) if move:true, otherwise [0,0,0]. Let D=sum(v_i*duration_i) over the actor's ENTIRE timeline. At time t the nominal local displacement is cumulativeTravel(t)-D/2. With rig scale s and yaw a: worldX=actor.x+s*(localX*cos(a)+localZ*sin(a)); worldZ=actor.z+s*(-localX*sin(a)+localZ*cos(a)). To start at world S, solve actor.xz=S+R(a)*(s*D/2). Final nominal position is actor.xz+R(a)*(s*D/2). Never recompute the centre per beat. Adding later travel shifts earlier nominal positions. Rowboat velocity points local -Z. Visual turn clips animate the skeleton; they DO NOT rotate the actor's travel axes or change its authored yaw between beats. Do not invent per-beat x/z/yaw or waypoints.
+The simplest staging: give each actor "start":{x,z} (where its first action begins) and walk it with "to":{x,z} actions (straight walks or runs; facing, travel and duration are worked out, and the metres are exact at any body size). "face" turns a character from that action on, and walking goes that way; "hidden":true keeps it off stage. No centre calculation is needed with start.
+Without start: actor x/z are the CENTRE of the complete enabled local travel, NOT the start. For each beat i let v_i be the catalogue local travel (vehicle speed override applied) if move:true, otherwise [0,0,0]. Let D=sum(v_i*duration_i) over the actor's ENTIRE timeline. At time t the nominal local displacement is cumulativeTravel(t)-D/2. With rig scale s and yaw a: worldX=actor.x+s*(localX*cos(a)+localZ*sin(a)); worldZ=actor.z+s*(-localX*sin(a)+localZ*cos(a)). To start at world S, solve actor.xz=S+R(a)*(s*D/2). Final nominal position is actor.xz+R(a)*(s*D/2). Never recompute the centre per beat. Adding later travel shifts earlier nominal positions. Rowboat velocity points local -Z. Visual turn clips animate the skeleton; they DO NOT rotate the actor's travel axes or change its authored yaw between beats. Do not invent per-beat x/z/yaw or waypoints.
 
 Vehicle/doorway offsets then modify that nominal path: boardingStand is measured in anatomical boardingScale b (distinct from rig scale s), and passengers use the OPERATOR's vehicle transform. A first board starts at the vehicle origin + R(a)*boardingStand*b. An alight ends at that same doorway offset from the last vehicle origin; that offset is carried into the following ground span. For the next NEW vehicle, Studio places its waiting origin at the end of the preceding ground span minus R(a)*boardingStand*b. It exists there from time zero. Reusing a vehicleId returns to its last parked position; ground spans are adjusted to connect the real doorways, so their direction can differ from nominal travel. Passengers inherit the host's full motion; do not apply their own centred path or offset them by hand. These offsets require re-evaluating the whole track after edits. Use Check staging in Studio to export actual fitted-body transition positions and issues; a reference-scale calculation is provisional until reviewed with the loaded cast.
 

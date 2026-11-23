@@ -80,7 +80,10 @@ export class StudioScene {
     const at = shotAt(project, time), beat = at.shot;
     const vehicles=new VehicleStage(project,time,new Map([...this.actors].map(([id,actor])=>[id,actor.vehicleBody])));
     for (const track of project.actors) this.actors.get(track.id)?.pose(project, time, track, this.set?.seats,vehicles);
-    const subjects = project.actors.filter(a => beat.target === 'all' || a.id === beat.target).map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a);
+    // Off-stage characters are not framed; a shot of only off-stage characters frames everyone on stage.
+    const onStage = project.actors.map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a && !a.hidden);
+    const chosen = project.actors.filter(a => beat.target === 'all' || a.id === beat.target).map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a && !a.hidden);
+    const subjects = chosen.length ? chosen : onStage;
     const position=(a:StudioActor)=>a.stagePosition;
     const h = Math.max(1.6, ...subjects.map(a => a.height)), center = new THREE.Vector3();
     for (const a of subjects) center.add(position(a)); if(subjects.length)center.multiplyScalar(1/subjects.length);

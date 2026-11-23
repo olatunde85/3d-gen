@@ -8,12 +8,13 @@ import { buildHuman } from '../../../../src/core/human';
 import { neededTargets } from '../../../../src/core/morph';
 import { DEFAULT_PARAMS, PRESETS, randomParams, type HumanParams } from '../../../../src/core/params';
 import { decodeCharacter } from '../../../../src/app/share';
-import { CLIPS, clipById } from '../../../../src/core/anim/clips';
+import { CLIPS } from '../../../../src/core/anim/clips';
 import { characterExample, parseCharacterInput } from '../../../../src/app/character-assist';
 import { exportClipName, planExport, runExport, stemOf, type ExportSettings } from '../../../../src/export';
 import type { BakedClip } from '../../../../src/core/anim/evaluate';
 import { vehicleStyleForChoice } from '../../../../src/core/props/vehicles';
 import { applyColors, colorsOf, type CharacterColors } from './colors';
+import { carryForClipList, carryNeeded } from '../../../../src/core/props/clip-carry';
 
 /**
  * What to build: a preset name, a share link from the Ara builder, { random: seed }, an "ara-character" object, or
@@ -132,9 +133,10 @@ export function characterParams(lib: AssetLibrary, input: CharacterInput): Human
  */
 export function carryForClips(clips: readonly string[], carry?: string): HumanParams['carry'] | undefined {
   if (carry) return undefined;
-  if (clips.some((id) => id === 'phone_call' || id === 'texting')) return 'phone';
-  const weights = new Set(clips.flatMap((id) => clipById.get(id)?.weights ?? []));
-  return weights.size > 1 ? 'gym_weights' : [...weights][0];
+  // The phone first (calls and texting are the commonest), then any other item the clips need.
+  if (clips.some((id) => carryNeeded(id) === 'phone')) return 'phone';
+  const { carry: needed, clash } = carryForClipList(clips);
+  return needed ?? (clash ? carryNeeded(clips.find((id) => carryNeeded(id))!) : undefined);
 }
 
 export async function generate(lib: AssetLibrary, input: CharacterInput, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
