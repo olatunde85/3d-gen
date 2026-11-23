@@ -2,6 +2,19 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.14.0 — 2026-11-23
+
+- **Faster films over MCP:** the first `film_guide` answer is a short quickstart: the format, a worked example, the sets, presets, everyday animations and music, with the chosen set's staging map when `location` is given. Most films need nothing more; the full rules are topics.
+- **Routes:** a film character can have `start: { x, z }` and actions with `to: { x, z }`. Ara works out the facing, travel and duration, and the walk covers its metres at any body size.
+- **Facing, off stage and expressions per action:** `face` turns a character from that action on, `hidden` keeps it off stage (not drawn, framed or staging-checked) for entrances and exits, and `expression` changes the face mid-film.
+- **Characters by link:** a builder link (`https://ara3dgen.com/app/#c=…`) works as a film character.
+- **Items the actions need:** phone calls and texting bring a phone, sweeping a broom, the carry clips a box, head loads the basin, parachuting the rig and the lifts their gym weights, in films and in `create_character`.
+- **Link first:** `create_character` returns the builder link and writes files only when `formats` is given. `height_cm` sets the height in centimetres.
+- **Clearer errors:** a wrong ID lists the allowed ones.
+- **259 animations, with Fitness:** squats, lunges, high knees, push-ups, plank, sit-ups, a coach's clap and point, dumbbell curls, kettlebell swing, barbell back squat and deadlift. Carry `dumbbells`, `kettlebell`, `barbell` or `gym_weights` (all of them); each weight shows only in its lifts.
+- **65 preset characters:** The Gym Instructor and The Powerlifter.
+- **Pencil skirts** start as plain fabric in one colour; lace and ankara prints are still there.
+
 ## 0.13.0 — 2026-11-21
 
 - **248 animations, with football:** shots, straight and inside-foot passes (to the left, forward and to the right), receiving, chest control, headers and jumping headers, standing and slide tackles, a defensive wall (stance and jump), goalkeeper ready, catch, punch and high and low dives, picking up, bouncing and throwing the ball (side, two-hand, low and an overhead throw-in), and the Siu celebration. These clips bring their own football prop.
