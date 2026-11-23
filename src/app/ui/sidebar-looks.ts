@@ -2,6 +2,7 @@
 import { EARRINGS, EARRING_LABELS, HAIRSTYLES, TATTOOS, TATTOO_LABELS, isProceduralHair, type EarringId, type Metal, type TattooId } from '../../core/looks';
 import { ageToYears } from '../../core/params';
 import { CARRIED, CARRY_LABELS, type CarryId } from '../../core/props/carry';
+import { GYM_CLIPS } from '../../core/anim/clips/fitness';
 import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons';
 import type { Ctx } from './context';
 import { color, none, picker, selectRow, thumb } from './controls';
@@ -89,6 +90,7 @@ export function carryPanel(ctx: Ctx) {
     if(v==='head_load'&&store.params.rig!=='none')ctx.playClip('head_load_idle');
     if(v==='phone'&&store.params.rig!=='none')ctx.playClip('phone_call');
     if(v==='broom'&&store.params.rig!=='none')ctx.playClip('sweep');
+    if(GYM_CLIPS[v as CarryId]&&store.params.rig!=='none')ctx.playClip(GYM_CLIPS[v as CarryId]![0]);
     store.emit('sync');
   });
   return el('div', {}, row, styleControls(ctx, () => (store.params.carry === 'none' ? '' : store.params.carry)));

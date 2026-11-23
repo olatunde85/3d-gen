@@ -73,6 +73,7 @@ const entries = [
   ['city-bus', 'City bus', 'Travel', 'transit', 'day', 'Inside a city bus: paired seats, grab poles and straps, a standing area by the doors.'],
   ['private-jet', 'Private jet', 'Travel', 'transit', 'sunset', 'Inside a private jet: cream leather club seats, walnut tables and a divan above the clouds.'],
   ['airliner-cabin', 'Airliner cabin', 'Travel', 'transit', 'day', 'Inside a passenger plane: rows of three-and-three seats, overhead bins and a galley by the door.'],
+  ['gym', 'Gym', 'Leisure', 'venue', 'day', 'Rubber floors, a mirror wall and dumbbell rack, a squat rack, treadmills, benches and an open training floor.'],
 ] as const;
 export type SetId = typeof entries[number][0];
 /** Direction notes describe actual floor plans, not collision or interaction simulation. */
@@ -96,6 +97,7 @@ const staging:Partial<Record<SetId,string>>={
  'city-bus':'Bus interior x=-1.25..1.25,z=-5.5..5.5; the front is +Z, with the driver’s seat at (-.72,4.75). Paired seats at the back (z=-1.3..-3.7) and a rear bench at z=-4.8; open standing area z=-.6..3 by the middle door, with grab poles. Use the aisle x=-0.3..0.3 and the standing area for walking. The bus does not move.',
  'private-jet':'Jet cabin x=-1.3..1.3,z=-5..5; the front is +Z. Club seats in facing pairs at x=±.78 (z=-1.55 facing forward, z=.15 facing back) around tables at z=-.7; a divan on the right at z=-3.3 and a single seat on the left at z=-3.6. Open entry area z=1..4.5 with the door on the left. Cabin height is 2 m: keep jumps and lifts out. The jet does not move; clouds are painted.',
  'airliner-cabin':'Cabin x=-1.8..1.8,z=-8..8; the front is +Z. Nine rows of three-and-three seats from z=-7.1 to -.4 (seats at x=±.5,±.98,±1.46), aisle x=-0.25..0.25. Open galley area z=0..7 with exit doors on both sides at z=2.6: stage standing scenes there and use sitting actions for passengers. The plane does not move; the sky is painted.',
+ 'gym':'Gym floor x=-6..6,z=-5.5..5.5. The open training floor x=-2.2..2.2,z=-1.3..3.3 (exercise mats at x=-1.2,0,1.2, z=-.8..1) is for Fitness clips; floor exercises (push_up, plank, sit_up) go on a mat. Mirror wall and dumbbell rack at z=-5; squat rack at (-4.4,-3.4) with a bench in front at (-4.4,-.6), and open floor at (-3.4,1.6) for a deadlift; treadmills along x=4.9 at z=-3.4,-1,1.4 (scenery: run on one with a looping run and movement off); a second bench at (3.2,3.6). Equip Dumbbells, Kettlebell or Barbell under Carry for the lifts.',
  'church':'Altar at z=-5.0; pews flank the central aisle. Stage cast in aisle x=-1.7..1.7,z=-1..4 or use registered pew seats, facing the altar. Stained glass is original decorative art.'
 };
 const aliases:Partial<Record<SetId,string>>={
@@ -103,7 +105,7 @@ const aliases:Partial<Record<SetId,string>>={
  'highway':'motorway freeway road', 'military-base':'army barracks checkpoint', 'prison-cell':'jail jailhouse', 'prison-yard':'jail exercise',
  'public-restroom':'public toilet washroom wc', 'private-bathroom':'ensuite washroom shower bath', 'neon-street':'neon avenue cyberpunk',
  'back-alley':'backstreet service delivery', 'football-stadium':'soccer pitch field', 'fine-dining':'fine dining luxury restaurant',
- 'night-club':'nightclub disco dancefloor', 'elevator':'lift', 'church':'chapel sanctuary worship',
+ 'night-club':'nightclub disco dancefloor', 'gym':'fitness centre center health club workout weights training exercise', 'elevator':'lift', 'church':'chapel sanctuary worship',
  'train-carriage':'inside train railway rail coach commuter interior vehicle', 'city-bus':'inside bus coach public transport interior vehicle',
  'private-jet':'inside jet plane airplane aeroplane aircraft luxury business interior vehicle flight', 'airliner-cabin':'inside plane airplane aeroplane aircraft airline flight passenger economy interior vehicle'
 };

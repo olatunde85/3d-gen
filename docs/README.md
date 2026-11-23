@@ -21,7 +21,7 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 
 **Making films**
 
-- [Ara Studio](studio.md): direct films of up to five scenes, with up to five characters in 70 sets, with dialogue, sound effects, music and Assist, and export an MP4
+- [Ara Studio](studio.md): direct films of up to five scenes, with up to five characters in 71 sets, with dialogue, sound effects, music and Assist, and export an MP4
 
 **Playing games**
 

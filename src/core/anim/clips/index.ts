@@ -17,6 +17,7 @@ import { RIFLE_COMBAT } from './cover';
 import { VEHICLES, BOARDING, VEHICLE_TUMBLES, VEHICLE_CRASHES } from './vehicles';
 import { DODGES } from './dodge';
 import { SPORTS } from './sports';
+import { FITNESS } from './fitness';
 import { RUNNER_MOVES } from './runner';
 import { SWIMMING } from './swimming';
 import { EVERYDAY } from './everyday';
@@ -112,6 +113,7 @@ export const CLIPS: Clip[] = withFaces(
     ...VEHICLE_CRASHES,
     ...AERIAL,
     ...SPORTS,
+    ...FITNESS,
   ],
 );
 

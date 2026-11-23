@@ -8,7 +8,7 @@ import {carryStyle} from './props/carry';
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
 import { blendInfluences, compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
 import { archFeet, buildGarments, dressing, genTexture, outfitsUsed } from './garments';
-import { buildCarry, headLoad, PARCEL_REST, PROP_REST, WORN_BAGS } from './props/carry';
+import { buildCarry, GYM_WEIGHTS, gymJoints, headLoad, PARCEL_REST, PLACED_PROPS, PROP_REST, WORN_BAGS } from './props/carry';
 import type { Vec3 } from './math';
 import { applyTPose, baseSkin, placeBones, quatOf, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
 import { socketBone, type HandJoints } from './rig/socket';
@@ -581,11 +581,11 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
       }
     }
     // A bag carried in the hand: that hand's fingers close round its handle.
-    rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && p.carry!=='parcel' && p.carry!=='broom' && p.carry!=='phone' && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
+    rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && !PLACED_PROPS.includes(p.carry) && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
 
     // Carried bag: hangs straight down from the left hand with the arms relaxed at the sides (the
     // animation rest pose), and is bound rigidly to the hand bone.
-    if (p.carry !== 'none'&&p.carry!=='parcel'&&p.carry!=='broom'&&p.carry!=='phone'&&!WORN_BAGS.includes(p.carry)) {
+    if (p.carry !== 'none'&&!PLACED_PROPS.includes(p.carry)&&!WORN_BAGS.includes(p.carry)) {
       const a = new Animator(rig);
       const hand = a.relaxedBone('LeftHand'), mid = a.relaxedBone('LeftHandMiddle1');
       const hi = bones.findIndex((b) => b.name === (p.rig === 'full' ? 'wrist.L' : 'LeftHand'));
@@ -644,6 +644,18 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
     if(p.carry==='broom'||p.carry==='phone'){
       const hips=bones.findIndex(b=>b.parent<0),head:Vec3=[...bones[hips].head],index=bones.length;bones.push({name:p.carry==='broom'?'Broom':'Phone',parent:-1,head,tail:[head[0],head[1]+.1*sizeK,head[2]],rot:[1,0,0,0,1,0,0,0,1]});
       for(const cp of buildCarry(p.carry,(key,make)=>genTexture(lib,key,make),p.garmentStyles)){const positions=cp.mesh.positions.map((v,i)=>v*sizeK*PROP_REST+head[i%3]),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...cp.mesh,positions,skin:{j,w}},cp.material]);}
+    }
+
+    // Gym weights: the same packed root joints (a dumbbell for each hand), placed in the Fitness clips that lift them.
+    if(GYM_WEIGHTS.includes(p.carry)){
+      const hips=bones.findIndex(b=>b.parent<0),head:Vec3=[...bones[hips].head];
+      // Gym weights (all) colours every weight with its own style.
+      const own=p.garmentStyles.gym_weights,styles=p.carry==='gym_weights'?{...p.garmentStyles,...(own?{dumbbells:own,kettlebell:own,barbell:own}:{})}:p.garmentStyles;
+      for(const [kind,names] of gymJoints(p.carry))for(const name of names){
+        const parts=buildCarry(kind,(key,make)=>genTexture(lib,key,make),styles);
+        const index=bones.length;bones.push({name,parent:-1,head,tail:[head[0],head[1]+.1*sizeK,head[2]],rot:[1,0,0,0,1,0,0,0,1]});
+        for(const cp of parts){const positions=cp.mesh.positions.map((v,i)=>v*sizeK*PROP_REST+head[i%3]),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...cp.mesh,positions,skin:{j,w}},cp.material]);}
+      }
     }
 
     if(p.carry==='parcel'){

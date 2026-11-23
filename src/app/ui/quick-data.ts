@@ -9,6 +9,7 @@ import { EARRINGS, EARRING_LABELS, FACIAL_HAIR, FACIAL_HAIR_LABELS, TATTOOS, TAT
 import { EXPRESSIONS, EXPRESSION_LABELS, type ExpressionId } from '../../core/face';
 import { ageToYears, DEFAULT_PARAMS, PRESETS, type HumanParams } from '../../core/params';
 import { CARRIED, CARRY_LABELS, type CarryId } from '../../core/props/carry';
+import { GYM_CLIPS } from '../../core/anim/clips/fitness';
 import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons';
 import {VEHICLE_IDS,VEHICLE_LABELS,VEHICLE_CLIP,RIDING_VEHICLES,VEHICLE_BODIES,VEHICLE_BODY_LABELS,BODY_BASE,vehicleFor,vehicleStyleForBody,type VehicleBody,type VehicleId} from '../../core/props/vehicles';
 import {VEHICLE_TRANSITIONS,ridingClip} from '../../core/props/vehicle-actions';
@@ -418,7 +419,7 @@ export function actions(p: HumanParams, clip = 'idle'): Option[] {
     sword: ['sword_idle', 'sword_slash', 'sword_block', 'sword_combo'], knife: [], grenade:['throw_grenade'],
   };
   const vehicle = vehicleOf(p, clip);
-  return [...base,...(p.carry==='parachute'?['skydive','parachute_deploy','parachute_glide','parachute_land']:[]),...(p.carry==='head_load'?['head_load_idle','head_load_walk']:[]),...(p.carry==='phone'?['phone_call','texting']:[]),...(p.carry==='broom'?['sweep']:[]), ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));
+  return [...base,...(p.carry==='parachute'?['skydive','parachute_deploy','parachute_glide','parachute_land']:[]),...(p.carry==='head_load'?['head_load_idle','head_load_walk']:[]),...(p.carry==='phone'?['phone_call','texting']:[]),...(p.carry==='broom'?['sweep']:[]),...(GYM_CLIPS[p.carry]??[]), ...(held[p.weapon] ?? []), ...(vehicle ? vehicleActions(vehicle, clip) : [])].map((id) => ({ id, label: '' }));
 }
 
 // --- Summary --------------------------------------------------------------------------------

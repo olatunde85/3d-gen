@@ -262,7 +262,7 @@ export const YORUBA: GarmentDef[] = [
     },
   },
   {
-    id: 'peplum_top', label: 'Peplum top (lace sleeves)', slot: 'top', patterns: ['ankara_web', 'ankara_floral', 'ankara', 'lace', 'solid'], color: '#d2711c', color2: '#150c08',
+    id: 'peplum_top', label: 'Peplum top (lace sleeves)', slot: 'top', patterns: ['solid', 'ankara_web', 'ankara_floral', 'ankara', 'lace'], color: '#1f2229', color2: '#1f2229',
     build: (g, st) => {
       const b = g.body;
       const m = cloth(g, 'Peplum top', st);
@@ -301,11 +301,11 @@ export const YORUBA: GarmentDef[] = [
     },
   },
   {
-    id: 'pencil_skirt_maxi', label: 'Pencil skirt (ankle)', slot: 'bottom', patterns: ['lace', 'ankara_floral', 'ankara_web', 'ankara', 'solid'], color: '#c98aa0', color2: '#ffffff',
+    id: 'pencil_skirt_maxi', label: 'Pencil skirt (ankle)', slot: 'bottom', patterns: ['solid', 'lace', 'ankara_floral', 'ankara_web', 'ankara'], color: '#1f2229', color2: '#1f2229',
     build: (g, st) => pencilSkirt(g, st, (b) => ankle(b) - cm(2), 'Pencil skirt'),
   },
   {
-    id: 'pencil_skirt_midi', label: 'Pencil skirt (below the knee)', slot: 'bottom', patterns: ['ankara_web', 'ankara_floral', 'ankara', 'lace', 'solid'], color: '#d2711c', color2: '#150c08',
+    id: 'pencil_skirt_midi', label: 'Pencil skirt (below the knee)', slot: 'bottom', patterns: ['solid', 'ankara_web', 'ankara_floral', 'ankara', 'lace'], color: '#1f2229', color2: '#1f2229',
     build: (g, st) => pencilSkirt(g, st, (b) => knee(b) - cm(10), 'Pencil skirt'),
   },
   {

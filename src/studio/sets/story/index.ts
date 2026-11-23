@@ -5,9 +5,10 @@ import {church,elevator,hospital,interrogation,military,police,prisonCell,prison
 import {bathroom,fineDining,nightclub,publicRestroom} from './interiors';
 import {alley,highway,neonStreet,stadium} from './exteriors';
 import {airlinerCabin,cityBus,privateJet,trainCarriage} from './cabins';
+import {gym} from './gym';
 export const STORY_SETS:Partial<Record<SetId,(builder:SetBuilder)=>void>>={
  'hospital-room':hospital,'police-station':police,'interrogation-room':interrogation,'highway':highway,'military-base':military,
  'prison-cell':prisonCell,'prison-yard':prisonYard,'public-restroom':publicRestroom,'private-bathroom':bathroom,
  'neon-street':neonStreet,'back-alley':alley,'football-stadium':stadium,'fine-dining':fineDining,'night-club':nightclub,'elevator':elevator,'church':church,
- 'train-carriage':trainCarriage,'city-bus':cityBus,'private-jet':privateJet,'airliner-cabin':airlinerCabin,
+ 'train-carriage':trainCarriage,'city-bus':cityBus,'private-jet':privateJet,'airliner-cabin':airlinerCabin,'gym':gym,
 };

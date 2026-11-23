@@ -13,7 +13,7 @@ import { assistSchema } from '../../../src/studio/assist';
 import { playSchema } from '../../../src/play/schema';
 import { loadLibrary } from './data';
 import { mcpCommand } from './mcp';
-import { needsPhone } from './library/generate';
+import { carryForClips } from './library/generate';
 import { finish, megabytes, note, result, seconds, status } from './status';
 import { explain, isFatal, removeLeftovers, UserError, writeSafely } from './safety';
 import { WEAPONS } from '../../../src/core/props/weapons';
@@ -49,7 +49,7 @@ Export options
   --root-motion          Walks, runs and strafes move forward instead of playing in place
   --separate-clips       The model plus one file per clip, in a zip (Unity's model@clip style)
   --weapon <id>          A weapon in the hand: rifle, pistol, sword, knife or grenade
-  --carry <id>           Something to carry, such as backpack, briefcase or phone
+  --carry <id>           Something to carry, such as backpack, briefcase, phone or dumbbells
   --vehicle <id>         A vehicle fitted to the rider, such as motorcycle or horse; auto
                          fits the vehicle that the chosen riding clips need
   --separate-props       The weapon as its own file too (vehicles always are)
@@ -146,7 +146,7 @@ async function exportCommand(args: string[]) {
   // Prop flags override only what they name, so a character file keeps its other props.
   if (values.weapon) overrides.weapon = values.weapon as HumanParams['weapon'];
   if (values.carry) overrides.carry = values.carry as HumanParams['carry'];
-  else if (values.animations && needsPhone(clips)) overrides.carry = 'phone';
+  else if (values.animations && carryForClips(clips)) overrides.carry = carryForClips(clips);
   if (values.vehicle) overrides.vehicle = values.vehicle as HumanParams['vehicle'];
   const jobs: HumanParams[] = [];
   const presets = values['all-presets'] ? Object.keys(PRESETS) : values.preset ?? [];

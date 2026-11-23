@@ -92,6 +92,24 @@ export function rooftopScene() {
     []);
 }
 
+/**
+ * A gym class: the Gym Instructor claps the class in, then curls with the dumbbells and claps again while the class
+ * does push-ups and squats on the mats, a kettlebell swing and a deadlift. Each lifter carries their weight.
+ */
+export function gymScene() {
+  const actors = [
+    { id: 'coach', character: cast('The Gym Instructor'), detail: 'high', x: 0, y: 0, z: -2.3, yaw: 0, beats: [B('coach_clap', 2.4), B('dumbbell_curl', 2.4), B('coach_clap', 2.4)] },
+    { id: 'push-ups', character: cast('The Powerlifter'), detail: 'high', x: -1.2, y: 0, z: 0.55, yaw: 180, beats: [B('push_up', 7.2)] },
+    { id: 'squats', character: cast('Athletic woman'), detail: 'high', x: 0.05, y: 0, z: 0.5, yaw: 180, beats: [B('squat', 7.2)] },
+    { id: 'swing', character: cast('The MMA Fighter', { carry: 'kettlebell' }), detail: 'high', x: 1.35, y: 0, z: 0.9, yaw: 180, beats: [B('kettlebell_swing', 7.2)] },
+    { id: 'deadlift', character: cast('The Basketball Player', { carry: 'barbell' }), detail: 'high', x: -3.4, y: 0, z: 1.6, yaw: 90, beats: [B('deadlift', 7.2)] },
+  ];
+  return film('Gym class', 'gym', actors,
+    [shot(2.4, 'wide', 'all', view(-30, 14, 1)), shot(2.4, 'medium', 'coach', view(20, 4, 1.1)), shot(2.4, 'wide', 'all', view(40, 12, 1))],
+    [caption('Workouts, gym weights and a coach', 7)],
+    []);
+}
+
 /** The finale: an evening on the beach under the title, two friends talking, one texting, one looking around, one dancing; the reel zooms out from it into the editor. */
 export function finaleScene() {
   const person = (id: string, name: string, x: number, z: number, yaw: number, clip: string, change: Partial<HumanParams> = {}) =>
@@ -151,5 +169,6 @@ export const REEL: { name: string; label: string; film: () => StudioProject; fro
   { name: 'Street café', label: 'Street café', film: cafeScene, from: 0.3, to: 5 },
   { name: 'Fight', label: 'Alley fight', film: fightScene, from: 0.3, to: 4.4 },
   { name: 'Rooftop chase', label: 'Rooftop chase', film: rooftopScene, from: 0.4, to: 5.2 },
+  { name: 'Gym', label: 'Gym class with an instructor', film: gymScene, from: 0.2, to: 7.2 },
   { name: 'Finale', label: 'Sunset beach', film: finaleScene, from: 2.2, to: 8.5 },
 ];
