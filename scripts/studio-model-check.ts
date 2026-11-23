@@ -23,7 +23,7 @@ import { seatCast, seatedAt, hipsAt, type Sitter } from '../src/studio/seating';
 import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES} from '../src/core/props/vehicles';
 const catalog=JSON.parse(readFileSync(new URL('../public/assets/catalog.json',import.meta.url),'utf8'))as Catalog;
 const parseStudioInput=(text:string)=>parseInput(text,catalog);
-assert.equal(SETS.length,70);assert.equal(new Set(SETS.map(s=>s.id)).size,SETS.length);assert.equal(SCENE_CATEGORIES.length,7);
+assert.equal(SETS.length,71);assert.equal(new Set(SETS.map(s=>s.id)).size,SETS.length);assert.equal(SCENE_CATEGORIES.length,7);
 for(const set of SETS){const p=newProject(set.id);const copy=parseProject(JSON.stringify(p));assert.equal(copy.template,set.id);assert.equal(copy.actors[0].character,p.actors[0].character);assert.equal(durationOf(p),durationOf(copy));}
 assert.deepEqual(searchScenes('resort pool').map(s=>s.id),['resort-pool']);assert.ok(searchScenes('bedroom','Homes').length===2);assert.equal(searchScenes('pool','Workplaces').length,0);
 assert.ok(searchScenes('cafe').some(s=>s.id==='street-cafe'));assert.ok(searchAnimations('pickup').some(c=>c.id==='pick_up'));

@@ -8,7 +8,7 @@ const BY_GROUP: Record<Group, string[]> = {
   'Work and travel': ['The Chef', 'The Photographer', 'The DJ', 'The Airline Pilot', 'The Flight Attendant', 'The Dispatch Rider', 'The Road Worker', 'The Lifeguard', 'The Priest'],
   'Action and adventure': ['The Adventurer', 'The Explorer', 'The Covert Spy', 'The Secret Agent', 'Detective', 'The Cyberpunk Hacker', 'The Wasteland Survivor', 'The Street Racer'],
   Crime: ['The Mob Boss', 'The Gangster', 'The Professional Hitman', 'The Masked Robber', 'The Getaway Driver', 'The Miami Dealer', 'The Prison Escapee'],
-  Sport: ['The Basketball Player', 'The Footballer', 'The MMA Fighter', 'The Gamer'],
+  Sport: ['The Basketball Player', 'The Footballer', 'The Gym Instructor', 'The MMA Fighter', 'The Powerlifter', 'The Gamer'],
   'Kids and teens': ['The Schoolboy', 'The Schoolgirl', 'The Cool Kid'],
   'Everyday and style': ['The Beach Dude', 'The Resort Guest', 'The Bride', 'The Corporate High-Flier', 'The Female Executive', 'The Arabian Oil Tycoon', 'The Beach Girl', 'Businesswoman', 'The Clown'],
   'Warriors and heritage': ['The African Warrior', 'The Yoruba Warrior', 'The Maasai Warrior', 'The Zulu Warrior', 'The Dahomey Warrior'],

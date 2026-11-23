@@ -51,6 +51,7 @@
     "test:characters": "tsx scripts/characters-check.ts",
     "test:presets": "node --import tsx scripts/preset-expansion-check.ts",
     "test:parcel": "tsx scripts/parcel-check.ts",
+    "test:fitness": "tsx scripts/fitness-check.ts",
     "test:gltf": "tsx scripts/gltf-check.ts",
     "build-mocap": "tsx scripts/build-mocap.ts",
     "build:gown-thumbnails": "tsx scripts/ui-check.ts --gowns",

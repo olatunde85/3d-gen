@@ -27,7 +27,7 @@ Use one of these:
 
 | Attribute | Example | |
 |---|---|---|
-| `animation` | `animation="texting"` | The clip that plays (default `idle`), or several in a row, such as `walk 3s, look_around, talk_gestures` (see below). The [playground](https://ara3dgen.com/developers/#playground) lists all 248 with their IDs |
+| `animation` | `animation="texting"` | The clip that plays (default `idle`), or several in a row, such as `walk 3s, look_around, talk_gestures` (see below). The [playground](https://ara3dgen.com/developers/#playground) lists all 262 with their IDs |
 | `expression` | `expression="laughing"` | neutral, happy, laughing, angry, sad, crying, surprised, afraid or determined |
 | `weapon` | `weapon="rifle"` | rifle, pistol, sword, knife or grenade |
 | `carry` | `carry="briefcase"` | Something to carry; `none` takes away a preset's own bag. A `texting` or `phone_call` animation brings the phone, in place of a preset's bag, unless you set `carry` |

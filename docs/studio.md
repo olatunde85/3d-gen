@@ -21,9 +21,11 @@ To start afresh, click **New** in the top bar. Choose **Save & start new** to do
 
 ## Find a location
 
-Search **70 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City**, **Outdoors** and **Travel**. They include executive and open-plan offices, a boardroom, a classroom, a newsroom, bedrooms, a living room, a kitchen, beaches, pools, a hotel lobby, a café, a forest trail and a harbour.
+Search **71 sets**, or filter by **Studios**, **Workplaces**, **Homes**, **Leisure**, **City**, **Outdoors** and **Travel**. They include executive and open-plan offices, a boardroom, a classroom, a newsroom, bedrooms, a living room, a kitchen, beaches, pools, a hotel lobby, a café, a forest trail and a harbour.
 
-There are also hospital and police rooms, a military base, a prison cell and yard, public and private bathrooms, a highway, a neon-lit street, a neon alley, a daylight alley, a football stadium, fine dining, a nightclub, an elevator and a church.
+There are also hospital and police rooms, a military base, a prison cell and yard, public and private bathrooms, a highway, a neon-lit street, a neon alley, a daylight alley, a football stadium, a gym, fine dining, a nightclub, an elevator and a church.
+
+The **Gym** has an open training floor with exercise mats in the middle for the Fitness animations, a mirror wall with a dumbbell rack, a squat rack, treadmills, two weight benches with real seats and a row of kettlebells. The lifts need a gym weight under **Carry**: Dumbbells, Kettlebell, Barbell, or Gym weights (all), which the Gym Instructor carries.
 
 **Travel** has four vehicle interiors: a train carriage, a city bus, a private jet and an airliner cabin. The camera looks from the front of the vehicle towards the back, so seated passengers face it, and every seat is a real seat. Each has an open area for standing scenes: the train's vestibule, the bus's standing area by the middle door, and the jet's and airliner's entry areas by the door. The views through the windows are painted, and the vehicles stand still.
 
@@ -31,7 +33,7 @@ Each location has its own layout, with clear acting space, and its chairs, pews 
 
 Use **Check staging & location map** in the left panel for a top-down map and a review of the open scene. It checks land/water and conservative obstacle envelopes using the loaded characters’ scales and fitted vehicle bounds. Findings link to their time in the film. Save a location map and a staging report containing every action’s world start/end position and facing. Checks are advisory; they do not change the film or add collision response.
 
-In **Assist**, choose **Location for this film** before copying the guide. Locations are grouped into seven categories, with all 70 real set thumbnails in a horizontal scrolling strip. Filter by category or search, swipe/scroll or use the arrow buttons, then click a thumbnail for a larger preview. **Use this location** selects it; closing the preview keeps your previous choice. The selected location is shown above the strip. Use Left/Right to browse focused thumbnail cards and Enter to expand. Every guide enumerates the sets’ terrain, paths and seats and includes the selected set’s full map. **Save map .json** exports that contract; **All location maps** exports all 70. Reference lanes, starts and harbour boarding anchors are checked at reference scale; custom sizes and tight dock contacts require **Check staging** after building. See [Location staging maps](studio-location-maps.md) for coordinates, centring and boarding rules.
+In **Assist**, choose **Location for this film** before copying the guide. Locations are grouped into seven categories, with all 71 real set thumbnails in a horizontal scrolling strip. Filter by category or search, swipe/scroll or use the arrow buttons, then click a thumbnail for a larger preview. **Use this location** selects it; closing the preview keeps your previous choice. The selected location is shown above the strip. Use Left/Right to browse focused thumbnail cards and Enter to expand. Every guide enumerates the sets’ terrain, paths and seats and includes the selected set’s full map. **Save map .json** exports that contract; **All location maps** exports all 70. Reference lanes, starts and harbour boarding anchors are checked at reference scale; custom sizes and tight dock contacts require **Check staging** after building. See [Location staging maps](studio-location-maps.md) for coordinates, centring and boarding rules.
 
 Changing the set of a scene keeps its cast, performances, camera shots and the film's title. Every set is original, built in the browser, with no downloads.
 
@@ -66,7 +68,7 @@ A character who appears in several scenes is built once, so moving between scene
 
 The timeline has a **camera lane** and a **performance lane for each character**, all on the same clock. The **Select a shot or action** menu reaches very short items in longer films.
 
-- **Actions:** choose from **248 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
+- **Actions:** choose from **259 animations**, searchable by name and category. Set a duration, or use the clip's own length. One-off actions hold their last pose; looping actions repeat.
 - **Move through the set:** walking, running and strafing clips can travel. **Check staging** finds land/water and conservative static-obstacle conflicts, but playback does not stop at walls, furniture or other characters. Give them a clear path.
 - **Sitting:** seated clips use the set's own furniture. Studio moves the character onto the nearest free chair, sofa, armchair, bench, stool or log, facing the way it faces, at the right height. Drag a seated character towards another seat to switch. Sets with nowhere to sit, such as studios, beaches and streets, say so.
 - **Vehicles:** choosing a riding or driving action brings its vehicle. See [Vehicles](#vehicles).

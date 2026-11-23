@@ -15,9 +15,21 @@ import type { Material } from '../mesh';
  * Bags: carried in the hand (built here), or worn (the backpack, a garment with slot 'bag', built
  * with the clothes).
  */
-export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel', 'parachute', 'head_load', 'phone', 'broom'] as const;
+export const CARRIED = ['none', 'straw_tote', 'handbag', 'briefcase', 'backpack', 'parcel', 'parachute', 'head_load', 'phone', 'broom', 'dumbbells', 'kettlebell', 'barbell', 'gym_weights'] as const;
 export type CarryId = (typeof CARRIED)[number];
-export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel',parachute:'Parachute / skydiving rig',head_load:'Head load (basin)',phone:'Mobile phone',broom:'Broom' };
+export const CARRY_LABELS: Record<CarryId, string> = { none: 'None', straw_tote: 'Straw tote', handbag: 'Structured handbag', briefcase: 'Leather briefcase', backpack: 'Canvas backpack', parcel:'Box / parcel',parachute:'Parachute / skydiving rig',head_load:'Head load (basin)',phone:'Mobile phone',broom:'Broom',dumbbells:'Dumbbells (pair)',kettlebell:'Kettlebell',barbell:'Barbell',gym_weights:'Gym weights (all)' };
+/**
+ * Gym weights: on their own joints, shown only in the Fitness clips that lift them (Clip.weights). Gym weights (all)
+ * carries the dumbbells, the kettlebell and the barbell together, for one character who does every lift.
+ */
+export const GYM_WEIGHTS: readonly CarryId[] = ['dumbbells', 'kettlebell', 'barbell', 'gym_weights'];
+/** The weights a gym carry brings, each with its joint names. */
+export function gymJoints(carry: CarryId): [Exclude<CarryId, 'gym_weights'>, string[]][] {
+  const all: [Exclude<CarryId, 'gym_weights'>, string[]][] = [['dumbbells', ['DumbbellL', 'DumbbellR']], ['kettlebell', ['Kettlebell']], ['barbell', ['Barbell']]];
+  return carry === 'gym_weights' ? all : all.filter(([kind]) => kind === carry);
+}
+/** Props on their own joints that the animator places in the clips that use them: the fingers are posed by the clip, not closed round a bag handle. */
+export const PLACED_PROPS: readonly CarryId[] = ['parcel', 'broom', 'phone', ...GYM_WEIGHTS];
 /** Bags worn on the body rather than carried in the hand. */
 export const WORN_BAGS: readonly CarryId[] = ['backpack','parachute','head_load'];
 
@@ -40,6 +52,10 @@ export const CARRY_STYLES: Record<Exclude<CarryId, 'none' | 'backpack'>, { patte
   head_load: {patterns:['solid'],color:'#ece7dc',color2:'#c8381f',colorLabels:['Enamel basin','Produce']},
   phone: {patterns:['solid'],color:'#1c1e23',color2:'#3a6fa8',colorLabels:['Phone body','Screen']},
   broom: {patterns:['solid'],color:'#b0864f',color2:'#d6b35e',colorLabels:['Handle','Bristles']},
+  dumbbells: {patterns:['solid'],color:'#26282c',color2:'#b9bec4',colorLabels:['Heads','Handle']},
+  kettlebell: {patterns:['solid'],color:'#2b2d31',color2:'#d9a12c',colorLabels:['Bell','Band']},
+  barbell: {patterns:['solid'],color:'#1f2023',color2:'#c3c8ce',colorLabels:['Plates','Bar']},
+  gym_weights: {patterns:['solid'],color:'#26282c',color2:'#b9bec4',colorLabels:['Iron and rubber','Steel']},
 };
 
 /** A carried bag's style from the params' saved styles (falling back to its defaults). */
@@ -130,6 +146,53 @@ function broom(st:BagStyle):CarryPart[]{
  const block=roundedBox(frameOf([0,.17,0],[0,0,1],[0,1,0]),[.16,.03,.035],1);
  const bristles:PolyMesh[]=[];for(let i=0;i<14;i++)bristles.push(roundedBox(frameOf([-.15+i*.023,.075,0],[0,0,1],[0,1,0]),[.011,.075,.03],0));
  return [{mesh:merge([handle,cap])!,material:mat('Broom handle',st.color,.6)},{mesh:block,material:mat('Broom block','#5b4128',.7)},{mesh:merge(bristles)!,material:mat('Broom bristles',st.color2,.95)}];
+}
+
+// --- Gym weights ------------------------------------------------------------------------------------------------------
+// Metres at 1.8 m height. Each is modelled about its grip with the bar along +X, so the animator only has to lay that
+// axis through the fist(s); the kettlebell's bell also hangs along -Y.
+
+/** A solid cylinder from `a` to `b` (capped), with `sides` facets (6 for a hex head). */
+function rod(a: Vec3, b: Vec3, r: number, sides = 16, bevel = 0): PolyMesh {
+  const t = v3.norm(v3.sub(b, a)), u = v3.norm(v3.cross(t, Math.abs(t[1]) < .9 ? [0, 1, 0] : [1, 0, 0])), w = v3.cross(t, u);
+  const ring = (c: Vec3, radius: number): Vec3[] => Array.from({ length: sides }, (_, j) => { const th = (j + .5) / sides * Math.PI * 2;return v3.add(c, v3.add(v3.scale(u, Math.cos(th) * radius), v3.scale(w, Math.sin(th) * radius))); });
+  const along = (k: number) => v3.add(a, v3.scale(t, k));
+  const L = v3.len(v3.sub(b, a)), e = Math.min(bevel, L / 3);
+  const rings = [ring(a, r * .02), ...(e ? [ring(a, r - e), ring(along(e), r), ring(along(L - e), r), ring(b, r - e)] : [ring(a, r), ring(b, r)]), ring(b, r * .02)];
+  return orientOutward(loftRings(rings, { closedAround: true, uRepeats: 1, tileV: .05 }), v3.lerp(a, b, .5));
+}
+const gymMat = (name: string, color: string, roughness: number, metalness = 0): Material => ({ name, color, roughness, metalness, alpha: 'opaque', doubleSided: false });
+/** Half-length of a dumbbell (to the outside of a head). */
+export const DUMBBELL_HALF = .155;
+/** One hex dumbbell: a knurled steel handle and two rubber hex heads. */
+function dumbbell(st: BagStyle): CarryPart[] {
+  const heads = merge([rod([-.155, 0, 0], [-.07, 0, 0], .058, 6, .006), rod([.07, 0, 0], [.155, 0, 0], .058, 6, .006)])!;
+  return [{ mesh: heads, material: gymMat('Dumbbell rubber', st.color, .8) }, { mesh: rod([-.072, 0, 0], [.072, 0, 0], .016, 12), material: gymMat('Dumbbell steel', st.color2, .35, .9) }];
+}
+/** The kettlebell's bell: its centre below the grip, and its radius. */
+export const KETTLEBELL_BELL: [number, number] = [-.2, .105];
+/** A cast-iron kettlebell: the handle's bar at the grip, its sides curving down into a round bell with a flat base. */
+function kettlebell(st: BagStyle): CarryPart[] {
+  const [cy, r] = KETTLEBELL_BELL;
+  const arc: Vec3[] = [];for (let i = 0; i <= 16; i++) { const a = Math.PI * i / 16;arc.push([-Math.cos(a) * .075, (cy + .07) * (1 - Math.sin(a)), 0]); }
+  const handle = cord([[-.085, cy + .055, 0], ...arc, [.085, cy + .055, 0]], .017, false, 10);
+  // A sphere squashed flat underneath so it stands on the floor.
+  const bell = ellipsoid(frameOf([0, cy, 0], [0, 0, 1], [0, 1, 0]), [r, r, r], [0, 0], 24, 14), P = bell.positions;
+  for (let i = 1; i < P.length; i += 3) P[i] = Math.max(P[i], cy - r * .86);
+  const band = rod([0, cy - .005, 0], [0, cy + .012, 0], r * 1.012, 24);
+  return [{ mesh: merge([bell, handle])!, material: gymMat('Kettlebell iron', st.color, .55, .3) }, { mesh: band, material: gymMat('Kettlebell weight band', st.color2, .5, .2) }];
+}
+/** The barbell's plates: their radius (the bar's height when it rests on the floor) and where they sit along the bar. */
+export const BARBELL_PLATE: [number, number] = [.2, .5];
+/** A 1.8 m training barbell with a bumper plate and a collar on each end. */
+function barbell(st: BagStyle): CarryPart[] {
+  const [r, at] = BARBELL_PLATE, plates: PolyMesh[] = [], collars: PolyMesh[] = [];
+  for (const s of [-1, 1]) {
+    plates.push(rod([s * at, 0, 0], [s * (at + .05), 0, 0], r, 28, .008), rod([s * (at + .05), 0, 0], [s * (at + .075), 0, 0], r * .78, 24, .006));
+    collars.push(rod([s * (at - .03), 0, 0], [s * at, 0, 0], .03, 12), rod([s * (at + .075), 0, 0], [s * .9, 0, 0], .025, 12));
+  }
+  return [{ mesh: merge(plates)!, material: gymMat('Barbell plates', st.color, .75) },
+    { mesh: merge([rod([-(at - .03), 0, 0], [at - .03, 0, 0], .014, 12), ...collars])!, material: gymMat('Barbell steel', st.color2, .3, .95) }];
 }
 
 /** Registers a generated texture and returns its file name (see GCtx.texture). */
@@ -308,6 +371,12 @@ export function buildCarry(id: CarryId, texture: TextureFn, styles: Parameters<t
       return phone(carryStyle(id,styles));
     case 'broom':
       return broom(carryStyle(id,styles));
+    case 'dumbbells':
+      return dumbbell(carryStyle(id,styles));
+    case 'kettlebell':
+      return kettlebell(carryStyle(id,styles));
+    case 'barbell':
+      return barbell(carryStyle(id,styles));
     default:
       return [];
   }

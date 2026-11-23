@@ -157,6 +157,8 @@ export class Animator {
   private socket: number;
   private parcel:number;
   private broom:number;
+  /** Gym weight joints: a dumbbell for each hand, the kettlebell and the barbell (-1 when not carried). */
+  private weights:{DumbbellL:number;DumbbellR:number;Kettlebell:number;Barbell:number};
   private bag:number;
   private floorShift: Vec3 = [0, 0, 0];
   private phone:number;
@@ -277,6 +279,8 @@ export class Animator {
     this.socket = B.findIndex((b) => b.name === 'WeaponR');
     this.parcel=B.findIndex(b=>b.name==='Parcel');
     this.broom=B.findIndex(b=>b.name==='Broom');
+    const joint=(name:string)=>B.findIndex(b=>b.name===name);
+    this.weights={DumbbellL:joint('DumbbellL'),DumbbellR:joint('DumbbellR'),Kettlebell:joint('Kettlebell'),Barbell:joint('Barbell')};
     this.bag=B.findIndex(b=>b.name==='BagL');
     this.phone=B.findIndex(b=>b.name==='Phone');
     this.camera=B.findIndex(b=>b.name==='Camera');
@@ -352,6 +356,7 @@ export class Animator {
       : this.frameOf(s, clip, time, opts);
     this.placeParcel(frame,clip,time,opts.rootMotion,opts.parcelGrounded);
     this.placeBroom(frame,clip);
+    this.placeWeights(frame,clip);
     // A hand-carried bag is put away while the hands climb or swim.
     if(this.bag>=0&&(clip.category==='Climbing'||clip.category==='Swimming')){frame.scale??=new Map();frame.scale.set(this.bag,[0,0,0]);}
     this.placePhone(frame,carried);
@@ -451,15 +456,67 @@ export class Animator {
     frame.rootPos.set(index,at);frame.rot[index]=rot;
   }
 
+  /**
+   * The middle of a closed fist (where a handle passes through it), not the wrist joint. On rigs without finger joints,
+   * halfway along the hand bone.
+   */
+  private fistAt(frame:Frame,pos:Vec3[],side:'Left'|'Right'):Vec3|undefined{
+    const ids=['HandIndex1','HandPinky1','HandIndex2','HandMiddle2','HandRing2','HandMiddle3'].map(n=>this.idx.get(side+n));
+    if(ids.every(i=>i!==undefined))return ids.reduce((p,i)=>p.map((v,d)=>v+pos[i!][d]/ids.length)as Vec3,[0,0,0]as Vec3);
+    const h=this.idx.get(side+'Hand');if(h===undefined)return undefined;
+    const b=this.rig.bones[h],d=qrot(qmul(this.worldOf(frame)[h],qconj(this.restWorld[h])),sub3(b.tail,b.head));
+    return [pos[h][0]+d[0]/2,pos[h][1]+d[1]/2,pos[h][2]+d[2]/2];
+  }
+
+  /**
+   * Gym weights show only in the Fitness clips that lift them (clip.weights). A dumbbell's handle runs through each fist
+   * across the knuckles; the barbell's bar through both fists; the kettlebell's handle through both fists with the bell
+   * hanging on past the fingers.
+   */
+  private placeWeights(frame:Frame,clip:Clip){
+    const kind=clip.weights,W=this.weights;if(!kind)return;
+    const pos=this.positions(frame),show=(index:number)=>{frame.scale??=new Map();frame.scale.set(index,[1/PROP_REST,1/PROP_REST,1/PROP_REST]);};
+    // Rotation taking the prop's bar (+X) along d; the props are symmetric end to end, so d's sign is free.
+    const along=(d:Vec3):Q=>{if(d[0]<0)d=[-d[0],-d[1],-d[2]];const l=Math.hypot(-d[2],d[1],1+d[0])||1;return [0,-d[2]/l,d[1]/l,(1+d[0])/l];};
+    const L=this.fistAt(frame,pos,'Left'),R=this.fistAt(frame,pos,'Right');if(!L||!R)return;
+    if(kind==='dumbbells'){
+      for(const [side,at] of [['Left',L],['Right',R]] as const){
+        const index=side==='Left'?W.DumbbellL:W.DumbbellR;if(index<0)continue;
+        const a=this.idx.get(side+'HandIndex1'),b=this.idx.get(side+'HandPinky1'),h=this.idx.get(side+'Hand');
+        // Across the knuckles; on rigs without fingers, the bind pose's front-to-back axis (across the knuckles of a
+        // flat hand) turned with the hand.
+        const d=a!==undefined&&b!==undefined?norm(sub3(pos[b],pos[a])):h!==undefined?norm(qrot(qmul(this.worldOf(frame)[h],qconj(this.restWorld[h])),[0,0,1])):[1,0,0]as Vec3;
+        show(index);frame.rootPos.set(index,at);frame.rot[index]=along(d);
+      }
+      return;
+    }
+    const index=kind==='barbell'?W.Barbell:W.Kettlebell;if(index<0)return;
+    const mid=L.map((v,i)=>(v+R[i])/2)as Vec3;
+    // The barbell runs through both fists. The kettlebell's handle is short and the fists nearly touch on it, so it
+    // lies across the body (the chest's left-right axis) instead.
+    const chest=this.idx.get('Spine2')??this.idx.get('Spine1')??0;
+    const x=kind==='barbell'?norm(sub3(L,R)):norm(qrot(qmul(this.worldOf(frame)[chest],qconj(this.restWorld[chest])),[1,0,0]));
+    show(index);frame.rootPos.set(index,mid);
+    if(kind==='barbell'){frame.rot[index]=along(x);return;}
+    // The bell hangs on from the wrists through the fists.
+    const lw=this.idx.get('LeftHand'),rw=this.idx.get('RightHand');
+    const hang=lw!==undefined&&rw!==undefined?norm(sub3(mid,pos[lw].map((v,i)=>(v+pos[rw][i])/2)as Vec3)):[0,-1,0]as Vec3;
+    const k=hang[0]*x[0]+hang[1]*x[1]+hang[2]*x[2],y=norm([-(hang[0]-x[0]*k),-(hang[1]-x[1]*k),-(hang[2]-x[2]*k)]);
+    const z:Vec3=[x[1]*y[2]-x[2]*y[1],x[2]*y[0]-x[0]*y[2],x[0]*y[1]-x[1]*y[0]];
+    frame.rot[index]=quatOf([...x,...y,...z]as Parameters<typeof quatOf>[0]);
+  }
+
+  /** World rotations of every joint in a frame. */
+  private worldOf(frame:Frame):Q[]{const world:Q[]=[];this.rig.bones.forEach((b,i)=>world[i]=b.parent<0?frame.rot[i]:qmul(world[b.parent],frame.rot[i]));return world;}
+
   /** The broom only shows while sweeping: its handle runs through both hands and the bristles rest on the floor. */
   private placeBroom(frame:Frame,clip:Clip){
     const index=this.broom;if(index<0)return;
     if(clip.id!=='sweep')return;
     frame.scale??=new Map();frame.scale.set(index,[1/PROP_REST,1/PROP_REST,1/PROP_REST]);
     // Through the actual grips: the middle of each closed fist, not the wrist joints.
-    const pos=this.positions(frame),fist=(side:string):Vec3|undefined=>{const ids=['HandIndex1','HandPinky1','HandIndex2','HandMiddle2','HandRing2','HandMiddle3'].map(n=>this.idx.get(side+n));
-      if(ids.every(i=>i!==undefined))return ids.reduce((p,i)=>p.map((v,d)=>v+pos[i!][d]/ids.length)as Vec3,[0,0,0]as Vec3);const h=this.idx.get(side+'Hand');return h===undefined?undefined:pos[h];};
-    const L=fist('Left'),R=fist('Right');if(!L||!R)return;
+    const pos=this.positions(frame);
+    const L=this.fistAt(frame,pos,'Left'),R=this.fistAt(frame,pos,'Right');if(!L||!R)return;
     const d=norm(R.map((v,i)=>v-L[i])as Vec3),floor=Math.min(...this.feet.map(i=>pos[i][1])),t=(L[1]-floor)/Math.max(.2,-d[1]);
     const tip=L.map((v,i)=>v+d[i]*t)as Vec3,up:Vec3=[-d[0],-d[1],-d[2]],c=[up[2],0,-up[0]],w=1+up[1],l=Math.hypot(c[0],c[2],w)||1;
     frame.rootPos.set(index,tip);frame.rot[index]=[c[0]/l,0,c[2]/l,w/l];

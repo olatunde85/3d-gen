@@ -463,6 +463,24 @@ export const PRESETS: Record<string, Partial<HumanParams>> = {
     outfit: 'none', top: 'football_shirt', bottom: 'resort_shorts', shoes: 'shoes06', accessories: ['sport_socks'],
     garmentStyles: { football_shirt: { pattern: 'solid', color: '#1e7a3c', color2: '#f2f2ef', number: 10 }, resort_shorts: { pattern: 'solid', color: '#f2f2ef', color2: '#1e7a3c' }, sport_socks: { pattern: 'rib', color: '#1e7a3c', color2: '#f2f2ef' } },
   },
+  'The Gym Instructor': {
+    gender: 0, age: 0.42, muscle: 0.74, weight: 0.38, height: 0.6, proportions: 0.85, breastSize: 0.5,
+    african: 0.75, asian: 0.05, caucasian: 0.2, eyes: 'brown', hair: 'ponytail01', hairTint: '#1a130e', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'happy',
+    outfit: 'none', top: 'tank_top', bottom: 'techwear_pants', shoes: 'sneakers', accessories: ['watch'], carry: 'gym_weights',
+    garmentStyles: { tank_top: { pattern: 'solid', color: '#e4572e' }, techwear_pants: { pattern: 'solid', color: '#1b1c20', color2: '#e4572e' }, sneakers: { pattern: 'workwear', color: '#f2f2ef', color2: '#e4572e' } },
+  },
+  'The Powerlifter': {
+    gender: 1, age: 0.45, muscle: 1, weight: 0.78, height: 0.72, proportions: 0.85,
+    african: 1, asian: 0, caucasian: 0, eyes: 'blackbrown', hair: 'buzz', eyebrows: 'eyebrow003', expression: 'determined',
+    outfit: 'none', top: 'none', bottom: 'resort_shorts', shoes: 'sneakers', accessories: [], carry: 'gym_weights',
+    garmentStyles: { resort_shorts: { pattern: 'solid', color: '#1b1c20', color2: '#c8381f' }, sneakers: { pattern: 'workwear', color: '#1c1d20', color2: '#c8381f' } },
+    modifiers: {
+      // Huge and cut: a thick neck, broad back and chest, big defined arms and legs, a tight waist.
+      'torso/torso-vshape': 0.55, 'torso/torso-muscle-dorsi': 0.8, 'torso/torso-muscle-pectoral': 0.85, 'torso/torso-scale-horiz': 0.2, 'neck/neck-scale-horiz': 0.5,
+      'armslegs/upperarm-muscle': 1, 'armslegs/lowerarm-muscle': 0.9, 'armslegs/upperarm-scale-horiz': 0.5, 'armslegs/upperarm-scale-depth': 0.5, 'armslegs/lowerarm-scale-horiz': 0.3,
+      'armslegs/upperleg-muscle': 1, 'armslegs/lowerleg-muscle': 0.9, 'armslegs/upperleg-scale-depth': 0.25, 'armslegs/lowerleg-scale-horiz': 0.2, 'hip/hip-scale-horiz': -0.25,
+    },
+  },
   'The DJ': {
     gender: 0, age: 0.44, muscle: 0.45, weight: 0.45, height: 0.57, proportions: 0.9,
     african: 0.85, asian: 0, caucasian: 0.15, eyes: 'blackbrown', hair: 'afro01', eyebrows: 'eyebrow010', eyelashes: 'eyelashes02', expression: 'happy',

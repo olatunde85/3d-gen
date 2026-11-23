@@ -43,7 +43,7 @@ const checks: Record<string, string[]> = {
   'The Footballer': ['Football shirt', 'Football shirt collar and cuffs', 'Jersey number', 'Sports socks', 'Sports sock bands'],
 };
 
-assert.equal(Object.keys(PRESETS).length, 63);
+assert.equal(Object.keys(PRESETS).length, 65);
 assert.equal(garmentById.get('tropical_short_shirt')?.fromOutfit, 'male_casualsuit03');
 assert.equal(garmentById.get('uniform_camp_shirt')?.fromOutfit, 'male_casualsuit01');
 assert.equal(PRESETS['The Paramedic'].top, 'tropical_short_shirt');
@@ -137,4 +137,4 @@ const exported = await runExport(lib, ch, planExport(ch, { ...DEFAULT_EXPORT, mo
 const files = exported.name.endsWith('.zip') ? Object.entries(unzipSync(exported.data)) : [[exported.name, exported.data] as const];
 assert.ok(files.some(([name, bytes]) => name.endsWith('.glb') && String.fromCharCode(...bytes.slice(0, 4)) === 'glTF'), 'Dispatch rider GLB missing');
 assert.ok(files.some(([name]) => name.includes('motorcycle') && name.endsWith('.glb')), 'Motorcycle GLB missing from dispatch export');
-console.log('63 presets and dispatch motorcycle box passed.');
+console.log('65 presets and dispatch motorcycle box passed.');

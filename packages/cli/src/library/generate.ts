@@ -8,7 +8,7 @@ import { buildHuman } from '../../../../src/core/human';
 import { neededTargets } from '../../../../src/core/morph';
 import { DEFAULT_PARAMS, PRESETS, randomParams, type HumanParams } from '../../../../src/core/params';
 import { decodeCharacter } from '../../../../src/app/share';
-import { CLIPS } from '../../../../src/core/anim/clips';
+import { CLIPS, clipById } from '../../../../src/core/anim/clips';
 import { characterExample, parseCharacterInput } from '../../../../src/app/character-assist';
 import { exportClipName, planExport, runExport, stemOf, type ExportSettings } from '../../../../src/export';
 import type { BakedClip } from '../../../../src/core/anim/evaluate';
@@ -126,18 +126,26 @@ export function characterParams(lib: AssetLibrary, input: CharacterInput): Human
   return params;
 }
 
-/** Texting and phone calls need the phone in hand: clips asked for by name bring it, unless a carried item was chosen. */
-export const needsPhone = (clips: readonly string[], carry?: string) => !carry && clips.some((id) => id === 'phone_call' || id === 'texting');
+/**
+ * The carried prop that clips asked for by name need, unless a carried item was chosen: the phone for texting and
+ * phone calls, otherwise the lifts' gym weight (Gym weights (all) when they lift different ones).
+ */
+export function carryForClips(clips: readonly string[], carry?: string): HumanParams['carry'] | undefined {
+  if (carry) return undefined;
+  if (clips.some((id) => id === 'phone_call' || id === 'texting')) return 'phone';
+  const weights = new Set(clips.flatMap((id) => clipById.get(id)?.weights ?? []));
+  return weights.size > 1 ? 'gym_weights' : [...weights][0];
+}
 
 export async function generate(lib: AssetLibrary, input: CharacterInput, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
   let params = characterParams(lib, input);
   const clips = clipIds(options.animations);
-  const phone = Array.isArray(options.animations) && needsPhone(clips, options.carry);
+  const needed = Array.isArray(options.animations) ? carryForClips(clips, options.carry) : undefined;
   params = {
     ...params,
     ...(options.detail ? { detail: options.detail } : {}),
     ...(options.weapon ? { weapon: options.weapon } : {}),
-    ...(options.carry ? { carry: options.carry } : phone ? { carry: 'phone' } : {}),
+    ...(options.carry ? { carry: options.carry } : needed ? { carry: needed } : {}),
     // A newly chosen vehicle gets its own factory paint, as in the builder.
     ...(options.vehicle ? { vehicle: options.vehicle, vehicleStyle: vehicleStyleForChoice(options.vehicle, params.vehicleStyle) } : {}),
     ...(options.animations === 'none' ? { animations: false } : {}),

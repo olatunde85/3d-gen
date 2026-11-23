@@ -107,7 +107,7 @@ export interface Sample {
  * spreading under that bone once the body is down.
  */
 export interface Wound { t: number; bone: 'Head' | 'Spine2' | 'Spine' | 'LeftUpLeg' | 'RightArm'; dir: [number, number, number]; pool?: number }
-export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday' | 'Climbing' | 'Combat' | 'Sports';
+export type ClipCategory = 'Aerial' | 'Idle & stance' | 'Locomotion' | 'Turns' | 'Actions' | 'Emotes' | 'Shooter' | 'Vehicles' | 'Reactions' | 'Sitting & lying' | 'Interaction' | 'Swimming' | 'Everyday' | 'Climbing' | 'Combat' | 'Sports' | 'Fitness';
 
 export interface Clip {
   id: string;
@@ -125,5 +125,7 @@ export interface Clip {
   travel?: [number, number, number];
   /** Bullet hits (gunshot reactions). */
   wounds?: Wound[];
+  /** The gym weights the clip lifts (Carry: Dumbbells, Kettlebell or Barbell); the animator lays them through the fists. */
+  weights?: 'dumbbells' | 'kettlebell' | 'barbell';
   sample(t: number): Sample;
 }

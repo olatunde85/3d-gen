@@ -1,6 +1,6 @@
 # Animations
 
-There are 248 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 259 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -17,6 +17,7 @@ There are 248 clips. The character loads playing **Idle**. The animation bar at 
 | Swimming | Tread water, Swim forward (front crawl), Swim breaststroke, Swim backstroke (loops); Dive into water, Climb out of water |
 | Climbing | Climb ladder up / down, Ledge hang (loops); Vault over obstacle, Climb up ledge |
 | Sports | Shoot (football), Pass (straight), Side pass left / forward / right (inside foot), Receive ball (inside foot), Chest control, Header, Jumping header, Standing tackle, Slide tackle, Defensive wall (stance, loop) and (jump); Goalkeeper ready (loop), Goalkeeper catch, Goalkeeper punch, Goalkeeper dive left/right, Goalkeeper low dive left/right; Pick up ball, Bounce ball (loop), Side throw (right / left hand), Two-hand throw forward, Throw-in (overhead), Low throw (right / left hand); Siu celebration |
+| Fitness | Squat, Lunges (alternating), High knees, Push-ups, Plank, Sit-ups, Coach: clap and point; Dumbbell curls, Kettlebell swing, Barbell back squat, Deadlift (all loops) |
 | Shooter | Pistol idle (low ready), aim (two hands or one hand), fire, walk, run, sprint and strafe left/right. Rifle idle (low ready), aim idle, fire single, fire full-auto, reload, aiming walk / walk back / strafe left / strafe right, run, sprint, crouch aim and crouch walk. Take cover, Cover idle (loop), Cover fire (pop up). Rifle hit from front / back, Rifle death (fall forward / backward). Throw grenade |
 | Aerial | Skydive, Activate parachute (deploy), Use parachute (glide), Land parachute |
 | Vehicles | Riding, driving and piloting for fourteen vehicles, with boarding/alighting, stunt rolls, crash escapes, jet runway manoeuvres, parachute bail-outs and the tank gunner. Each vehicle has its own group (for example **Vehicles · Jet aircraft**) |
@@ -60,6 +61,8 @@ Choose a prop under **Carry**. Props that clips hold have their own rigid joint,
 **Mobile phone** is a smartphone on its own joint. In **Phone call** it rests against the left ear and cheek with the palm on its back; in **Texting** it lies in the left palm while the right index finger taps the screen. It appears only in those two clips.
 
 **Broom** appears only in **Sweep**: both fists hold the handle with the thumbs up it and the bristles on the floor.
+
+**Dumbbells (pair)**, **Kettlebell** and **Barbell** are gym weights on their own joints, and **Gym weights (all)** brings all three. They appear only in the Fitness lifts that use them (see [Fitness](#fitness)), held in the fists.
 
 **Bags:** a straw tote, structured handbag or leather briefcase is carried in the left hand, bound to the hand bone with the fingers closed round the handle in every clip. A canvas backpack and the parachute rig are worn. Each bag has its own colours.
 
@@ -159,6 +162,26 @@ The football clips kick with the right foot while the left stays planted:
 **Left-footed**, next to Props in the builder, plays every sports clip mirrored, so kicks use the left foot and throws the other hand; the export uses it too, and `Animator.frame` and `bake` take `mirror: true` for the same.
 
 A **football** stage prop comes with the kicks, the receive, the chest control, the headers, the tackles, the catch, the punch, the dives and the ball handling clips. It waits at the foot until the kick's contact and then flies; the keeper's ball arrives from in front, meets the hands and is held or pushed wide. **Props** shows or hides it in the builder; the export includes it as a separate file at its starting spot. `footballAt(clipId, time)` in `src/core/anim/stage.ts` gives its path, so a game can hand over to its own ball at the contact or release time (`KICK_CONTACT` and `THROW_RELEASE` in `src/core/anim/clips/sports.ts`).
+
+## Fitness
+
+Every Fitness clip loops on the spot. The lifts need a gym weight under **Carry**, which shows only in those lifts:
+
+| Clip | Length | Move |
+|---|---|---|
+| Squat | 2.2 s | Sit back and down to just below parallel with the arms reaching forward, then drive up; the feet stay flat. |
+| Lunges (alternating) | 3.2 s | Hands on the hips, step forward and sink until the back knee is about 10 cm off the floor, push back, then the other leg. |
+| High knees | 0.7 s | Running on the spot, each knee driven up to hip height with the arms pumping. |
+| Push-ups | 1.8 s | A straight body on the toes with the hands planted under the shoulders, lowered until the chest is just off the floor. |
+| Plank | 4 s | On the forearms and toes, body straight, breathing. |
+| Sit-ups | 2.4 s | On the back with the knees bent and the feet flat, arms crossed on the chest, curling up to the knees. |
+| Coach: clap and point | 2.4 s | Four claps in front of the chest, then a point to the class with a nod, the other hand on the hip. |
+| Dumbbell curls | 2.4 s | Elbows at the sides, both dumbbells curled up to the shoulders, palms up. Carry: Dumbbells. |
+| Kettlebell swing | 1.6 s | Hike the bell back between the legs with a hip hinge, then snap the hips through to float it to chest height. Carry: Kettlebell. |
+| Barbell back squat | 2.8 s | The bar across the upper back, hands wide on it, squatting to depth. Carry: Barbell. |
+| Deadlift | 3.2 s | Hinge down to the bar on the floor, pull it up the legs to lockout and hold. Carry: Barbell. |
+
+Push-ups, the plank and the lifts place the hands with IK: push-up hands stay planted on the floor, and each weight is laid through the fists, so the clips fit any body. `Clip.weights` names a lift's weight, and the builder's Carry menu plays a lift when you choose one. **Gym weights (all)** carries every weight, so one character can do all the lifts; the **Gym Instructor** and **Powerlifter** presets carry it.
 
 ## Weapons
 
