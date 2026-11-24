@@ -4,7 +4,8 @@ import {PHONE_LAYOUT} from './responsive';
  * browser, a drawer that slides in from the right edge of the view.
  */
 import {animationGroup,animationMatches} from '../../core/anim/groups';
-import { CLIPS, clipById } from '../../core/anim/clips';
+import { CLIPS, clipById, onClipsChange } from '../../core/anim/clips';
+import { openPacks } from '../packs/dialog';
 import { stagePropFor } from '../../core/anim/stage';
 import type { Ctx } from './context';
 import { $, el } from './dom';
@@ -58,6 +59,11 @@ export function animationBar(ctx: Ctx): { playClip: (id: string) => void; setAct
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&settings.getAttribute('aria-expanded')==='true'){closeSettings();settings.focus();}});
   player.append(prevBtn,browseBtn,nextBtn,settings);animBar.append(quick,player,options);
   const browser = animationBrowser(animBar, browseBtn, () => activeClip, playClip);
+  // Content packs come and go: the counts follow, and a clip whose pack was removed gives way to Idle.
+  onClipsChange(() => {
+    browseBtn.title = `Browse all ${CLIPS.length} animations`;
+    if (activeClip !== 'bind' && !clipById.has(activeClip)) playClip('idle');
+  });
 
   const rmBox = el('input', { type: 'checkbox' });
   rmBox.addEventListener('change', () => store.setExport({ rootMotion: rmBox.checked }));
@@ -107,18 +113,28 @@ function animationBrowser(animBar: HTMLElement, browseBtn: HTMLButtonElement, ac
   pop.setAttribute('aria-hidden', 'true');
   const search = el('input', { type: 'search', placeholder: `Search ${CLIPS.length} animations…`, className: 'anim-search' });
   const close = el('button', { className: 'anim-close', textContent: '×', title: 'Close' });
+  const packs = el('button', { className: 'anim-packs', textContent: 'Add animations…', title: 'Add animations from content packs' });
+  packs.addEventListener('click', () => openPacks());
   const tabs = el('div', { className: 'anim-tabs', role: 'tablist' });
   const grid = el('div', { className: 'anim-grid' });
-  const cats = [...new Set(CLIPS.map(animationGroup))];
-  let cat = 'All';
+  let cats: string[] = [], cat = 'All';
   const tabButtons = new Map<string, HTMLButtonElement>();
-  for (const c of ['All', ...cats]) {
-    const n = c === 'All' ? CLIPS.length : CLIPS.filter((x) => animationGroup(x) === c).length;
-    const b = el('button', { className: 'anim-tab', role: 'tab' }, c, el('span', { className: 'n', textContent: String(n) }));
-    b.addEventListener('click', () => { cat = c; render(); });
-    tabButtons.set(c, b);
-    tabs.append(b);
+  /** One tab per group: Ara's own, then each content pack's. */
+  function fillTabs() {
+    cats = [...new Set(CLIPS.map(animationGroup))];
+    if (cat !== 'All' && !cats.includes(cat)) cat = 'All';
+    tabs.replaceChildren();tabButtons.clear();
+    for (const c of ['All', ...cats]) {
+      const n = c === 'All' ? CLIPS.length : CLIPS.filter((x) => animationGroup(x) === c).length;
+      const b = el('button', { className: 'anim-tab', role: 'tab' }, c, el('span', { className: 'n', textContent: String(n) }));
+      b.addEventListener('click', () => { cat = c; render(); });
+      tabButtons.set(c, b);
+      tabs.append(b);
+    }
+    search.placeholder = `Search ${CLIPS.length} animations…`;
   }
+  fillTabs();
+  onClipsChange(() => { fillTabs();if (isOpen()) render(); });
   const clipButton = (c: (typeof CLIPS)[number]) => {
     const b = el('button', { className: 'anim-clip', title: `${c.name} · ${c.duration.toFixed(1)} s${c.loop ? ', loops' : ''}` },
       el('span', { textContent: c.name }), c.loop ? el('span', { className: 'loop', textContent: '↻', title: 'Loops' }) : '');
@@ -162,7 +178,7 @@ function animationBrowser(animBar: HTMLElement, browseBtn: HTMLButtonElement, ac
   close.addEventListener('click', () => {toggle(false);browseBtn.focus();});
   // Stays open while browsing (the character remains in view); Esc, × or the button close it.
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) toggle(false); });
-  pop.append(el('div', { className: 'anim-pop-head' }, el('span', { className: 'anim-pop-title', textContent: 'Animations' }), close), search, tabs, grid);
+  pop.append(el('div', { className: 'anim-pop-head' }, el('span', { className: 'anim-pop-title', textContent: 'Animations' }), packs, close), search, tabs, grid);
   animBar.after(pop);
   return { sync: () => grid.querySelectorAll<HTMLButtonElement>('.anim-clip').forEach((b) => b.classList.toggle('on', b.dataset.id === active())) };
 }

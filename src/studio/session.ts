@@ -1,6 +1,6 @@
 /** Local editor recovery is separate from portable film recipes. */
 import type { AssistDraft } from '../app/assist/panel';
-import { ANIMATION_CATEGORIES } from './animations';
+import { animationCategories } from './animations';
 import { SCENE_CATEGORIES } from './catalog';
 import { durationOf, type StudioProject } from './project';
 import { parseFilm, readHistoryEntry } from './film';
@@ -35,7 +35,7 @@ export function readEditorSession(source: string | null): EditorSession | undefi
       selected: Math.floor(finite(state.selected, 0, (cameraSelection ? project.shots : actor.beats).length - 1)),
       time: finite(state.time, 0, durationOf(project)), repeat: state.repeat !== false, clickToPlace: characterSelected && state.clickToPlace === true,
       sceneSearch: text(state.sceneSearch), sceneCategory: SCENE_CATEGORIES.some(category => category === state.sceneCategory) ? String(state.sceneCategory) : '',
-      animationSearch: text(state.animationSearch), animationCategory: ANIMATION_CATEGORIES.some(category => category === state.animationCategory) ? String(state.animationCategory) : '',
+      animationSearch: text(state.animationSearch), animationCategory: animationCategories().some(category => category === state.animationCategory) ? String(state.animationCategory) : '',
       resolution: state.resolution === '720' ? '720' : '1080',
       text:{open:textState.open===true,selected:project.texts.some(c=>c.id===textState.selected)?String(textState.selected):project.texts[0]?.id??''},
       sound:{open:sound.open===true,selected:project.audio.speech.some(c=>c.id===sound.selected)?String(sound.selected):project.audio.speech[0]?.id??'',tab:sound.tab==='effects'||sound.tab==='music'?sound.tab:'dialogue',selectedEffect:project.audio.effects.some(c=>c.id===sound.selectedEffect)?String(sound.selectedEffect):project.audio.effects[0]?.id??''},

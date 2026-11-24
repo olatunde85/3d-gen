@@ -1867,3 +1867,8 @@ textarea:disabled { opacity: .55; }
   .scene-label { flex: 1 1 auto; }
   .scene-cards { order: 3; flex-basis: 100%; }
 }
+
+/* Content packs: what's loaded, and the way to add more, under the performance picker. */
+.pack-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.pack-row .setting-hint { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pack-row .text-button { flex: none; margin-left: auto; }

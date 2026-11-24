@@ -2,7 +2,8 @@ import {animationGroup,animationMatches} from '../core/anim/groups';
 import {VEHICLE_FOR_CLIP,VEHICLE_LABELS} from '../core/props/vehicles';
 import { CLIPS, clipById } from '../core/anim/clips';
 import {manoeuvre} from '../core/props/vehicle-motion';
-export const ANIMATION_CATEGORIES = [...new Set(CLIPS.map(animationGroup))];
+/** The groups of the animations on offer: Ara's own, then one per content pack loaded. */
+export const animationCategories = () => [...new Set(CLIPS.map(animationGroup))];
 export function searchAnimations(query: string, category = '') {
   return CLIPS.filter(c=>animationMatches(c,query,category));
 }

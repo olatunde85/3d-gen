@@ -13,6 +13,11 @@ import { extname, join, resolve } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 import { encodeCharacter } from '../src/app/share';
 import { DEFAULT_PARAMS, PRESETS } from '../src/core/params';
+import { Texture, TextureLoader } from 'three';
+import { buildHuman } from '../src/core/human';
+import { buildPack } from '../src/core/packs/build';
+import { DEFAULT_EXPORT, planExport, runExport } from '../src/export';
+import { nodeLibrary } from './node-assets';
 
 const root = resolve(import.meta.dirname, '..'), out = join(root, 'out/library');
 const chromePath = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -22,7 +27,7 @@ const PAGE = `<!doctype html><html><body style="margin:0;background:#cfd6dd">
 <script type="importmap">{"imports":{"three":"/three/build/three.module.js","three/examples/jsm/":"/three/examples/jsm/","ara3d":"/ara3d/index.js"}}</script>
 <script type="module">
 import * as THREE from 'three';
-import { createCharacter, createCharacterGLB, PRESET_NAMES, ANIMATIONS, PROPS } from 'ara3d';
+import { createCharacter, createCharacterGLB, readPack, PRESET_NAMES, ANIMATIONS, PROPS } from 'ara3d';
 window.lists = { presets: PRESET_NAMES.length, clips: ANIMATIONS.length, vehicles: PROPS.vehicles.length };
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });renderer.setSize(900, 700);document.body.append(renderer.domElement);
 window.run = async (input, options, view) => {
@@ -94,6 +99,19 @@ window.sequenceTest = async () => {
   for (const steps of ['walk, nope', 'walk 3x', '']) try { hero.playSequence(new THREE.AnimationMixer(hero.scene), steps); } catch (e) { errors.push(e.message); }
   hero.dispose();return { order, lengths, errors };
 };
+// A content pack by its address: readPack lists it, and the character bakes its animations in.
+window.packTest = async (url) => {
+  try {
+    const info = await readPack(url);
+    const hero = await createCharacter('The Soldier', { assetsUrl: '/assets/', packs: [url], animations: ['idle', info.id], detail: 'low' });
+    const mixer = new THREE.AnimationMixer(hero.scene), clip = hero.clip(info.animations[0].id);
+    mixer.clipAction(clip).play();mixer.setTime(0.5);
+    const hand = new THREE.Vector3();hero.scene.getObjectByName('RightHand').getWorldPosition(hand);
+    const result = { info, clips: hero.animations.map((a) => a.name), handY: hand.y, height: hero.height };
+    let missing = '';try { await createCharacter('The Soldier', { assetsUrl: '/assets/', animations: [info.animations[0].id], detail: 'low' }); } catch (e) { missing = e.message; }
+    hero.dispose();return { ...result, missing };
+  } catch (error) { return { error: error.message }; }
+};
 window.glbOnly = async () => { const glb = await createCharacterGLB('The Priest', { assetsUrl: '/assets/', animations: 'none', detail: 'low' });return { size: glb.length, magic: String.fromCharCode(...glb.slice(0, 4)) }; };
 window.motionTest = async () => {
   const hero = await createCharacter('The Soldier', { assetsUrl: '/assets/', animations: ['idle', 'walk', 'run'], detail: 'low' });
@@ -123,6 +141,13 @@ window.motionTest = async () => {
 window.ready = true;
 </script></body></html>`;
 
+// A content pack made from Ara's own wave, served like a host that lets other sites read it.
+(globalThis as { self?: unknown }).self ??= globalThis;
+TextureLoader.prototype.load = function (_url: string, onLoad?: (t: Texture) => void) { const t = new Texture();onLoad?.(t);return t; } as TextureLoader['load'];
+const packLib = await nodeLibrary(), packCharacter = await buildHuman(packLib, { ...DEFAULT_PARAMS, ...PRESETS['The Adventurer'], detail: 'low' });
+const packGlb = await runExport(packLib, packCharacter, planExport(packCharacter, { ...DEFAULT_EXPORT, mode: 'animated', format: 'glb', packaging: 'embedded', clips: ['wave'], stageProps: false }));
+const PACK = JSON.stringify(await buildPack({ id: 'check-moves', name: 'Check moves', animations: [{ file: 'm.glb', id: 'big_wave', name: 'Big wave', category: 'Emotes' }] }, async () => packGlb.data));
+
 // Only these paths are served.
 const MOUNTS: [string, string][] = [['/three/', join(root, 'node_modules/three/')], ['/ara3d/', join(root, 'packages/cli/dist/')], ['/assets/', join(root, 'public/assets/')]];
 const TYPES: Record<string, string> = { '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.pack': 'application/octet-stream' };
@@ -130,6 +155,7 @@ let refusedOnce = false;
 const server = createServer((req, res) => {
   const path = decodeURIComponent((req.url ?? '/').split('?')[0]);
   if (path === '/' || path === '/index.html') { res.setHeader('Content-Type', 'text/html');res.end(PAGE);return; }
+  if (path === '/packs/check-moves.ara-pack.json') { res.setHeader('Content-Type', 'application/json');res.end(PACK);return; }
   // The first request for the catalogue gets a 503, like a busy CDN: the library has to try again.
   if (path === '/assets/catalog.json' && !refusedOnce) { refusedOnce = true;res.statusCode = 503;res.end();return; }
   const mount = MOUNTS.find(([prefix]) => path.startsWith(prefix)), file = mount && resolve(mount[1], path.slice(mount[0].length));
@@ -246,6 +272,13 @@ try {
   assert.ok(motion.open > 0.3 && motion.closed === 0, `mouth opened ${motion.open} and closed to ${motion.closed}`);
   assert.match(motion.error, /isn't loaded/);
   console.log(`OK movement: idle/walk/run blend by speed (walk ${motion.walkSpeed.toFixed(2)} m/s, run ${motion.runSpeed.toFixed(2)} m/s), the head turned ${motion.turn.toFixed(0)}°, lip-sync opened the mouth to ${motion.open.toFixed(2)} and closed it`);
+  const pack = await evaluate<any>(`window.packTest('/packs/check-moves.ara-pack.json')`);
+  assert.ok(!pack.error, `pack: ${pack.error}`);
+  assert.deepEqual(pack.info.animations.map((a: { id: string }) => a.id), ['check-moves/big_wave']);
+  assert.deepEqual(pack.clips, ['Idle', 'Big wave']);
+  assert.ok(pack.handY > pack.height * 0.85, `the pack's wave raises the right hand (${pack.handY.toFixed(2)} m of ${pack.height.toFixed(2)} m)`);
+  assert.match(pack.missing, /add the pack to the packs option/);
+  console.log('OK content pack: readPack lists it, createCharacter bakes its wave in, and a pack clip without the pack is refused');
   const glb = await evaluate<any>('window.glbOnly()');
   assert.equal(glb.magic, 'glTF');console.log(`OK createCharacterGLB: ${(glb.size / 1e6).toFixed(1)} MB GLB`);
   assert.ok(refusedOnce);console.log('OK a busy server (503) was tried again');

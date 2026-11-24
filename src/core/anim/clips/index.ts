@@ -55,6 +55,7 @@ const capturedTurn=(id:string,name:string,angle:number)=>{
 // Sitting starts from Idle; Stand up (its reverse) therefore ends in Idle.
 const SIT_DOWN = easeFrom(mocap('sit_down', 'Sit down (chair)', 'Sitting & lying'), idle, 0.7);
 
+/** Every animation clip: the built-in ones, then those of any content packs loaded (see core/packs). */
 export const CLIPS: Clip[] = withFaces(
   [
     idle,
@@ -117,4 +118,29 @@ export const CLIPS: Clip[] = withFaces(
   ],
 );
 
+/** The clips Ara ships with, in their listed order. */
+export const BUILT_IN_CLIPS: readonly Clip[] = Object.freeze([...CLIPS]);
 export const clipById = new Map(CLIPS.map((c) => [c.id, c]));
+
+const listeners = new Set<() => void>();
+/** Calls `fn` whenever clips are added or removed; returns a function that stops it. */
+export function onClipsChange(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+/**
+ * Swaps added clips in one step (content packs): removes `remove` (built-in clips stay), then adds `add` after the
+ * built-in ones. Listeners hear once, so a clip replaced by a new version of itself is never missing in between.
+ */
+export function replaceClips(remove: Iterable<string>, add: readonly Clip[]) {
+  const gone = new Set([...remove].filter((id) => clipById.get(id)?.pack));
+  for (const c of add) if (clipById.has(c.id) && !gone.has(c.id)) throw Error(`There is already an animation with the ID "${c.id}".`);
+  for (const id of gone) clipById.delete(id);
+  for (let i = CLIPS.length - 1; i >= 0; i--) if (gone.has(CLIPS[i].id)) CLIPS.splice(i, 1);
+  for (const c of add) { CLIPS.push(c);clipById.set(c.id, c); }
+  if (gone.size || add.length) for (const fn of listeners) fn();
+}
+/** Adds clips after the built-in ones (content packs). IDs must be new. */
+export const addClips = (clips: readonly Clip[]) => replaceClips([], clips);
+/** Removes added clips; built-in clips stay. */
+export const removeClips = (ids: Iterable<string>) => replaceClips(ids, []);

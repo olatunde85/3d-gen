@@ -1,0 +1,21 @@
+/* Packs: the import drop zone and the editor for imported animations, on top of the Keys window's styles. */
+.ak-packs .pk-import { display: grid; gap: 10px; }
+.ak-packs .pk-drop { display: grid; justify-items: center; gap: 6px; padding: 22px 14px; border: 1.5px dashed var(--ai-line); border-radius: 12px; text-align: center; transition: border-color .15s, background .15s; }
+.ak-packs .pk-drop.over { border-color: var(--ai-accent); background: var(--ai-raised); }
+.ak-packs .pk-drop strong { font-size: 14px; }
+.ak-packs .pk-drop .ak-btn { margin-top: 6px; }
+.ak-packs.pk-busy .pk-drop { opacity: .6; pointer-events: none; }
+.ak-packs .pk-into { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ai-muted); }
+.ak-packs .pk-into select { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--ai-line); background: var(--ai-bg); }
+.ak-packs .pk-address { margin-top: 12px; font-size: 12px; color: var(--ai-muted); }
+.ak-packs .pk-address summary { cursor: pointer; }
+.ak-packs .pk-address .ak-paste input { font-family: inherit; }
+.ak-packs .pk-edit { grid-column: 1 / -1; display: grid; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--ai-line); }
+.ak-packs .pk-edit input, .ak-packs .pk-edit select { min-width: 0; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--ai-line); background: var(--ai-bg); font-size: 12px; }
+.ak-packs .pk-pack-name { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px; font-size: 12px; color: var(--ai-muted); }
+.ak-packs .pk-edit ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; max-height: 320px; overflow: auto; }
+.ak-packs .pk-edit li { display: grid; grid-template-columns: minmax(0, 1fr) 130px auto auto; align-items: center; gap: 6px; }
+@media (max-width: 520px) {
+  .ak-packs .pk-edit li { grid-template-columns: minmax(0, 1fr) auto; }
+  .ak-packs .pk-edit li select { grid-column: 1; }
+}

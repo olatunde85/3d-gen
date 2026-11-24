@@ -1,5 +1,5 @@
 /** The Export panel, the export bar's summary and download button, and running exports. */
-import { CLIPS } from '../../core/anim/clips';
+import { CLIPS, onClipsChange } from '../../core/anim/clips';
 import { stagePropFor } from '../../core/anim/stage';
 import { clipById } from '../../core/anim/clips';
 import { RIG_LABELS, type RigType } from '../../core/rig/skeletons';
@@ -90,10 +90,12 @@ export function exportPanel(ctx: Ctx): { open: () => void; downloadGlb: () => Pr
       allBtn.addEventListener('click', () => setExport({ clips: CLIPS.map((c) => c.id) }));
       const noneBtn = el('button', { className: 'mini', textContent: 'None' });
       noneBtn.addEventListener('click', () => setExport({ clips: [] }));
-      kids.push(el('div', { className: 'xp-row' }, el('span', { className: 'hint', textContent: `${s.clips.length} of ${CLIPS.length} selected` }), allBtn, noneBtn));
-      for (const cat of [...new Set(CLIPS.map((c) => c.category))]) {
+      kids.push(el('div', { className: 'xp-row' }, el('span', { className: 'hint', textContent: `${s.clips.filter((id) => CLIPS.some((c) => c.id === id)).length} of ${CLIPS.length} selected` }), allBtn, noneBtn));
+      // Ara's clips by category, then each content pack's clips under the pack's name.
+      const groupOf = (c: (typeof CLIPS)[number]) => c.pack?.name ?? c.category;
+      for (const cat of [...new Set(CLIPS.map(groupOf))]) {
         const grid = el('div', { className: 'xp-clips' });
-        for (const c of CLIPS.filter((x) => x.category === cat)) {
+        for (const c of CLIPS.filter((x) => groupOf(x) === cat)) {
           const on = s.clips.includes(c.id);
           const box = el('input', { type: 'checkbox', checked: on });
           box.addEventListener('change', () => setExport({ clips: on ? s.clips.filter((x) => x !== c.id) : [...s.clips, c.id] }));
@@ -101,7 +103,7 @@ export function exportPanel(ctx: Ctx): { open: () => void; downloadGlb: () => Pr
           play.addEventListener('click', () => ctx.playClip(c.id));
           grid.append(el('label', { className: 'xp-clip' }, box, el('span', { textContent: c.name }), el('small', { textContent: `${c.duration.toFixed(1)}s ${c.loop ? '↻' : ''}` }), play));
         }
-        const ids = CLIPS.filter((x) => x.category === cat).map((x) => x.id);
+        const ids = CLIPS.filter((x) => groupOf(x) === cat).map((x) => x.id);
         const allOn = ids.every((id) => s.clips.includes(id));
         const catBtn = el('button', { className: 'xp-cat', textContent: `${cat} ${allOn ? '☑' : '☐'}`, title: allOn ? `Deselect all ${cat}` : `Select all ${cat}` });
         catBtn.addEventListener('click', () =>
@@ -209,6 +211,7 @@ export function exportPanel(ctx: Ctx): { open: () => void; downloadGlb: () => Pr
   goBtn.addEventListener('click', doExport);
 
   store.on('export', render);
+  onClipsChange(render);
   store.on('character', render);
   return {
     open: () => {

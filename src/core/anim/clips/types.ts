@@ -127,5 +127,7 @@ export interface Clip {
   wounds?: Wound[];
   /** The gym weights the clip lifts (Carry: Dumbbells, Kettlebell or Barbell); the animator lays them through the fists. */
   weights?: 'dumbbells' | 'kettlebell' | 'barbell';
+  /** The content pack the clip comes from (its ID is "<pack>/<clip>"); built-in clips have none. */
+  pack?: { id: string; name: string };
   sample(t: number): Sample;
 }

@@ -52,9 +52,9 @@ Other apps take the same command: `npx -y ara3d mcp`.
 
 | Tool | |
 |---|---|
-| `create_character` | Builds a character and returns its height and a link that opens it in the builder, which also works as a film character. It writes GLB, FBX, OBJ or ZIP files only when you ask for them; the assistant asks whether you want a file and in which format. Starts from a preset, a random seed, a builder share link, or a character the assistant designs. Takes a height in centimetres, animations, detail, root motion, a weapon, something to carry, a vehicle and colours |
+| `create_character` | Builds a character and returns its height and a link that opens it in the builder, which also works as a film character. It writes GLB, FBX, OBJ or ZIP files only when you ask for them; the assistant asks whether you want a file and in which format. Starts from a preset, a random seed, a builder share link, or a character the assistant designs. Takes a height in centimetres, animations, [content packs](packs.md), detail, root motion, a weapon, something to carry, a vehicle and colours |
 | `list_presets` | The 65 preset characters |
-| `list_animations` | The 259 animation clips, searchable, such as "dance" or "rifle" |
+| `list_animations` | The 259 animation clips, searchable, such as "dance" or "rifle", and those of any content packs given |
 | `list_props` | Weapons, carried items, vehicles and expressions |
 | `character_schema` | Every field of a character, so the assistant can design one: body, face, hair, clothes, colours and rig. It comes in parts |
 | `create_film` | Checks an [Ara Studio](studio.md) film of one scene, or up to five scenes in different sets, as Studio does, saves it as `.ara-studio.json` and returns a link that opens it in Studio, to watch, edit and record as a video. It also runs Studio's staging check on every scene and lists any place a character or vehicle walks or drives through something, so the assistant can fix the route |

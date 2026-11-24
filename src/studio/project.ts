@@ -3,7 +3,8 @@ import {isFlightClip} from './helicopter-flight';
 import {manoeuvre} from '../core/props/vehicle-motion';
 import {supportsWeaponAim} from '../core/anim/riding-weapons';
 /** Version 2 separates the camera track from independently timed actor performances. */
-import { CLIPS, clipById } from '../core/anim/clips';
+import { clipById } from '../core/anim/clips';
+import { missingPackMessage } from '../core/packs/registry';
 import { DEFAULT_PARAMS, PRESETS, type Detail } from '../core/params';
 import { decodeCharacter, encodeCharacter } from '../app/share';
 import { defaultAudio, parseAudio, type FilmAudio } from './audio/schema';
@@ -18,7 +19,6 @@ import {stagePropFor} from '../core/anim/stage';
 import {EXPRESSIONS} from '../core/face';
 export type Expression=typeof EXPRESSIONS[number];
 export { SETS, type SetId } from './catalog';
-export const ACTIONS = CLIPS.map(c => c.id);
 export type Action = string;
 export type Shot = 'wide' | 'medium' | 'close';
 export type CameraMove = 'locked' | 'orbit' | 'dolly';
@@ -104,6 +104,7 @@ export function parseProject(text: string): StudioProject {
     const actorParams=decodeCharacter(a.character,a.detail)!,inherited=actorParams.vehicle,legacy=a.vehicle??inherited;
     const migrate=(clip:string)=>a.vehicle!=='auto'&&(legacy==='sports_car'||legacy==='suv')?(clip==='drive_car'?(legacy==='suv'?'drive_suv':'drive_sports_car'):clip==='sit_passenger'?(legacy==='suv'?'sit_suv_passenger':'sit_sports_car_passenger'):clip):clip;
     const beats = a.beats.map((rawBeat, j) => { const b = record(rawBeat);
+      if (typeof b.clip === 'string' && !clipById.has(b.clip)) { const missing = missingPackMessage(b.clip);if (missing) throw Error(`Action ${j + 1} on character ${i + 1}: ${missing}`); }
       if (typeof b.clip !== 'string' || !clipById.has(b.clip) || typeof b.move !== 'boolean') throw new Error(`Invalid action ${j + 1} on character ${i + 1}.`);
       const clip=migrate(b.clip),speed=b.travelSpeed===undefined?undefined:number(b.travelSpeed,.1,MAX_TRAVEL_SPEED,'vehicle travel speed');
       if(b.showVehicle!==undefined&&(typeof b.showVehicle!=='boolean'||!VEHICLE_FOR_CLIP[clip]))throw Error('Vehicle visibility is only available for vehicle actions.');

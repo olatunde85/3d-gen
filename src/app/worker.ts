@@ -8,9 +8,11 @@ import { buildHuman, type Character } from '../core/human';
 import { neededTargets } from '../core/morph';
 import type { HumanParams } from '../core/params';
 import { planExport, runExport, type ExportFile, type ExportSettings } from '../export';
+import { syncPacks } from '../core/packs/registry';
 
 export type ToWorker =
   | { type: 'init'; assets: string }
+  | { type: 'packs'; packs: { text: string; url?: string }[] }
   | { type: 'build'; id: number; params: HumanParams }
   | { type: 'export'; id: number; settings: ExportSettings; previewPng?: Uint8Array };
 
@@ -26,6 +28,7 @@ const sent = new Set<string>();
 const post = (m: FromWorker, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(m, transfer);
 
 async function handle(m: ToWorker) {
+  if (m.type === 'packs') return syncPacks(m.packs);
   if (m.type === 'init') {
     // Body shapes load as each character needs them (see AssetLibrary.initWeb), not all up front.
     lib = new AssetLibrary(fetchSource(m.assets)).initWeb();

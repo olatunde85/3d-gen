@@ -22,11 +22,12 @@ import { characterSchema } from '../../../src/app/character-assist';
 import { encodeCharacter } from '../../../src/app/share';
 import { planExport, runExport, type ExportFormat, type ExportSettings } from '../../../src/export';
 import { carryForClips, characterParams, clipIds, type CharacterInput } from './library/generate';
+import { usePackFiles } from './pack';
 import { applyColors, COLOR_SLOTS, colorsOf, type CharacterColors } from './library/colors';
 import { loadLibrary } from './data';
 import { explain, writeSafely } from './safety';
 import PACKAGE from '../package.json';
-import { generateAssistGuide, parseStudioFilm, summarizeAssistProject } from '../../../src/studio/assist';
+import { generateAssistGuide, loadStudioFilm, summarizeAssistProject } from '../../../src/studio/assist';
 import { filmDuration, filmJson } from '../../../src/studio/film';
 import { checkPlayPlacements, describeGame, generatePlayGuide, parsePlayInput } from '../../../src/play/assist';
 import { gameProjects } from '../../../src/play/project';
@@ -63,7 +64,7 @@ const TOOLS = [
   {
     name: 'list_animations',
     description: `The ${CLIPS.length} animation clips, by group, with their IDs. Pass clip IDs or category names (such as locomotion) to create_character.`,
-    inputSchema: { type: 'object', properties: { search: { type: 'string', description: 'Only clips whose ID, name or group contains this, such as "dance" or "rifle".' } }, additionalProperties: false },
+    inputSchema: { type: 'object', properties: { search: { type: 'string', description: 'Only clips whose ID, name or group contains this, such as "dance" or "rifle".' }, packs: { type: 'array', items: { type: 'string' }, description: 'Content packs (.ara-pack.json files or https addresses) whose clips to list too.' } }, additionalProperties: false },
   },
   {
     name: 'list_props',
@@ -86,7 +87,8 @@ const TOOLS = [
         share_link: { type: 'string', description: 'A share link from the Ara builder (https://ara3dgen.com/app/#c=...).' },
         character: { type: 'object', description: 'A designed character: { "preset": "The Adventurer", "params": { ...changes } }, with fields from character_schema.' },
         name: { type: 'string', description: 'A name for the character, used for the file names.' },
-        animations: { type: 'array', items: { type: 'string' }, description: 'Clip IDs or categories from list_animations. Leave out for every clip (large files), or pass [] for none.' },
+        animations: { type: 'array', items: { type: 'string' }, description: 'Clip IDs or categories from list_animations (a pack\'s ID picks all its clips). Leave out for every clip (large files), or pass [] for none.' },
+        packs: { type: 'array', items: { type: 'string' }, description: 'Content packs whose animations to add: .ara-pack.json files or https addresses. Their clips are "<pack>/<clip>".' },
         formats: { type: 'array', items: { enum: FORMATS }, description: 'Files to write, only when the user asks for them: glb (web, Godot, Blender), fbx (Unity, Unreal), obj (static) or zip (all of them). Leave out for the link alone.' },
         height_cm: { type: 'number', minimum: 50, maximum: 230, description: 'The height in centimetres (shoes included), such as 158. Sets the height slider to match.' },
         detail: { enum: DETAILS, description: 'low (about 25-50k triangles dressed; for crowds), medium (default, about 45-65k) or high (about 130-170k).' },
@@ -112,7 +114,7 @@ const TOOLS = [
   {
     name: 'create_film',
     description: 'Checks an Ara Studio film (one scene, or up to five scenes in order) as Studio does, including its staging check (characters and vehicles against the set\'s ground, water and obstacles), saves it as .ara-studio.json and returns a summary, any staging problems and a link that opens it in Ara Studio. Errors name the field to fix.',
-    inputSchema: { type: 'object', properties: { film: { type: 'object', description: 'The film, written following film_guide.' }, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['film'], additionalProperties: false },
+    inputSchema: { type: 'object', properties: { film: { type: 'object', description: 'The film, written following film_guide.' }, packs: { type: 'array', items: { type: 'string' }, description: 'Content packs (.ara-pack.json files or https addresses) whose animations the film uses, when the film doesn\'t list them in its own packs.' }, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['film'], additionalProperties: false },
   },
   {
     name: 'game_guide',
@@ -133,10 +135,12 @@ let library: Promise<AssetLibrary> | undefined;
 /** The character data, loaded once (and downloaded on the very first run). */
 const data = () => (library ??= loadLibrary().catch((error) => { library = undefined;throw error; }));
 
-function listAnimations(args: Args) {
+async function listAnimations(args: Args) {
+  const packs = await usePackFiles(Array.isArray(args.packs) ? args.packs.map(String) : []), ids = packs.map((p) => p.pack.id);
   const search = typeof args.search === 'string' ? args.search.toLowerCase() : '';
   const groups = new Map<string, string[]>();
   for (const c of CLIPS) {
+    if (c.pack && !ids.includes(c.pack.id)) continue;
     const group = animationGroup(c);
     if (search && ![c.id, c.name, group, c.category].some((t) => t.toLowerCase().includes(search))) continue;
     groups.set(group, [...(groups.get(group) ?? []), `${c.id} (${c.name}${c.loop ? ', loops' : ''})`]);
@@ -163,7 +167,8 @@ async function createCharacter(args: Args, progress: (done: number, message: str
   if (sources.length !== 1) throw Error('Give exactly one of preset, random, share_link or character.');
   const formats = (args.formats as ExportFormat[] | undefined) ?? [];
   for (const f of formats) if (!FORMATS.includes(f)) throw Error(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
-  const clips = args.animations === undefined ? CLIPS.map((c) => c.id) : clipIds(args.animations as string[]);
+  const packs = (await usePackFiles(Array.isArray(args.packs) ? args.packs.map(String) : [])).map((p) => p.pack.id);
+  const clips = clipIds(args.animations === undefined ? 'all' : args.animations as string[], packs);
   progress(0.05, 'Loading the character data');
   const lib = await data();
   const input: CharacterInput = args.preset !== undefined ? String(args.preset) : args.random !== undefined ? { random: Number(args.random) }
@@ -220,7 +225,10 @@ const fileName = (title: string, fallback: string) => (title.trim().replace(/[^\
 /** Checks a film, saves it and returns where it went and the link that opens it in Studio. */
 async function createFilm(args: Args) {
   if (!args.film || typeof args.film !== 'object') throw Error('Pass the film as an object in "film".');
-  const json = JSON.stringify(args.film), scenes = parseStudioFilm(json, (await data()).catalog), file = filmJson(scenes), many = scenes.length > 1;
+  await usePackFiles(Array.isArray(args.packs) ? args.packs.map(String) : []);
+  const scenes = await loadStudioFilm(JSON.stringify(args.film), (await data()).catalog), file = filmJson(scenes), many = scenes.length > 1;
+  // The link carries the film as written, with the packs its animations come from.
+  const json = JSON.stringify(file.packs ? { ...(args.film as object), packs: file.packs } : args.film);
   const path = join(outDir(args), `${fileName(scenes[0].title, 'film')}.ara-studio.json`);
   writeSafely(path, new TextEncoder().encode(JSON.stringify(file, null, 2) + '\n'));
   // Studio's staging check for every scene, at reference body sizes: what walks or drives through something, or off the set.

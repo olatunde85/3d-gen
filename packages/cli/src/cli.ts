@@ -13,6 +13,8 @@ import { assistSchema } from '../../../src/studio/assist';
 import { playSchema } from '../../../src/play/schema';
 import { loadLibrary } from './data';
 import { mcpCommand } from './mcp';
+import { packCommand, usePackFiles } from './pack';
+import { packSchema } from '../../../src/core/packs/schema';
 import { carryForClips } from './library/generate';
 import { finish, megabytes, note, result, seconds, status } from './status';
 import { explain, isFatal, removeLeftovers, UserError, writeSafely } from './safety';
@@ -31,7 +33,9 @@ Usage
   ara3d animations                List the animation clips and their groups
   ara3d props                     List the weapons, carried items and vehicles
   ara3d new <name> [--preset P]   Write a starter character file to edit
-  ara3d schema [character|film|game]  Print a JSON schema (for editors and AI tools)
+  ara3d schema [character|film|game|pack]  Print a JSON schema (for editors and AI tools)
+  ara3d pack new|build|check      Make a content pack from your own animations (FBX from
+                                  Mixamo, glTF, BVH), or check one (ara3d pack --help)
   ara3d mcp                       Run as an MCP server, so AI assistants can make characters
                                   (Claude Code: claude mcp add ara3d -- npx -y ara3d mcp)
 
@@ -46,6 +50,8 @@ Export options
   --animations <list>    Only these clips or groups, comma-separated, such as
                          walk,run,idle or locomotion,shooter (see ara3d animations)
   --no-animations        Rigged but without animation clips (smaller files)
+  --pack <file|url>      A content pack whose animations to add (repeatable): its clips are
+                         named <pack>/<clip>, and the pack's ID picks all of them
   --root-motion          Walks, runs and strafes move forward instead of playing in place
   --separate-clips       The model plus one file per clip, in a zip (Unity's model@clip style)
   --weapon <id>          A weapon in the hand: rifle, pistol, sword, knife or grenade
@@ -76,14 +82,14 @@ function seeds(value: string) {
   return Array.from({ length: b - a + 1 }, (_, i) => a + i);
 }
 
-/** Clip IDs from a list of clip IDs and group names (a group is a clip category, such as locomotion or shooter). */
+/** Clip IDs from a list of clip IDs and group names (a clip category, such as locomotion or shooter, or a pack's ID). */
 function clipList(value: string) {
   const ids = new Set<string>();
   for (const item of value.split(',').map((s) => s.trim()).filter(Boolean)) {
-    const clip = CLIPS.find((c) => c.id === item), group = CLIPS.filter((c) => c.category.toLowerCase() === item.toLowerCase());
+    const clip = CLIPS.find((c) => c.id === item), group = CLIPS.filter((c) => c.category.toLowerCase() === item.toLowerCase() || c.pack?.id === item);
     if (clip) ids.add(clip.id);
     else if (group.length) for (const c of group) ids.add(c.id);
-    else throw new UserError(`Unknown animation "${item}". Run ara3d animations to list clips and groups.`);
+    else throw new UserError(item.includes('/') && !CLIPS.some((c) => c.pack?.id === item.split('/')[0]) ? `"${item}" comes from the ${item.split('/')[0]} pack: add it with --pack <file|url>.` : `Unknown animation "${item}". Run ara3d animations to list clips and groups.`);
   }
   return [...ids];
 }
@@ -112,10 +118,12 @@ function propsCommand() {
   console.log(`Vehicles (--vehicle)\n  ${VEHICLE_CHOICES.filter((v) => v !== 'none').join(', ')}\n  auto fits the vehicle that the selected riding clips need.`);
 }
 
-function animationsCommand() {
+async function animationsCommand(args: string[]) {
+  const { values } = parseArgs({ args, strict: true, options: { pack: { type: 'string', multiple: true } } });
+  await usePackFiles(values.pack ?? []);
   const groups = new Map<string, string[]>();
   for (const c of CLIPS) { const g = animationGroup(c);groups.set(g, [...(groups.get(g) ?? []), `${c.id}${c.loop ? ' (loop)' : ''}`]); }
-  console.log(`${CLIPS.length} clips. Pass clip IDs or category names (the part before any "·") to --animations.\n`);
+  console.log(`${CLIPS.length} clips. Pass clip IDs, category names (the part before any "·") or a pack's ID to --animations.\n`);
   for (const [group, ids] of groups) console.log(`${group}\n  ${ids.join(', ')}\n`);
 }
 
@@ -125,7 +133,9 @@ async function exportCommand(args: string[]) {
     formats: { type: 'string', default: 'glb' }, detail: { type: 'string' }, animations: { type: 'string' }, 'no-animations': { type: 'boolean' },
     'root-motion': { type: 'boolean' }, 'separate-clips': { type: 'boolean' }, out: { type: 'string', default: 'ara3d-out' },
     weapon: { type: 'string' }, carry: { type: 'string' }, vehicle: { type: 'string' }, 'separate-props': { type: 'boolean' },
+    pack: { type: 'string', multiple: true },
   } });
+  await usePackFiles(values.pack ?? []);
   const formats = values.formats!.split(',').map((f) => f.trim()) as ExportFormat[];
   for (const f of formats) if (!FORMATS.includes(f)) throw new UserError(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
   if (values.detail && !(DETAILS as readonly string[]).includes(values.detail)) throw new UserError(`--detail is one of ${DETAILS.join(', ')}.`);
@@ -201,7 +211,8 @@ function newCommand(args: string[]) {
 
 async function schemaCommand(args: string[]) {
   const which = args[0] ?? 'character';
-  if (which !== 'character' && which !== 'film' && which !== 'game') throw new UserError('ara3d schema takes character, film or game.');
+  if (which === 'pack') return console.log(JSON.stringify(packSchema(), null, 2));
+  if (which !== 'character' && which !== 'film' && which !== 'game') throw new UserError('ara3d schema takes character, film, game or pack.');
   const { catalog } = await loadLibrary();finish();
   console.log(JSON.stringify(which === 'character' ? characterSchema(catalog) : which === 'film' ? assistSchema(catalog) : playSchema(catalog), null, 2));
 }
@@ -212,7 +223,8 @@ async function main(argv: string[]) {
   if (command === '--version' || command === '-v') return console.log(PACKAGE.version);
   if (command === 'export') return exportCommand(rest);
   if (command === 'presets') return console.log(Object.keys(PRESETS).join('\n'));
-  if (command === 'animations') return animationsCommand();
+  if (command === 'animations') return animationsCommand(rest);
+  if (command === 'pack') return packCommand(rest);
   if (command === 'props') return propsCommand();
   if (command === 'new') return newCommand(rest);
   if (command === 'schema') return schemaCommand(rest);

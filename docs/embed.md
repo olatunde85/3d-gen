@@ -39,6 +39,7 @@ Use one of these:
 | `auto-rotate` | `auto-rotate` | Turns the character slowly |
 | `orbit` | `orbit="false"` | Stops visitors from turning the character |
 | `zoom` | `zoom` | Lets visitors zoom with the mouse wheel or a pinch. It's off by default, so the page still scrolls over the character |
+| `packs` | `packs="https://…/salsa.ara-pack.json"` | [Content packs](packs.md) whose animations `animation` and `clips` can use, as `salsa/basic`; several addresses go comma- or space-separated |
 | `assets-url` | `assets-url="/ara3d-assets/"` | Serve the character data yourself (see [Hosting the data](library.md#hosting-the-data)) |
 
 ## Chaining animations

@@ -6,6 +6,7 @@ import type { Catalog } from '../core/assets';
 import { parseCharacterInput, characterSchema, characterReference, compactSchema } from '../app/character-assist';
 import { PRESETS } from '../core/params';
 import { CLIPS } from '../core/anim/clips';
+import { MAX_PACK_REFS, PACK_ID, PACK_ITEM_ID, preparePacks } from '../core/packs';
 import { decodeCharacter, encodeCharacter } from '../app/share';
 import { SETS, sceneById } from './catalog';
 import { MAX_SPEECH, MAX_SOUND_EFFECTS, VOICE_EFFECTS, SPEECH_VOICE_PATTERN, MUSIC_TRACKS, ARA_VOICE_GUIDE } from './audio/schema';
@@ -47,12 +48,18 @@ export function parseStudioFilm(text: string, catalog?: Catalog): StudioProject[
   try { value = JSON.parse(source); }
   catch { throw Error('This is not valid JSON. Paste the complete JSON object, without surrounding explanation.'); }
   if (!object(value) || value.version !== 3) return [parseStudioInput(source, catalog)];
-  fields(value, ['kind', 'version', 'title', 'aspect', 'caption', 'scenes'], 'Film');
+  fields(value, ['kind', 'version', 'title', 'aspect', 'caption', 'scenes', 'packs'], 'Film');
   const scenes = filmScenes(value).map((scene, i) => {
     try { return parseStudioInput(JSON.stringify(sceneSource(value, scene)), catalog); }
     catch (error) { throw Error(`Scene ${i + 1}: ${(error as Error).message}`); }
   });
   return shareFilmSettings(scenes);
+}
+
+/** A film from a file, link or Assist, after loading the content packs it lists (see core/packs). */
+export async function loadStudioFilm(text: string, catalog?: Catalog): Promise<StudioProject[]> {
+  await preparePacks(text.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, '$1'));
+  return parseStudioFilm(text, catalog);
 }
 
 /** Accept saved projects or LLM-friendly preset/equipment names; keep the canonical validator authoritative. */
@@ -63,7 +70,7 @@ export function parseStudioInput(text: string, catalog?: Catalog): StudioProject
   try { value = JSON.parse(source); }
   catch { throw Error('This is not valid JSON. Paste the complete JSON object, without surrounding explanation.'); }
   if (!object(value) || value.version !== 2) return parseProject(source);
-  fields(value, ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption', 'texts', 'audio', 'sceneName', 'transition'], 'Film');
+  fields(value, ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption', 'texts', 'audio', 'sceneName', 'transition', 'packs'], 'Film');
   if (object(value.view)) fields(value.view, ['azimuth', 'elevation', 'zoom'], 'View');
   if (Array.isArray(value.shots)) value.shots.forEach((shot, i) => {
     if (object(shot)) {fields(shot, ['id', 'duration', 'shot', 'target','view','camera'], `Shot ${i + 1}`);if(object(shot.view))fields(shot.view,['azimuth','elevation','zoom'],`Shot ${i+1} view`);}
@@ -197,7 +204,7 @@ export function assistSchema(catalog:Catalog) {
     hidden:{type:'boolean',description:'Off stage for this action: not drawn, not framed, not staging-checked. For entrances and exits.'},
     expression:{...enumeration(EXPRESSIONS),description:'Facial expression from this action on, until another action sets one.'},
     exact:{type:'boolean',description:'Set by "to": the walk covers its metres whatever the body size.'},
-    id: { type: 'string' }, vehicleId:{type:'string',pattern:'^[a-zA-Z0-9_-]{1,80}$',description:'Physical vehicle identity shared across actors and entry/ride/exit beats. Omit for an actor-owned model.'},vehicleSeat:{...enumeration(VEHICLE_SEATS),description:'operator by default. Passengers reference the operator’s vehicleId and use a seat supported by its model.'}, clip: enumeration(CLIPS.map(c => c.id)), duration: num(0.1, 12), move: { type: 'boolean' },showVehicle:{type:'boolean',description:'Operator vehicle visibility. Shared passengers use the existing physical prop, without duplicates.'},showProp:{type:'boolean',description:'Climbing, cover and football actions only: false hides the ladder, obstacle, ledge wall, cover wall or football for that span (the motion is unchanged), e.g. when the set already has one.'},showBlood:{type:'boolean',description:'Gunshot reactions (shot_*) only: false shows the reaction without blood.'},flightHeight:{...num(0,30),description:'Aircraft: flight altitude with takeoff/landing, default 3m moving or 0 stationary. Aerial actions: START altitude, easing to the next aerial start height. Defaults skydive20/deploy12/glide8/land2 m; land reaches ground at touchdown. Passengers inherit pilot height.'},travelSpeed:{...num(.1,MAX_TRAVEL_SPEED),description:'Vehicle travel metres per second. Does not change animation playback. Only for riding/driving actions; not boarding/alighting.'},weaponPose:{...enumeration(WEAPON_POSES),description:'Mounted and pistol/rifle performances: hold/aim/fire. Fire requires pistol/rifle. Hidden works on any beat. Omitted: wield while riding, hide during entry/exit, native pose otherwise.'},weaponPitch:{...num(-45,60),description:'Weapon elevation in degrees: positive up, negative down. Works on mounted and pistol/rifle performances.'},weaponYaw:{...num(-110,110),description:'Weapon heading in degrees: 0 forwards, positive left, negative right.'},
+    id: { type: 'string' }, vehicleId:{type:'string',pattern:'^[a-zA-Z0-9_-]{1,80}$',description:'Physical vehicle identity shared across actors and entry/ride/exit beats. Omit for an actor-owned model.'},vehicleSeat:{...enumeration(VEHICLE_SEATS),description:'operator by default. Passengers reference the operator’s vehicleId and use a seat supported by its model.'}, clip: {anyOf:[enumeration(CLIPS.map(c => c.id)),{type:'string',pattern:PACK_ITEM_ID.source,description:'An animation from a content pack in packs: "<pack>/<animation>".'}]}, duration: num(0.1, 12), move: { type: 'boolean' },showVehicle:{type:'boolean',description:'Operator vehicle visibility. Shared passengers use the existing physical prop, without duplicates.'},showProp:{type:'boolean',description:'Climbing, cover and football actions only: false hides the ladder, obstacle, ledge wall, cover wall or football for that span (the motion is unchanged), e.g. when the set already has one.'},showBlood:{type:'boolean',description:'Gunshot reactions (shot_*) only: false shows the reaction without blood.'},flightHeight:{...num(0,30),description:'Aircraft: flight altitude with takeoff/landing, default 3m moving or 0 stationary. Aerial actions: START altitude, easing to the next aerial start height. Defaults skydive20/deploy12/glide8/land2 m; land reaches ground at touchdown. Passengers inherit pilot height.'},travelSpeed:{...num(.1,MAX_TRAVEL_SPEED),description:'Vehicle travel metres per second. Does not change animation playback. Only for riding/driving actions; not boarding/alighting.'},weaponPose:{...enumeration(WEAPON_POSES),description:'Mounted and pistol/rifle performances: hold/aim/fire. Fire requires pistol/rifle. Hidden works on any beat. Omitted: wield while riding, hide during entry/exit, native pose otherwise.'},weaponPitch:{...num(-45,60),description:'Weapon elevation in degrees: positive up, negative down. Works on mounted and pistol/rifle performances.'},weaponYaw:{...num(-110,110),description:'Weapon heading in degrees: 0 forwards, positive left, negative right.'},
   } };
   const builder=characterSchema(catalog),builderDefinition=Object.fromEntries(Object.entries(builder).filter(([key])=>!['$schema','title'].includes(key)));
   const characterSpecification={...builderDefinition,properties:{...builder.properties,params:{$ref:'#/$defs/characterParams'}}};
@@ -221,6 +228,8 @@ export function assistSchema(catalog:Catalog) {
     $defs:{characterParams:builder.properties.params,characterSpecification},
     required: ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption'], properties: {
       kind: { const: 'ara-studio' }, version: { const: 2 }, title: { type: 'string', maxLength: 60 }, template: enumeration(SETS.map(s => s.id)),
+      packs: { type: 'array', maxItems: MAX_PACK_REFS, description: 'The content packs whose animations the film uses (Studio writes this when it saves).', items: { type: 'object', additionalProperties: false, required: ['id'], properties: {
+        id: { type: 'string', pattern: PACK_ID.source }, name: { type: 'string', maxLength: 60 }, url: { type: 'string', maxLength: 2048, description: 'Where the pack file is: https://….ara-pack.json' } } } },
       actors: { type: 'array', minItems: 1, maxItems: MAX_ACTORS, items: actor },
       shots: { type: 'array', minItems: 1, maxItems: MAX_SHOTS, items: { type: 'object', additionalProperties: false, required: ['duration', 'shot', 'target'], properties: {
         view: {type:'object',additionalProperties:false,required:['azimuth','elevation','zoom'],properties:{azimuth:num(-180,180),elevation:num(-35,65),zoom:num(.5,3)}},camera:enumeration(['locked','dolly','orbit']),

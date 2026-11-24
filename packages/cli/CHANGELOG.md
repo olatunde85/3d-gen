@@ -2,6 +2,14 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.15.0 — 2026-11-24
+
+- **Content packs: your own animations.** `ara3d pack <folder>` turns animation files (FBX from Mixamo and most tools, glTF/GLB, BVH) into one `.ara-pack.json`, retargeted onto Ara's rig, fingers included. Names come from the files, groups are guessed from the names, loops are found from the motion and duplicate files are skipped. `ara3d pack check` lists a pack; `ara3d pack new` and `pack build` take a `pack.json` for setting everything yourself. See [Content packs](https://ara3dgen.com/docs/packs/).
+- **Packs everywhere:** `ara3d export --pack` and `ara3d animations --pack`; the library's `packs` option and `readPack()`; the embed's `packs` attribute; and a `packs` list for the MCP tools `create_character`, `list_animations` and `create_film`. A pack's animations are named `<pack>/<animation>`, and the pack's ID picks all of them.
+- **Films list their packs** and load them wherever they open, so a film link works in a browser that has never seen the pack.
+- **Unique names in exports:** an animation named like another, such as a pack's "Walk" beside Ara's, carries its pack's name in GLB and FBX files.
+- **Schemas** for packs (`pack.v1.json`) and for `pack.json` (`pack-source.v1.json`); `ara3d schema pack` prints the first.
+
 ## 0.14.0 — 2026-11-23
 
 - **Faster films over MCP:** the first `film_guide` answer is a short quickstart: the format, a worked example, the sets, presets, everyday animations and music, with the chosen set's staging map when `location` is given. Most films need nothing more; the full rules are topics.

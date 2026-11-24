@@ -28,6 +28,27 @@ export interface Bvh {
   frameTime: number;
 }
 
+/**
+ * A recording in a common form, whatever file it came from: its joints (rest offsets and tips in the
+ * world frame, with the rest pose as every rotation's zero) and, per frame, each joint's world
+ * rotation relative to that rest pose plus the root joint's position. +Y is up.
+ */
+export interface Take {
+  joints: TakeJoint[];
+  frameTime: number;
+  poses: TakePose[];
+}
+export interface TakeJoint {
+  name: string;
+  parent: number;
+  /** Rest offset from the parent joint, in the world frame (any unit: lengths are measured in leg lengths). */
+  offset: Vec3;
+  /** The bone's rest direction and length: its first child's offset, or its end site. */
+  tip?: Vec3;
+  kids: number[];
+}
+export interface TakePose { world: Q[]; hips: Vec3 }
+
 export function parseBvh(text: string): Bvh {
   const tok = text.split(/\s+/).filter(Boolean);
   let i = 0;
@@ -100,7 +121,7 @@ export function mirrorBvh(b: Bvh): Bvh {
 }
 
 /** CMU (cgspeed) joint names -> our game-rig bones. Toes are left out: CMU's toe channels are noisy and bend the shoe. */
-const CMU_MAP: Record<string, string> = {
+export const CMU_MAP: Readonly<Record<string, string>> = {
   Hips: 'Hips', LowerBack: 'Spine', Spine: 'Spine1', Spine1: 'Spine2', Neck: 'Neck', Head: 'Head',
   LeftShoulder: 'LeftShoulder', LeftArm: 'LeftArm', LeftForeArm: 'LeftForeArm', LeftHand: 'LeftHand',
   RightShoulder: 'RightShoulder', RightArm: 'RightArm', RightForeArm: 'RightForeArm', RightHand: 'RightHand',
@@ -108,8 +129,41 @@ const CMU_MAP: Record<string, string> = {
   RightUpLeg: 'RightUpLeg', RightLeg: 'RightLeg', RightFoot: 'RightFoot',
 };
 
+export { MOCAP_BONES, REQUIRED_MOCAP_BONES } from './mocap-bones';
+
+/** The recording in the common form (see Take): BVH's rest pose is every channel at zero. */
+export function bvhTake(bvh: Bvh): Take {
+  return { joints: bvh.joints, frameTime: bvh.frameTime, poses: bvh.frames.map((row) => poseAt(bvh, row)) };
+}
+
+/**
+ * The take turned to Ara's frame: standing up +Y with its left side towards +X (so it faces +Z), judged from its rest
+ * pose. Recordings from other tools often face -Z or lie along Z; a take already in this frame is returned as it is.
+ */
+export function uprightTake(take: Take, map: Readonly<Record<string, string>>): Take {
+  const rest: Vec3[] = [];
+  take.joints.forEach((j, k) => (rest[k] = j.parent < 0 ? [0, 0, 0] : (rest[j.parent].map((x, d) => x + j.offset[d]) as Vec3)));
+  const at = (g: string) => { const k = take.joints.findIndex((j) => map[j.name] === g);return k < 0 ? undefined : rest[k]; };
+  const unit = (v: Vec3): Vec3 => { const l = Math.hypot(...v) || 1;return [v[0] / l, v[1] / l, v[2] / l]; };
+  const sub = (a?: Vec3, b?: Vec3): Vec3 | undefined => a && b && [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const up = sub(at('Head'), at('Hips')), left = sub(at('LeftUpLeg'), at('RightUpLeg')) ?? sub(at('LeftArm'), at('RightArm'));
+  if (!up || !left) return take;
+  // Up is the nearest axis (a natural rest pose holds the head a little forward of the hips); left is measured exactly.
+  const axis = [0, 1, 2].reduce((a, d) => Math.abs(up[d]) > Math.abs(up[a]) ? d : a, 0), vertical: Vec3 = [0, 0, 0];
+  vertical[axis] = Math.sign(up[axis]);
+  const stand = qfromTo(vertical, [0, 1, 0]), side = qrot(stand, left);
+  const turn = qfromTo(unit([side[0], 0, side[2]]), [1, 0, 0]), m = qmul(turn, stand);
+  if (Math.abs(m[3]) > 1 - 1e-12) return take;
+  const mi = qconj(m), r = (v: Vec3) => qrot(m, v);
+  return {
+    frameTime: take.frameTime,
+    joints: take.joints.map((j) => ({ ...j, offset: r(j.offset), ...(j.tip ? { tip: r(j.tip) } : {}) })),
+    poses: take.poses.map((P) => ({ world: P.world.map((q) => qmul(qmul(m, q), mi)), hips: r(P.hips) })),
+  };
+}
+
 /** World rotations (per joint) and hips position (source units) for one BVH frame. */
-function poseAt(bvh: Bvh, row: Float32Array): { world: Q[]; hips: Vec3 } {
+function poseAt(bvh: Bvh, row: Float32Array): TakePose {
   const world: Q[] = [];
   let c = 0;
   let hips: Vec3 = [0, 0, 0];
@@ -180,21 +234,47 @@ export interface MocapOptions {
   swing?: number;
   /** Adapt a recorded turn's unwrapped heading to an exact angle, retaining its recorded steps. */
   turn?: number;
+  /** Source joint name -> game-rig bone (default: CMU_MAP). */
+  map?: Readonly<Record<string, string>>;
+  /**
+   * Take the actor's average head pose (relative to the chest) as neutral and share the chest-to-head
+   * bend along the neck (default true: right for CMU's marker caps; off for animated or retargeted sources,
+   * whose head pose is meant).
+   */
+  neutralHead?: boolean;
+  /**
+   * Turn the arms out from the body and the clavicles down by these degrees (default 8 and 4: CMU actors hold
+   * their upper arms almost vertical, which presses them into our wider bodies).
+   */
+  armSpread?: number;
+  /**
+   * Level each foot over the frames where it is planted (default true: CMU's rest feet aren't flat). Off, the feet
+   * follow the source's rest pose like the limbs do, which suits animated sources: their poses mean what they show,
+   * such as a foot rolled onto its edge in a lean.
+   */
+  levelFeet?: boolean;
 }
 
-export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
-  const ft = bvh.frameTime;
-  const f0 = Math.min(bvh.frames.length - 1, Math.round((o.start ?? 0) / ft));
-  let f1 = Math.min(bvh.frames.length - 1, Math.round((o.end ?? bvh.frames.length * ft) / ft));
-  const poses = smooth(bvh.frames.map((row) => poseAt(bvh, row)), Math.round(0.025 / ft));
+export function mocapClip(source: Bvh | Take, o: MocapOptions): Clip {
+  const take = 'frames' in source ? bvhTake(source) : source, joints = take.joints, count = take.poses.length;
+  const ft = take.frameTime;
+  const f0 = Math.min(count - 1, Math.round((o.start ?? 0) / ft));
+  let f1 = Math.min(count - 1, Math.round((o.end ?? count * ft) / ft));
+  const poses = smooth(take.poses.map((P) => ({ world: [...P.world], hips: P.hips })), Math.round(0.025 / ft));
+  const map = o.map ?? CMU_MAP;
+  // One joint per bone: the first (a repeated name further down is a helper of that joint).
+  const mapped = joints.map((j, k) => [map[j.name], k] as const).filter(([g], i, all) => !!g && all.findIndex(([h]) => h === g) === i) as [string, number][];
+  const jointOf = (g: string) => mapped.find(([m]) => m === g)?.[1] ?? -1;
+  /** The foot joints of each side: the ankle and the joints below it (toes). */
+  const footChain = (side: string) => { const k = jointOf(`${side}Foot`);return k < 0 ? [] : [k, ...joints[k].kids]; };
   // Head and neck. CMU head orientation depends on where each actor's marker cap sat (one actor
   // holds the chin ~12 degrees up throughout, another looks ~20 degrees down), so the actor's
   // average head pose relative to the chest is taken as their neutral and mapped to ours; movement
   // around it is kept. The chest-to-head bend is then shared along the neck (about 60% in the neck,
   // like the cervical spine) instead of following CMU's lower neck joint alone, which put nearly
   // all of a nod at the skull and crushed the throat.
-  const [chestJ, neckJ, headJ] = ['Spine1', 'Neck', 'Head'].map((n) => bvh.joints.findIndex((j) => j.name === n));
-  if (chestJ >= 0 && neckJ >= 0 && headJ >= 0) {
+  const [chestJ, neckJ, headJ] = ['Spine2', 'Neck', 'Head'].map(jointOf);
+  if (o.neutralHead !== false && chestJ >= 0 && neckJ >= 0 && headJ >= 0) {
     const rel = poses.map((P) => qmul(qconj(P.world[chestJ]), P.world[headJ]));
     const acc = [0, 0, 0, 0];
     const [n0, n1] = o.neutral ? o.neutral.map((s) => Math.min(poses.length - 1, Math.round(s / ft))) : [f0, f1];
@@ -209,12 +289,11 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
       P.world[neckJ] = qslerp(P.world[chestJ], P.world[headJ], 0.6);
     });
   }
-  const mapped = bvh.joints.map((j, k) => [CMU_MAP[j.name], k] as const).filter(([g]) => !!g) as [string, number][];
   if (o.loop && o.loopSearch) {
     // Seamless loop: the frame whose pose (and vertical hips) best matches the first frame.
     const a = poses[f0];
     let best = Infinity;
-    for (let f = f0 + Math.round(o.loopSearch[0] / ft); f <= Math.min(bvh.frames.length - 1, f0 + Math.round(o.loopSearch[1] / ft)); f++) {
+    for (let f = f0 + Math.round(o.loopSearch[0] / ft); f <= Math.min(count - 1, f0 + Math.round(o.loopSearch[1] / ft)); f++) {
       const b = poses[f];
       let err = 0;
       for (const [, k] of mapped) {
@@ -226,9 +305,9 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
   }
   // Leg length: rest drop from the hips to the lowest end site.
   const restPos: Vec3[] = [];
-  bvh.joints.forEach((j, k) => (restPos[k] = j.parent < 0 ? [0, 0, 0] : (restPos[j.parent].map((x, d) => x + j.offset[d]) as Vec3)));
+  joints.forEach((j, k) => (restPos[k] = j.parent < 0 ? [0, 0, 0] : (restPos[j.parent].map((x, d) => x + j.offset[d]) as Vec3)));
   let low = 0;
-  bvh.joints.forEach((j, k) => (low = Math.min(low, restPos[k][1] + (j.tip?.[1] ?? 0))));
+  joints.forEach((j, k) => (low = Math.min(low, restPos[k][1] + (j.tip?.[1] ?? 0))));
   const leg = -low;
   const duration = (f1 - f0) * ft;
   // Face +Z: along the travel for clips that move, else the way the hips face at the start.
@@ -280,19 +359,19 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
     }
   }
   // Feet height (Foot and ToeBase joints and the toe tips) per frame; the lowest over the clip is the floor.
-  const footJ = bvh.joints.map((j, k) => (/^(Left|Right)(Foot|ToeBase)$/.test(j.name) ? k : -1)).filter((k) => k >= 0);
-  const ankle = ['Left', 'Right'].map((side) => bvh.joints.findIndex((j) => j.name === `${side}Foot`));
+  const footJ = [...footChain('Left'), ...footChain('Right')];
+  const ankle = ['Left', 'Right'].map((side) => jointOf(`${side}Foot`));
   const ankleY: number[][] = [[], []];
   const footLow = poses.map((P, f) => {
     const pos: Vec3[] = [];
-    bvh.joints.forEach((j, k) => {
+    joints.forEach((j, k) => {
       pos[k] = j.parent < 0 ? P.hips : (qrot(P.world[j.parent], j.offset).map((v, d) => v + pos[j.parent][d]) as Vec3);
     });
     ankle.forEach((k, s) => (ankleY[s][f] = k >= 0 ? pos[k][1] : 0));
     let low = Infinity;
     for (const k of footJ) {
       low = Math.min(low, pos[k][1]);
-      const tip = bvh.joints[k].tip;
+      const tip = joints[k].tip;
       if (tip) low = Math.min(low, pos[k][1] + qrot(P.world[k], tip)[1]);
     }
     return low;
@@ -304,7 +383,7 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
   // it passes the other), so the feet clear each other and still land on the line.
   if (o.swing) {
     for (const [s, side] of [[0, 'Left'], [1, 'Right']] as const) {
-      const chain = ['UpLeg', 'Leg', 'Foot', 'ToeBase'].map((n) => bvh.joints.findIndex((j) => j.name === `${side}${n}`)).filter((k) => k >= 0);
+      const chain = [...['UpLeg', 'Leg'].map((n) => jointOf(side + n)).filter((k) => k >= 0), ...footChain(side)];
       const ys = ankleY[s].slice(c0, c1 + 1), lo = Math.min(...ys), hi = Math.max(...ys);
       poses.forEach((P, f) => {
         const x = Math.max(0, Math.min(1, (ankleY[s][f] - lo) / (hi - lo || 1)));
@@ -317,10 +396,10 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
   const travel: [number, number, number] = [(vel[0] / leg) * 0.95, 0, (vel[2] / leg) * 0.95];
   const dir: Record<string, Vec3> = {};
   for (const [g, k] of mapped) {
-    // Only the limbs differ in rest posture (CMU: arms out, legs apart). The trunk, clavicles and
-    // head keep our own rest directions, which follow this body's anatomy.
-    if (!/(Arm|Hand|Leg)$/.test(g)) continue;
-    const tip = bvh.joints[k].tip ?? [0, 1, 0];
+    // Only the limbs and fingers differ in rest posture (CMU: arms out, legs apart). The trunk,
+    // clavicles and head keep our own rest directions, which follow this body's anatomy.
+    if (!/(Arm|Hand|Leg|Hand(Thumb|Index|Middle|Ring|Pinky)\d)$/.test(g) && !(o.levelFeet === false && /Foot$/.test(g))) continue;
+    const tip = joints[k].tip ?? [0, 1, 0];
     const l = Math.hypot(...tip) || 1;
     dir[g] = [tip[0] / l, tip[1] / l, tip[2] / l];
   }
@@ -337,17 +416,17 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
   // a little raised and the feet close together, which presses the arms into the torso, bunches
   // the shoulders and knocks the knees.
   const bias: Record<string, Q> = {};
-  const legSpread = o.legSpread ?? 4;
+  const legSpread = o.legSpread ?? 4, armSpread = o.armSpread ?? 8;
   for (const [side, s] of [['Left', 1], ['Right', -1]] as const) {
-    bias[`${side}Arm`] = qaxis([0, 0, 1], s * 8);
-    bias[`${side}Shoulder`] = qaxis([0, 0, 1], -s * 4);
+    bias[`${side}Arm`] = qaxis([0, 0, 1], s * armSpread);
+    bias[`${side}Shoulder`] = qaxis([0, 0, 1], -s * armSpread / 2);
     bias[`${side}UpLeg`] = qaxis([0, 0, 1], s * legSpread);
     bias[`${side}Leg`] = qaxis([0, 0, 1], s * legSpread);
     // Feet: CMU's rest foot isn't flat once its splayed rest legs come in (planted feet would roll
     // ~20 degrees onto their outer edge). Level the foot over the frames where it is planted (ankle
     // near its lowest), keeping the source's rest toe-out.
     const k = ankle[s > 0 ? 0 : 1];
-    if (k < 0) continue;
+    if (k < 0 || o.levelFeet === false) continue;
     const ys = ankleY[s > 0 ? 0 : 1].slice(c0, c1 + 1);
     const lowest = Math.min(...ys);
     const up: Vec3 = [0, 0, 0];
@@ -356,7 +435,7 @@ export function mocapClip(bvh: Bvh, o: MocapOptions): Clip {
       const u = qrot(qconj(poses[c0 + n].world[k]), [0, 1, 0]);
       for (let d = 0; d < 3; d++) up[d] += u[d];
     });
-    const tip = bvh.joints[k].tip;
+    const tip = joints[k].tip;
     const out = tip ? (Math.atan2(s * tip[0], tip[2]) * 180) / Math.PI : 0;
     bias[`${side}Foot`] = qmul(qfromTo([0, 1, 0], up), qaxis([0, 1, 0], s * out));
   }
@@ -492,7 +571,7 @@ export function clipFromMocap(d: MocapData, meta: { id: string; name: string; ca
 }
 
 /** Light low-pass over +-r frames (capture noise), rotations and hips. */
-function smooth(poses: { world: Q[]; hips: Vec3 }[], r: number): { world: Q[]; hips: Vec3 }[] {
+function smooth(poses: TakePose[], r: number): TakePose[] {
   if (r < 1) return poses;
   return poses.map((P, f) => {
     const world = P.world.map((q0, k) => {
