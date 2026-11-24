@@ -13,6 +13,7 @@ On the command line, `--model` exports one:
 ```sh
 npx ara3d export --model hero.fbx --animations locomotion,emotes --formats glb,fbx   # textures and Unity material colours are found in its folder and the ones beside it
 npx ara3d export --model hero.glb --pack salsa.ara-pack.json --animations idle,salsa
+npx ara3d export --model hero.fbx --weapon rifle --animations shooter                # props fitted to it, as in the builder
 ```
 
 ## What a model needs
@@ -23,6 +24,16 @@ npx ara3d export --model hero.glb --pack salsa.ara-pack.json --animations idle,s
 - **Up to 50 MB in the builder**, as it runs in your browser and phones run out of memory on bigger models. Smaller textures shrink a model most: `npx @gltf-transform/cli optimize model.glb smaller.glb`. The command line takes models up to 200 MB, and so can your own copy of Ara (see [Self-hosting](self-hosting.md#bigger-character-models)).
 
 The model can face any way, lie along any axis and be measured in any unit: Ara stands it up, turns it to face forward (by its feet, which point forward, so rigs that name left and right from the viewer's side still face the right way), measures it in metres, puts its feet on the floor and centres it over its hips. It keeps its own height, unless that is under 0.3 m or over 3 m, which means another unit or scale: then it's brought to 1.8 m, and its panel says so.
+
+## Props
+
+The panel's **Props** give an imported character the props Ara's own characters have, fitted to its skeleton:
+
+- **Held weapon:** a rifle, pistol, sword, knife or grenade in the right hand. It sits on a `WeaponR` socket bone, a child of the hand placed in the closed fist from the knuckles, so the shooter and sword animations grip and aim it as they do on Ara's characters, and a game engine can attach its own weapons to the same bone. A hand without finger bones gets the socket a palm's length along the hand.
+- **Carry:** a tote, handbag or briefcase in the left hand, whose fingers close round its handle; the parachute rig, fitted over the chest; a basin on the head, over the hair; and the phone, broom, parcel and gym weights, which appear in the animations that use them. The canvas backpack is clothing made for Ara's own bodies, so it isn't offered.
+- **Vehicles in riding and driving animations:** playing a riding or driving animation brings its vehicle, fitted to the rider, unless this is turned off.
+
+The props are kept with the character in the browser and exported with it: their bones come after the model's own, and the Export panel can write the weapon as a separate prop file, as for Ara's characters.
 
 ## Faces
 
@@ -39,5 +50,4 @@ The model's file is kept in the browser and converted again each time it opens, 
 ## Limits
 
 - **Its look stays as modelled:** Ara's body, face, clothing and hair controls shape Ara's own characters, so they step aside for an imported one.
-- **Props:** weapons, carried items and vehicles fit Ara's characters and aren't added to imported ones.
 - **The builder for now:** Share links, Studio and Play use Ara's own characters. An imported character lives in the browser it was opened in.

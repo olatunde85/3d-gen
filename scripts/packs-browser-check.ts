@@ -164,9 +164,20 @@ await step('Builder: a rigged character model opens as an imported character, pl
     const d=f.data,v=new DataView(d.buffer,d.byteOffset),n=v.getUint32(12,true);return [f.name,...JSON.parse(new TextDecoder().decode(d.subarray(20,20+n))).animations.map(a=>a.name)];})()`);
   assert(names.join('|') === 'Hero_Model.glb|Idle|Big wave', `export: ${names.join('|')}`);
 });
-await step('Builder: the imported character opens again after a reload; Back to Ara characters returns to them', async () => {
+await step('Builder: the imported character takes props: a weapon in its hand and a carried bag', async () => {
+  const choose = (prop: string, value: string) => e(`(()=>{const s=document.querySelector('#imported-panel [data-e=${prop}]');s.value='${value}';s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await choose('weapon', 'rifle');
+  await w('window.ara.store.current?.weapon?.id==="rifle" && window.ara.store.current.rig.bones.some(b=>b.name==="WeaponR")', 'the rifle', 60000);
+  await pause(1500);await shot('5b-imported-rifle');
+  await choose('carry', 'handbag');
+  await w('window.ara.store.current?.rig.bones.some(b=>b.name==="BagL") && window.ara.store.current.weapon?.id==="rifle"', 'the handbag', 60000);
+  assert(await e<string>('document.querySelector("#imported-panel [data-e=weapon]").value') === 'rifle', 'the panel shows the weapon');
+  await e('ara.play("walk")');await pause(1200);await shot('5c-imported-handbag');
+});
+await step('Builder: the imported character opens again after a reload, with its props; Back to Ara characters returns to them', async () => {
   await go(`${site}/app/#demo`);
   await w('window.ara?.store.current?.imported && document.querySelector("#imported-panel .imp-facts")', 'the imported character again', 120000);
+  assert(await e<boolean>('window.ara.store.current.weapon?.id==="rifle" && window.ara.store.current.rig.bones.some(b=>b.name==="BagL")'), 'its props are kept');
   await e('document.querySelector("#imported-panel [data-act=leave]").click()');
   await w('window.ara.store.current && !window.ara.store.current.imported && !window.ara.store.imported', 'Ara\'s character', 120000);
   assert(await e<boolean>('document.getElementById("imported-panel").hidden && !document.body.classList.contains("imported-character") && getComputedStyle(document.querySelector(".mode-switch")).display!=="none"'), 'controls back');

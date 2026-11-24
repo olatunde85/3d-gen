@@ -9,11 +9,12 @@ import { neededTargets } from '../core/morph';
 import type { HumanParams } from '../core/params';
 import { planExport, runExport, type ExportFile, type ExportSettings } from '../export';
 import { syncPacks } from '../core/packs/registry';
+import { equipCharacter, type Equipment } from '../core/props/equip';
 
 export type ToWorker =
   | { type: 'init'; assets: string }
   | { type: 'packs'; packs: { text: string; url?: string }[] }
-  | { type: 'use'; id: number; ch: Character; textures: [string, Uint8Array][] }
+  | { type: 'use'; id: number; ch: Character; textures: [string, Uint8Array][]; equipment?: Equipment }
   | { type: 'build'; id: number; params: HumanParams }
   | { type: 'export'; id: number; settings: ExportSettings; previewPng?: Uint8Array };
 
@@ -28,6 +29,17 @@ let current: Character | undefined;
 const sent = new Set<string>();
 const post = (m: FromWorker, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(m, transfer);
 
+/** Generated textures (fabrics, tattoos, hair, props) the main thread hasn't seen yet. */
+function unsent(L: AssetLibrary): [string, Uint8Array][] {
+  const textures: [string, Uint8Array][] = [];
+  for (const name of L.generatedNames())
+    if (!sent.has(name)) {
+      sent.add(name);
+      textures.push([name, L.peekTexture(name)!]);
+    }
+  return textures;
+}
+
 async function handle(m: ToWorker) {
   if (m.type === 'packs') return syncPacks(m.packs);
   if (m.type === 'init') {
@@ -38,21 +50,14 @@ async function handle(m: ToWorker) {
   try {
     const L = await lib!;
     if (m.type === 'use') {
-      // An imported character: it isn't built here, it's exported as it is.
+      // An imported character: it isn't built here, it's exported as it is, with any props it's given.
       for (const [name, bytes] of m.textures) if (!L.hasTexture(name)) L.registerTexture(name, bytes);
-      current = m.ch;
-      post({ type: 'built', id: m.id, ch: m.ch, textures: [] });
+      current = m.equipment ? equipCharacter(m.ch, m.equipment, L) : m.ch;
+      post({ type: 'built', id: m.id, ch: current, textures: unsent(L) });
     } else if (m.type === 'build') {
       await L.loadTargets(neededTargets(L, m.params));
       current = await buildHuman(L, m.params, { onStage: (label) => post({ type: 'progress', id: m.id, label }) });
-      // Generated textures (fabrics, tattoos, hair) the main thread hasn't seen yet.
-      const textures: [string, Uint8Array][] = [];
-      for (const name of L.generatedNames())
-        if (!sent.has(name)) {
-          sent.add(name);
-          textures.push([name, L.peekTexture(name)!]);
-        }
-      post({ type: 'built', id: m.id, ch: current, textures });
+      post({ type: 'built', id: m.id, ch: current, textures: unsent(L) });
     } else {
       if (!current) throw new Error('no character built yet');
       const plan = planExport(current, m.settings);

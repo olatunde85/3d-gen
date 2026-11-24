@@ -61,6 +61,7 @@ import { finish, megabytes, note, result, seconds, status } from './status';
 import { explain, isFatal, removeLeftovers, UserError, writeSafely } from './safety';
 import { WEAPONS } from '../../../src/core/props/weapons';
 import { CARRIED } from '../../../src/core/props/carry';
+import { equipCharacter } from '../../../src/core/props/equip';
 import { VEHICLE_CHOICES, VEHICLE_FOR_CLIP } from '../../../src/core/props/vehicles';
 import PACKAGE from '../package.json';
 
@@ -88,7 +89,8 @@ Export options
                          "ara-character" file from ara3d new or an AI assistant
   --model <file>         A rigged character model from another tool (repeatable): GLB, glTF or
                          FBX, such as a Mixamo or Ready Player Me character. Ara's animations
-                         (and any --pack) are baked into it
+                         (and any --pack) are baked into it; --weapon, --carry and --vehicle
+                         fit props to it
   --formats <list>       glb, fbx, obj, zip, comma-separated (default glb)
   --detail <level>       low, medium or high
   --animations <list>    Only these clips or groups, comma-separated, such as
@@ -212,8 +214,12 @@ async function exportCommand(args: string[]) {
     catch (error) { throw new UserError(`${file}: ${(error as Error).message}`); }
   }
 
-  // Imported models: named after their files; they keep their own look, rig and props.
-  for (const file of values.model ?? []) jobs.push({ ...DEFAULT_PARAMS, name: basename(file).replace(/\.[^.]+$/, ''), model: file, ...(values['no-animations'] ? { animations: false } : {}) });
+  // Imported models: named after their files; they keep their own look and rig, and take the props asked for (all but
+  // the backpack, which is clothing fitted over Ara's bodies).
+  if (values.model?.length && overrides.carry === 'backpack') { note('The backpack fits Ara\'s own characters only, so imported models are exported without it.'); }
+  for (const file of values.model ?? []) {
+    jobs.push({ ...DEFAULT_PARAMS, name: basename(file).replace(/\.[^.]+$/, ''), model: file, weapon: overrides.weapon ?? 'none', carry: overrides.carry && overrides.carry !== 'backpack' ? overrides.carry : 'none', vehicle: overrides.vehicle ?? 'none', ...(values['no-animations'] ? { animations: false } : {}) });
+  }
   ridingTip(jobs, clips, !!values.animations);
   mkdirSync(values.out!, { recursive: true });removeLeftovers(values.out!);
   let files = 0, bytes = 0;
@@ -224,7 +230,7 @@ async function exportCommand(args: string[]) {
     // full disk) stop the run.
     try {
       status(`${prefix}${params.name}: ${params.model ? 'reading the model' : 'building the character'}...`);
-      const character = params.model ? await modelCharacter(lib, params.model, i) : await buildHuman(lib, params);
+      const character = params.model ? equipCharacter(await modelCharacter(lib, params.model, i), params, lib) : await buildHuman(lib, params);
       if (params.model && params.animations === false) character.params = { ...character.params, animations: false };
       for (const format of formats) {
         status(`${prefix}${params.name}: writing ${format.toUpperCase()}...`);

@@ -4,15 +4,23 @@
  * controls step aside while it's shown (they shape Ara's own characters); Back to Ara characters returns to them.
  */
 import { triangleCount } from '../../core/mesh';
-import { importCharacterFile, importedCharacters, openCharacter, registerTextures, removeCharacter, renameCharacter, SITE_MODEL_LIMIT, type OpenedCharacter } from '../characters/store';
+import { CARRIED, CARRY_LABELS, type CarryId } from '../../core/props/carry';
+import type { Equipment } from '../../core/props/equip';
+import { VEHICLE_FOR_CLIP } from '../../core/props/vehicles';
+import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons';
+import { equipSaved, importCharacterFile, importedCharacters, openCharacter, registerTextures, removeCharacter, renameCharacter, SITE_MODEL_LIMIT, type OpenedCharacter } from '../characters/store';
 import type { Ctx } from './context';
 import { droppedFiles } from '../files';
 import { $, el } from './dom';
+import { carryClip, WEAPON_IDLE } from './sidebar-looks';
 
 export const MODEL_FILE = /\.(glb|gltf|vrm|fbx)$/i;
 const html = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+// Every carried item but the backpack, which is clothing fitted over Ara's own bodies.
+const CARRY_CHOICES = CARRIED.filter((c) => c !== 'backpack');
+const NO_PROPS: Equipment = { weapon: 'none', carry: 'none' };
 
-export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {
+export function importedCharacterUi(ctx: Ctx) {
   const { store, engine, viewer, lib } = ctx;
   const panel = el('section', { id: 'imported-panel', ariaLabel: 'Imported character' });
   panel.hidden = true;
@@ -39,7 +47,7 @@ export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {
 
   async function show(c: OpenedCharacter) {
     registerTextures(lib, c.textures);
-    const ch = await engine.use(c.character, c.textures);
+    const ch = await engine.use(c.character, c.textures, c.equipment ?? NO_PROPS);
     current = c;
     viewer.show(ch);
     $('#loading').hidden = true;
@@ -84,14 +92,33 @@ export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {
     document.body.classList.toggle('imported-character', !!store.imported);
     panel.hidden = !store.imported;
     if (!store.imported || !current) return;
-    const r = current.report;
+    const r = current.report, eq = current.equipment ?? NO_PROPS;
     panel.innerHTML = `
       <div class="imp-head"><span class="imp-eyebrow">IMPORTED CHARACTER</span><button class="imp-link" data-act="leave">Back to Ara characters</button></div>
       <label class="imp-name">Name <input data-r="name" value="${html(current.name)}" maxlength="60" /></label>
       <p class="imp-facts">${(r.height * 100).toFixed(0)} cm · ${r.bones} bones (${r.animated} animated) · ${r.restPose}-pose${r.faceShapes.length ? ` · ${r.faceShapes.length} face shapes` : ''}</p>
       <p class="hint">Every animation and content pack plays on it, and Export bakes them into GLB or FBX. Its own look stays as modelled, so Ara's body and clothing controls don't apply.</p>
       ${r.notes.length ? `<ul class="imp-notes">${r.notes.map((n) => `<li>${html(n)}</li>`).join('')}</ul>` : ''}
+      <div class="imp-props">
+        <span class="imp-eyebrow">PROPS</span>
+        <label class="ctl wide"><span>Held weapon</span><select data-e="weapon">${WEAPONS.map((w) => `<option value="${w}"${w === eq.weapon ? ' selected' : ''}>${WEAPON_LABELS[w]}</option>`).join('')}</select></label>
+        <label class="ctl wide"><span>Carry</span><select data-e="carry">${CARRY_CHOICES.map((c) => `<option value="${c}"${c === eq.carry ? ' selected' : ''}>${CARRY_LABELS[c]}</option>`).join('')}</select></label>
+        <label class="acc"><input type="checkbox" data-e="vehicle"${eq.vehicle !== 'none' ? ' checked' : ''} /> Vehicles in riding and driving animations</label>
+        <p class="hint">Fitted to its own hands and body: a weapon in its right hand on a WeaponR socket bone, a bag in its left hand, and the phone, broom, parcel and gym weights in the animations that use them.</p>
+      </div>
       <div class="imp-actions"><button data-act="remove">Remove from this browser</button></div>`;
+  }
+
+  /** Gives the character its props (they're kept with it), then plays `clip` to show them. */
+  async function equip(next: Equipment, clip?: string) {
+    if (!current) return;
+    current = { ...current, equipment: next };
+    void equipSaved(current.id, next);
+    const ch = await engine.use(current.character, [], next);
+    if (store.imported !== current.id) return;
+    viewer.show(ch);
+    store.useImported(ch);
+    if (clip) ctx.playClip(clip);
   }
 
   panel.addEventListener('click', async (e) => {
@@ -103,6 +130,10 @@ export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {
   });
   panel.addEventListener('change', async (e) => {
     const input = e.target as HTMLInputElement;
+    const prop = input.dataset.e, eq = current?.equipment ?? NO_PROPS;
+    if (prop === 'weapon') return equip({ ...eq, weapon: input.value as WeaponId }, WEAPON_IDLE[input.value as WeaponId]);
+    if (prop === 'carry') return equip({ ...eq, carry: input.value as CarryId }, carryClip(input.value as CarryId));
+    if (prop === 'vehicle') return equip({ ...eq, vehicle: input.checked ? 'auto' : 'none' });
     if (input.dataset.r !== 'name' || !current) return;
     const name = input.value.trim().slice(0, 60) || current.name;
     await renameCharacter(current.id, name);
@@ -133,6 +164,11 @@ export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {
     void openFile(model, files.filter((f) => f !== model));
   }
 
+  // A riding or driving animation brings its vehicle, unless vehicles were turned off.
+  store.on('clip', (id) => {
+    const eq = current?.equipment ?? NO_PROPS;
+    if (store.imported && current && VEHICLE_FOR_CLIP[id] && eq.vehicle === undefined) void equip({ ...eq, vehicle: 'auto' });
+  });
   store.on('imported', () => { void render();void listYours(); });
   void listYours();
   return {

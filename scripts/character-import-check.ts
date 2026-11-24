@@ -13,7 +13,11 @@ import { CLIPS, clipById } from '../src/core/anim/clips';
 import { qaxis, qmul } from '../src/core/anim/quat';
 import { guessBoneMap } from '../src/core/anim/take-three';
 import { characterFromFile, characterFromModel, unityTints } from '../src/core/characters/model';
-import { buildHuman, type Character } from '../src/core/human';
+import { buildHuman, meshWithoutWeapon, type Character } from '../src/core/human';
+import { CARRIED } from '../src/core/props/carry';
+import { equipCharacter, handJoints } from '../src/core/props/equip';
+import { WEAPONS } from '../src/core/props/weapons';
+import { socketBone } from '../src/core/rig/socket';
 import { DEFAULT_PARAMS, PRESETS } from '../src/core/params';
 import { readAnimationFile } from '../src/core/packs/build';
 import { DEFAULT_EXPORT, planExport, runExport } from '../src/export';
@@ -191,6 +195,63 @@ await check('exports bake the animations in, and keep the model\'s textures', as
   const json = JSON.parse(new TextDecoder().decode(out.subarray(20, 20 + new DataView(out.buffer, out.byteOffset).getUint32(12, true))));
   assert.deepEqual(json.animations.map((a: { name: string }) => a.name), ['Idle', 'Walk', 'Wave']);
   assert.equal(json.skins[0].joints.length, base.report.bones);
+});
+
+console.log('Props');
+const armed = await buildHuman(lib, { ...DEFAULT_PARAMS, detail: 'low', weapon: 'rifle', carry: 'none' });
+const armedBase = (await characterFromFile(await exported(armed, 'glb'), 'armed.glb', { id: 'armed' })).character;
+const gripAt = (ch: Character, socket: string, clip: string, t: number) => {
+  const A = new Animator(ch.rig!, ch.face), at = A.positions(A.frame(clipById.get(clip)!, t)), names = ch.rig!.bones.map((b) => b.name);
+  const s = at[names.indexOf(socket)], h = at[names.indexOf('Hips')];
+  return [s[0] - h[0], s[1] - h[1], s[2] - h[2]];
+};
+await check('a weapon sits in an imported character\'s hand where it sits in Ara\'s, and aims the same', () => {
+  const ch = equipCharacter(armedBase, { weapon: 'rifle', carry: 'none' }, lib);
+  // The model's own socket (from Ara's export) came in as WeaponR_model; the one fitted to its knuckles is WeaponR.
+  const own = ch.rig!.bones.find((b) => b.name === 'WeaponR_model')!, fitted = ch.rig!.bones.find((b) => b.name === 'WeaponR')!;
+  assert.equal(ch.rig!.bones[fitted.parent].name, 'RightHand');
+  const d = Math.hypot(...[0, 1, 2].map((k) => own.head[k] - fitted.head[k]) as [number, number, number]);
+  assert.ok(d < 0.01, `socket ${(d * 100).toFixed(1)} cm away`);
+  for (const [clip, t] of [['rifle_aim', 0.5], ['rifle_idle', 1]] as const) {
+    const a = gripAt(armed, 'WeaponR', clip, t), b = gripAt(ch, 'WeaponR', clip, t), e = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    assert.ok(e < 0.02, `${clip}: ${(e * 100).toFixed(1)} cm`);
+  }
+  assert.equal(ch.weapon?.id, 'rifle');
+  assert.equal(ch.rig!.weapon, 'rifle');
+});
+await check('every weapon and carried item fits it: its own mesh and bones first, the props after', () => {
+  const before = base.character, n = before.mesh.positions.length / 3;
+  for (const weapon of WEAPONS) for (const carry of CARRIED.filter((c) => c !== 'backpack')) {
+    if (weapon !== 'none' && carry !== 'none' && weapon !== 'rifle') continue;
+    const ch = equipCharacter(before, { weapon, carry }, lib), m = ch.mesh, label = `${weapon} + ${carry}`;
+    before.rig!.bones.forEach((b, i) => assert.equal(ch.rig!.bones[i].name, b.name, label));
+    assert.deepEqual([...m.positions.subarray(0, n * 3)], [...before.mesh.positions], label);
+    assert.equal(m.joints!.length / 4, m.positions.length / 3, label);
+    assert.ok(m.joints!.every((j) => j < ch.rig!.bones.length), label);
+    for (const d of m.morphs!.deltas) assert.equal(d.length, m.positions.length, label);
+    if (weapon === 'none' && carry === 'none') assert.equal(m, before.mesh);
+    else assert.ok(m.groups.length > before.mesh.groups.length, label);
+    // The weapon's parts are the last ones (exports can leave them out or write them as a separate prop).
+    if (ch.weapon) assert.equal(meshWithoutWeapon(ch).groups.length, m.groups.length - ch.weapon.parts.length, label);
+    const A = new Animator(ch.rig!, ch.face);
+    for (const id of ['idle', 'walk', 'rifle_aim', 'carry_walk', 'sweep', 'phone_call']) assert.ok(A.positions(A.frame(clipById.get(id)!, 0.5)).every((p) => p.every(Number.isFinite)), `${label}: ${id}`);
+  }
+});
+await check('a hand without finger bones still gets a socket in its palm', () => {
+  const bones = base.character.rig!.bones, hand = bones.findIndex((b) => b.name === 'RightHand');
+  const k = base.character.height / 1.8, full = socketBone(handJoints(bones, k)!, hand, k);
+  const bare = socketBone(handJoints(bones.filter((b) => !/^RightHand(Index|Middle|Ring|Pinky|Thumb)/.test(b.name)), k)!, hand, k);
+  const d = Math.hypot(...[0, 1, 2].map((i) => full.head[i] - bare.head[i]) as [number, number, number]);
+  assert.ok(d < 0.06, `${(d * 100).toFixed(1)} cm from where the fingers put it`);
+});
+await check('exports carry the props with it: the WeaponR socket and the weapon as a separate prop', async () => {
+  const ch = equipCharacter(base.character, { weapon: 'pistol', carry: 'handbag' }, lib);
+  const settings = { ...DEFAULT_EXPORT, mode: 'animated', format: 'glb', packaging: 'embedded', clips: ['pistol_idle'], stageProps: false } satisfies Partial<typeof DEFAULT_EXPORT>;
+  assert.ok(planExport(ch, { ...settings, weaponFile: 'separate' }).files.some((f) => f.kind === 'prop'), 'weapon prop file');
+  const out = (await runExport(lib, ch, planExport(ch, settings))).data;
+  const json = JSON.parse(new TextDecoder().decode(out.subarray(20, 20 + new DataView(out.buffer, out.byteOffset).getUint32(12, true))));
+  const names = json.nodes.map((n: { name?: string }) => n.name);
+  for (const bone of ['WeaponR', 'BagL']) assert.ok(names.includes(bone), bone);
 });
 
 console.log(`Character import checks passed: ${passed} in ${((performance.now() - started) / 1000).toFixed(1)} s`);

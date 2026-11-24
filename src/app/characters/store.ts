@@ -5,6 +5,7 @@
  */
 import type { AssetLibrary } from '../../core/assets';
 import type { ImportedCharacter } from '../../core/characters/model';
+import type { Equipment } from '../../core/props/equip';
 import { isModelFile } from '../../core/packs/build';
 import type { CharacterImportReply, CharacterImportRequest } from './import-worker';
 
@@ -15,8 +16,8 @@ import type { CharacterImportReply, CharacterImportRequest } from './import-work
 export const SITE_MODEL_LIMIT = Math.min(200, Math.max(1, Number(import.meta.env.VITE_MAX_MODEL_MB) || 50)) * 1e6;
 type Progress = (label: string) => void;
 
-export interface SavedModel { id: string; name: string; fileName: string; bytes: Uint8Array; added: number; /** Files beside it that it uses (its textures), by lower-case name. */ files?: [string, Uint8Array][] }
-export interface OpenedCharacter extends ImportedCharacter { id: string; name: string }
+export interface SavedModel { id: string; name: string; fileName: string; bytes: Uint8Array; added: number; /** Files beside it that it uses (its textures), by lower-case name. */ files?: [string, Uint8Array][]; /** Its props: weapon, carried item, vehicle. */ equipment?: Equipment }
+export interface OpenedCharacter extends ImportedCharacter { id: string; name: string; equipment?: Equipment }
 
 let database: Promise<IDBDatabase> | undefined;
 function db() {
@@ -72,7 +73,7 @@ export function openCharacter(id: string, progress?: Progress): Promise<OpenedCh
       if (!saved) throw Error('That imported character is no longer in this browser. Open its file again.');
       const result = await convert(id, saved.fileName, saved.bytes, progress, saved.files);
       result.character.params = { ...result.character.params, name: saved.name };
-      return { ...result, id, name: saved.name };
+      return { ...result, id, name: saved.name, ...(saved.equipment ? { equipment: saved.equipment } : {}) };
     })();
     p.catch(() => opened.delete(id));
     opened.set(id, p);
@@ -94,6 +95,14 @@ export async function renameCharacter(id: string, name: string) {
   if (saved) await run('readwrite', (s) => s.put({ ...saved, name: name.slice(0, 60) }));
   const o = opened.get(id);
   if (o) opened.set(id, o.then((c) => ({ ...c, name, character: { ...c.character, params: { ...c.character.params, name } } })));
+}
+
+/** Keeps an imported character's props (they're added each time it opens). */
+export async function equipSaved(id: string, equipment: Equipment) {
+  const saved = await run<SavedModel | undefined>('readonly', (s) => s.get(id)).catch(() => undefined);
+  if (saved) await run('readwrite', (s) => s.put({ ...saved, equipment })).catch(() => undefined);
+  const o = opened.get(id);
+  if (o) opened.set(id, o.then((c) => ({ ...c, equipment })));
 }
 
 /** Removes an imported character from this browser. */
