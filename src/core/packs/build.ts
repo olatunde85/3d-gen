@@ -6,7 +6,7 @@
  * them skip the textures some animation files carry.
  */
 import type { AnimationClip, Object3D } from 'three';
-import { bakeMocap, mocapClip, parseBvh, mirrorBvh, bvhTake, uprightTake, type MocapOptions, type Take } from '../anim/mocap';
+import { bakeMocap, mocapClip, parseBvh, mirrorBvh, bvhTake, uprightTake, MOCAP_BONES, type MocapOptions, type Take } from '../anim/mocap';
 import { boneMapFor, jointNames, jointParents, keyRate, takeFromClip } from '../anim/take-three';
 import { qmul, qconj, type Q } from '../anim/quat';
 import { ITEM_ID, PACK_CATEGORIES, PACK_ID, PACK_KIND, PACK_VERSION, parsePack, type Pack, type PackAnimation } from './format';
@@ -150,6 +150,8 @@ export function packAnimation(file: AnimationFile, fileName: string, source: Ani
     fps ??= keyRate(clip);
     take = takeFromClip(file.root, clip, hips, Math.min(60, fps * 2));
   }
+  // Animations drive the body and fingers; other bones found (toes, eyes) follow their parents, as in Ara's own clips.
+  map = Object.fromEntries(Object.entries(map).filter(([, bone]) => MOCAP_BONES.includes(bone)));
   take = uprightTake(take, map);
   if (take.poses.length < 2) throw Error(`${fileName}: the animation has a single frame. A pose needs at least two frames.`);
   // Many one-off moves end in the stance they start from (a catch, a kick): only motion meant to repeat loops.

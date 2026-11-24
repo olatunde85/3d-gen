@@ -105,6 +105,19 @@ await check('feet keep their pose: Ara\'s walk comes back through FBX with toes 
   unregisterPack('test-pack');
   assert.ok(err < 0.025, `${(err * 100).toFixed(1)} cm`);
 });
+await check('a skeleton named another way (Character Creator, with toes) converts the same, keeping only the bones animations drive', async () => {
+  const file = await readAnimationFile(glb.bytes, 'cc.glb') as Extract<AnimationFile, { root: unknown }>;
+  const cc: Record<string, string> = { Hips: 'CC_Base_Hip', Spine: 'CC_Base_Waist', Spine1: 'CC_Base_Spine01', Spine2: 'CC_Base_Spine02', Neck: 'CC_Base_NeckTwist01', Head: 'CC_Base_Head' };
+  for (const s of ['Left', 'Right']) for (const [ara, own] of [['Shoulder', 'Clavicle'], ['Arm', 'Upperarm'], ['ForeArm', 'Forearm'], ['Hand', 'Hand'], ['UpLeg', 'Thigh'], ['Leg', 'Calf'], ['Foot', 'Foot'], ['ToeBase', 'ToeBase']]) cc[s + ara] = `CC_Base_${s[0]}_${own}`;
+  file.root.traverse((o) => { if (cc[o.name]) o.name = cc[o.name]; });
+  for (const clip of file.clips) for (const t of clip.tracks) { const [bone, prop] = t.name.split('.');if (cc[bone]) t.name = `${cc[bone]}.${prop}`; }
+  const walk = packAnimation(file, 'cc.glb', { file: 'cc.glb', clip: 'Walk', id: 'walk', name: 'Walk', category: 'Locomotion' });
+  assert.ok(!walk.motion.bones.some((b) => /Toe/.test(b)), 'no toes in the motion');
+  registerPack(JSON.stringify(packOf([walk])));
+  const err = endError('walk', clipById.get('test-pack/walk')!);
+  unregisterPack('test-pack');
+  assert.ok(err < 0.025, `${(err * 100).toFixed(1)} cm`);
+});
 await check('a skeleton facing the other way, lying along Z (as some tools export) converts the same', async () => {
   const turned = await readAnimationFile(glb.bytes, 'turned.glb') as Extract<AnimationFile, { root: unknown }>;
   const wrapper = new Object3D();
