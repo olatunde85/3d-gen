@@ -7,7 +7,7 @@
  */
 import type { AnimationClip, Object3D } from 'three';
 import { bakeMocap, mocapClip, parseBvh, mirrorBvh, bvhTake, uprightTake, type MocapOptions, type Take } from '../anim/mocap';
-import { boneMapFor, jointNames, keyRate, takeFromClip } from '../anim/take-three';
+import { boneMapFor, jointNames, jointParents, keyRate, takeFromClip } from '../anim/take-three';
 import { qmul, qconj, type Q } from '../anim/quat';
 import { ITEM_ID, PACK_CATEGORIES, PACK_ID, PACK_KIND, PACK_VERSION, parsePack, type Pack, type PackAnimation } from './format';
 
@@ -137,7 +137,7 @@ export function packAnimation(file: AnimationFile, fileName: string, source: Ani
   let take: Take, map: Readonly<Record<string, string>>, fps = source.fps, cmu = false;
   if ('bvh' in file) {
     const bvh = source.mirror ? mirrorBvh(file.bvh) : file.bvh;
-    map = boneMapFor(bvh.joints.map((j) => j.name), source.bones);
+    map = boneMapFor(bvh.joints.map((j) => j.name), source.bones, (n) => { const j = bvh.joints.find((x) => x.name === n);return j && j.parent >= 0 ? bvh.joints[j.parent].name : undefined; });
     cmu = bvh.joints.some((j) => j.name === 'LowerBack');
     take = bvhTake(bvh);
     fps ??= Math.max(24, Math.min(60, Math.round(1 / bvh.frameTime)));
@@ -145,7 +145,7 @@ export function packAnimation(file: AnimationFile, fileName: string, source: Ani
     if (source.mirror) throw Error(`${fileName}: mirror works on BVH files only.`);
     const clip = source.clip ? file.clips.find((c) => c.name === source.clip) : moving(file)[0];
     if (!clip) throw Error(`${fileName}: ${source.clip ? `there's no animation called "${source.clip}". It has: ${file.clips.map((c) => c.name).join(', ')}.` : 'there are no animations in this file.'}`);
-    map = boneMapFor(jointNames(file.root), source.bones);
+    map = boneMapFor(jointNames(file.root), source.bones, jointParents(file.root));
     const hips = Object.entries(map).find(([, g]) => g === 'Hips')![0];
     fps ??= keyRate(clip);
     take = takeFromClip(file.root, clip, hips, Math.min(60, fps * 2));

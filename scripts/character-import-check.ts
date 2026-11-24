@@ -10,6 +10,7 @@ import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Animator } from '../src/core/anim/evaluate';
 import { CLIPS, clipById } from '../src/core/anim/clips';
 import { qaxis, qmul } from '../src/core/anim/quat';
+import { guessBoneMap } from '../src/core/anim/take-three';
 import { characterFromFile, characterFromModel } from '../src/core/characters/model';
 import { buildHuman, type Character } from '../src/core/human';
 import { DEFAULT_PARAMS, PRESETS } from '../src/core/params';
@@ -96,6 +97,36 @@ await check('a model without a skeleton is refused with what to do', async () =>
   const root = new Group();root.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial()));
   await assert.rejects(characterFromModel(root, { name: 'Box', textureKey: 'x', format: 'gltf' }), /no skeleton.*Mixamo/);
   await assert.rejects(characterFromFile(new Uint8Array(10), 'notes.txt', { id: 'x' }), /GLB, glTF or FBX/);
+});
+
+await check('skeletons named another way are worked out: Character Creator, Unreal, Daz, VRoid', () => {
+  /** A skeleton from [joint, parent] pairs, with both sides and five fingers made from templates ("{s}" = the side). */
+  const skeleton = (body: [string, string?][], limbs: [string, string][], side: (s: 'L' | 'R') => string) => {
+    const rows: [string, string | undefined][] = [...body.map(([n, p]) => [n, p] as [string, string | undefined])];
+    for (const s of ['L', 'R'] as const) for (const [n, p] of limbs) rows.push([n.replaceAll('{s}', side(s)), p.replaceAll('{s}', side(s))]);
+    const parent = new Map(rows);
+    return guessBoneMap(rows.map(([n]) => n), (n) => parent.get(n));
+  };
+  const fingers = (hand: string, name: (f: string, k: number) => string, names = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']) =>
+    names.flatMap((f) => [1, 2, 3].map((k) => [name(f, k), k === 1 ? hand : name(f, k - 1)] as [string, string]));
+  const expect = (map: Record<string, string>, want: Record<string, string>) => { for (const [bone, joint] of Object.entries(want)) assert.equal(Object.keys(map).find((k) => map[k] === bone), joint, bone); };
+  const cc = skeleton([['CC_Base_BoneRoot'], ['CC_Base_Hip', 'CC_Base_BoneRoot'], ['CC_Base_Pelvis', 'CC_Base_Hip'], ['CC_Base_Waist', 'CC_Base_Hip'], ['CC_Base_Spine01', 'CC_Base_Waist'], ['CC_Base_Spine02', 'CC_Base_Spine01'], ['CC_Base_NeckTwist01', 'CC_Base_Spine02'], ['CC_Base_NeckTwist02', 'CC_Base_NeckTwist01'], ['CC_Base_Head', 'CC_Base_NeckTwist02']],
+    [['CC_Base_{s}_Thigh', 'CC_Base_Pelvis'], ['CC_Base_{s}_ThighTwist01', 'CC_Base_{s}_Thigh'], ['CC_Base_{s}_Calf', 'CC_Base_{s}_Thigh'], ['CC_Base_{s}_KneeShareBone', 'CC_Base_{s}_Calf'], ['CC_Base_{s}_Foot', 'CC_Base_{s}_Calf'], ['CC_Base_{s}_ToeBase', 'CC_Base_{s}_Foot'], ['CC_Base_{s}_BigToe1', 'CC_Base_{s}_ToeBase'],
+      ['CC_Base_{s}_Clavicle', 'CC_Base_Spine02'], ['CC_Base_{s}_Upperarm', 'CC_Base_{s}_Clavicle'], ['CC_Base_{s}_UpperarmTwist01', 'CC_Base_{s}_Upperarm'], ['CC_Base_{s}_Forearm', 'CC_Base_{s}_Upperarm'], ['CC_Base_{s}_ElbowShareBone', 'CC_Base_{s}_Forearm'], ['CC_Base_{s}_Hand', 'CC_Base_{s}_Forearm'],
+      ...fingers('CC_Base_{s}_Hand', (f, k) => `CC_Base_{s}_${f === 'Middle' ? 'Mid' : f}${k}`)], (s) => s);
+  expect(cc, { Hips: 'CC_Base_Hip', Spine: 'CC_Base_Waist', Spine1: 'CC_Base_Spine01', Spine2: 'CC_Base_Spine02', Neck: 'CC_Base_NeckTwist01', Head: 'CC_Base_Head', LeftUpLeg: 'CC_Base_L_Thigh', LeftLeg: 'CC_Base_L_Calf', LeftToeBase: 'CC_Base_L_ToeBase', RightArm: 'CC_Base_R_Upperarm', RightForeArm: 'CC_Base_R_Forearm', RightHandMiddle2: 'CC_Base_R_Mid2' });
+  const ue = skeleton([['root'], ['pelvis', 'root'], ['spine_01', 'pelvis'], ['spine_02', 'spine_01'], ['spine_03', 'spine_02'], ['spine_04', 'spine_03'], ['spine_05', 'spine_04'], ['neck_01', 'spine_05'], ['neck_02', 'neck_01'], ['head', 'neck_02'], ['ik_foot_root', 'root']],
+    [['thigh_{s}', 'pelvis'], ['thigh_twist_01_{s}', 'thigh_{s}'], ['calf_{s}', 'thigh_{s}'], ['foot_{s}', 'calf_{s}'], ['ball_{s}', 'foot_{s}'], ['ik_foot_{s}', 'ik_foot_root'], ['clavicle_{s}', 'spine_05'], ['upperarm_{s}', 'clavicle_{s}'], ['lowerarm_{s}', 'upperarm_{s}'], ['hand_{s}', 'lowerarm_{s}'],
+      ...fingers('hand_{s}', (f, k) => `${f.toLowerCase()}_0${k}_{s}`)], (s) => s.toLowerCase());
+  expect(ue, { Hips: 'pelvis', Spine: 'spine_01', Spine1: 'spine_03', Spine2: 'spine_05', Neck: 'neck_01', LeftUpLeg: 'thigh_l', LeftToeBase: 'ball_l', LeftArm: 'upperarm_l', LeftForeArm: 'lowerarm_l', RightHandThumb3: 'thumb_03_r' });
+  const daz = skeleton([['hip'], ['pelvis', 'hip'], ['abdomenLower', 'hip'], ['abdomenUpper', 'abdomenLower'], ['chestLower', 'abdomenUpper'], ['chestUpper', 'chestLower'], ['neckLower', 'chestUpper'], ['neckUpper', 'neckLower'], ['head', 'neckUpper']],
+    [['{s}ThighBend', 'pelvis'], ['{s}ThighTwist', '{s}ThighBend'], ['{s}Shin', '{s}ThighTwist'], ['{s}Foot', '{s}Shin'], ['{s}Toe', '{s}Foot'], ['{s}Collar', 'chestUpper'], ['{s}ShldrBend', '{s}Collar'], ['{s}ShldrTwist', '{s}ShldrBend'], ['{s}ForearmBend', '{s}ShldrTwist'], ['{s}ForearmTwist', '{s}ForearmBend'], ['{s}Hand', '{s}ForearmTwist'],
+      ...fingers('{s}Hand', (f, k) => `{s}${f === 'Middle' ? 'Mid' : f === 'Pinky' ? 'Pinky' : f}${k}`)], (s) => s.toLowerCase());
+  expect(daz, { Hips: 'hip', Spine: 'abdomenLower', Spine2: 'chestUpper', Neck: 'neckLower', LeftUpLeg: 'lThighBend', LeftLeg: 'lShin', LeftShoulder: 'lCollar', LeftArm: 'lShldrBend', LeftForeArm: 'lForearmBend', RightHand: 'rHand', RightHandIndex1: 'rIndex1' });
+  const vroid = skeleton([['J_Bip_C_Hips'], ['J_Bip_C_Spine', 'J_Bip_C_Hips'], ['J_Bip_C_Chest', 'J_Bip_C_Spine'], ['J_Bip_C_UpperChest', 'J_Bip_C_Chest'], ['J_Bip_C_Neck', 'J_Bip_C_UpperChest'], ['J_Bip_C_Head', 'J_Bip_C_Neck'], ['J_Adj_L_FaceEye', 'J_Bip_C_Head']],
+    [['J_Bip_{s}_UpperLeg', 'J_Bip_C_Hips'], ['J_Bip_{s}_LowerLeg', 'J_Bip_{s}_UpperLeg'], ['J_Bip_{s}_Foot', 'J_Bip_{s}_LowerLeg'], ['J_Bip_{s}_ToeBase', 'J_Bip_{s}_Foot'], ['J_Bip_{s}_Shoulder', 'J_Bip_C_UpperChest'], ['J_Bip_{s}_UpperArm', 'J_Bip_{s}_Shoulder'], ['J_Bip_{s}_LowerArm', 'J_Bip_{s}_UpperArm'], ['J_Bip_{s}_Hand', 'J_Bip_{s}_LowerArm'],
+      ...fingers('J_Bip_{s}_Hand', (f, k) => `J_Bip_{s}_${f === 'Pinky' ? 'Little' : f}${k}`)], (s) => s);
+  expect(vroid, { Hips: 'J_Bip_C_Hips', Spine: 'J_Bip_C_Spine', Spine1: 'J_Bip_C_Chest', Spine2: 'J_Bip_C_UpperChest', LeftUpLeg: 'J_Bip_L_UpperLeg', LeftLeg: 'J_Bip_L_LowerLeg', RightArm: 'J_Bip_R_UpperArm', RightForeArm: 'J_Bip_R_LowerArm', LeftHandPinky3: 'J_Bip_L_Little3' });
 });
 
 console.log('Using it');

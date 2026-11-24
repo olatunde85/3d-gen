@@ -18,7 +18,7 @@ npx ara3d export --model hero.glb --pack salsa.ara-pack.json --animations idle,s
 ## What a model needs
 
 - **A skeleton:** the model must be rigged. A model without one is refused; Mixamo's free auto-rigger rigs a humanoid in a few minutes (upload it at mixamo.com and download it as FBX).
-- **Bones Ara recognises:** Mixamo's names (`Hips`, `Spine`, `LeftArm`, `LeftUpLeg` and so on, with or without a prefix such as `mixamorig:`), Ara's own (the same) and CMU's. The hips, head, arms, legs, hands and feet are required; fingers, toes and the neck are used when present. Bones Ara doesn't animate, such as hair, tails or accessories, are kept and follow their parents.
+- **A humanoid skeleton:** Ara finds the hips, spine, neck, head, arms, legs, hands, feet, fingers and toes by their names and the skeleton's shape. It knows Mixamo's and Ara's names, CMU's, Character Creator's and iClone's, Unreal's mannequin, Daz Genesis, VRoid and Blender's, with any prefix, and sides written as L/R, left/right or `.L`/`_l`. Twist, helper and IK bones are skipped. The hips, head, arms, legs, hands and feet are required; bones Ara doesn't animate, such as hair, tails or accessories, are kept and follow their parents.
 - **Textures inside the file:** embedded textures come with the model (a GLB holds them; for FBX, export with embedded media). Textures the file only points to aren't found.
 - **Up to 200 MB.**
 

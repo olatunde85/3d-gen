@@ -19,11 +19,73 @@ const SAME_NAMES: Readonly<Record<string, string>> = Object.fromEntries(MOCAP_BO
 /** The skeleton families recognised without a bone map. */
 export const SKELETONS = { ara: SAME_NAMES, cmu: CMU_MAP } as const;
 
+/** Words a joint's name splits into: lower case, at separators, case changes and digits ("L_Upperarm" -> l, upperarm). */
+const words = (name: string) => plainJointName(name).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Za-z])(\d)/g, '$1 $2').replace(/(\d)([A-Za-z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+/** Helper joints that sit beside the real ones (twist, corrective, IK and end bones): never a body bone. */
+const HELPER = /^(twist|share|roll|helper|ik|pole|target|adj|corrective|null|nub|end|tip|top|dummy|ctrl|mch|org|bend2)$/;
+const FINGERS: [string, RegExp][] = [['Thumb', /^thumb$/], ['Index', /^(index|point(er)?)$/], ['Middle', /^(middle|mid)$/], ['Ring', /^ring$/], ['Pinky', /^(pinky|little|small)$/]];
+/** Body parts by the words in a joint's name, tried in this order (a forearm is not an arm; a toe is not a foot). */
+const PARTS: [string, (w: string[], all: string) => boolean][] = [
+  ['ToeBase', (w, all) => /toe ?base|ball/.test(all) || (w.includes('toes') || w.includes('toe')) && !FINGERS.some(([, f]) => w.some((x) => f.test(x)) || w.includes('big'))],
+  ['Foot', (w) => w.includes('foot') || w.includes('ankle')],
+  ['Leg', (_w, all) => /calf|shin|knee|lower ?leg|low ?leg/.test(all)],
+  ['UpLeg', (_w, all) => /thigh|upper ?leg|up ?leg/.test(all)],
+  ['Hand', (w) => (w.includes('hand') || w.includes('wrist')) && !FINGERS.some(([, f]) => w.some((x) => f.test(x)))],
+  ['ForeArm', (_w, all) => /fore ?arm|lower ?arm|low ?arm|elbow/.test(all)],
+  ['Arm', (w, all) => /upper ?arm|up ?arm|shldr/.test(all) || w.includes('arm')],
+  ['Shoulder', (w) => w.includes('clavicle') || w.includes('collar') || w.includes('shoulder')],
+  ['Head', (w) => w.includes('head') && !w.includes('neck')],
+  ['Neck', (w) => w.includes('neck')],
+];
+
+/**
+ * A bone map worked out from joint names and the skeleton's shape, for skeletons named another way (Character
+ * Creator, Unreal's mannequin, Daz, VRoid, Blender): sides from L/R/left/right in any form, parts from their words,
+ * the hips where the legs and the spine meet, the spine from the bones between the hips and the neck.
+ */
+export function guessBoneMap(names: readonly string[], parentOf: (name: string) => string | undefined): Record<string, string> {
+  const depth = (n: string) => { let d = 0;for (let p = parentOf(n);p;p = parentOf(p)) d++;return d; };
+  const chain = (n: string) => { const out: string[] = [];for (let p: string | undefined = n;p;p = parentOf(p)) out.push(p);return out; };
+  const map: Record<string, string> = {}, taken = new Set<string>();
+  const set = (joint: string | undefined, bone: string) => { if (joint && !taken.has(bone) && !map[joint]) { map[joint] = bone;taken.add(bone); } };
+  const sideOf = (w: string[]) => w.includes('l') || w.includes('left') ? 'Left' : w.includes('r') || w.includes('right') ? 'Right' : '';
+  const fingers = new Map<string, string[]>();
+  // Shallowest first: a part's main joint comes before its helpers and children.
+  for (const name of [...new Set(names)].sort((a, b) => depth(a) - depth(b))) {
+    const w = words(name);
+    if (w.some((x) => HELPER.test(x))) continue;
+    const side = sideOf(w), body = w.filter((x) => !/^(l|r|left|right|\d+)$/.test(x)), all = body.join(' ');
+    const finger = FINGERS.find(([, f]) => body.some((x) => f.test(x)));
+    if (finger && side && !body.some((x) => /toe/.test(x))) { const key = side + finger[0];fingers.set(key, [...fingers.get(key) ?? [], name]);continue; }
+    const part = PARTS.find(([, test]) => test(body, all))?.[0];
+    if (!part) continue;
+    if (part === 'Head' || part === 'Neck') set(name, part);
+    else if (side) set(name, side + part);
+  }
+  for (const [key, list] of fingers) list.slice(0, 3).forEach((n, i) => set(n, `${key.replace(/^(Left|Right)/, '$1Hand')}${i + 1}`));
+  const joint = (bone: string) => Object.keys(map).find((k) => map[k] === bone);
+  // The hips: where both legs and the head meet. The spine: the bones between the hips and the neck (or head).
+  const legs = [joint('LeftUpLeg'), joint('RightUpLeg')], head = joint('Head');
+  if (legs[0] && legs[1] && head) {
+    const up = chain(head), hips = chain(legs[0]).find((j) => chain(legs[1]!).includes(j) && up.includes(j));
+    if (hips) {
+      set(hips, 'Hips');
+      // No plain neck joint: the lowest joint above the spine named for the neck (Character Creator's NeckTwist01), or the head's parent.
+      if (!joint('Neck')) { const above = up.slice(1, up.indexOf(hips)), named = above.filter((j) => words(j).includes('neck'));set(named[named.length - 1] ?? above[0], 'Neck'); }
+      const neck = joint('Neck') ?? head, spine = chain(neck).slice(1, chain(neck).indexOf(hips)).reverse().filter((j) => !words(j).some((x) => HELPER.test(x)));
+      const picks = spine.length >= 3 ? [spine[0], spine[spine.length >> 1], spine[spine.length - 1]] : spine.length === 2 ? [spine[0], undefined, spine[1]] : [spine[0], undefined, undefined];
+      picks.forEach((j, i) => set(j, ['Spine', 'Spine1', 'Spine2'][i]));
+    }
+  }
+  return map;
+}
+
 /**
  * Source joint name (as in the file, or without its prefix) -> game-rig bone, for this skeleton: the bone map given,
- * or one recognised from the joint names. Throws, naming the missing bones, when it can't drive a whole body.
+ * one recognised from the joint names (Mixamo's, Ara's or CMU's), or one worked out from the names and the skeleton's
+ * shape (`parentOf`). Throws, naming what's missing, when it can't drive a whole body.
  */
-export function boneMapFor(names: readonly string[], given?: Readonly<Record<string, string>>): Record<string, string> {
+export function boneMapFor(names: readonly string[], given?: Readonly<Record<string, string>>, parentOf?: (name: string) => string | undefined): Record<string, string> {
   const plain = new Map(names.map((n) => [plainJointName(n), n]));
   const pick = (map: Readonly<Record<string, string>>) => {
     const out: Record<string, string> = {};
@@ -31,12 +93,20 @@ export function boneMapFor(names: readonly string[], given?: Readonly<Record<str
     return out;
   };
   // CMU skeletons have a LowerBack (their Spine and Spine1 sit one bone higher than Mixamo's); otherwise the family
-  // that drives the whole body with the most bones of the same name.
+  // that drives the whole body with the most bones of the same name, and then one worked out from the skeleton.
   const candidates = given ? [pick(given)] : plain.has('LowerBack') ? [pick(CMU_MAP)] : [pick(SAME_NAMES), pick(CMU_MAP)];
-  const best = candidates.map((m) => ({ m, missing: REQUIRED_MOCAP_BONES.filter((b) => !Object.values(m).includes(b)), exact: Object.entries(m).filter(([from, to]) => plainJointName(from) === to).length }))
-    .sort((a, b) => a.missing.length - b.missing.length || b.exact - a.exact)[0];
-  if (best.missing.length) throw Error(`The skeleton has no joint for ${best.missing.join(', ')}. ${given ? 'Add them to the bone map' : 'Give a bone map from its joint names to Ara\'s (Mixamo\'s) bone names'}; its joints are: ${names.slice(0, 60).join(', ')}${names.length > 60 ? '…' : ''}.`);
+  const score = (m: Record<string, string>) => ({ m, missing: REQUIRED_MOCAP_BONES.filter((b) => !Object.values(m).includes(b)), exact: Object.entries(m).filter(([from, to]) => plainJointName(from) === to).length });
+  let best = candidates.map(score).sort((a, b) => a.missing.length - b.missing.length || b.exact - a.exact)[0];
+  if (best.missing.length && !given && parentOf) { const guessed = score(guessBoneMap(names, parentOf));if (guessed.missing.length < best.missing.length) best = guessed; }
+  if (best.missing.length) throw Error(`Ara couldn't find the ${best.missing.join(', ')} in this skeleton. ${given ? 'Add them to the bone map' : 'Give a bone map from its joint names to Ara\'s (Mixamo\'s) bone names'}; its joints are: ${names.slice(0, 60).join(', ')}${names.length > 60 ? '…' : ''}.`);
   return best.m;
+}
+
+/** Each joint's parent joint by name, under `root` (for boneMapFor). */
+export function jointParents(root: Object3D): (name: string) => string | undefined {
+  const parents = new Map<string, string>();
+  root.traverse((o) => { if (o.name && o.parent?.name && o.parent !== root && !parents.has(o.name)) parents.set(o.name, o.parent.name); });
+  return (name) => parents.get(name);
 }
 
 /** The frame rate a clip was keyed at (24 to 60), from its first rotation track. */

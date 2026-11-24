@@ -90,7 +90,7 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
     byBoneName.set(bone.name, bone);same.set(bone, bone);bones.push(bone);bind.add(bone);
   }
   const parentOf = (b: Object3D) => { let p = b.parent;while (p && !bind.has(p)) p = p.parent;return p ?? undefined; };
-  const map = boneMapFor(bones.map((b) => b.name), options.bones);
+  const map = boneMapFor(bones.map((b) => b.name), options.bones, (name) => { const b = bones.find((x) => x.name === name);const p = b && parentOf(b);return p?.name; });
   const aranames = new Map<Object3D, string>(), used = new Set<string>();
   for (const b of bones) {
     const mapped = map[b.name] ?? (RIG_NAMES.has(plainJointName(b.name)) ? plainJointName(b.name) : undefined);

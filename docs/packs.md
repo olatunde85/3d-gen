@@ -44,7 +44,7 @@ npx ara3d pack build salsa    # or: npx ara3d pack salsa (a folder with a pack.j
 ### Where animations come from
 
 - **Mixamo:** download each animation as **FBX Binary**, with or without the skin. Ara reads Mixamo's skeleton by its bone names, fingers included. Tick **In Place** for clips that should stay on the spot; otherwise Ara keeps the forward travel as root motion, like its own walks and runs.
-- **Blender and other tools:** export glTF or GLB (or FBX) with the armature. Bones named like Mixamo's or Ara's (`Hips`, `Spine`, `LeftArm`, `LeftUpLeg` and so on, with or without a prefix such as `mixamorig:`) are recognised. For other names, add a `bones` map to the animation in `pack.json`.
+- **Blender and other tools:** export glTF or GLB (or FBX) with the armature. Ara finds the bones by their names and the skeleton's shape: Mixamo's and Ara's names, Character Creator, Unreal's mannequin, Daz, VRoid and Blender's, with any prefix. For a skeleton it can't work out, add a `bones` map to the animation in `pack.json`.
 - **Motion capture:** BVH files. The CMU skeleton is recognised, and Ara applies the same corrections as its own CMU clips.
 
 The skeleton can face any way and lie along any axis: Ara turns it upright and forwards from its rest pose before converting.
