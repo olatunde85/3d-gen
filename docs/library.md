@@ -52,7 +52,8 @@ Unknown fields and out-of-range values are rejected with a message that says wha
 
 | Option | Meaning |
 |---|---|
-| `animations` | Clip IDs or categories, such as `['walk', 'run']` or `['locomotion', 'shooter']`; `'all'` (the default, 259 clips) or `'none'`. `ANIMATIONS` lists them |
+| `animations` | Clip IDs or categories, such as `['walk', 'run']` or `['locomotion', 'shooter']`; `'all'` (the default, 259 clips plus those of any `packs`) or `'none'`. `ANIMATIONS` lists them. A pack's clip is `'<pack>/<clip>'`, and a pack's ID takes all its clips |
+| `packs` | [Content packs](packs.md) whose animations the character can use: addresses of `.ara-pack.json` files (relative ones are read against the page), or packs already read |
 | `detail` | `'low'` (about 25–50k triangles dressed), `'medium'` (about 45–65k) or `'high'` (about 130–170k); see [Detail levels](characters.md#detail-levels). Low and medium use textures up to 1024 pixels across, which look the same at web sizes and download faster; high uses the full 2048-pixel textures |
 | `rootMotion` | Walks, runs and strafes move the character forward instead of playing in place |
 | `weapon` | `'rifle'`, `'pistol'`, `'sword'`, `'knife'` or `'grenade'`, held in the hand |
@@ -178,6 +179,8 @@ hero.update(delta);                  // runs blinking, looking and lip-sync; her
 
 `PRESET_NAMES`, `ANIMATIONS` (each clip's `id`, `name`, `group`, `category` and whether it loops) and `PROPS` (`weapons`, `carried`, `vehicles`) are available straight away, without loading any data. Use them to build pickers.
 
+`readPack(address)` reads and checks a [content pack](packs.md) and lists its animations (`id`, `name`, `category`, `duration`, `loop`), with the pack's name, author and licence.
+
 ## Hosting the data
 
 By default the character data comes from jsDelivr, a free public CDN, through the [`ara3d-data`](https://www.npmjs.com/package/ara3d-data) npm package. `DEFAULT_ASSETS_URL` shows the exact address, which is pinned to the data version this release expects.
@@ -207,7 +210,7 @@ await createCharacter('The Soldier', { assetsUrl: '/ara3d-assets/' });
   Mix in random characters (`{ random: n }`) for variety, and use `detail: 'low'` with only the clips the crowd needs.
 - **T-pose:** characters are rigged in a natural A-pose. Pass `{ preset: 'The Soldier', params: { restPose: 'T' } }` for a T-pose, which Unity Humanoid and many retargeting tools expect.
 - **Smaller rigs:** `params: { rig: 'game_lite' }` gives a 25-bone skeleton without fingers, for distant characters. See [Rigging](rigging.md) for every option.
-- **Mixamo and other animations:** the default game rig uses Mixamo's bone names (`Hips`, `Spine`, `LeftArm` and so on). Mixamo files prefix their bones with `mixamorig:`, so rename their tracks to match, for example `track.name = track.name.replace('mixamorig:', '')`. Clips made for a T-pose skeleton work best on a character built with `restPose: 'T'`. If limbs still twist, the skeletons' bone orientations differ; retarget with a tool such as three's `SkeletonUtils.retargetClip`.
+- **Mixamo and other animations:** turn them into a [content pack](packs.md) with `npx ara3d pack <folder>`: Ara retargets them onto its rig, and the `packs` option bakes them into the character like its own clips. To play a Mixamo clip on the character directly instead, rename its tracks to match the game rig's bones (it uses Mixamo's names without the `mixamorig:` prefix), for example `track.name = track.name.replace('mixamorig:', '')`, on a character built with `restPose: 'T'`.
 
 ## Good to know
 

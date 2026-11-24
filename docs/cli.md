@@ -14,10 +14,13 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 |---|---|
 | `ara3d export [options]` | Builds characters and writes GLB, FBX, OBJ or ZIP files |
 | `ara3d presets` | Lists the preset characters |
-| `ara3d animations` | Lists the 259 animation clips by group |
+| `ara3d animations [--pack <file\|address>]` | Lists the 259 animation clips by group, and those of any packs given |
 | `ara3d props` | Lists the weapons, carried items and vehicles |
 | `ara3d new <name> [--preset P]` | Writes a starter character file to edit |
-| `ara3d schema [character\|film\|game]` | Prints a JSON schema, for editors and AI tools |
+| `ara3d schema [character\|film\|game\|pack]` | Prints a JSON schema, for editors and AI tools |
+| `ara3d pack <folder\|files...>` | Turns animation files (FBX such as Mixamo downloads, GLB, glTF, BVH) into a [content pack](packs.md), `<name>.ara-pack.json`, with names, groups and loops filled in |
+| `ara3d pack check <file\|address>` | Checks a pack and lists its animations |
+| `ara3d pack new <folder>`, `ara3d pack build <folder>` | Write a `pack.json` to set names, groups and other options yourself, then build the pack from it |
 | `ara3d --help`, `ara3d --version` | Help and the installed version |
 
 ### Export options
@@ -32,6 +35,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `--detail <level>` | `low`, `medium` or `high`: the mesh's detail. Images are full size at every level, as in the builder's downloads (the browser library uses 1024-pixel images below `high`). |
 | `--animations <list>` | Only these clips or groups, comma-separated, such as `walk,run,idle` or `locomotion,shooter`; see `ara3d animations` |
 | `--no-animations` | Rigged, without the animation clips |
+| `--pack <file\|address>` | A [content pack](packs.md) whose animations to add; repeat it for several. Its clips are `<pack>/<clip>`, and the pack's ID in `--animations` takes all of them |
 | `--root-motion` | Walks, runs and strafes move the character forward instead of playing in place |
 | `--separate-clips` | The model plus one file per clip, in a zip; clip files hold only the skeleton and animation (Unity's `model@clip` convention) |
 | `--weapon <id>` | A weapon in the hand: `rifle`, `pistol`, `sword`, `knife` or `grenade` |
@@ -124,8 +128,9 @@ The schemas are published at [ara3dgen.com/schemas/](https://ara3dgen.com/schema
 - `character.v1.json`: a character, as used by `--params`, the builder's LLM Assist and Ara Play casts
 - `studio-film.v2.json`: an Ara 3D Studio film
 - `play-game.v2.json`: an Ara Play game (`.ara-play.json`)
+- `pack.v1.json`: a [content pack](packs.md) (`.ara-pack.json`), and `pack-source.v1.json`: the `pack.json` that `ara3d pack build` reads
 
-`ara3d schema character` (or `film`, or `game`) prints the schema for the installed version, with no network needed after the first run. A file can name its schema in a `"$schema"` field, so editors check it and suggest values as you type.
+`ara3d schema character` (or `film`, `game` or `pack`) prints the schema for the installed version, with no network needed after the first run. A file can name its schema in a `"$schema"` field, so editors check it and suggest values as you type.
 
 ## Settings
 

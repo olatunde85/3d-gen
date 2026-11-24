@@ -16,6 +16,7 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 - [Bodies, clothing and looks](characters.md): the data behind the bodies, detail levels, clothing, hair, beards, tattoos and earrings
 - [Faces, expressions and lip-sync](faces.md): blend shapes, expressions, teeth, blinking, talking and lip-sync mappings
 - [Animations](animations.md): every clip, motion capture, vehicles and props, weapons
+- [Content packs](packs.md): add your own animations (Mixamo, Blender, motion capture) to the builder, Studio, Play, the library and the command line
 - [Rigging](rigging.md): skeletons, skin weights, rest poses and the weapon socket
 - [Exporting](exporting.md): the Export panel and the file formats
 

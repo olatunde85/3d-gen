@@ -17,11 +17,15 @@ import { CAST, MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, b
 import { EXPRESSIONS } from '../core/face';
 import { carryNeeded } from '../core/props/clip-carry';
 import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
-import { ANIMATION_CATEGORIES, searchAnimations, actionNote } from './animations';
+import { animationCategories, searchAnimations, actionNote } from './animations';
 import { orbitControls } from './orbit';
 import {timelineHandles} from './timeline-handles';
 import {clipWindow} from './timeline-resize';
-import { parseStudioFilm } from './assist';
+import { loadStudioFilm } from './assist';
+import { onClipsChange } from '../core/anim/clips';
+import { preparePacks, splitItemId } from '../core/packs';
+import { restorePacks } from '../app/packs/store';
+import { openPacks, packSummary } from '../app/packs/dialog';
 import { clearLinkedFile, hasLinkedFile, linkedFile } from '../app/links';
 import { resolveTextActor } from './text';
 import { setupTextEditor } from './text-ui';
@@ -206,9 +210,10 @@ function renderScenes() {
 function renderAnimations() {
   const b = actorTrack().beats[Math.min(selected, actorTrack().beats.length-1)], clips = searchAnimations(input('animation-search').value,select('animation-category').value);
   const picker = select('action'); picker.replaceChildren();
-  if(!clips.some(c=>c.id===b.clip))picker.append(new Option(`${clipById.get(b.clip)!.name} · current`,b.clip));
-  for(const category of ANIMATION_CATEGORIES){const group=document.createElement('optgroup');group.label=category;for(const c of clips.filter(c=>animationGroup(c)===category))group.append(new Option(c.name,c.id));if(group.children.length)picker.append(group);}
+  if(!clips.some(c=>c.id===b.clip))picker.append(new Option(`${clipById.get(b.clip)?.name??b.clip} · current`,b.clip));
+  for(const category of animationCategories()){const group=document.createElement('optgroup');group.label=category;for(const c of clips.filter(c=>animationGroup(c)===category))group.append(new Option(c.name,c.id));if(group.children.length)picker.append(group);}
   picker.value=b.clip;$('animation-count').textContent=`${clips.length} / ${CLIPS.length}`;$('action-note').textContent=actionNote(b.clip,decodeCharacter(actorTrack().character,actorTrack().detail)?.weapon,loading?undefined:scene.seatsFor(project).length);$('action-note').title=$('action-note').textContent||'';
+  $('pack-summary').textContent=packSummary();
 }
 function renderVehicleLinks(actor:ActorTrack){
  const b=actor.beats[Math.min(selected,actor.beats.length-1)],model=VEHICLE_FOR_CLIP[b.clip];if(!model)return;
@@ -428,7 +433,13 @@ for(const c of SCENE_CATEGORIES)select('scene-category').append(new Option(c,c))
 input('scene-search').addEventListener('input',renderScenes);select('scene-category').addEventListener('change',renderScenes);
 $('set-list').addEventListener('keydown',e=>{if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const cards=[...$('set-list').querySelectorAll<HTMLButtonElement>('button')];const at=cards.indexOf(document.activeElement as HTMLButtonElement),to=e.key==='Home'?0:e.key==='End'?cards.length-1:Math.max(0,Math.min(cards.length-1,at+(['ArrowUp','ArrowLeft'].includes(e.key)?-1:1)));cards.forEach((b,i)=>b.tabIndex=i===to?0:-1);cards[to]?.focus();});
 select('timeline-selection').addEventListener('change',()=>{const [id,index]=select('timeline-selection').value.split(':');cameraSelection=id==='camera';if(!cameraSelection)selectedActor=id;characterSelected=!cameraSelection;selected=Number(index);const items=cameraSelection?project.shots:actorTrack().beats;time=items.slice(0,selected).reduce((sum,b)=>sum+b.duration,0);setPlaying(false);renderUI();});
-for(const c of ANIMATION_CATEGORIES)select('animation-category').append(new Option(c,c));
+/** The category menu: Ara's groups, then one per content pack (kept when the chosen one is still there). */
+function fillAnimationCategories(){const menu=select('animation-category'),chosen=menu.value;menu.replaceChildren(new Option('All categories',''),...animationCategories().map(c=>new Option(c,c)));menu.value=animationCategories().includes(chosen)?chosen:'';}
+fillAnimationCategories();
+onClipsChange(()=>{fillAnimationCategories();renderAnimations();});
+/** Packs used by the open film, which can't be removed while it uses them. */
+const packsInUse=()=>[...new Set(film().flatMap(s=>s.actors.flatMap(a=>a.beats.map(b=>splitItemId(b.clip)?.pack))).filter((id):id is string=>!!id))];
+button('animation-packs').addEventListener('click',()=>openPacks({inUse:packsInUse}));
 input('animation-search').addEventListener('input',renderAnimations);select('animation-category').addEventListener('change',renderAnimations);
 select('character').addEventListener('change',()=>{const value=select('character').value;if(value!=='__custom')void edit(p=>p.actors.find(a=>a.id===selectedActor)!.character=presetCode(value));});
 button('add-actor').addEventListener('click',()=>void edit(p=>{const actor=addCastActor(p);if(!actor)return;characterSelected=true;selectedActor=actor.id;selected=0;cameraSelection=false;}));
@@ -454,7 +465,9 @@ select('blocking').addEventListener('change',async()=>{
 button('undo').addEventListener('click',undo);button('play').addEventListener('click',()=>setPlaying(!playing));button('restart').addEventListener('click',()=>{time=0;if(playing)setPlaying(true);dirty=true;renderPosition();});
 button('repeat').addEventListener('click',()=>{repeat=!repeat;button('repeat').classList.toggle('on',repeat);button('repeat').setAttribute('aria-pressed',String(repeat));});
 input('scrub').addEventListener('input',()=>{setPlaying(false);time=Number(input('scrub').value);dirty=true;renderPosition();});
-select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];const priorModel=VEHICLE_FOR_CLIP[b.clip];b.clip=select('action').value;if(clipById.get(b.clip)?.vehicleTransition||forcedTravel(b.clip))b.duration=clipById.get(b.clip)!.duration;b.move=forcedTravel(b.clip);delete b.travelSpeed;delete b.flightHeight;delete b.showVehicle;if(!stagePropFor(b.clip))delete b.showProp;delete b.weaponPose;delete b.weaponYaw;delete b.weaponPitch;if(priorModel!==VEHICLE_FOR_CLIP[b.clip]){delete b.vehicleId;delete b.vehicleSeat;}const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';
+select('action').addEventListener('change',()=>void edit(p=>{const b=p.actors.find(a=>a.id===selectedActor)!.beats[selected];const priorModel=VEHICLE_FOR_CLIP[b.clip];b.clip=select('action').value;const chosen=clipById.get(b.clip)!;if(chosen.vehicleTransition||forcedTravel(b.clip))b.duration=chosen.duration;
+  // A one-off animation plays in full: its action takes the animation's own length (up to 12 s, within the film's limit). Loops keep the length set.
+  else if(!chosen.loop){const a=p.actors.find(a=>a.id===selectedActor)!,room=MAX_DURATION-(trackDuration(a)-b.duration);b.duration=Math.max(.1,Math.min(12,room,Math.round(chosen.duration*100)/100));}b.move=forcedTravel(b.clip);delete b.travelSpeed;delete b.flightHeight;delete b.showVehicle;if(!stagePropFor(b.clip))delete b.showProp;delete b.weaponPose;delete b.weaponYaw;delete b.weaponPitch;if(priorModel!==VEHICLE_FOR_CLIP[b.clip]){delete b.vehicleId;delete b.vehicleSeat;}const a=p.actors.find(a=>a.id===selectedActor)!;a.vehicle='auto';
   // A phone call, sweeping, a lift and so on bring their item when the character carries nothing.
   const need=carryNeeded(b.clip);if(need&&decodeCharacter(a.character,a.detail)?.carry==='none')a.character=equipActor(a,'carry',need);}));
 input('beat-duration').addEventListener('change',()=>void edit(p=>p.actors.find(a=>a.id===selectedActor)!.beats[selected].duration=Number(input('beat-duration').value)));
@@ -633,7 +646,7 @@ async function importStudioProject(source: string | File): Promise<boolean> {
   try {
     const bundle=typeof source!=='string'&&(/\.zip$/i.test(source.name)||source.type==='application/zip');
     if(!bundle&&typeof source!=='string'&&source.size>500_000)throw Error('Use JSON smaller than 500 KB.');
-    const next=bundle?await openAudioBundle(source as File,lib.catalog):parseStudioFilm(typeof source==='string'?source:await source.text(),lib.catalog);
+    const next=bundle?await openAudioBundle(source as File,lib.catalog):await loadStudioFilm(typeof source==='string'?source:await source.text(),lib.catalog);
     if(!await applyFilm(next))return false;
     selectedActor=project.actors[0].id;characterSelected=false;cameraSelection=true;selected=0;time=0;
     renderUI();return true;
@@ -742,6 +755,10 @@ window.addEventListener('beforeunload', (e) => { saveSession();if (exporting) { 
 async function start() {
   const hash=new URLSearchParams(location.hash.slice(1)),code=hash.get('c');
   let recovered:ReturnType<typeof readEditorSession>,resume:EditorState|undefined,acceptedLink=false,returned=false;
+  // Content packs first: the saved film, and one returning from the builder, may use their animations.
+  await restorePacks();
+  for(const saved of [()=>JSON.parse(localStorage.getItem(SESSION_KEY)||'null')?.film,()=>localStorage.getItem(STORAGE),()=>JSON.parse(sessionStorage.getItem(HANDOFF)||'null')?.film])
+    try{const film=saved();if(film)await preparePacks(film);}catch{ /* A pack that can't load is reported when the film opens. */ }
   try{recovered=readEditorSession(localStorage.getItem(SESSION_KEY));}catch{ /* Storage may be unavailable. */ }
   function recover(){
     if(recovered){setFilm(recovered.film,recovered.scene);restoreEditor(recovered.editor,recovered.history);resume=recovered.editor;}

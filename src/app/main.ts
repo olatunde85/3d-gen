@@ -21,9 +21,11 @@ import { shareDialog } from './ui/share-dialog';
 import { sidebar } from './ui/sidebar';
 import { Store } from './ui/store';
 import { Viewer } from './viewer';
+import { restorePacks } from './packs/store';
 
 const assetsUrl = new URL(`${import.meta.env.BASE_URL}assets/`, location.href).href;
-const lib = await new AssetLibrary(fetchSource(assetsUrl)).initCatalog();
+// Content packs first, with the catalog: saved export choices and the animation browser may use their animations.
+const [lib] = await Promise.all([new AssetLibrary(fetchSource(assetsUrl)).initCatalog(), restorePacks()]);
 // Building and exporting run in a worker, so the UI and the 3D view never freeze.
 const engine = new Engine(lib, assetsUrl);
 const viewer = new Viewer($<HTMLCanvasElement>('#viewport'), (f) => lib.textureUrl(f));
@@ -89,7 +91,7 @@ if (hash.has('export')) xp.open();
 // From the characters page: build the character and download it as a .glb at once.
 if (hash.has('download')) void (async () => { while (!store.current) await new Promise((r) => setTimeout(r, 200)); await xp.downloadGlb(); })();
 // Scripted recordings (demo videos) drive the viewer and clips directly.
-if (hash.has('demo')) Object.assign(window, { ara: { viewer, store, play: (id: string) => anim.playClip(id) } });
+if (hash.has('demo')) Object.assign(window, { ara: { viewer, store, engine, play: (id: string) => anim.playClip(id) } });
 if (hash.has('face')) {
   $<HTMLInputElement>('#face').checked = true;
   viewer.focusFace(true);

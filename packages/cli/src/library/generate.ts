@@ -8,7 +8,8 @@ import { buildHuman } from '../../../../src/core/human';
 import { neededTargets } from '../../../../src/core/morph';
 import { DEFAULT_PARAMS, PRESETS, randomParams, type HumanParams } from '../../../../src/core/params';
 import { decodeCharacter } from '../../../../src/app/share';
-import { CLIPS } from '../../../../src/core/anim/clips';
+import { BUILT_IN_CLIPS, CLIPS } from '../../../../src/core/anim/clips';
+import { loadPack, registerPack, type LoadedPack } from '../../../../src/core/packs';
 import { characterExample, parseCharacterInput } from '../../../../src/app/character-assist';
 import { exportClipName, planExport, runExport, stemOf, type ExportSettings } from '../../../../src/export';
 import type { BakedClip } from '../../../../src/core/anim/evaluate';
@@ -23,8 +24,13 @@ import { carryForClipList, carryNeeded } from '../../../../src/core/props/clip-c
 export type CharacterInput = string | { random: number; name?: string } | Record<string, unknown>;
 
 export interface GenerateOptions {
-  /** Clip IDs or groups (such as "locomotion"), "all" (the default) or "none". */
+  /** Clip IDs, groups (such as "locomotion") or pack IDs, "all" (the default: Ara's clips and the packs') or "none". */
   animations?: string[] | 'all' | 'none';
+  /**
+   * Content packs whose animations the character can use: the addresses of .ara-pack.json files (relative ones are
+   * read against the page), or packs already read (JSON text or objects). Their clips are named "<pack>/<clip>".
+   */
+  packs?: (string | Record<string, unknown>)[];
   detail?: 'low' | 'medium' | 'high';
   rootMotion?: boolean;
   weapon?: HumanParams['weapon'];
@@ -86,17 +92,33 @@ export function libraryAt(assetsUrl: string) {
   return lib;
 }
 
-export function clipIds(choice: GenerateOptions['animations']) {
-  if (!choice || choice === 'all') return CLIPS.map((c) => c.id);
+/**
+ * The clip IDs for an animations choice: Ara's own clips and those of `packs` (the packs this character uses; others
+ * loaded earlier don't count). A pack's ID picks all of its clips.
+ */
+export function clipIds(choice: GenerateOptions['animations'], packs: readonly string[] = []) {
+  const offered = [...BUILT_IN_CLIPS, ...CLIPS.filter((c) => c.pack && packs.includes(c.pack.id))];
+  if (!choice || choice === 'all') return offered.map((c) => c.id);
   if (choice === 'none') return [];
   const ids = new Set<string>();
   for (const item of choice) {
-    const clip = CLIPS.find((c) => c.id === item), group = CLIPS.filter((c) => c.category.toLowerCase() === item.toLowerCase());
+    const clip = offered.find((c) => c.id === item), key = item.toLowerCase(), group = offered.filter((c) => c.category.toLowerCase() === key || c.pack?.id === key);
     if (clip) ids.add(clip.id);
     else if (group.length) for (const c of group) ids.add(c.id);
-    else throw Error(`Unknown animation "${item}". Use clip IDs or categories from ANIMATIONS.`);
+    else if (/\//.test(item) && !packs.includes(item.split('/')[0])) throw Error(`"${item}" comes from the ${item.split('/')[0]} pack: add the pack to the packs option.`);
+    else throw Error(`Unknown animation "${item}". Use clip IDs or categories from ANIMATIONS, or a pack's clip IDs.`);
   }
   return [...ids];
+}
+
+/**
+ * Loads the packs a character asks for (each once per worker or process) and returns their IDs. A newer version of a
+ * pack loaded earlier takes its place.
+ */
+export async function usePacks(packs: GenerateOptions['packs'] = []): Promise<string[]> {
+  const loaded = await Promise.all(packs.map((p): Promise<LoadedPack> | LoadedPack =>
+    typeof p === 'string' && !p.trimStart().startsWith('{') ? loadPack(p, { replace: true }) : registerPack(typeof p === 'string' ? p : JSON.stringify(p), { replace: true })));
+  return loaded.map((p) => p.pack.id);
 }
 
 /**
@@ -141,7 +163,7 @@ export function carryForClips(clips: readonly string[], carry?: string): HumanPa
 
 export async function generate(lib: AssetLibrary, input: CharacterInput, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
   let params = characterParams(lib, input);
-  const clips = clipIds(options.animations);
+  const clips = clipIds(options.animations, await usePacks(options.packs));
   const needed = Array.isArray(options.animations) ? carryForClips(clips, options.carry) : undefined;
   params = {
     ...params,

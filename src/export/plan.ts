@@ -4,7 +4,7 @@
  * downloading, and runExport() executes exactly that plan, so what you see is
  * what you get.
  */
-import { clipById } from '../core/anim/clips';
+import { CLIPS, clipById } from '../core/anim/clips';
 import type { Character } from '../core/human';
 import { triangleCount } from '../core/mesh';
 import { RIG_LABELS } from '../core/rig/skeletons';
@@ -43,7 +43,9 @@ export interface ExportSettings {
 /** Clip name as written into exported files. */
 export function exportClipName(id: string, s: Pick<ExportSettings, 'loopSuffix'>): string {
   const c = clipById.get(id)!;
-  return s.loopSuffix && c.loop ? `${c.name}-loop` : c.name;
+  // A content pack's clip named like another clip carries its pack's name too, so every animation in a file is unique.
+  const name = c.pack && CLIPS.some((o) => o !== c && o.name === c.name) ? `${c.name} (${c.pack.name})` : c.name;
+  return s.loopSuffix && c.loop ? `${name}-loop` : name;
 }
 
 export const DEFAULT_EXPORT: ExportSettings = {

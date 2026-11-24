@@ -18,6 +18,7 @@ import type { CharacterColors } from './library/colors';
 import { parseSteps, type SequenceStep } from './library/sequence';
 import { lipSync, locomotion, lookControls, type LipSync, type LipSyncSource, type Locomotion, type LocomotionOptions, type LookOptions } from './library/motion';
 import type { WorkerReply, WorkerRequest } from './library/worker';
+import { packUrl, parsePack } from '../../../src/core/packs/format';
 import type { HumanParams } from '../../../src/core/params';
 import DATA from './data-pin.json';
 // Built from the generator's own lists at build time (see vite.lib.config.ts).
@@ -135,6 +136,7 @@ function run(input: CharacterInput, options: CharacterOptions = {}): Promise<Gen
   const { assetsUrl = DEFAULT_ASSETS_URL, onProgress, ...rest } = options;
   // Resolve relative URLs against the page, since the worker runs from a blob: address.
   const absolute = new URL(assetsUrl, globalThis.location?.href).href;
+  if (rest.packs) rest.packs = rest.packs.map((p) => typeof p === 'string' && !p.trimStart().startsWith('{') ? new URL(p, globalThis.location?.href).href : p);
   return new Promise((resolve, reject) => {
     const id = next++;
     pending.set(id, { resolve, reject, progress: onProgress });
@@ -267,6 +269,29 @@ function sequence(clipFor: (id: string) => AnimationClip | undefined, mixer: Ani
     return mixer;
   };
   return { stop() { stopped = true;mixer.update = update; } };
+}
+
+/** What a content pack holds, from readPack. */
+export interface PackSummary {
+  id: string; name: string; author?: string; license?: string; homepage?: string; description?: string;
+  /** Its animations: pass the IDs (or the pack's ID for all of them) to the animations option, with the pack in packs. */
+  animations: { id: string; name: string; category: string; duration: number; loop: boolean }[];
+}
+
+/** Reads and checks a content pack (an .ara-pack.json address, relative to the page, or the file's text). */
+export async function readPack(source: string): Promise<PackSummary> {
+  let text = source;
+  if (!source.trimStart().startsWith('{')) {
+    const url = packUrl(source, globalThis.location?.href), response = await fetch(url);
+    if (!response.ok) throw Error(`Couldn't load the pack at ${url} (${response.status}).`);
+    text = await response.text();
+  }
+  const pack = parsePack(text);
+  return {
+    id: pack.id, name: pack.name, ...(pack.author ? { author: pack.author } : {}), ...(pack.license ? { license: pack.license } : {}),
+    ...(pack.homepage ? { homepage: pack.homepage } : {}), ...(pack.description ? { description: pack.description } : {}),
+    animations: (pack.animations ?? []).map((a) => ({ id: `${pack.id}/${a.id}`, name: a.name, category: a.category, duration: a.motion.duration, loop: a.motion.loop })),
+  };
 }
 
 /** Builds a character and returns its GLB file, without needing three.js. */

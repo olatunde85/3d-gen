@@ -36,6 +36,8 @@
     "media:fetch": "tsx scripts/media.ts",
     "media:publish": "tsx scripts/media.ts publish",
     "release-cli": "tsx scripts/release-cli.ts",
+    "test:packs": "tsx scripts/packs-check.ts",
+    "test:packs:browser": "tsx scripts/packs-browser-check.ts",
     "test:library": "tsx scripts/library-check.ts",
     "test:web-assets": "tsx scripts/web-assets-check.ts",
     "test:embed": "tsx scripts/embed-check.ts",

@@ -17,7 +17,7 @@ import CATALOG from 'virtual:ara-catalog';
 import { ANIMATIONS, createCharacter, VEHICLE_CLIPS, type AraCharacter, type Sequence, type CharacterColors, type CharacterInput, type CharacterOptions } from './index';
 
 /** Attributes that change the character itself, so it's rebuilt. */
-const BUILD = ['preset', 'random', 'share', 'src', 'clips', 'detail', 'weapon', 'carry', 'vehicle', 'colors', 'assets-url'];
+const BUILD = ['preset', 'random', 'share', 'src', 'clips', 'packs', 'detail', 'weapon', 'carry', 'vehicle', 'colors', 'assets-url'];
 /** Attributes that apply at once. */
 const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background', 'margin', 'look-at'];
 
@@ -345,6 +345,9 @@ export class AraCharacterElement extends HTMLElement {
     // Extra clips to load without playing, for playClip().
     const extra = (this.getAttribute('clips') ?? '').split(',').map((c) => c.trim()).filter(Boolean);
     const options: CharacterOptions = { animations: [...new Set([...this.clipIds(), ...extra])] };
+    // Content packs, by address (space- or comma-separated), whose clips the animation can use as "<pack>/<clip>".
+    const packs = (this.getAttribute('packs') ?? '').split(/[\s,]+/).filter(Boolean);
+    if (packs.length) options.packs = packs;
     const detail = this.getAttribute('detail'), colors = this.getAttribute('colors'), assets = this.getAttribute('assets-url');
     if (detail) options.detail = detail as CharacterOptions['detail'];
     for (const prop of ['weapon', 'carry', 'vehicle'] as const) { const value = this.getAttribute(prop);if (value) (options as Record<string, unknown>)[prop] = value; }

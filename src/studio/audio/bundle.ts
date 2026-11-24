@@ -1,7 +1,7 @@
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import type { Catalog } from '../../core/assets';
 import type { StudioProject } from '../project';
-import { parseStudioFilm } from '../assist';
+import { loadStudioFilm } from '../assist';
 import { filmJson } from '../film';
 import { getAsset, putAsset } from './assets';
 export const MAX_BUNDLE_BYTES=128*1024*1024;
@@ -16,7 +16,7 @@ export async function audioProjectBundle(scenes:StudioProject[]):Promise<Blob>{
 export async function openAudioBundle(file:File,catalog:Catalog):Promise<StudioProject[]>{
   if(file.size>MAX_BUNDLE_BYTES+1024*1024)throw Error('Choose an audio project smaller than 128 MiB.');let total=0;
   const files=unzipSync(new Uint8Array(await file.arrayBuffer()),{filter:entry=>{if(entry.name!=='project.json'&&!/^audio\/[a-f0-9]{64}\.wav$/.test(entry.name))return false;total+=entry.originalSize;if(entry.originalSize>(entry.name==='project.json'?500_000:24*1024*1024)||total>MAX_BUNDLE_BYTES)throw Error('This project bundle is too large.');return true;}});
-  if(!files['project.json'])throw Error('This bundle has no project.json.');const scenes=parseStudioFilm(strFromU8(files['project.json']),catalog);
+  if(!files['project.json'])throw Error('This bundle has no project.json.');const scenes=await loadStudioFilm(strFromU8(files['project.json']),catalog);
   for(const id of bundledAssets(scenes)){const bytes=files[`audio/${id}.wav`];if(!bytes)throw Error('The audio project is missing a referenced recording.');const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
     if(bytes.length<44||strFromU8(bytes.slice(0,4))!=='RIFF'||strFromU8(bytes.slice(8,12))!=='WAVE'||view.getUint16(20,true)!==1||view.getUint16(34,true)!==16)throw Error('Use WAV recordings exported by Ara Studio in audio bundles.');
     const channels=view.getUint16(22,true),rate=view.getUint32(24,true);if(channels<1||channels>2||rate<8000||rate>96000)throw Error('Invalid bundled audio format.');

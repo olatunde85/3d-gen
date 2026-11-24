@@ -74,6 +74,7 @@ HOW IT WORKS
 - texts: on-screen words. style "text" or "subtitle" with anchor "screen" (x and y from 0 to 1), or "speech", "thought" or "shout" bubbles anchored to a character id.
 - audio.speech: spoken lines { id, actor, text, voice, start, duration }; voices F1 and F2 (female), M1 and M2 (male). Allow about 0.35 s a word. delivery describes the tone. audio.music: { track, volume }.
 - A story in several places: a version 3 film with up to five scenes, each one like the film above (topic core-rules).
+- Animations from content packs (made with ara3d pack): clip "<pack>/<clip>", and the film lists the pack: "packs": [{ "id": "<pack>", "url": "https://…/<pack>.ara-pack.json" }]. list_animations with packs shows their clips.
 
 SETS (template ids)
 ${SETS.map((s) => `${s.id} (${s.name})`).join(', ')}

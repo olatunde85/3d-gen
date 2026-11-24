@@ -24,6 +24,10 @@ There are 259 clips. The character loads playing **Idle**. The animation bar at 
 
 Clips that end where another begins chain without a pop: Idle → Sit down → Sit idle → Stand up → Idle; Lie down, Sleep and Knockdown → Get up (from back); Death (fall forward) → Get up (from front); Pick up → Carry idle; Ledge hang → Climb up ledge → Idle; Fighting stance → Punch combo, Front kick, Roundhouse kick or Block → Fighting stance; Sword idle → Sword combo or Sword thrust → Sword idle; Rifle idle → Take cover → Cover idle → Cover fire → Cover idle; Rifle death (fall forward / backward) → Get up (from front / back). Feet are grounded automatically (crouch, landing, steps), and switching clips in the viewer crossfades over 0.25 s.
 
+## Your own animations
+
+Animations from Mixamo, Blender, other tools and motion capture join these clips through [content packs](packs.md): drop the files into **Add animations…** in the animation browser (or run `npx ara3d pack <folder>`), and Ara retargets them onto its rig. Its animations are listed under the pack's name and export with the character.
+
 ## Motion capture
 
 These clips are recorded performances from the [CMU motion capture database](http://mocap.cs.cmu.edu), retargeted onto each character:

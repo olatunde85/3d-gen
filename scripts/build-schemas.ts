@@ -3,6 +3,7 @@
  * catalogues as the apps, so every ID and range matches the version being deployed.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { packSchema, packSourceSchema } from '../src/core/packs/schema';
 import { join, resolve } from 'node:path';
 import { characterSchema } from '../src/app/character-assist';
 import { assistSchema } from '../src/studio/assist';
@@ -14,6 +15,8 @@ const { catalog } = await nodeLibrary();
 const schemas = [
   { file: 'character.v1.json', title: 'Ara character', description: 'A character: a preset and/or appearance parameters (kind "ara-character", version 1).', schema: characterSchema(catalog) },
   { file: 'studio-film.v2.json', title: 'Ara 3D Studio film', description: 'A Studio film: set, cast, timeline, dialogue, sound and music (version 2).', schema: assistSchema(catalog) },
+  { file: 'pack.v1.json', title: 'Ara content pack', description: 'A content pack: animations made in other tools, retargeted onto Ara\'s rig (written by ara3d pack build).', schema: packSchema() },
+  { file: 'pack-source.v1.json', title: 'Ara pack source', description: 'A pack.json: the animation files ara3d pack build turns into a content pack.', schema: packSourceSchema() },
   { file: 'play-game.v2.json', title: 'Ara Play game', description: 'An Ara Play game: mode, missions, cast, city, story and chapters (kind "ara-play", version 2).', schema: playSchema(catalog) },
 ];
 mkdirSync(out, { recursive: true });

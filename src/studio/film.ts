@@ -4,6 +4,7 @@
  * project; several scenes save as version 3, with the shared settings once and the scenes in order.
  */
 import { durationOf, parseProject, type StudioProject } from './project';
+import { packRefsFor } from '../core/packs/registry';
 
 export const MAX_SCENES = 5;
 /** Largest film file, in characters: five full scenes. */
@@ -26,12 +27,18 @@ export function shareFilmSettings(scenes: StudioProject[], from = scenes[0]): St
   });
 }
 
+/** The content packs a film's actions come from, as its "packs" list (left out when it uses only Ara's own). */
+function filmPacks(scenes: StudioProject[]) {
+  const refs = packRefsFor(scenes.flatMap((s) => s.actors.flatMap((a) => a.beats.map((b) => b.clip))));
+  return refs.length ? { packs: refs } : {};
+}
+
 /** The file form of a film: a version 2 project for one scene, version 3 for several. */
 export function filmJson(scenes: StudioProject[]): Record<string, unknown> {
-  if (scenes.length === 1) { const only = { ...scenes[0] };delete only.transition;return only as unknown as Record<string, unknown>; }
+  if (scenes.length === 1) { const only = { ...scenes[0] };delete only.transition;return { ...only, ...filmPacks(scenes) } as unknown as Record<string, unknown>; }
   const first = scenes[0];
   return {
-    kind: 'ara-studio', version: 3, title: first.title, aspect: first.aspect, caption: first.caption,
+    kind: 'ara-studio', version: 3, title: first.title, aspect: first.aspect, caption: first.caption, ...filmPacks(scenes),
     scenes: scenes.map((scene, i) => {
       const rest: Record<string, unknown> = { ...scene };
       for (const key of ['kind', 'version', ...SHARED]) delete rest[key];

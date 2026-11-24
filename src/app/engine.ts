@@ -4,6 +4,7 @@ import type { Character } from '../core/human';
 import type { HumanParams } from '../core/params';
 import type { ExportFile, ExportSettings } from '../export';
 import type { FromWorker, ToWorker } from './worker';
+import { loadedPacks, onPacksChange } from '../core/packs/registry';
 
 type Progress = (label: string, frac?: number) => void;
 /** A request without its id (distributes over the message union). */
@@ -22,6 +23,10 @@ export class Engine {
   /** `lib` receives the textures the worker generates, so the viewer can show them. */
   constructor(private lib: AssetLibrary, assets: string) {
     this.send({ type: 'init', assets });
+    // The worker exports animations too, so it gets every content pack this page has, now and as they change.
+    const packs = () => this.send({ type: 'packs', packs: loadedPacks().map((p) => ({ text: p.text, url: p.url })) });
+    packs();
+    onPacksChange(packs);
     // A worker that fails to load or crashes fails every pending call (instead of hanging).
     this.worker.onerror = (e) => {
       const err = new Error(e.message || 'generation worker failed to start');
