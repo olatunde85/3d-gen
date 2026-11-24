@@ -2,6 +2,12 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.16.0 — 2026-11-24
+
+- **Your own characters:** `ara3d export --model hero.fbx` takes a rigged character made in another tool (GLB, glTF, VRM or FBX, such as a Mixamo, Ready Player Me, VRoid or Character Creator character) and bakes Ara's animations and any `--pack` into it. Its skeleton is recognised by its names and shape (Mixamo, Character Creator, Unreal, Daz, VRoid, MMD/CATS and Blender naming, hand-made rigs too), and it's stood up, turned forwards and measured in metres. Textures and Unity material colours beside it are found in its folder. Repeat `--model` for several. See [Your own characters](https://ara3dgen.com/docs/import-characters/).
+- **Props on them:** `--weapon`, `--carry` and `--vehicle` fit Ara's props to a model: a weapon on a `WeaponR` socket fitted to its knuckles, a bag in its left hand, and the phone, broom, parcel, gym weights, parachute, head load and vehicles in the animations that use them.
+- **Models up to 200 MB** on the command line.
+
 ## 0.15.0 — 2026-11-24
 
 - **Content packs: your own animations.** `ara3d pack <folder>` turns animation files (FBX from Mixamo and most tools, glTF/GLB, BVH) into one `.ara-pack.json`, retargeted onto Ara's rig, fingers included. Names come from the files, groups are guessed from the names, loops are found from the motion and duplicate files are skipped. `ara3d pack check` lists a pack; `ara3d pack new` and `pack build` take a `pack.json` for setting everything yourself. See [Content packs](https://ara3dgen.com/docs/packs/).
