@@ -80,6 +80,19 @@ await check('a model facing backwards and lying along Z (Z-up tools) stands up a
   const d = difference(original, imported.character);
   assert.ok(d < 0.005, `${(d * 100).toFixed(1)} cm`);
 });
+await check('a rig that names its sides from the viewer\'s point of view is turned to face forward by its feet', async () => {
+  const file = await readAnimationFile(glb, 'hero.glb') as { root: Object3D };
+  const turn = new Group();
+  turn.quaternion.set(...qaxis([0, 1, 0], 180));
+  for (const c of [...file.root.children]) turn.add(c);
+  file.root.add(turn);
+  // Left and right swapped in every bone's name (the bone on the character's left is called Right, and so on).
+  file.root.traverse((o) => { if ((o as { isBone?: boolean }).isBone) o.name = o.name.replace(/^(Left|Right)/, (x) => (x === 'Left' ? 'Right' : 'Left')); });
+  const imported = await characterFromModel(file.root, { name: 'Mirrored', textureKey: 'm', format: 'gltf' });
+  assert.ok(imported.report.notes.some((n) => /feet pointed backwards/.test(n)), 'turned round');
+  const d = difference(original, imported.character);
+  assert.ok(d < 0.005, `${(d * 100).toFixed(1)} cm`);
+});
 await check('a model in centimetres comes in metres', async () => {
   const file = await readAnimationFile(glb, 'hero.glb') as { root: Object3D };
   file.root.scale.setScalar(100);

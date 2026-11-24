@@ -85,13 +85,17 @@ export async function readAnimationFile(bytes: Uint8Array, name: string): Promis
   if (type === 'bvh') return { bvh: parseBvh(new TextDecoder().decode(bytes)) };
   if (type === 'fbx') {
     const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
+    // Files with a camera make three's FBX reader ask for the window's size, which workers and Node don't have: it
+    // gets one just while it reads (removed again, so nothing else takes this for a page).
+    const g = globalThis as { window?: unknown }, stand = g.window === undefined;
+    if (stand) g.window = { innerWidth: 1920, innerHeight: 1080 };
     let root: Object3D;
     try { root = new FBXLoader().parse(buffer(bytes), ''); }
     catch (error) {
       const trimmed = trimFbxFooter(bytes);
       try { if (!trimmed) throw error;root = new FBXLoader().parse(buffer(trimmed), ''); }
       catch { throw Error(`${name} couldn't be read as FBX: ${(error as Error).message}`); }
-    }
+    } finally { if (stand) delete g.window; }
     return { root, clips: (root as Object3D & { animations: AnimationClip[] }).animations };
   }
   if (type === 'glb' || type === 'gltf') {

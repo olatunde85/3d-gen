@@ -43,13 +43,13 @@ const PARTS: [string, (w: string[], all: string) => boolean][] = [
  * Creator, Unreal's mannequin, Daz, VRoid, Blender): sides from L/R/left/right in any form, parts from their words,
  * the hips where the legs and the spine meet, the spine from the bones between the hips and the neck.
  */
-export function guessBoneMap(names: readonly string[], parentOf: (name: string) => string | undefined): Record<string, string> {
+export function guessBoneMap(names: readonly string[], parentOf: (name: string) => string | undefined, positionOf?: (name: string) => Vec3 | undefined): Record<string, string> {
   const depth = (n: string) => { let d = 0;for (let p = parentOf(n);p;p = parentOf(p)) d++;return d; };
   const chain = (n: string) => { const out: string[] = [];for (let p: string | undefined = n;p;p = parentOf(p)) out.push(p);return out; };
   const map: Record<string, string> = {}, taken = new Set<string>();
   const set = (joint: string | undefined, bone: string) => { if (joint && !taken.has(bone) && !map[joint]) { map[joint] = bone;taken.add(bone); } };
   const sideOf = (w: string[]) => w.includes('l') || w.includes('left') ? 'Left' : w.includes('r') || w.includes('right') ? 'Right' : '';
-  const fingers = new Map<string, string[]>();
+  const fingers = new Map<string, string[]>(), unsided: [string, string][] = [];
   // Shallowest first: a part's main joint comes before its helpers and children.
   for (const name of [...new Set(names)].sort((a, b) => depth(a) - depth(b))) {
     const w = words(name);
@@ -61,7 +61,13 @@ export function guessBoneMap(names: readonly string[], parentOf: (name: string) 
     if (!part) continue;
     if (part === 'Head' || part === 'Neck') set(name, part);
     else if (side) set(name, side + part);
+    else unsided.push([name, part]);
   }
+  // Limbs whose names don't say which side (ARM001, ARM002): the side they sit on, judged by the named legs or arms.
+  const at = (bone: string) => { const j = Object.keys(map).find((k) => map[k] === bone);return j ? positionOf?.(j) : undefined; };
+  const l = at('LeftUpLeg') ?? at('LeftArm'), r = at('RightUpLeg') ?? at('RightArm');
+  const sideAt = (q: Vec3) => (l && r ? ((q[0] - (l[0] + r[0]) / 2) * (l[0] - r[0]) + (q[1] - (l[1] + r[1]) / 2) * (l[1] - r[1]) + (q[2] - (l[2] + r[2]) / 2) * (l[2] - r[2]) > 0 ? 'Left' : 'Right') : '');
+  for (const [name, part] of unsided) { const q = positionOf?.(name);if (q && sideAt(q)) set(name, sideAt(q) + part); }
   for (const [key, list] of fingers) list.slice(0, 3).forEach((n, i) => set(n, `${key.replace(/^(Left|Right)/, '$1Hand')}${i + 1}`));
   const joint = (bone: string) => Object.keys(map).find((k) => map[k] === bone);
   // The hips: where both legs and the head meet. The spine: the bones between the hips and the neck (or head).
@@ -70,12 +76,27 @@ export function guessBoneMap(names: readonly string[], parentOf: (name: string) 
     const up = chain(head), hips = chain(legs[0]).find((j) => chain(legs[1]!).includes(j) && up.includes(j));
     if (hips) {
       set(hips, 'Hips');
-      // No plain neck joint: the lowest joint above the spine named for the neck (Character Creator's NeckTwist01), or the head's parent.
-      if (!joint('Neck')) { const above = up.slice(1, up.indexOf(hips)), named = above.filter((j) => words(j).includes('neck'));set(named[named.length - 1] ?? above[0], 'Neck'); }
+      // No plain neck joint: the lowest joint above the spine named for the neck (Character Creator's NeckTwist01), or
+      // the head's parent, unless that is the only joint between the hips and the head (a chest).
+      if (!joint('Neck')) {
+        const between = up.slice(1, up.indexOf(hips)), named = between.filter((j) => words(j).includes('neck')), plain = between.filter((j) => !words(j).some((x) => HELPER.test(x)));
+        if (named.length) set(named[named.length - 1], 'Neck');
+        else if (plain.length > 1) set(plain[0], 'Neck');
+      }
       const neck = joint('Neck') ?? head, spine = chain(neck).slice(1, chain(neck).indexOf(hips)).reverse().filter((j) => !words(j).some((x) => HELPER.test(x)));
       const picks = spine.length >= 3 ? [spine[0], spine[spine.length >> 1], spine[spine.length - 1]] : spine.length === 2 ? [spine[0], undefined, spine[1]] : [spine[0], undefined, undefined];
-      picks.forEach((j, i) => set(j, ['Spine', 'Spine1', 'Spine2'][i]));
+      if (spine.length === 1) set(spine[0], 'Spine2');
+      else picks.forEach((j, i) => set(j, ['Spine', 'Spine1', 'Spine2'][i]));
     }
+  }
+  // Feet outside the leg's chain (an IK control holding the foot's skin): each side's lowest bone below its shin.
+  for (const side of ['Left', 'Right']) {
+    const shin = at(`${side}Leg`);
+    if (joint(`${side}Foot`) || !shin || !positionOf) continue;
+    const ankle = names.filter((n) => !map[n] && !words(n).some((x) => HELPER.test(x) || /toe|knee|pole|finger/.test(x)))
+      .map((n) => [n, positionOf(n)] as const).filter(([n, q]) => q && q[1] < shin[1] && (sideOf(words(n)) || sideAt(q)) === side)
+      .sort((a, b) => a[1]![1] - b[1]![1])[0];
+    if (ankle) set(ankle[0], `${side}Foot`);
   }
   return map;
 }
@@ -85,7 +106,7 @@ export function guessBoneMap(names: readonly string[], parentOf: (name: string) 
  * one recognised from the joint names (Mixamo's, Ara's or CMU's), or one worked out from the names and the skeleton's
  * shape (`parentOf`). Throws, naming what's missing, when it can't drive a whole body.
  */
-export function boneMapFor(names: readonly string[], given?: Readonly<Record<string, string>>, parentOf?: (name: string) => string | undefined): Record<string, string> {
+export function boneMapFor(names: readonly string[], given?: Readonly<Record<string, string>>, parentOf?: (name: string) => string | undefined, positionOf?: (name: string) => Vec3 | undefined): Record<string, string> {
   const plain = new Map(names.map((n) => [plainJointName(n), n]));
   const pick = (map: Readonly<Record<string, string>>) => {
     const out: Record<string, string> = {};
@@ -97,7 +118,7 @@ export function boneMapFor(names: readonly string[], given?: Readonly<Record<str
   const candidates = given ? [pick(given)] : plain.has('LowerBack') ? [pick(CMU_MAP)] : [pick(SAME_NAMES), pick(CMU_MAP)];
   const score = (m: Record<string, string>) => ({ m, missing: REQUIRED_MOCAP_BONES.filter((b) => !Object.values(m).includes(b)), exact: Object.entries(m).filter(([from, to]) => plainJointName(from) === to).length });
   let best = candidates.map(score).sort((a, b) => a.missing.length - b.missing.length || b.exact - a.exact)[0];
-  if (best.missing.length && !given && parentOf) { const guessed = score(guessBoneMap(names, parentOf));if (guessed.missing.length < best.missing.length) best = guessed; }
+  if (best.missing.length && !given && parentOf) { const guessed = score(guessBoneMap(names, parentOf, positionOf));if (guessed.missing.length < best.missing.length) best = guessed; }
   if (best.missing.length) throw Error(`Ara couldn't find the ${best.missing.join(', ')} in this skeleton. ${given ? 'Add them to the bone map' : 'Give a bone map from its joint names to Ara\'s (Mixamo\'s) bone names'}; its joints are: ${names.slice(0, 60).join(', ')}${names.length > 60 ? '…' : ''}.`);
   return best.m;
 }

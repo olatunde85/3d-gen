@@ -42,7 +42,7 @@ const FACE_ALIASES: Record<string, string[][]> = {
 };
 
 /** Largest model file the converter takes, in bytes (the command line's limit; the website sets its own, lower one). */
-export const MAX_MODEL_SIZE = 200e6;
+export const MAX_MODEL_SIZE = 300e6;
 
 export interface ModelOptions {
   /** The character's name (file names on export). */
@@ -109,7 +109,8 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
   // The hierarchy goes by name: a bone's parent is the nearest bone above it with another name (copies of the
   // skeleton can be nested inside each other, Head under Head, as some FBX exports have), as its one shared copy.
   const parentOf = (b: Object3D) => { let p = b.parent;while (p && (!same.has(p) || p.name === b.name)) p = p.parent;return p ? same.get(p) : undefined; };
-  const map = boneMapFor(bones.map((b) => b.name), options.bones, (name) => { const b = bones.find((x) => x.name === name);const p = b && parentOf(b);return p?.name; });
+  const map = boneMapFor(bones.map((b) => b.name), options.bones, (name) => { const b = byBoneName.get(name);const p = b && parentOf(b);return p?.name; },
+    (name) => { const b = byBoneName.get(name);return b && v3(new Vector3().setFromMatrixPosition(b.matrixWorld)); });
   const aranames = new Map<Object3D, string>(), used = new Set<string>();
   for (const b of bones) {
     const mapped = map[b.name] ?? (RIG_NAMES.has(plainJointName(b.name)) ? plainJointName(b.name) : undefined);
@@ -136,9 +137,18 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
   const morphs = new Map<string, Map<number, Vec3>>();
   const materialIndex = new Map<ThreeMaterial, number>(), textureNames = new Map<Texture, string>();
   const boneIndex = new Map<Object3D, number>(); // filled once the bones are ordered (below)
+  // A body bone outside its limb's chain (a foot held by an IK control) hangs from the bone it belongs to, so it moves
+  // with the leg; the animation puts it where the foot goes.
+  const BELONGS: Record<string, string> = { Foot: 'Leg', Leg: 'UpLeg', Hand: 'ForeArm', ForeArm: 'Arm' };
+  const hangFrom = (b: Object3D) => {
+    const name = aranames.get(b)!, part = /^(Left|Right)(Foot|Leg|Hand|ForeArm)$/.exec(name);
+    const own = parentOf(b), want = part && byName(part[1] + BELONGS[part[2]]);
+    if (want && want !== b) { let p = own;while (p && p !== want) p = parentOf(p);if (!p) return want; }
+    return own;
+  };
   const ordered: Object3D[] = [];
-  const visit = (b: Object3D) => { ordered.push(b);for (const c of bones.filter((x) => parentOf(x) === b)) visit(c); };
-  for (const b of bones.filter((x) => !parentOf(x))) visit(b);
+  const visit = (b: Object3D) => { ordered.push(b);for (const c of bones.filter((x) => hangFrom(x) === b)) visit(c); };
+  for (const b of bones.filter((x) => !hangFrom(x))) visit(b);
   ordered.forEach((b, i) => boneIndex.set(b, i));
 
   async function textureName(texture: Texture | null | undefined, exact: boolean): Promise<string | undefined> {
@@ -239,13 +249,36 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
   for (let i = 0; i < positions.length; i += 3) for (let d = 0; d < 3; d++) positions[i + d] += shift[d];
   let top = 0;
   for (let i = 1; i < positions.length; i += 3) top = Math.max(top, positions[i]);
-  // Metres: tools write centimetres or other units; a model several metres tall is kept as it is (a giant stays one).
-  const scale = top > 20 ? 0.01 : 1;
+  // Metres: tools write centimetres or other units.
+  // A human-like figure 0.3 to 3 m tall keeps its height; outside that it is in other units, or made at another
+  // scale, and is brought to 1.8 m.
+  let scale = top > 20 ? 0.01 : 1;
+  if (top * scale < 0.3 || top * scale > 3) { notes.push(`It was ${(top * scale).toFixed(1)} m tall in its file, so it was scaled to 1.8 m.`);scale = 1.8 / top; }
   if (scale !== 1) for (let i = 0; i < positions.length; i++) positions[i] *= scale;
-  const placed = (o: Object3D): Vec3 => { const q = place(at(o));return [(q[0] + shift[0]) * scale, (q[1] + shift[1]) * scale, (q[2] + shift[2]) * scale]; };
+  // Facing: feet point forward from the ankles. Feet pointing back mean the rig names its sides from the viewer's
+  // point of view (some hand-made rigs do): the model is turned round and its left and right swapped.
+  const ankle = (side: string) => { const b = bones.find((x) => aranames.get(x) === `${side}Foot`);return b && boneIndex.get(b); };
+  let ahead = 0, counted = 0;
+  for (const side of ['Left', 'Right']) {
+    const k = ankle(side);
+    if (k === undefined) continue;
+    const z = (place(at(ordered[k]))[2] + shift[2]) * scale;
+    for (let v = 0; v < weights.length / 4; v++) {
+      if (positions[v * 3 + 1] > 0.15) continue;
+      for (let i = 0; i < 4; i++) if (joints[v * 4 + i] === k && weights[v * 4 + i] > 0.5) { ahead += positions[v * 3 + 2] - z;counted++; }
+    }
+  }
+  const flip = counted > 20 && ahead / counted < -0.005;
+  if (flip) {
+    for (const list of [positions, normals]) for (let i = 0; i < list.length; i += 3) { list[i] = -list[i];list[i + 2] = -list[i + 2]; }
+    for (const d of morphs.values()) for (const [i, v] of d) d.set(i, [-v[0], v[1], -v[2]]);
+    for (const [b, name] of aranames) aranames.set(b, name.replace(/^(Left|Right)/, (s) => (s === 'Left' ? 'Right' : 'Left')));
+    notes.push('Its feet pointed backwards, so it was turned to face forward.');
+  }
+  const placed = (o: Object3D): Vec3 => { const q = place(at(o)), p: Vec3 = [(q[0] + shift[0]) * scale, (q[1] + shift[1]) * scale, (q[2] + shift[2]) * scale];return flip ? [-p[0], p[1], -p[2]] : p; };
 
   // The rig: Ara's bone frames (Y along the bone), from the joints' bind positions.
-  const defs = ordered.map((b) => ({ name: aranames.get(b)!, parent: parentOf(b) ? aranames.get(parentOf(b)!)! : null, head: aranames.get(b)!, mh: [] as string[] }));
+  const defs = ordered.map((b) => ({ name: aranames.get(b)!, parent: hangFrom(b) ? aranames.get(hangFrom(b)!)! : null, head: aranames.get(b)!, mh: [] as string[] }));
   const heads = new Map(ordered.map((b) => [aranames.get(b)!, placed(b)]));
   const rigBones = placeBones(defs, (name) => heads.get(name)!);
   const arm = (side: string) => { const a = heads.get(`${side}Arm`), f = heads.get(`${side}ForeArm`);return a && f ? Math.abs(Math.atan2(f[1] - a[1], Math.hypot(f[0] - a[0], f[2] - a[2]))) * 180 / Math.PI : 45; };

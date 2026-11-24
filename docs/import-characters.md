@@ -18,11 +18,11 @@ npx ara3d export --model hero.glb --pack salsa.ara-pack.json --animations idle,s
 ## What a model needs
 
 - **A skeleton:** the model must be rigged. A model without one is refused; Mixamo's free auto-rigger rigs a humanoid in a few minutes (upload it at mixamo.com and download it as FBX).
-- **A humanoid skeleton:** Ara finds the hips, spine, neck, head, arms, legs, hands, feet, fingers and toes by their names and the skeleton's shape. It knows Mixamo's and Ara's names, CMU's, Character Creator's and iClone's, Unreal's mannequin, Daz Genesis, VRoid and Blender's, with any prefix, and sides written as L/R, left/right or `.L`/`_l`. Twist, helper and IK bones are skipped. The hips, head, arms, legs, hands and feet are required; bones Ara doesn't animate, such as hair, tails or accessories, are kept and follow their parents.
+- **A humanoid skeleton:** Ara finds the hips, spine, neck, head, arms, legs, hands, feet, fingers and toes by their names and the skeleton's shape. It knows Mixamo's and Ara's names, CMU's, Character Creator's and iClone's, Unreal's mannequin, Daz Genesis, VRoid and Blender's, with any prefix, and sides written as L/R, left/right or `.L`/`_l`. Twist, helper and IK bones are skipped. Where names don't say the side (`ARM001`, `ARM002`), the side a limb is on decides, and a foot held by a control outside the leg's chain is found below the shin. The hips, head, arms, legs, hands and feet are required; bones Ara doesn't animate, such as hair, tails or accessories, are kept and follow their parents.
 - **Textures inside the file:** embedded textures come with the model (a GLB holds them; for FBX, export with embedded media). Textures the file only points to aren't found.
 - **Up to 50 MB in the builder**, as it runs in your browser and phones run out of memory on bigger models. Smaller textures shrink a model most: `npx @gltf-transform/cli optimize model.glb smaller.glb`. The command line takes models up to 200 MB, and so can your own copy of Ara (see [Self-hosting](self-hosting.md#bigger-character-models)).
 
-The model can face any way, lie along any axis and be measured in any unit: Ara stands it up, turns it to face forward, measures it in metres, puts its feet on the floor and centres it over its hips. It keeps its own height.
+The model can face any way, lie along any axis and be measured in any unit: Ara stands it up, turns it to face forward (by its feet, which point forward, so rigs that name left and right from the viewer's side still face the right way), measures it in metres, puts its feet on the floor and centres it over its hips. It keeps its own height, unless that is under 0.3 m or over 3 m, which means another unit or scale: then it's brought to 1.8 m, and its panel says so.
 
 ## Faces
 
