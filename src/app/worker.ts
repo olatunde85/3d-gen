@@ -13,6 +13,7 @@ import { syncPacks } from '../core/packs/registry';
 export type ToWorker =
   | { type: 'init'; assets: string }
   | { type: 'packs'; packs: { text: string; url?: string }[] }
+  | { type: 'use'; id: number; ch: Character; textures: [string, Uint8Array][] }
   | { type: 'build'; id: number; params: HumanParams }
   | { type: 'export'; id: number; settings: ExportSettings; previewPng?: Uint8Array };
 
@@ -36,7 +37,12 @@ async function handle(m: ToWorker) {
   }
   try {
     const L = await lib!;
-    if (m.type === 'build') {
+    if (m.type === 'use') {
+      // An imported character: it isn't built here, it's exported as it is.
+      for (const [name, bytes] of m.textures) if (!L.hasTexture(name)) L.registerTexture(name, bytes);
+      current = m.ch;
+      post({ type: 'built', id: m.id, ch: m.ch, textures: [] });
+    } else if (m.type === 'build') {
       await L.loadTargets(neededTargets(L, m.params));
       current = await buildHuman(L, m.params, { onStage: (label) => post({ type: 'progress', id: m.id, label }) });
       // Generated textures (fabrics, tattoos, hair) the main thread hasn't seen yet.

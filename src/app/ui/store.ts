@@ -5,19 +5,22 @@
  *  - 'params': any parameter change (a new build is needed);
  *  - 'export': export settings changed;
  *  - 'character': a new character was built;
- *  - 'clip': a clip started playing in the viewer ('bind' for the bind pose).
+ *  - 'clip': a clip started playing in the viewer ('bind' for the bind pose);
+ *  - 'imported': an imported character (a model file) was opened, or Ara's own character came back.
  */
 import type { Character } from '../../core/human';
 import { DEFAULT_PARAMS, type HumanParams } from '../../core/params';
 import { DEFAULT_EXPORT, type ExportSettings } from '../../export';
 
-type Events = { sync: []; params: []; export: []; character: [Character, HumanParams, number]; clip: [string] };
+type Events = { sync: []; params: []; export: []; character: [Character, HumanParams, number]; clip: [string]; imported: [] };
 
 export class Store {
   params: HumanParams = loadSaved() ?? { ...DEFAULT_PARAMS, name: 'Athletic man' };
   current: Character | undefined;
+  /** The imported character shown instead of one built from params (its ID), kept across reloads. */
+  imported: string | undefined = savedImport();
   readonly exportSettings: ExportSettings = loadExportSettings();
-  private listeners: { [K in keyof Events]: ((...a: Events[K]) => void)[] } = { sync: [], params: [], export: [], character: [], clip: [] };
+  private listeners: { [K in keyof Events]: ((...a: Events[K]) => void)[] } = { sync: [], params: [], export: [], character: [], clip: [], imported: [] };
 
   on<K extends keyof Events>(event: K, fn: (...a: Events[K]) => void): void {
     this.listeners[event].push(fn);
@@ -56,6 +59,24 @@ export class Store {
     this.emit('character', ch, p, ms);
   }
 
+  /** Shows an imported character (a model file) instead of building one from params. */
+  useImported(ch: Character): void {
+    this.imported = ch.imported;
+    try { localStorage.setItem('3dgen.imported', ch.imported ?? ''); } catch { /* storage unavailable */ }
+    this.current = ch;
+    this.emit('imported');
+    this.emit('character', ch, ch.params, 0);
+  }
+
+  /** Back to the character built from params. */
+  leaveImported(): void {
+    this.imported = undefined;
+    try { localStorage.removeItem('3dgen.imported'); } catch { /* storage unavailable */ }
+    this.emit('imported');
+    this.emit('sync');
+    this.emit('params');
+  }
+
   setExport(patch: Partial<ExportSettings>): void {
     Object.assign(this.exportSettings, patch);
     try {
@@ -64,9 +85,13 @@ export class Store {
       /* storage unavailable */
     }
     // Rigged modes need a skeleton.
-    if (this.exportSettings.mode !== 'static' && this.params.rig === 'none') this.set({ rig: 'game' });
+    if (this.exportSettings.mode !== 'static' && this.params.rig === 'none' && !this.imported) this.set({ rig: 'game' });
     this.emit('export');
   }
+}
+
+function savedImport(): string | undefined {
+  try { return localStorage.getItem('3dgen.imported') || undefined; } catch { return undefined; }
 }
 
 function loadSaved(): HumanParams | null {

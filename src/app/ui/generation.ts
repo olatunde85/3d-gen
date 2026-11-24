@@ -92,6 +92,8 @@ export function generation(ctx: Omit<Ctx, 'whenIdle' | 'playClip'>): { regenerat
   }
 
   const regenerate = () => {
+    // An imported character isn't built from params: nothing to rebuild until Ara's own comes back.
+    if (store.imported) return;
     dirty = true;
     if (!building) void pump();
   };

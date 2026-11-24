@@ -31,6 +31,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `--all-presets` | Every preset |
 | `--random <seed\|a-b>` | Random characters from a seed, or a range such as `1-200`; the same seed always gives the same person |
 | `--params <file>` | A character file; repeat it for several (see below) |
+| `--model <file>` | A rigged character model from another tool (GLB, glTF or FBX, such as a Mixamo or Ready Player Me character); repeat it for several. Ara's animations and any `--pack` are baked into it. See [Your own characters](import-characters.md) |
 | `--formats <list>` | `glb`, `fbx`, `obj` or `zip`, comma-separated; the default is `glb` |
 | `--detail <level>` | `low`, `medium` or `high`: the mesh's detail. Images are full size at every level, as in the builder's downloads (the browser library uses 1024-pixel images below `high`). |
 | `--animations <list>` | Only these clips or groups, comma-separated, such as `walk,run,idle` or `locomotion,shooter`; see `ara3d animations` |

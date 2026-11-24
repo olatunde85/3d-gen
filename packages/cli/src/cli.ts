@@ -1,6 +1,6 @@
 /** ara3d: generate rigged, animated Ara characters from the command line. */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join, resolve as resolvePath } from 'node:path';
+import { basename, join, resolve as resolvePath } from 'node:path';
 import { parseArgs } from 'node:util';
 import { buildHuman } from '../../../src/core/human';
 import { triangleCount } from '../../../src/core/mesh';
@@ -13,7 +13,20 @@ import { assistSchema } from '../../../src/studio/assist';
 import { playSchema } from '../../../src/play/schema';
 import { loadLibrary } from './data';
 import { mcpCommand } from './mcp';
-import { packCommand, usePackFiles } from './pack';
+import { nodeLoaders, packCommand, textureBytes, usePackFiles } from './pack';
+import { characterFromFile } from '../../../src/core/characters/model';
+import type { AssetLibrary } from '../../../src/core/assets';
+
+/** A rigged model from another tool as an Ara character, its textures registered with the character data. */
+async function modelCharacter(lib: AssetLibrary, file: string, n: number) {
+  nodeLoaders();
+  try {
+    const imported = await characterFromFile(new Uint8Array(readFileSync(file)), basename(file), { id: `cli${n}`, encodeTexture: textureBytes });
+    for (const [name, bytes] of imported.textures) lib.registerTexture(name, bytes);
+    for (const line of imported.report.notes) note(`${basename(file)}: ${line}`);
+    return imported.character;
+  } catch (error) { throw new UserError(`${file}: ${(error as Error).message}`); }
+}
 import { packSchema } from '../../../src/core/packs/schema';
 import { carryForClips } from './library/generate';
 import { finish, megabytes, note, result, seconds, status } from './status';
@@ -45,6 +58,9 @@ Export options
   --random <seed|a-b>    Random characters from a seed or a range, such as 1-200
   --params <file>        A character file (repeatable): a params.json from an export, or an
                          "ara-character" file from ara3d new or an AI assistant
+  --model <file>         A rigged character model from another tool (repeatable): GLB, glTF or
+                         FBX, such as a Mixamo or Ready Player Me character. Ara's animations
+                         (and any --pack) are baked into it
   --formats <list>       glb, fbx, obj, zip, comma-separated (default glb)
   --detail <level>       low, medium or high
   --animations <list>    Only these clips or groups, comma-separated, such as
@@ -133,21 +149,21 @@ async function exportCommand(args: string[]) {
     formats: { type: 'string', default: 'glb' }, detail: { type: 'string' }, animations: { type: 'string' }, 'no-animations': { type: 'boolean' },
     'root-motion': { type: 'boolean' }, 'separate-clips': { type: 'boolean' }, out: { type: 'string', default: 'ara3d-out' },
     weapon: { type: 'string' }, carry: { type: 'string' }, vehicle: { type: 'string' }, 'separate-props': { type: 'boolean' },
-    pack: { type: 'string', multiple: true },
+    pack: { type: 'string', multiple: true }, model: { type: 'string', multiple: true },
   } });
   await usePackFiles(values.pack ?? []);
   const formats = values.formats!.split(',').map((f) => f.trim()) as ExportFormat[];
   for (const f of formats) if (!FORMATS.includes(f)) throw new UserError(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
   if (values.detail && !(DETAILS as readonly string[]).includes(values.detail)) throw new UserError(`--detail is one of ${DETAILS.join(', ')}.`);
   for (const name of values.preset ?? []) if (!PRESETS[name]) throw new UserError(`Unknown preset "${name}". Run ara3d presets to list them.`);
-  for (const file of values.params ?? []) if (!existsSync(file)) throw new UserError(`No such file: ${file}`);
+  for (const file of [...values.params ?? [], ...values.model ?? []]) if (!existsSync(file)) throw new UserError(`No such file: ${file}`);
   const clips = values.animations ? clipList(values.animations) : CLIPS.map((c) => c.id);
   if (values.animations && values['no-animations']) throw new UserError('Use either --animations or --no-animations.');
   if ((values.animations || values['root-motion'] || values['separate-clips']) && (values['no-animations'] || formats.every((f) => f === 'obj')))
     throw new UserError('--animations, --root-motion and --separate-clips need animated output: glb, fbx or zip, without --no-animations.');
   const choice = (flag: string, value: string | undefined, options: readonly string[]) => { if (value !== undefined && !options.includes(value)) throw new UserError(`Unknown ${flag} "${value}". Use one of: ${options.join(', ')}.`); };
   choice('--weapon', values.weapon, WEAPONS);choice('--carry', values.carry, CARRIED);choice('--vehicle', values.vehicle, VEHICLE_CHOICES);
-  if (!values.preset && !values['all-presets'] && !values.random && !values.params) throw new UserError('Choose characters with --preset, --all-presets, --random or --params. Run ara3d --help for examples.');
+  if (!values.preset && !values['all-presets'] && !values.random && !values.params && !values.model) throw new UserError('Choose characters with --preset, --all-presets, --random, --params or --model. Run ara3d --help for examples.');
 
   const begun = performance.now(), lib = await loadLibrary();
   const overrides: Partial<HumanParams> = {};
@@ -158,7 +174,7 @@ async function exportCommand(args: string[]) {
   if (values.carry) overrides.carry = values.carry as HumanParams['carry'];
   else if (values.animations && carryForClips(clips)) overrides.carry = carryForClips(clips);
   if (values.vehicle) overrides.vehicle = values.vehicle as HumanParams['vehicle'];
-  const jobs: HumanParams[] = [];
+  const jobs: (HumanParams & { model?: string })[] = [];
   const presets = values['all-presets'] ? Object.keys(PRESETS) : values.preset ?? [];
   for (const name of presets) jobs.push({ ...DEFAULT_PARAMS, ...PRESETS[name], name, ...overrides });
   if (values.random) for (const seed of seeds(values.random)) jobs.push({ ...randomParams(seed, lib.catalog), name: `random_${seed}`, ...overrides });
@@ -168,6 +184,8 @@ async function exportCommand(args: string[]) {
     catch (error) { throw new UserError(`${file}: ${(error as Error).message}`); }
   }
 
+  // Imported models: named after their files; they keep their own look, rig and props.
+  for (const file of values.model ?? []) jobs.push({ ...DEFAULT_PARAMS, name: basename(file).replace(/\.[^.]+$/, ''), model: file, ...(values['no-animations'] ? { animations: false } : {}) });
   ridingTip(jobs, clips, !!values.animations);
   mkdirSync(values.out!, { recursive: true });removeLeftovers(values.out!);
   let files = 0, bytes = 0;
@@ -177,8 +195,9 @@ async function exportCommand(args: string[]) {
     // One failed character is reported and skipped; errors that would repeat for every character (permissions, a
     // full disk) stop the run.
     try {
-      status(`${prefix}${params.name}: building the character...`);
-      const character = await buildHuman(lib, params);
+      status(`${prefix}${params.name}: ${params.model ? 'reading the model' : 'building the character'}...`);
+      const character = params.model ? await modelCharacter(lib, params.model, i) : await buildHuman(lib, params);
+      if (params.model && params.animations === false) character.params = { ...character.params, animations: false };
       for (const format of formats) {
         status(`${prefix}${params.name}: writing ${format.toUpperCase()}...`);
         const file = await runExport(lib, character, planExport(character, settings(character, format, clips, values)));

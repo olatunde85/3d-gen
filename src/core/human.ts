@@ -35,6 +35,8 @@ export interface Character {
   height: number;
   /** Facial blend shapes in the mesh (names and the expression's resting weights), if exported. */
   face?: { names: string[]; defaults: number[] };
+  /** A character imported from a model file (see core/characters/model.ts), not built from params: its ID. */
+  imported?: string;
 }
 
 /** MakeHuman units are decimetres. */

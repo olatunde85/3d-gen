@@ -70,8 +70,8 @@ export function exportPanel(ctx: Ctx): { open: () => void; downloadGlb: () => Pr
     }
     kids.push(cards);
 
-    // 2. Rig
-    if (s.mode !== 'static') {
+    // 2. Rig (an imported character keeps its own skeleton)
+    if (s.mode !== 'static' && !store.imported) {
       kids.push(h('2 · Skeleton'));
       kids.push(el('div', { className: 'ctl wide' }, el('span', { textContent: 'Skeleton' }),
         select((['game', 'game_lite', 'full'] as RigType[]).map((k) => [k, RIG_LABELS[k]]), params.rig === 'none' ? 'game' : params.rig, (v) => set({ rig: v as RigType }))));

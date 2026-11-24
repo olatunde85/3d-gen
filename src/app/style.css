@@ -514,3 +514,18 @@ html dialog.ai-assist {
 h1 > .brand { display: inline-flex; align-items: center; vertical-align: -3px; }
 h1 > .brand::before { content: ''; width: 20px; height: 20px; margin-right: 8px; background: url(/logo.svg) center / contain no-repeat; }
 h1 > .brand .brand-sub { font-style: normal; color: var(--muted); margin-left: 0.28em; }
+
+/* Imported characters: the panel that stands in for Ara's body and clothing controls, and drag-and-drop on the view. */
+body.imported-character #controls, body.imported-character #quick, body.imported-character .mode-switch, body.imported-character .detailed-only, body.imported-character #save-character, body.imported-character #character-assist-btn { display: none !important; }
+#imported-panel { display: grid; gap: 8px; margin: 4px 0 14px; padding: 12px; border: 1px solid var(--line, #2a2a31); border-radius: 12px; }
+#imported-panel[hidden] { display: none; }
+#imported-panel .imp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#imported-panel .imp-eyebrow { font-size: 10px; letter-spacing: .14em; color: var(--muted); }
+#imported-panel .imp-link { padding: 3px 8px; font-size: 11.5px; }
+#imported-panel .imp-name { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+#imported-panel .imp-name input { font-size: 14px; }
+#imported-panel .imp-facts { margin: 0; font-size: 12.5px; }
+#imported-panel .imp-notes { margin: 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
+#imported-panel .imp-actions, #imported-panel .imp-others { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#imported-panel .imp-others .hint { width: 100%; }
+main.dropping::after { content: 'Drop a character model (GLB, glTF or FBX) to open it'; position: absolute; inset: 12px; display: grid; place-items: center; border: 2px dashed var(--on, #fff); border-radius: 16px; background: #0009; color: #fff; font-size: 15px; pointer-events: none; z-index: 20; }

@@ -60,6 +60,11 @@ export class Engine {
     });
   }
 
+  /** Makes an imported character (with its textures) the one exports use. */
+  use(ch: Character, textures: [string, Uint8Array][]): Promise<Character> {
+    return this.call({ type: 'use', ch, textures });
+  }
+
   build(params: HumanParams, progress?: Progress): Promise<Character> {
     return this.call({ type: 'build', params }, progress);
   }

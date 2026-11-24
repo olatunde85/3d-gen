@@ -2,6 +2,8 @@
 
 A content pack adds animations made anywhere, such as Mixamo, Blender, another 3D tool or a motion capture session, to the builder, Ara Studio, Ara Play, the [library](library.md), the [embed](embed.md), the [command line](cli.md) and the [MCP server](mcp.md). Ara retargets each animation onto its own rig, so it plays on every character like the built-in clips: in the viewer, in films and in GLB and FBX exports.
 
+To play Ara's animations on a character made elsewhere instead, see [Your own characters](import-characters.md).
+
 A pack is one `.ara-pack.json` file holding data only, never code. Every app checks a pack before using it, so opening anyone's pack is safe.
 
 Everything a pack adds is named `<pack>/<animation>`, such as `salsa/basic`. Pack names never clash with Ara's own clips or with other packs, and a film or game that uses a pack's animations lists the pack, so it can load the pack wherever it opens.

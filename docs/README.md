@@ -17,6 +17,7 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 - [Faces, expressions and lip-sync](faces.md): blend shapes, expressions, teeth, blinking, talking and lip-sync mappings
 - [Animations](animations.md): every clip, motion capture, vehicles and props, weapons
 - [Content packs](packs.md): add your own animations (Mixamo, Blender, motion capture) to the builder, Studio, Play, the library and the command line
+- [Your own characters](import-characters.md): open a rigged GLB or FBX character from Mixamo, Ready Player Me or Blender, play Ara's animations on it and export it with them
 - [Rigging](rigging.md): skeletons, skin weights, rest poses and the weapon socket
 - [Exporting](exporting.md): the Export panel and the file formats
 

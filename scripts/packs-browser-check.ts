@@ -1,7 +1,9 @@
 /**
- * Content packs in a real browser: adding a pack in the Packs window, its animations in the builder's browser and
- * exports (made in the builder's worker), the pack kept across a reload and shared with Studio, a film link that
- * loads the pack it needs, and a pack in use that can't be removed. The test pack is made from Ara's own wave.
+ * Imports in a real browser. Content packs: adding a pack in the Packs window, importing animation files, its
+ * animations in the builder's browser and exports (made in the builder's worker), the pack kept across a reload and
+ * shared with Studio, a film link that loads the pack it needs, and a pack in use that can't be removed. Characters: a
+ * rigged model opened as an imported character, playing and exporting animations, kept across a reload. The test
+ * files are made from Ara's own characters and animations.
  *   npm run test:packs:browser   (--no-build reuses dist/; SHOTS=<folder> saves screenshots; CHROME=<path>)
  */
 import { spawn } from 'node:child_process';
@@ -32,6 +34,9 @@ const glb = await runExport(lib, ch, planExport(ch, { ...DEFAULT_EXPORT, mode: '
 const fbx = await runExport(lib, ch, planExport(ch, { ...DEFAULT_EXPORT, mode: 'animated', format: 'fbx', packaging: 'embedded', clips: ['cheer'], stageProps: false }));
 const downloads = mkdtempSync(join(tmpdir(), 'packs-files-'));
 for (const name of ['victory cheer.fbx', 'victory cheer (2).fbx']) writeFileSync(join(downloads, name), fbx.data);
+// A rigged character model from another tool, without animations (Ara's own export stands in for one).
+const model = await runExport(lib, ch, planExport(ch, { ...DEFAULT_EXPORT, mode: 'rigged', format: 'fbx', packaging: 'embedded', clips: [], stageProps: false }));
+writeFileSync(join(downloads, 'Hero Model.fbx'), model.data);
 const PACK = JSON.stringify(await buildPack({ id: 'check-moves', name: 'Check moves', author: 'Ara', license: 'CC0-1.0', animations: [
   { file: 'moves.glb', clip: 'Wave', id: 'big_wave', name: 'Big wave', category: 'Emotes' },
   { file: 'moves.glb', clip: 'Walk', id: 'stroll', name: 'Stroll', category: 'Locomotion' },
@@ -146,6 +151,26 @@ await step('Builder: exports from the worker include the pack\'s animations', as
     const d=f.data,v=new DataView(d.buffer,d.byteOffset),n=v.getUint32(12,true);return JSON.parse(new TextDecoder().decode(d.subarray(20,20+n))).animations.map(a=>a.name);})()`);
   assert(names.join('|') === 'Idle|Stroll|Big wave', `animations: ${names.join('|')}`);
 });
+await step('Builder: a rigged character model opens as an imported character, plays Ara\'s and the pack\'s animations and exports with them', async () => {
+  const { root } = await send<{ root: { nodeId: number } }>('DOM.getDocument');
+  const { nodeId } = await send<{ nodeId: number }>('DOM.querySelector', { nodeId: root.nodeId, selector: '#character-settings-file' });
+  await send('DOM.setFileInputFiles', { nodeId, files: [join(downloads, 'Hero Model.fbx')] });
+  await w('window.ara.store.current?.imported && document.querySelector("#imported-panel .imp-facts")', 'the imported character', 120000);
+  const facts = await e<string>('document.querySelector("#imported-panel .imp-facts").textContent');
+  assert(/bones \(\d+ animated\) · A-pose · 34 face shapes/.test(facts), `facts: ${facts}`);
+  assert(await e<boolean>('document.body.classList.contains("imported-character") && getComputedStyle(document.querySelector(".mode-switch")).display==="none"'), 'Ara\'s controls step aside');
+  await e('ara.play("wave")');await pause(1200);await shot('5-imported-character');
+  const names = await e<string[]>(`(async()=>{const f=await ara.engine.export({...ara.store.exportSettings,mode:'animated',format:'glb',packaging:'embedded',clips:['idle','check-moves/big_wave'],stageProps:false});
+    const d=f.data,v=new DataView(d.buffer,d.byteOffset),n=v.getUint32(12,true);return [f.name,...JSON.parse(new TextDecoder().decode(d.subarray(20,20+n))).animations.map(a=>a.name)];})()`);
+  assert(names.join('|') === 'Hero_Model.glb|Idle|Big wave', `export: ${names.join('|')}`);
+});
+await step('Builder: the imported character opens again after a reload; Back to Ara characters returns to them', async () => {
+  await go(`${site}/app/#demo`);
+  await w('window.ara?.store.current?.imported && document.querySelector("#imported-panel .imp-facts")', 'the imported character again', 120000);
+  await e('document.querySelector("#imported-panel [data-act=leave]").click()');
+  await w('window.ara.store.current && !window.ara.store.current.imported && !window.ara.store.imported', 'Ara\'s character', 120000);
+  assert(await e<boolean>('document.getElementById("imported-panel").hidden && !document.body.classList.contains("imported-character") && getComputedStyle(document.querySelector(".mode-switch")).display!=="none"'), 'controls back');
+});
 await step('The pack stays in this browser: after a reload, in the builder and in Studio', async () => {
   await go(`${site}/app/#demo`);await w(builderReady, 'the builder again');
   await w('[...document.querySelectorAll(".anim-tab")].some(t=>t.firstChild.textContent==="Check moves")', 'the pack restored');
@@ -192,5 +217,5 @@ rmSync(downloads, { recursive: true, force: true });
 for (const [name, ok, why] of results) console.log(`${ok ? '✓' : '✗'} ${name}${why ? `\n    ${why}` : ''}`);
 if (errors.length) console.log(`Page errors:\n${errors.slice(0, 8).map((x) => '  ' + x.split('\n')[0]).join('\n')}`);
 const failed = results.filter((r) => !r[1]).length;
-console.log(`Packs in the browser: ${results.length - failed} of ${results.length} passed.`);
+console.log(`Imports in the browser: ${results.length - failed} of ${results.length} passed.`);
 process.exit(failed || errors.length ? 1 : 0);
