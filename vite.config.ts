@@ -8,6 +8,10 @@ export default defineConfig({
   // Set BASE_PATH (e.g. /3d-gen/) when hosting under a sub-path, such as GitHub Pages.
   base: process.env.BASE_PATH ?? '/',
   worker: { format: 'es' },
+  // The importers (packs and characters) load these model readers on demand in workers. Bundled up front, the dev
+  // server never re-bundles mid-session, which would leave open pages with outdated copies ("Importing a module
+  // script failed").
+  optimizeDeps: { include: ['three/examples/jsm/loaders/FBXLoader.js', 'three/examples/jsm/loaders/GLTFLoader.js'] },
   plugins: [studioLicenses(),playRuntime(),catalog()],
   build: {
     target: 'es2022',
