@@ -170,6 +170,13 @@ await step('Builder: the imported character opens again after a reload; Back to 
   await e('document.querySelector("#imported-panel [data-act=leave]").click()');
   await w('window.ara.store.current && !window.ara.store.current.imported && !window.ara.store.imported', 'Ara\'s character', 120000);
   assert(await e<boolean>('document.getElementById("imported-panel").hidden && !document.body.classList.contains("imported-character") && getComputedStyle(document.querySelector(".mode-switch")).display!=="none"'), 'controls back');
+  // Your characters lists it, and opens it again with one click.
+  await w('[...document.querySelectorAll("#your-characters button")].some(b=>b.textContent==="Hero Model")', 'Your characters');
+  await shot('6-your-characters');
+  await e('[...document.querySelectorAll("#your-characters button")].find(b=>b.textContent==="Hero Model").click()');
+  await w('window.ara.store.current?.imported && document.querySelector("#your-characters button[aria-pressed=true]")?.textContent==="Hero Model"', 'opened from Your characters', 120000);
+  await e('document.querySelector("#imported-panel [data-act=leave]").click()');
+  await w('window.ara.store.current && !window.ara.store.imported', 'Ara\'s character again', 120000);
 });
 await step('The pack stays in this browser: after a reload, in the builder and in Studio', async () => {
   await go(`${site}/app/#demo`);await w(builderReady, 'the builder again');

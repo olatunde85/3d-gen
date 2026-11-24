@@ -6,7 +6,7 @@ import { Texture, TextureLoader, type Texture as ThreeTexture } from 'three';
 import { characterFromFile, type ImportedCharacter } from '../../core/characters/model';
 
 export type CharacterImportRequest = { id: string; name: string; bytes: Uint8Array };
-export type CharacterImportReply = { type: 'done'; result: ImportedCharacter } | { type: 'error'; message: string };
+export type CharacterImportReply = { type: 'progress'; label: string } | { type: 'done'; result: ImportedCharacter } | { type: 'error'; message: string };
 
 // Workers have no <img>: three's TextureLoader (used for FBX textures) decodes through fetch and createImageBitmap
 // instead. glTF already uses ImageBitmapLoader, which works here.
@@ -41,7 +41,7 @@ async function encode(texture: ThreeTexture, exact: boolean): Promise<{ bytes: U
 const post = (reply: CharacterImportReply, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(reply, transfer);
 self.onmessage = async ({ data }: MessageEvent<CharacterImportRequest>) => {
   try {
-    const result = await characterFromFile(data.bytes, data.name, { id: data.id, encodeTexture: encode });
+    const result = await characterFromFile(data.bytes, data.name, { id: data.id, encodeTexture: encode, progress: (label) => post({ type: 'progress', label }) });
     post({ type: 'done', result });
   } catch (error) {
     post({ type: 'error', message: (error as Error).message ?? String(error) });

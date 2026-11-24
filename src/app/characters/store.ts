@@ -7,6 +7,13 @@ import type { AssetLibrary } from '../../core/assets';
 import type { ImportedCharacter } from '../../core/characters/model';
 import type { CharacterImportReply, CharacterImportRequest } from './import-worker';
 
+/**
+ * Largest model the website opens, in bytes: 50 MB, as everything runs in the visitor's browser and phones run out
+ * of memory on bigger ones. VITE_MAX_MODEL_MB raises it for a copy of Ara on a computer with room (up to 200).
+ */
+export const SITE_MODEL_LIMIT = Math.min(200, Math.max(1, Number(import.meta.env.VITE_MAX_MODEL_MB) || 50)) * 1e6;
+type Progress = (label: string) => void;
+
 export interface SavedModel { id: string; name: string; fileName: string; bytes: Uint8Array; added: number }
 export interface OpenedCharacter extends ImportedCharacter { id: string; name: string }
 
@@ -25,10 +32,10 @@ async function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => I
 }
 
 /** Converts a model in a worker. */
-function convert(id: string, name: string, bytes: Uint8Array): Promise<ImportedCharacter> {
+function convert(id: string, name: string, bytes: Uint8Array, progress?: Progress): Promise<ImportedCharacter> {
   const worker = new Worker(new URL('./import-worker.ts', import.meta.url), { type: 'module' });
   return new Promise<ImportedCharacter>((resolve, reject) => {
-    worker.onmessage = ({ data }: MessageEvent<CharacterImportReply>) => { if (data.type === 'done') resolve(data.result);else reject(Error(data.message)); };
+    worker.onmessage = ({ data }: MessageEvent<CharacterImportReply>) => { if (data.type === 'progress') progress?.(data.label);else if (data.type === 'done') resolve(data.result);else reject(Error(data.message)); };
     worker.onerror = (event) => reject(Error(event.message || 'The import stopped unexpectedly.'));
     // The worker gets its own copy (the kept file stays here), moved rather than copied again.
     const copy = bytes.slice();
@@ -39,10 +46,10 @@ function convert(id: string, name: string, bytes: Uint8Array): Promise<ImportedC
 const opened = new Map<string, Promise<OpenedCharacter>>();
 
 /** Imports a model file: converts it (an error says what's wrong with it) and keeps it in this browser. */
-export async function importCharacterFile(file: File): Promise<OpenedCharacter> {
+export async function importCharacterFile(file: File, progress?: Progress): Promise<OpenedCharacter> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  const result = await convert(id, file.name, bytes), name = result.character.params.name;
+  const result = await convert(id, file.name, bytes, progress), name = result.character.params.name;
   void navigator.storage?.persist?.().catch(() => false);
   try { await run('readwrite', (s) => s.put({ id, name, fileName: file.name, bytes, added: Date.now() } satisfies SavedModel)); }
   catch { /* Not kept (private browsing, storage full): it still works until the page closes. */ }
@@ -52,13 +59,13 @@ export async function importCharacterFile(file: File): Promise<OpenedCharacter> 
 }
 
 /** An imported character by its ID, converted from its kept file (once per page). */
-export function openCharacter(id: string): Promise<OpenedCharacter> {
+export function openCharacter(id: string, progress?: Progress): Promise<OpenedCharacter> {
   let p = opened.get(id);
   if (!p) {
     p = (async () => {
       const saved = await run<SavedModel | undefined>('readonly', (s) => s.get(id));
       if (!saved) throw Error('That imported character is no longer in this browser. Open its file again.');
-      const result = await convert(id, saved.fileName, saved.bytes);
+      const result = await convert(id, saved.fileName, saved.bytes, progress);
       result.character.params = { ...result.character.params, name: saved.name };
       return { ...result, id, name: saved.name };
     })();

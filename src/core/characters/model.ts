@@ -41,8 +41,8 @@ const FACE_ALIASES: Record<string, string[][]> = {
   viseme_E: [['V_Wide']], viseme_I: [['V_Wide']], viseme_O: [['V_Tight_O']], viseme_U: [['V_Tight_O']],
 };
 
-/** Largest model file, in bytes. */
-export const MAX_MODEL_SIZE = 200 * 1024 * 1024;
+/** Largest model file the converter takes, in bytes (the command line's limit; the website sets its own, lower one). */
+export const MAX_MODEL_SIZE = 200e6;
 
 export interface ModelOptions {
   /** The character's name (file names on export). */
@@ -58,6 +58,8 @@ export interface ModelOptions {
   bones?: Record<string, string>;
   /** The file's format: glTF puts texture coordinates' origin at the top left, FBX (and Ara) at the bottom left. */
   format: 'gltf' | 'fbx';
+  /** Reports each stage, for a loading message. */
+  progress?: (label: string) => void;
 }
 
 export interface ImportedCharacter {
@@ -89,6 +91,7 @@ const hex = (c?: { getHexString(): string }) => `#${c?.getHexString() ?? 'cccccc
  */
 export async function characterFromModel(root: Object3D, options: ModelOptions): Promise<ImportedCharacter> {
   root.updateMatrixWorld(true);
+  options.progress?.('Matching the skeleton');
   const notes: string[] = [];
   const skinned: SkinnedMesh[] = [], rigid: Mesh[] = [];
   root.traverse((o) => { if (!o.visible) return;if (isSkinned(o)) skinned.push(o);else if (isMesh(o)) rigid.push(o); });
@@ -225,7 +228,8 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
       groups.set(mi, list);
     }
   }
-  for (const m of skinned) await addMesh(m, m);
+  let done = 0;
+  for (const m of skinned) { options.progress?.(`Preparing the mesh and textures (${++done} of ${skinned.length})`);await addMesh(m, m); }
   for (const m of rigid) { let p: Object3D | null = m.parent;while (p && !same.has(p)) p = p.parent;if (p) await addMesh(m);else notes.push(`${m.name || 'A mesh'} isn't attached to the skeleton, so it was left out.`); }
 
   // Ground and centre: the lowest vertex on the floor, the hips over the origin.
@@ -288,8 +292,9 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
 export async function characterFromFile(bytes: Uint8Array, fileName: string, options: Omit<ModelOptions, 'format' | 'textureKey' | 'name'> & { id: string; name?: string }): Promise<ImportedCharacter> {
   const ext = /\.([a-z0-9]+)$/i.exec(fileName)?.[1].toLowerCase();
   if (ext !== 'glb' && ext !== 'gltf' && ext !== 'fbx') throw Error(`${fileName}: open a GLB, glTF or FBX character.`);
-  if (bytes.length > MAX_MODEL_SIZE) throw Error(`${fileName} is larger than ${MAX_MODEL_SIZE / 1024 / 1024} MB.`);
+  if (bytes.length > MAX_MODEL_SIZE) throw Error(`${fileName} is larger than ${MAX_MODEL_SIZE / 1e6} MB.`);
   const { readAnimationFile } = await import('../packs/build');
+  options.progress?.('Reading the file');
   const file = await readAnimationFile(bytes, fileName);
   if ('bvh' in file) throw Error(`${fileName}: open a GLB, glTF or FBX character.`);
   const name = options.name ?? fileName.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
