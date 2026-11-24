@@ -174,6 +174,23 @@ await step('Builder: the imported character takes props: a weapon in its hand an
   assert(await e<string>('document.querySelector("#imported-panel [data-e=weapon]").value') === 'rifle', 'the panel shows the weapon');
   await e('ara.play("walk")');await pause(1200);await shot('5c-imported-handbag');
 });
+await step('Studio: the imported character goes to Studio with its props, is in the cast picker, and Edit character brings it back', async () => {
+  const verts = await e<number>('ara.store.current.mesh.positions.length/3');
+  assert(!(await e<boolean>('document.getElementById("studio-btn").disabled')), 'the Studio button works for it');
+  await e('document.getElementById("studio-btn").click()');
+  // Studio saves the film and takes the character out of the address; opened again (with its test handle), it reopens the film.
+  await w('location.pathname.endsWith("/studio/") && !location.hash.includes("c=")', 'Studio', 180000);
+  // (By way of a blank page: a change of the address after # alone doesn't reload the page.)
+  await go('about:blank');await go(`${site}/studio/#demo`);
+  await w('window.studio?.ready', 'Studio with the imported character', 180000);
+  const actor = await e<{ verts: number; weapon?: string }>('({verts:studio.scene.actor.mesh.geometry.attributes.position.count,weapon:studio.scene.actor.character.weapon?.id})');
+  assert(actor.verts === verts && actor.weapon === 'rifle', `Studio's character: ${JSON.stringify(actor)}`);
+  await e(`(()=>{const pick=document.getElementById('timeline-selection');pick.value=studio.project.actors[0].id+':0';pick.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  assert(await e<boolean>(`[...document.querySelectorAll('#character optgroup')].some(g=>g.label==='Your characters'&&[...g.children].some(o=>o.textContent==='Hero Model'))&&document.getElementById('character').value.startsWith('imported:')`), 'the cast picker lists it');
+  await shot('5d-studio-imported');
+  await go((await e<string>('document.getElementById("edit-character").href')).replace('/app/#', '/app/#demo&'));
+  await w('window.ara?.store.current?.imported && window.ara.store.current.weapon?.id==="rifle"', 'the imported character back in the builder', 120000);
+});
 await step('Builder: the imported character opens again after a reload, with its props; Back to Ara characters returns to them', async () => {
   await go(`${site}/app/#demo`);
   await w('window.ara?.store.current?.imported && document.querySelector("#imported-panel .imp-facts")', 'the imported character again', 120000);

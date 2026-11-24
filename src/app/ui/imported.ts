@@ -9,6 +9,8 @@ import type { Equipment } from '../../core/props/equip';
 import { VEHICLE_FOR_CLIP } from '../../core/props/vehicles';
 import { WEAPONS, WEAPON_LABELS, type WeaponId } from '../../core/props/weapons';
 import { equipSaved, importCharacterFile, importedCharacters, openCharacter, registerTextures, removeCharacter, renameCharacter, SITE_MODEL_LIMIT, type OpenedCharacter } from '../characters/store';
+import { DEFAULT_PARAMS, type HumanParams } from '../../core/params';
+import { equipmentOf } from '../characters/build';
 import type { Ctx } from './context';
 import { droppedFiles } from '../files';
 import { $, el } from './dom';
@@ -80,12 +82,14 @@ export function importedCharacterUi(ctx: Ctx) {
     } catch (error) { status((error as Error).message);loading(store.current ? undefined : 'Could not open the character.'); }
   }
 
-  async function openSaved(id: string) {
+  /** Opens an imported character kept in this browser; false (and why, in the status line) when it can't. */
+  async function openSaved(id: string): Promise<boolean> {
     const name = (await importedCharacters()).find((c) => c.id === id)?.name ?? 'your character';
     try {
       loading(`Opening ${name}…`);
       await show(await openCharacter(id, (stage) => loading(`${name}: ${stage}…`)));
-    } catch (error) { status((error as Error).message);loading();if (store.imported === id) store.leaveImported(); }
+      return true;
+    } catch (error) { status((error as Error).message);loading();if (store.imported === id) store.leaveImported();return false; }
   }
 
   async function render() {
@@ -174,6 +178,20 @@ export function importedCharacterUi(ctx: Ctx) {
   return {
     openFile, openFiles,
     /** Reopens the imported character the builder showed last, if it was one. */
-    restore: () => (store.imported ? openSaved(store.imported) : Promise.resolve()),
+    restore: () => (store.imported ? openSaved(store.imported) : Promise.resolve(false)),
+    /** The imported character shown, as a character recipe (its name and props), for Studio. */
+    recipe: (): HumanParams | undefined => current && {
+      ...DEFAULT_PARAMS, name: current.name, imported: current.id, rig: 'game', ...(current.equipment ?? NO_PROPS), vehicle: current.equipment?.vehicle ?? 'auto',
+    },
+    /** Opens the imported character a recipe names (from Studio's Edit character link), with the recipe's props. */
+    openRecipe: async (p: HumanParams) => {
+      if (!p.imported) return false;
+      if (!(await importedCharacters()).some((c) => c.id === p.imported)) {
+        status(`${p.name || 'This character'} was imported from a model file in another browser, or removed from this one: open its model here to use it.`);
+        return false;
+      }
+      await equipSaved(p.imported, equipmentOf(p));
+      return openSaved(p.imported);
+    },
   };
 }

@@ -50,4 +50,4 @@ The model's file is kept in the browser and converted again each time it opens, 
 ## Limits
 
 - **Its look stays as modelled:** Ara's body, face, clothing and hair controls shape Ara's own characters, so they step aside for an imported one.
-- **The builder for now:** Share links, Studio and Play use Ara's own characters. An imported character lives in the browser it was opened in.
+- **Kept in one browser:** an imported character lives in the browser it was opened in. The builder's **Studio** button takes it to [Studio](studio.md), where films use it in that browser; Share links and Play use Ara's own characters.

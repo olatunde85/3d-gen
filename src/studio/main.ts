@@ -7,6 +7,8 @@ import { DEFAULT_PARAMS, PRESETS } from '../core/params';
 import { CLIPS, clipById } from '../core/anim/clips';
 import { Engine } from '../app/engine';
 import { decodeCharacter, encodeCharacter } from '../app/share';
+import { characterFor } from '../app/characters/build';
+import { importedCharacters } from '../app/characters/store';
 import { StudioActor } from './actor';
 import { StudioScene } from './scene';
 import { exportMovie, exportFilm, supportsMp4, audioCodec } from './export';
@@ -59,6 +61,8 @@ const BASE = import.meta.env.BASE_URL, STORAGE = 'ara.studio.project.v2', HANDOF
 if (import.meta.env.DEV) $<HTMLAnchorElement>('video-licence').href = 'https://github.com/Vanilagy/mediabunny/blob/main/LICENSE';
 const soundtrack=new AudioPlayback();let playToken=0,preparingSound=false;
 const scene = new StudioScene($<HTMLCanvasElement>('film'));
+/** Characters imported in the builder and kept in this browser, for the cast picker. */
+let yours: Awaited<ReturnType<typeof importedCharacters>> = [];
 // A film opens with no character selected: the whole picture shows, without a selection ring.
 let project = newProject(), scenes: StudioProject[] = [project], sceneIndex = 0, playAll = false, time = 0, selectedActor = project.actors[0].id, selected = 0, cameraSelection = true;
 let characterSelected=false;
@@ -285,9 +289,12 @@ function renderUI() {
   $('cast-status').textContent=characterSelected?`Selected: ${actorName(a)}`:'No character selected';
   $('key-help').textContent=characterSelected?'Arrows: move · Ctrl/⌘ + arrows: turn / height · Esc: deselect':'Arrows: orbit · click a character to select';
   const params=decodeCharacter(a.character,a.detail)??DEFAULT_PARAMS,picker=select('character');picker.replaceChildren();
-  const isPreset=Object.hasOwn(PRESETS,params.name)&&presetCode(params.name)===a.character;
-  if(!isPreset)picker.append(new Option(`${params.name||'Your character'} · custom`,'__custom'));
-  for(const name of [...CAST,...Object.keys(PRESETS).filter(n=>!CAST.includes(n))])picker.append(new Option(name.replace(/^The /,''),name));picker.value=isPreset?params.name:'__custom';
+  const isPreset=Object.hasOwn(PRESETS,params.name)&&presetCode(params.name)===a.character,own=params.imported&&yours.some(c=>c.id===params.imported);
+  if(!isPreset&&!own)picker.append(new Option(`${params.name||'Your character'} · ${params.imported?'imported':'custom'}`,'__custom'));
+  // Characters imported in the builder (kept in this browser), then Ara's.
+  if(yours.length){const group=document.createElement('optgroup');group.label='Your characters';for(const c of yours)group.append(new Option(c.name,`imported:${c.id}`));picker.append(group);}
+  const ara=document.createElement('optgroup');ara.label='Ara characters';picker.append(ara);
+  for(const name of [...CAST,...Object.keys(PRESETS).filter(n=>!CAST.includes(n))])ara.append(new Option(name.replace(/^The /,''),name));picker.value=isPreset?params.name:own?`imported:${params.imported}`:'__custom';
   $<HTMLAnchorElement>('edit-character').href=`${BASE}app/#${new URLSearchParams({c:a.character,detail:a.detail})}`;
   renderTiming();
   const choices=select('timeline-selection');choices.replaceChildren();
@@ -322,10 +329,24 @@ function renderUI() {
 }
 /** Set while Assist builds a film: it shows each character's progress. */
 let castProgress:((p:BuildProgress)=>void)|undefined;
+/**
+ * Characters imported in another browser (or removed from this one) can't open here: an Ara character stands in for
+ * each, with its name and props, so the film still opens and plays.
+ */
+async function standIn(){
+  const kept=new Set((await importedCharacters()).map(c=>c.id)),missing:string[]=[];
+  for(const a of project.actors){
+    const p=decodeCharacter(a.character,a.detail);if(!p?.imported||kept.has(p.imported))continue;
+    const base=decodeCharacter(presetCode(CAST[1]),a.detail)!;missing.push(p.name||'An imported character');
+    a.character=encodeCharacter({...base,name:p.name||base.name,weapon:p.weapon,carry:p.carry,vehicle:p.vehicle,vehicleStyle:p.vehicleStyle});
+  }
+  if(missing.length)notify(`${missing.join(' and ')} ${missing.length>1?'were':'was'} imported from a model file in another browser, so ${missing.length>1?'Ara characters stand':'an Ara character stands'} in. Open the model in the builder here and choose it in the cast to use it.`);
+}
 /** Built characters not in the open scene, kept so that moving between scenes doesn't rebuild them. */
 const spareActors:StudioActor[]=[],actorRecipes=new Map<StudioActor,string>(),MAX_SPARE=8;
 const recipeOf=(a:ActorTrack)=>`${a.detail}:${a.character}`;
 async function syncActors() {
+  await standIn();
   const next=new Map<string,StudioActor>(),made:StudioActor[]=[],free=[...scene.actors.values(),...spareActors];
   // Keep each character on the same track where possible, then reuse any free copy of the same recipe.
   for(const a of project.actors){const existing=scene.actors.get(a.id);if(existing&&actorRecipes.get(existing)===recipeOf(a)&&free.includes(existing)){free.splice(free.indexOf(existing),1);next.set(a.id,existing);}}
@@ -335,9 +356,10 @@ async function syncActors() {
   try{
     for(const a of todo){
       const params=decodeCharacter(a.character,a.detail);if(!params)throw Error('The character recipe could not be opened.');
-      const step=`Building ${actorName(a)} · ${made.length+1} of ${todo.length}`,share=(k:number,frac:number)=>.05+.85*(k+frac)/todo.length;
+      const step=`${params.imported?'Opening':'Building'} ${actorName(a)} · ${made.length+1} of ${todo.length}`,share=(k:number,frac:number)=>.05+.85*(k+frac)/todo.length;
       $('loading-label').textContent=`Building character ${project.actors.indexOf(a)+1}…`;report(step,share(made.length,0));
-      const ch=await engine.build({...params,rig:params.rig==='none'?'game':params.rig,animations:true},(label,frac)=>{$('loading-label').textContent=label;report(step,share(made.length,frac??0));});
+      // Ara's characters are built from the recipe; imported ones open from this browser, with the recipe's props.
+      const ch=await characterFor(params,engine,lib,(label,frac)=>{$('loading-label').textContent=label;report(step,share(made.length,frac??0));});
       const actor=new StudioActor(ch,file=>lib.textureUrl(file));made.push(actor);actorRecipes.set(actor,recipeOf(a));await actor.ready();next.set(a.id,actor);
     }
     if(todo.length)report('Placing the cast on the set',.95);
@@ -441,7 +463,13 @@ onClipsChange(()=>{fillAnimationCategories();renderAnimations();});
 const packsInUse=()=>[...new Set(film().flatMap(s=>s.actors.flatMap(a=>a.beats.map(b=>splitItemId(b.clip)?.pack))).filter((id):id is string=>!!id))];
 button('animation-packs').addEventListener('click',()=>openPacks({inUse:packsInUse}));
 input('animation-search').addEventListener('input',renderAnimations);select('animation-category').addEventListener('change',renderAnimations);
-select('character').addEventListener('change',()=>{const value=select('character').value;if(value!=='__custom')void edit(p=>p.actors.find(a=>a.id===selectedActor)!.character=presetCode(value));});
+select('character').addEventListener('change',()=>{const value=select('character').value;if(value==='__custom')return;
+  const own=value.startsWith('imported:')?yours.find(c=>`imported:${c.id}`===value):undefined;
+  // An imported character comes with the props it was given in the builder.
+  void edit(p=>p.actors.find(a=>a.id===selectedActor)!.character=own?encodeCharacter({...DEFAULT_PARAMS,name:own.name,imported:own.id,rig:'game',...(own.equipment??{}),...(own.equipment?.vehicle?{}:{vehicle:'auto'})}):presetCode(value));});
+/** Characters imported in the builder, kept in this browser (listed again when the page comes back into view). */
+const listYours=()=>void importedCharacters().then(list=>{const changed=JSON.stringify(list)!==JSON.stringify(yours);yours=list;if(changed&&!loading)renderUI();});
+listYours();window.addEventListener('focus',listYours);
 button('add-actor').addEventListener('click',()=>void edit(p=>{const actor=addCastActor(p);if(!actor)return;characterSelected=true;selectedActor=actor.id;selected=0;cameraSelection=false;}));
 button('add-custom-actor').addEventListener('click',()=>input('custom-character-file').click());
 input('custom-character-file').addEventListener('change',async()=>{

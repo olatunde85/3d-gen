@@ -280,7 +280,7 @@ async function init(){
   let linkNote='';
   if(hasLinkedFile(location.hash,'game')){try{const text=await linkedFile(location.hash,'game');if(text){project=parsePlayInput(text,lib.catalog);linkNote='Opened the game from the link.';}}catch(error){linkNote=(error as Error).message;}}
   applyTheme(project.theme);applyHowToPlay(project.howToPlay);
-  const linked=new URLSearchParams(location.hash.slice(1)).get('c');if(linked){const character=decodeCharacter(linked,'medium');if(character)project.character=playable(character);}
+  const linked=new URLSearchParams(location.hash.slice(1)).get('c');if(linked){const character=decodeCharacter(linked,'medium');if(character?.imported)linkNote='Characters imported from model files play in the builder and Studio; the game keeps its own hero.';else if(character)project.character=playable(character);}
   const cast=await prepareGameCast(project,engine,f=>lib.textureUrl(f),text=>{$('load-note').textContent=text;});gameCast=cast;loading=false;
   player=mountPlayer(scene,project,cast,{stopPreview:stopMusicPreview,renderMusicStatus,unlockPreview:()=>musicPreview.unlock(),audioChanged:enabled=>{musicPreview.setMuted(!enabled);renderMusicStatus();}});
   finishLoading();if(linkNote)player.announce(linkNote);
