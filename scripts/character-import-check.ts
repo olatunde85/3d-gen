@@ -5,21 +5,22 @@
  *   npm run test:character-import
  */
 import assert from 'node:assert/strict';
-import { Mesh, BoxGeometry, MeshStandardMaterial, Object3D, Group, Texture, TextureLoader } from 'three';
+import { Mesh, BoxGeometry, MeshStandardMaterial, Object3D, Group } from 'three';
+import { nodeLoaders, textureBytes } from '../packages/cli/src/pack';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Animator } from '../src/core/anim/evaluate';
 import { CLIPS, clipById } from '../src/core/anim/clips';
 import { qaxis, qmul } from '../src/core/anim/quat';
 import { guessBoneMap } from '../src/core/anim/take-three';
-import { characterFromFile, characterFromModel } from '../src/core/characters/model';
+import { characterFromFile, characterFromModel, unityTints } from '../src/core/characters/model';
 import { buildHuman, type Character } from '../src/core/human';
 import { DEFAULT_PARAMS, PRESETS } from '../src/core/params';
 import { readAnimationFile } from '../src/core/packs/build';
 import { DEFAULT_EXPORT, planExport, runExport } from '../src/export';
 import { nodeLibrary } from './node-assets';
 
-(globalThis as { self?: unknown }).self ??= globalThis;
-TextureLoader.prototype.load = function (_url: string, onLoad?: (t: Texture) => void) { const t = new Texture();onLoad?.(t);return t; } as TextureLoader['load'];
+// Models are read as the command line reads them: images keep their files' bytes, found by name.
+nodeLoaders();
 
 let passed = 0;
 const started = performance.now();
@@ -144,6 +145,32 @@ await check('skeletons named another way are worked out: Character Creator, Unre
       ...fingers('{s}_wrist', (f, k) => (f === 'Thumb' ? `Thumb${k - 1}_{s}` : `${f === 'Pinky' ? 'Little' : f}Finger${k}_{s}`).replaceAll('{s}_', '{s}_'))], (s) => (s === 'L' ? 'Left' : 'Right'));
   expect(cats, { Hips: 'Hips', Spine: 'Spine', Spine2: 'Chest', Neck: 'Neck', LeftUpLeg: 'Left_leg', LeftLeg: 'Left_knee', LeftFoot: 'Left_ankle', LeftToeBase: 'Left_toe', RightArm: 'Right_arm', RightForeArm: 'Right_elbow', RightHand: 'Right_wrist' });
   expect(vroid, { Hips: 'J_Bip_C_Hips', Spine: 'J_Bip_C_Spine', Spine1: 'J_Bip_C_Chest', Spine2: 'J_Bip_C_UpperChest', LeftUpLeg: 'J_Bip_L_UpperLeg', LeftLeg: 'J_Bip_L_LowerLeg', RightArm: 'J_Bip_R_UpperArm', RightForeArm: 'J_Bip_R_LowerArm', LeftHandPinky3: 'J_Bip_L_Little3' });
+});
+
+await check('textures and data kept beside a model are found by name, wherever its paths pointed', async () => {
+  // Ara's GLB as a .gltf whose data and images are separate files, named with folders from another computer.
+  const json = JSON.parse(new TextDecoder().decode(glb.subarray(20, 20 + new DataView(glb.buffer, glb.byteOffset).getUint32(12, true))));
+  const binAt = 20 + new DataView(glb.buffer, glb.byteOffset).getUint32(12, true) + 8, bin = glb.subarray(binAt);
+  const files = new Map<string, Uint8Array>([['data.bin', bin]]);
+  json.buffers = [{ uri: 'C:\\Users\\artist\\export\\data.bin', byteLength: json.buffers[0].byteLength }];
+  (json.images ?? []).forEach((img: { bufferView?: number; uri?: string; mimeType?: string }, i: number) => {
+    const view = json.bufferViews[img.bufferView!], name = `Skin_${i}.${img.mimeType === 'image/jpeg' ? 'jpg' : 'png'}`;
+    files.set(name.toLowerCase(), bin.slice(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength));
+    delete img.bufferView;delete img.mimeType;img.uri = `../Textures/${name}`;
+  });
+  const gltf = new TextEncoder().encode(JSON.stringify(json));
+  const found = await characterFromFile(gltf, 'hero.gltf', { id: 'beside', files, encodeTexture: textureBytes });
+  assert.equal(found.report.files?.length, files.size, `used ${found.report.files}`);
+  assert.ok(!found.report.notes.some((n) => /weren't found/.test(n)), 'no missing textures');
+  assert.ok(found.textures.length > 0 && found.textures.every(([, b]) => b[0] === 0x89 || b[0] === 0xff), 'the images themselves');
+  const alone = await characterFromFile(gltf, 'hero.gltf', { id: 'alone', files: new Map([['data.bin', bin]]), encodeTexture: textureBytes });
+  assert.ok(alone.report.notes.some((n) => /weren't found.*whole folder/.test(n)), 'missing textures named');
+});
+await check('Unity material files give their colour tints (as asset packages keep them)', () => {
+  const mat = new TextEncoder().encode('%YAML 1.1\n--- !u!21 &2100000\nMaterial:\n  m_Name: Hair_HAIR\n  m_SavedProperties:\n    m_Colors:\n    - _Color: {r: 0.14351194, g: 0.15645356, b: 0.23584908, a: 1}\n');
+  const tints = unityTints(new Map([['hair_hair.mat', mat], ['skin.png', new Uint8Array(4)]]));
+  assert.deepEqual(tints.get('hair_hair')?.color.map((v) => +v.toFixed(3)), [0.144, 0.156, 0.236]);
+  assert.equal(tints.size, 1);
 });
 
 console.log('Using it');

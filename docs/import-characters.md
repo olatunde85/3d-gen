@@ -4,14 +4,14 @@ A rigged character made in another tool, such as a Mixamo, Ready Player Me or VR
 
 ## Open a character
 
-In the builder, **Open character** takes a GLB, glTF, VRM (VRoid and other VRM avatars, 0.x and 1.0) or FBX file, or drop the file on the view. Ara converts it in the background, usually in a second or two, and shows it with its stats: height, bones and how many Ara animates, its rest pose and any face shapes it has.
+In the builder, **Open character** takes a GLB, glTF, VRM (VRoid and other VRM avatars, 0.x and 1.0) or FBX file, or drop the file on the view. A model whose textures are separate files (an FBX from a Unity or asset-store package, a glTF with its .bin) opens with them when you drop its whole folder, or choose the model and its texture files together: Ara finds each texture by the name the model gives it, wherever the model's own paths pointed. Ara converts it in the background, usually in a second or two, and shows it with its stats: height, bones and how many Ara animates, its rest pose and any face shapes it has.
 
 While it opens, the view says what's happening: reading the file, matching the skeleton, preparing the mesh and textures. The character is kept in the browser, so it opens again after a reload, and **Your characters**, under Open character, lists every character imported in this browser to open with one click. Its panel renames it and removes it; **Back to Ara characters** returns to the character builder.
 
 On the command line, `--model` exports one:
 
 ```sh
-npx ara3d export --model hero.fbx --animations locomotion,emotes --formats glb,fbx
+npx ara3d export --model hero.fbx --animations locomotion,emotes --formats glb,fbx   # textures and Unity material colours are found in its folder and the ones beside it
 npx ara3d export --model hero.glb --pack salsa.ara-pack.json --animations idle,salsa
 ```
 
@@ -19,7 +19,7 @@ npx ara3d export --model hero.glb --pack salsa.ara-pack.json --animations idle,s
 
 - **A skeleton:** the model must be rigged. A model without one is refused; Mixamo's free auto-rigger rigs a humanoid in a few minutes (upload it at mixamo.com and download it as FBX).
 - **A humanoid skeleton:** Ara finds the hips, spine, neck, head, arms, legs, hands, feet, fingers and toes by their names and the skeleton's shape. It knows Mixamo's and Ara's names, CMU's, Character Creator's and iClone's, Unreal's mannequin, Daz Genesis, VRoid, MMD and Blender's (CATS included, where the thigh is just `Left_leg`), with any prefix, and sides written as L/R, left/right or `.L`/`_l`. Twist, helper and IK bones are skipped. Where names don't say the side (`ARM001`, `ARM002`), the side a limb is on decides, and a foot held by a control outside the leg's chain is found below the shin. The hips, head, arms, legs, hands and feet are required; bones Ara doesn't animate, such as hair, tails or accessories, are kept and follow their parents.
-- **Textures inside the file:** embedded textures come with the model (GLB and VRM hold them; for FBX, export with embedded media). An FBX that only names image files kept beside it, as Unity packages ship them, shows in plain colours, and its panel says so; open the package's VRM or GLB instead if it has one.
+- **Its textures:** inside the file (GLB and VRM hold them; FBX can embed them), or beside it, dropped together with the model or as its folder. PNG, JPEG, WebP and TGA are read; a texture the model names that isn't found leaves that part in plain colour, and the panel says how many. Unity packages keep material colours (a dark tint over grey hair textures, say) in `.mat` files: dropped with the model, they're used too. The textures and colour files a model uses are kept with it in the browser.
 - **Up to 50 MB in the builder**, as it runs in your browser and phones run out of memory on bigger models. Smaller textures shrink a model most: `npx @gltf-transform/cli optimize model.glb smaller.glb`. The command line takes models up to 200 MB, and so can your own copy of Ara (see [Self-hosting](self-hosting.md#bigger-character-models)).
 
 The model can face any way, lie along any axis and be measured in any unit: Ara stands it up, turns it to face forward (by its feet, which point forward, so rigs that name left and right from the viewer's side still face the right way), measures it in metres, puts its feet on the floor and centres it over its hips. It keeps its own height, unless that is under 0.3 m or over 3 m, which means another unit or scale: then it's brought to 1.8 m, and its panel says so.

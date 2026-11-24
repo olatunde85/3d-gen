@@ -102,8 +102,38 @@ function nameVrmExpressions(gltf: { parser: { json: Record<string, any>; associa
   });
 }
 
-/** Reads an animation file. glTF files with separate .bin files need `resolve` to read them. */
-export async function readAnimationFile(bytes: Uint8Array, name: string): Promise<AnimationFile> {
+/**
+ * Files kept beside a model that it names (textures an FBX points to, a glTF's .bin and images), by file name: they
+ * are found by name wherever the model's own paths said they were (often the computer it was made on). `used`
+ * collects the names of the ones the model asked for.
+ */
+export interface ModelFiles { files?: ReadonlyMap<string, Uint8Array>; used?: Set<string> }
+const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', tga: 'image/tga', bmp: 'image/bmp', gif: 'image/gif' };
+/** Whether a file can be one a model uses: an image, a glTF's data, or a Unity material (its colour tint). */
+export const isModelFile = (name: string) => (ext(name) in IMAGE_TYPES) || ext(name) === 'bin' || ext(name) === 'mat';
+
+/** three.js's loading manager for a model: names resolved to the files given, and TGA textures decoded. */
+async function managerFor(extra: ModelFiles = {}) {
+  const { LoadingManager } = await import('three');
+  const { TGALoader } = await import('three/examples/jsm/loaders/TGALoader.js');
+  const manager = new LoadingManager(), urls = new Map<string, string>(), files = extra.files;
+  if (files?.size) manager.setURLModifier((url) => {
+    if (/^(blob|data):/.test(url)) return url;
+    const base = decodeURIComponent(url).split(/[\\/]/).pop()!.toLowerCase(), stem = base.replace(/\.[^.]+$/, '');
+    // By name; or the same name in another image format (a .tga named, a .png kept).
+    const key = files.has(base) ? base : [...files.keys()].find((k) => k.replace(/\.[^.]+$/, '') === stem && ext(k) in IMAGE_TYPES);
+    if (!key) return url;
+    extra.used?.add(key);
+    let blob = urls.get(key);
+    if (!blob) { blob = URL.createObjectURL(new Blob([files.get(key)! as BlobPart], { type: IMAGE_TYPES[ext(key)] ?? 'application/octet-stream' }));urls.set(key, blob); }
+    return blob;
+  });
+  manager.addHandler(/\.tga$/i, new TGALoader(manager));
+  return manager;
+}
+
+/** Reads an animation file (and a model's, with the files it names beside it). */
+export async function readAnimationFile(bytes: Uint8Array, name: string, extra?: ModelFiles): Promise<AnimationFile> {
   const type = ext(name);
   if (type === 'bvh') return { bvh: parseBvh(new TextDecoder().decode(bytes)) };
   if (type === 'fbx') {
@@ -113,10 +143,11 @@ export async function readAnimationFile(bytes: Uint8Array, name: string): Promis
     const g = globalThis as { window?: unknown }, stand = g.window === undefined;
     if (stand) g.window = { innerWidth: 1920, innerHeight: 1080 };
     let root: Object3D;
-    try { root = new FBXLoader().parse(buffer(bytes), ''); }
+    const manager = await managerFor(extra);
+    try { root = new FBXLoader(manager).parse(buffer(bytes), ''); }
     catch (error) {
       const trimmed = trimFbxFooter(bytes);
-      try { if (!trimmed) throw error;root = new FBXLoader().parse(buffer(trimmed), ''); }
+      try { if (!trimmed) throw error;root = new FBXLoader(manager).parse(buffer(trimmed), ''); }
       catch { throw Error(`${name} couldn't be read as FBX: ${(error as Error).message}`); }
     } finally { if (stand) delete g.window; }
     return { root, clips: (root as Object3D & { animations: AnimationClip[] }).animations };
@@ -124,7 +155,7 @@ export async function readAnimationFile(bytes: Uint8Array, name: string): Promis
   if (type === 'glb' || type === 'gltf' || type === 'vrm') {
     const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
     try {
-      const gltf = await new GLTFLoader().parseAsync(type === 'gltf' ? new TextDecoder().decode(bytes) : buffer(bytes), '');
+      const gltf = await new GLTFLoader(await managerFor(extra)).parseAsync(type === 'gltf' ? new TextDecoder().decode(bytes) : buffer(bytes), '');
       nameVrmExpressions(gltf);
       return { root: gltf.scene, clips: gltf.animations };
     } catch (error) { throw Error(`${name} couldn't be read as ${type === 'vrm' ? 'VRM' : 'glTF'}: ${(error as Error).message}`); }

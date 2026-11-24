@@ -5,6 +5,7 @@
  */
 import type { AssetLibrary } from '../../core/assets';
 import type { ImportedCharacter } from '../../core/characters/model';
+import { isModelFile } from '../../core/packs/build';
 import type { CharacterImportReply, CharacterImportRequest } from './import-worker';
 
 /**
@@ -14,7 +15,7 @@ import type { CharacterImportReply, CharacterImportRequest } from './import-work
 export const SITE_MODEL_LIMIT = Math.min(200, Math.max(1, Number(import.meta.env.VITE_MAX_MODEL_MB) || 50)) * 1e6;
 type Progress = (label: string) => void;
 
-export interface SavedModel { id: string; name: string; fileName: string; bytes: Uint8Array; added: number }
+export interface SavedModel { id: string; name: string; fileName: string; bytes: Uint8Array; added: number; /** Files beside it that it uses (its textures), by lower-case name. */ files?: [string, Uint8Array][] }
 export interface OpenedCharacter extends ImportedCharacter { id: string; name: string }
 
 let database: Promise<IDBDatabase> | undefined;
@@ -32,26 +33,30 @@ async function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => I
 }
 
 /** Converts a model in a worker. */
-function convert(id: string, name: string, bytes: Uint8Array, progress?: Progress): Promise<ImportedCharacter> {
+function convert(id: string, name: string, bytes: Uint8Array, progress?: Progress, files?: [string, Uint8Array][]): Promise<ImportedCharacter> {
   const worker = new Worker(new URL('./import-worker.ts', import.meta.url), { type: 'module' });
   return new Promise<ImportedCharacter>((resolve, reject) => {
     worker.onmessage = ({ data }: MessageEvent<CharacterImportReply>) => { if (data.type === 'progress') progress?.(data.label);else if (data.type === 'done') resolve(data.result);else reject(Error(data.message)); };
     worker.onerror = (event) => reject(Error(event.message || 'The import stopped unexpectedly.'));
     // The worker gets its own copy (the kept file stays here), moved rather than copied again.
     const copy = bytes.slice();
-    worker.postMessage({ id, name, bytes: copy } satisfies CharacterImportRequest, [copy.buffer]);
+    worker.postMessage({ id, name, bytes: copy, ...(files?.length ? { files } : {}) } satisfies CharacterImportRequest, [copy.buffer]);
   }).finally(() => worker.terminate());
 }
 
 const opened = new Map<string, Promise<OpenedCharacter>>();
 
 /** Imports a model file: converts it (an error says what's wrong with it) and keeps it in this browser. */
-export async function importCharacterFile(file: File, progress?: Progress): Promise<OpenedCharacter> {
+export async function importCharacterFile(file: File, progress?: Progress, beside: readonly File[] = []): Promise<OpenedCharacter> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  const result = await convert(id, file.name, bytes, progress), name = result.character.params.name;
+  // Files that came with it (its textures, a glTF's .bin), by name: the model finds the ones it names.
+  const files = await Promise.all(beside.filter((f) => f !== file && isModelFile(f.name)).map(async (f) => [f.name.toLowerCase(), new Uint8Array(await f.arrayBuffer())] as [string, Uint8Array]));
+  const result = await convert(id, file.name, bytes, progress, files), name = result.character.params.name;
+  // Only the files it used are kept with it.
+  const used = new Set(result.report.files ?? []), kept = files.filter(([n]) => used.has(n));
   void navigator.storage?.persist?.().catch(() => false);
-  try { await run('readwrite', (s) => s.put({ id, name, fileName: file.name, bytes, added: Date.now() } satisfies SavedModel)); }
+  try { await run('readwrite', (s) => s.put({ id, name, fileName: file.name, bytes, added: Date.now(), ...(kept.length ? { files: kept } : {}) } satisfies SavedModel)); }
   catch { /* Not kept (private browsing, storage full): it still works until the page closes. */ }
   const character: OpenedCharacter = { ...result, id, name };
   opened.set(id, Promise.resolve(character));
@@ -65,7 +70,7 @@ export function openCharacter(id: string, progress?: Progress): Promise<OpenedCh
     p = (async () => {
       const saved = await run<SavedModel | undefined>('readonly', (s) => s.get(id));
       if (!saved) throw Error('That imported character is no longer in this browser. Open its file again.');
-      const result = await convert(id, saved.fileName, saved.bytes, progress);
+      const result = await convert(id, saved.fileName, saved.bytes, progress, saved.files);
       result.character.params = { ...result.character.params, name: saved.name };
       return { ...result, id, name: saved.name };
     })();
@@ -76,10 +81,10 @@ export function openCharacter(id: string, progress?: Progress): Promise<OpenedCh
 }
 
 /** The imported characters kept in this browser, newest first (without their files). */
-export async function importedCharacters(): Promise<Omit<SavedModel, 'bytes'>[]> {
+export async function importedCharacters(): Promise<Omit<SavedModel, 'bytes' | 'files'>[]> {
   try {
     const all = await run<SavedModel[]>('readonly', (s) => s.getAll());
-    return all.sort((a, b) => b.added - a.added).map(({ bytes: _bytes, ...rest }) => rest);
+    return all.sort((a, b) => b.added - a.added).map(({ bytes: _bytes, files: _files, ...rest }) => rest);
   } catch { return []; }
 }
 

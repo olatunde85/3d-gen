@@ -39,7 +39,7 @@ const ctx: Ctx = { ...base, whenIdle: gen.whenIdle, playClip: (id) => anim.playC
 sidebar(ctx);
 const anim = animationBar(ctx);
 const imported = importedCharacterUi(ctx);
-header(ctx, (file) => void imported.openFile(file));
+header(ctx, (files) => imported.openFiles(files));
 const xp = exportPanel(ctx);
 shareDialog(ctx);
 $('#studio-btn').addEventListener('click', async () => {

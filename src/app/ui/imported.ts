@@ -6,6 +6,7 @@
 import { triangleCount } from '../../core/mesh';
 import { importCharacterFile, importedCharacters, openCharacter, registerTextures, removeCharacter, renameCharacter, SITE_MODEL_LIMIT, type OpenedCharacter } from '../characters/store';
 import type { Ctx } from './context';
+import { droppedFiles } from '../files';
 import { $, el } from './dom';
 
 export const MODEL_FILE = /\.(glb|gltf|vrm|fbx)$/i;
@@ -47,8 +48,11 @@ export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {
     await render();
   }
 
-  /** Opens a model file: converts it, keeps it in this browser and shows it. */
-  async function openFile(file: File) {
+  /**
+   * Opens a model file: converts it, keeps it in this browser and shows it. `beside`: files that came with it (its
+   * textures, from a folder or a multiple choice), which it finds by the names it gives them.
+   */
+  async function openFile(file: File, beside: readonly File[] = []) {
     if (file.size > SITE_MODEL_LIMIT) {
       const mb = (n: number) => `${Math.round(n / 1e6)} MB`;
       status(`${file.name} is ${mb(file.size)}; the builder opens models up to ${mb(SITE_MODEL_LIMIT)}, as it runs in your browser. Make it smaller (smaller textures do most: npx @gltf-transform/cli optimize ${file.name} smaller.glb), or use the command line, which takes up to 200 MB: npx ara3d export --model "${file.name}".`);
@@ -58,10 +62,13 @@ export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {
     try {
       await ctx.whenIdle();
       loading(`Opening ${file.name}…`);
-      const c = await importCharacterFile(file, (stage) => loading(`${file.name}: ${stage}…`));
+      const c = await importCharacterFile(file, (stage) => loading(`${file.name}: ${stage}…`), beside);
       loading('Showing it…');
       await show(c);
-      status(`Opened ${c.name}. It plays every animation and exports with them.`);
+      const found = c.report.files ?? [], mats = found.filter((f) => f.endsWith('.mat')).length, images = found.length - mats;
+      const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
+      const textures = found.length ? ` It found ${[images && plural(images, 'texture'), mats && plural(mats, 'material colour')].filter(Boolean).join(' and ')} beside it.` : '';
+      status(`Opened ${c.name}. It plays every animation and exports with them.${textures}`);
     } catch (error) { status((error as Error).message);loading(store.current ? undefined : 'Could not open the character.'); }
   }
 
@@ -109,18 +116,27 @@ export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {
   const view = $('main');
   view.addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file')) { e.preventDefault();view.classList.add('dropping'); } });
   view.addEventListener('dragleave', () => view.classList.remove('dropping'));
-  view.addEventListener('drop', (e) => {
+  view.addEventListener('drop', async (e) => {
     view.classList.remove('dropping');
-    const file = [...(e.dataTransfer?.files ?? [])].find((f) => MODEL_FILE.test(f.name));
-    if (!file) return;
+    if (!e.dataTransfer || ![...e.dataTransfer.files].length) return;
     e.preventDefault();
-    void openFile(file);
+    const { files } = await droppedFiles(e.dataTransfer);
+    void openFiles(files);
   });
+
+  /** A model and the files with it (a folder, several files): the model is opened, the rest are its textures. */
+  function openFiles(files: readonly File[]) {
+    const models = files.filter((f) => MODEL_FILE.test(f.name));
+    if (!models.length) { status('Drop a character model (GLB, glTF, VRM or FBX), with its textures or its whole folder.');return; }
+    // FBX first (it is the one that needs the textures beside it), then the others; the rest of the drop goes with it.
+    const order = ['fbx', 'glb', 'gltf', 'vrm'], model = [...models].sort((a, b) => order.indexOf(a.name.split('.').pop()!.toLowerCase()) - order.indexOf(b.name.split('.').pop()!.toLowerCase()))[0];
+    void openFile(model, files.filter((f) => f !== model));
+  }
 
   store.on('imported', () => { void render();void listYours(); });
   void listYours();
   return {
-    openFile,
+    openFile, openFiles,
     /** Reopens the imported character the builder showed last, if it was one. */
     restore: () => (store.imported ? openSaved(store.imported) : Promise.resolve()),
   };

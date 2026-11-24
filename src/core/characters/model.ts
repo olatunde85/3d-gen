@@ -52,7 +52,7 @@ export interface ModelOptions {
    * Turns a texture into PNG or JPEG bytes (browsers draw it to a canvas); without it, textures are left out. `exact`:
    * a texture whose every value matters (a normal map, or colours with see-through parts), best kept lossless.
    */
-  encodeTexture?: (texture: Texture, exact: boolean) => Promise<{ bytes: Uint8Array; type: 'png' | 'jpg' } | undefined>;
+  encodeTexture?: (texture: Texture, exact: boolean) => Promise<EncodedTexture | undefined>;
   /** Prefix for the texture names this character registers (unique per character). */
   textureKey: string;
   /** Joint name -> Ara bone name, for skeletons Ara doesn't recognise. */
@@ -61,14 +61,34 @@ export interface ModelOptions {
   format: 'gltf' | 'fbx';
   /** Reports each stage, for a loading message. */
   progress?: (label: string) => void;
+  /** Colour tints by lower-case material name (Unity's .mat files beside the model), sRGB 0..1. */
+  tints?: ReadonlyMap<string, [number, number, number]>;
 }
+
+/**
+ * The colour tints of Unity material files (text .mat, as asset packages ship them), by material name: Unity keeps a
+ * model's material colours there, not in its FBX (grey hair textures made dark by the material, for one).
+ */
+export function unityTints(files: ReadonlyMap<string, Uint8Array>): Map<string, { color: [number, number, number]; file: string }> {
+  const out = new Map<string, { color: [number, number, number]; file: string }>();
+  for (const [name, bytes] of files) {
+    if (!name.endsWith('.mat')) continue;
+    const text = new TextDecoder().decode(bytes.subarray(0, 200_000));
+    const own = /m_Name:\s*(.+)/.exec(text)?.[1].trim(), c = /- _Color:\s*\{r:\s*([-\d.e]+),\s*g:\s*([-\d.e]+),\s*b:\s*([-\d.e]+)/.exec(text);
+    if (own && c) out.set(own.toLowerCase(), { color: [Number(c[1]), Number(c[2]), Number(c[3])].map((v) => Math.max(0, Math.min(1, v))) as [number, number, number], file: name });
+  }
+  return out;
+}
+
+/** A texture's file, and how see-through it is: not at all, with hard edges (cut-outs), or with soft edges. */
+export interface EncodedTexture { bytes: Uint8Array; type: 'png' | 'jpg'; alpha?: 'none' | 'cutout' | 'soft' }
 
 export interface ImportedCharacter {
   character: Character;
   /** Textures to register with the asset library under these names, before the character is shown or exported. */
   textures: [string, Uint8Array][];
   /** What was found: bones, the ones Ara animates, face shapes and anything left out. */
-  report: { bones: number; animated: number; faceShapes: string[]; restPose: 'A' | 'T'; height: number; notes: string[] };
+  report: { bones: number; animated: number; faceShapes: string[]; restPose: 'A' | 'T'; height: number; notes: string[]; /** Files beside the model it used (its textures). */ files?: string[] };
 }
 
 const v3 = (v: Vector3): Vec3 => [v.x, v.y, v.z];
@@ -153,13 +173,14 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
   for (const b of bones.filter((x) => !hangFrom(x))) visit(b);
   ordered.forEach((b, i) => boneIndex.set(b, i));
 
+  const textureAlpha = new Map<string, EncodedTexture['alpha']>();
   async function textureName(texture: Texture | null | undefined, exact: boolean): Promise<string | undefined> {
     if (!texture || !options.encodeTexture) return undefined;
     if (textureNames.has(texture)) return textureNames.get(texture);
     const encoded = await options.encodeTexture(texture, exact).catch(() => undefined);
     if (!encoded) { missingTextures++;return undefined; }
     const name = `${options.textureKey}-${textureNames.size}.${encoded.type}`;
-    textureNames.set(texture, name);textures.push([name, encoded.bytes]);
+    textureNames.set(texture, name);textures.push([name, encoded.bytes]);textureAlpha.set(name, encoded.alpha);
     return name;
   }
   /** A material's index, or -1 for one that can never be seen (fully see-through without a texture, such as the
@@ -170,16 +191,27 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
     if (!m.visible || (!see.map && !see.alphaMap && (m.opacity <= 0.001 || (m.alphaTest > 0 && m.opacity < m.alphaTest)) && (m.transparent || m.alphaTest > 0))) { materialIndex.set(m, -1);return -1; }
     const s = m as ThreeMaterial & { color?: { getHexString(): string }; map?: Texture | null; normalMap?: Texture | null; roughness?: number; metalness?: number; shininess?: number; emissive?: { getHexString(): string; r: number; g: number; b: number }; alphaTest: number };
     const roughness = s.roughness ?? (s.shininess !== undefined ? Math.max(0.2, Math.min(1, 1 - Math.sqrt(s.shininess / 100))) : 0.8);
+    const grey = (c?: { r: number; g: number; b: number }) => !!c && Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) < 0.02;
+    const glow = s as { emissiveMap?: Texture | null };
     const material: Material = {
       name: (m.name || `Material ${materials.length + 1}`).slice(0, 60), color: s.map ? '#ffffff' : hex(s.color), roughness, metalness: s.metalness ?? 0,
       alpha: m.transparent ? 'blend' : s.alphaTest > 0 ? 'mask' : 'opaque', doubleSided: m.side === DoubleSide,
-      ...(s.emissive && s.emissive.r + s.emissive.g + s.emissive.b > 0.02 ? { emissive: hex(s.emissive) } : {}),
+      // A flat glow over a textured surface is an exporter's leftover (it washes the texture out); a glow with its own
+      // texture, or on an untextured surface, is meant.
+      ...(s.emissive && s.emissive.r + s.emissive.g + s.emissive.b > 0.02 && (!s.map || glow.emissiveMap) ? { emissive: hex(s.emissive) } : {}),
       ...(m.transparent && m.opacity < 1 ? { opacity: m.opacity } : {}),
     };
-    // A texture keeps the material's tint, as three.js shows it.
-    if (s.map && s.color && s.color.getHexString() !== 'ffffff') material.color = hex(s.color);
+    // A texture keeps a colour tint, as three.js shows it; a grey one is a default left over (FBX's 0.8 grey). A
+    // Unity material file's colour, given beside the model, is the one the model was made with.
+    if (s.map && s.color && s.color.getHexString() !== 'ffffff' && !grey(s.color as unknown as { r: number; g: number; b: number })) material.color = hex(s.color);
+    const tint = options.tints?.get(m.name.toLowerCase());
+    if (tint) material.color = `#${tint.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')}`;
     const map = await textureName(s.map, material.alpha !== 'opaque'), normal = await textureName(s.normalMap, true);
     if (map) material.map = map;
+    // An opaque material whose texture has see-through parts (eyelashes, brows, hair cards): cut out, or blended where its edges are soft.
+    const seeThrough = map && textureAlpha.get(map);
+    if (material.alpha === 'opaque' && seeThrough === 'cutout') material.alpha = 'mask';
+    if (material.alpha === 'opaque' && seeThrough === 'soft') material.alpha = 'blend';
     if (normal) material.normalMap = normal;
     materials.push(material);materialIndex.set(m, materials.length - 1);
     return materials.length - 1;
@@ -313,7 +345,7 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
   const params: HumanParams = { ...DEFAULT_PARAMS, name: options.name.slice(0, 60) || 'Imported character', rig: 'game', restPose, faceShapes: faceNames.length > 0, speechShapes: faceNames.some((n) => n.startsWith('viseme_')), faceBones: false, weapon: 'none', carry: 'none', vehicle: 'none', animations: true };
   const animated = rigBones.filter((b) => RIG_NAMES.has(b.name)).length;
   if (!faceNames.length) notes.push('No face shapes were found, so the face stays still (no expressions, blinking or lip-sync).');
-  if (missingTextures && options.encodeTexture) notes.push(`${missingTextures} of its textures aren't inside the file (it only names image files kept beside it), so it shows in plain colours. Open a GLB or VRM of it, or export the FBX with its media embedded.`);
+  if (missingTextures && options.encodeTexture) notes.push(`${missingTextures} of its textures weren't found: the file names images kept beside it. Open it together with its texture files, or its whole folder (drop the folder on the view), so they show.`);
   return {
     character: { params, mesh, rig, height, ...(faceNames.length ? { face: { names: faceNames, defaults: faceNames.map(() => 0) } } : {}) },
     textures,
@@ -325,16 +357,21 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
  * Reads a model file (GLB, glTF, VRM or FBX) and turns it into an Ara character, `id` naming it among imported
  * characters (its textures are registered under that ID).
  */
-export async function characterFromFile(bytes: Uint8Array, fileName: string, options: Omit<ModelOptions, 'format' | 'textureKey' | 'name'> & { id: string; name?: string }): Promise<ImportedCharacter> {
+export async function characterFromFile(bytes: Uint8Array, fileName: string, options: Omit<ModelOptions, 'format' | 'textureKey' | 'name'> & { id: string; name?: string; /** Files kept beside it, by name (its textures). */ files?: ReadonlyMap<string, Uint8Array> }): Promise<ImportedCharacter> {
   const ext = /\.([a-z0-9]+)$/i.exec(fileName)?.[1].toLowerCase();
   if (ext !== 'glb' && ext !== 'gltf' && ext !== 'vrm' && ext !== 'fbx') throw Error(`${fileName}: open a GLB, glTF, VRM or FBX character.`);
   if (bytes.length > MAX_MODEL_SIZE) throw Error(`${fileName} is larger than ${MAX_MODEL_SIZE / 1e6} MB.`);
   const { readAnimationFile } = await import('../packs/build');
   options.progress?.('Reading the file');
-  const file = await readAnimationFile(bytes, fileName);
+  const used = new Set<string>(), file = await readAnimationFile(bytes, fileName, { files: options.files, used });
   if ('bvh' in file) throw Error(`${fileName}: open a GLB, glTF, VRM or FBX character.`);
   const name = options.name ?? fileName.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
-  const result = await characterFromModel(file.root, { ...options, name, format: ext === 'fbx' ? 'fbx' : 'gltf', textureKey: `imported-${options.id}` });
+  const unity = options.files ? unityTints(options.files) : undefined;
+  const tints = unity?.size ? new Map([...unity].map(([k, v]) => [k, v.color])) : undefined;
+  const result = await characterFromModel(file.root, { ...options, name, format: ext === 'fbx' ? 'fbx' : 'gltf', textureKey: `imported-${options.id}`, ...(tints ? { tints } : {}) });
+  // The Unity material files it used are kept with it, like its textures.
+  for (const m of result.character.mesh.materials) { const t = unity?.get(m.name.toLowerCase());if (t) used.add(t.file); }
   result.character.imported = options.id;
+  if (used.size) result.report.files = [...used];
   return result;
 }
