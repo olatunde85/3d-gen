@@ -30,7 +30,9 @@ function convert(id: string, name: string, bytes: Uint8Array): Promise<ImportedC
   return new Promise<ImportedCharacter>((resolve, reject) => {
     worker.onmessage = ({ data }: MessageEvent<CharacterImportReply>) => { if (data.type === 'done') resolve(data.result);else reject(Error(data.message)); };
     worker.onerror = (event) => reject(Error(event.message || 'The import stopped unexpectedly.'));
-    worker.postMessage({ id, name, bytes: bytes.slice() } satisfies CharacterImportRequest);
+    // The worker gets its own copy (the kept file stays here), moved rather than copied again.
+    const copy = bytes.slice();
+    worker.postMessage({ id, name, bytes: copy } satisfies CharacterImportRequest, [copy.buffer]);
   }).finally(() => worker.terminate());
 }
 

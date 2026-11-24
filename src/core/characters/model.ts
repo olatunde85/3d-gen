@@ -28,7 +28,7 @@ const RIG_NAMES = new Set([
 /** Joints Ara adds or uses for props; a model bone with one of these names is renamed so it can't be mistaken. */
 const RESERVED = /^(WeaponR|Parcel|Broom|BagL|Phone|Camera|Dumbbell[LR]|Kettlebell|Barbell)$/;
 /** Largest model file, in bytes. */
-export const MAX_MODEL_SIZE = 50 * 1024 * 1024;
+export const MAX_MODEL_SIZE = 200 * 1024 * 1024;
 
 export interface ModelOptions {
   /** The character's name (file names on export). */
