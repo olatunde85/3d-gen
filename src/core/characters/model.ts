@@ -43,7 +43,7 @@ const FACE_ALIASES: Record<string, string[][]> = {
 };
 
 /** Largest model file the converter takes, in bytes (the command line's limit; the website sets its own, lower one). */
-export const MAX_MODEL_SIZE = 300e6;
+export const MAX_MODEL_SIZE = 200e6;
 
 export interface ModelOptions {
   /** The character's name (file names on export). */
