@@ -79,6 +79,29 @@ export function trimFbxFooter(bytes: Uint8Array): Uint8Array | undefined {
   return out;
 }
 
+/**
+ * VRM avatars (VRoid and others) keep their face shapes unnamed and name them in expression presets (VRM 0.x
+ * blendShapeMaster, VRM 1.0 expressions). Each preset that moves one shape adds that name ("vrm_blink_l") to the
+ * meshes' morph dictionaries, so the character import can use it.
+ */
+function nameVrmExpressions(gltf: { parser: { json: Record<string, any>; associations: Map<object, { meshes?: number; nodes?: number }> }; scene: Object3D }) {
+  const ext = gltf.parser.json.extensions ?? {}, named: [string, 'meshes' | 'nodes', number, number][] = [];
+  for (const g of ext.VRM?.blendShapeMaster?.blendShapeGroups ?? []) {
+    const binds = (g.binds ?? []).filter((b: { weight?: number }) => (b.weight ?? 100) > 0);
+    for (const b of binds) named.push([String(g.presetName && g.presetName !== 'unknown' ? g.presetName : g.name).toLowerCase(), 'meshes', b.mesh, b.index]);
+  }
+  for (const [preset, e] of Object.entries<any>(ext.VRMC_vrm?.expressions?.preset ?? {}))
+    for (const b of e.morphTargetBinds ?? []) named.push([preset.toLowerCase(), 'nodes', b.node, b.index]);
+  if (!named.length) return;
+  gltf.scene.traverse((o) => {
+    const mesh = o as Object3D & { morphTargetDictionary?: Record<string, number> };
+    if (!mesh.morphTargetDictionary) return;
+    // A glTF mesh of several primitives loads as a group of meshes: the association is on the mesh or its parent.
+    const own = gltf.parser.associations.get(o) ?? (o.parent ? gltf.parser.associations.get(o.parent) : undefined);
+    for (const [preset, kind, at, index] of named) if (own?.[kind] === at && !(`vrm_${preset}` in mesh.morphTargetDictionary)) mesh.morphTargetDictionary[`vrm_${preset}`] = index;
+  });
+}
+
 /** Reads an animation file. glTF files with separate .bin files need `resolve` to read them. */
 export async function readAnimationFile(bytes: Uint8Array, name: string): Promise<AnimationFile> {
   const type = ext(name);
@@ -98,12 +121,13 @@ export async function readAnimationFile(bytes: Uint8Array, name: string): Promis
     } finally { if (stand) delete g.window; }
     return { root, clips: (root as Object3D & { animations: AnimationClip[] }).animations };
   }
-  if (type === 'glb' || type === 'gltf') {
+  if (type === 'glb' || type === 'gltf' || type === 'vrm') {
     const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
     try {
       const gltf = await new GLTFLoader().parseAsync(type === 'gltf' ? new TextDecoder().decode(bytes) : buffer(bytes), '');
+      nameVrmExpressions(gltf);
       return { root: gltf.scene, clips: gltf.animations };
-    } catch (error) { throw Error(`${name} couldn't be read as glTF: ${(error as Error).message}`); }
+    } catch (error) { throw Error(`${name} couldn't be read as ${type === 'vrm' ? 'VRM' : 'glTF'}: ${(error as Error).message}`); }
   }
   throw Error(`${name}: use an FBX, glTF (.glb, .gltf) or BVH file.`);
 }

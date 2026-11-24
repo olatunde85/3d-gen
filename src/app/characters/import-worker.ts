@@ -1,5 +1,5 @@
 /**
- * Turns a character model (GLB, glTF or FBX) into an Ara character off the main thread, textures included: they are
+ * Turns a character model (GLB, glTF, VRM or FBX) into an Ara character off the main thread, textures included: they are
  * decoded here and re-encoded as PNG (at most 2048 pixels across) for the viewer and the exporters.
  */
 import { Texture, TextureLoader, type Texture as ThreeTexture } from 'three';

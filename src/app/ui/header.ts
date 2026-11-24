@@ -14,7 +14,7 @@ export function header(ctx: Ctx, openModel: (file: File) => void): void {
   });
   $('#open-character').addEventListener('click',()=>fileInput.click());
   fileInput.addEventListener('change',async()=>{const file=fileInput.files?.[0];if(!file)return;
-    if(/\.(glb|gltf|fbx)$/i.test(file.name)){fileInput.value='';openModel(file);return;}
+    if(/\.(glb|gltf|vrm|fbx)$/i.test(file.name)){fileInput.value='';openModel(file);return;}
     try{if(store.imported)store.leaveImported();if(file.size>100_000)throw Error('Use a character JSON smaller than 100 KB.');const params=readCharacterSettings(await file.text(),cat);store.replaceAll(params);status.textContent=`Opened ${params.name||'your character'}.`;}
     catch(error){status.textContent=(error as Error).message;}finally{fileInput.value='';}
   });

@@ -532,4 +532,4 @@ body.imported-character #controls, body.imported-character #quick, body.imported
 #your-characters .hint { width: 100%; margin: 0; }
 #your-characters button { padding: 4px 10px; font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #your-characters button[aria-pressed="true"] { border-color: var(--on); color: #fff; background: var(--sel); }
-main.dropping::after { content: 'Drop a character model (GLB, glTF or FBX) to open it'; position: absolute; inset: 12px; display: grid; place-items: center; border: 2px dashed var(--on, #fff); border-radius: 16px; background: #0009; color: #fff; font-size: 15px; pointer-events: none; z-index: 20; }
+main.dropping::after { content: 'Drop a character model (GLB, glTF, VRM or FBX) to open it'; position: absolute; inset: 12px; display: grid; place-items: center; border: 2px dashed var(--on, #fff); border-radius: 16px; background: #0009; color: #fff; font-size: 15px; pointer-events: none; z-index: 20; }

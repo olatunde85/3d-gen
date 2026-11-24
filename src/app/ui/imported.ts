@@ -8,7 +8,7 @@ import { importCharacterFile, importedCharacters, openCharacter, registerTexture
 import type { Ctx } from './context';
 import { $, el } from './dom';
 
-export const MODEL_FILE = /\.(glb|gltf|fbx)$/i;
+export const MODEL_FILE = /\.(glb|gltf|vrm|fbx)$/i;
 const html = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 export function importedCharacterUi(ctx: Omit<Ctx, 'playClip'>) {

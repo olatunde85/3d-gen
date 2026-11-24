@@ -109,7 +109,7 @@ await check('meshes with their own copies of the skeleton (Mixamo\'s X Bot) shar
 await check('a model without a skeleton is refused with what to do', async () => {
   const root = new Group();root.add(new Mesh(new BoxGeometry(), new MeshStandardMaterial()));
   await assert.rejects(characterFromModel(root, { name: 'Box', textureKey: 'x', format: 'gltf' }), /no skeleton.*Mixamo/);
-  await assert.rejects(characterFromFile(new Uint8Array(10), 'notes.txt', { id: 'x' }), /GLB, glTF or FBX/);
+  await assert.rejects(characterFromFile(new Uint8Array(10), 'notes.txt', { id: 'x' }), /GLB, glTF, VRM or FBX/);
 });
 
 await check('skeletons named another way are worked out: Character Creator, Unreal, Daz, VRoid, CATS/MMD', () => {

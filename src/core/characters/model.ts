@@ -27,18 +27,19 @@ const RIG_NAMES = new Set([
 ]);
 /** Joints Ara adds or uses for props; a model bone with one of these names is renamed so it can't be mistaken. */
 const RESERVED = /^(WeaponR|Parcel|Broom|BagL|Phone|Camera|Dumbbell[LR]|Kettlebell|Barbell)$/;
-/** Character Creator (CC4) face shapes for Ara's, first set found wins; a set's shapes are added together. */
+/** Character Creator (CC4) and VRM face shapes for Ara's, first set found wins; a set's shapes are added together. */
 const FACE_ALIASES: Record<string, string[][]> = {
-  eyeBlinkLeft: [['Eye_Blink_L']], eyeBlinkRight: [['Eye_Blink_R']], eyeWideLeft: [['Eye_Wide_L']], eyeWideRight: [['Eye_Wide_R']],
+  eyeBlinkLeft: [['Eye_Blink_L'], ['vrm_blink_l'], ['vrm_blinkleft'], ['vrm_blink']], eyeBlinkRight: [['Eye_Blink_R'], ['vrm_blink_r'], ['vrm_blinkright'], ['vrm_blink']], eyeWideLeft: [['Eye_Wide_L']], eyeWideRight: [['Eye_Wide_R']],
   eyeSquintLeft: [['Eye_Squint_L']], eyeSquintRight: [['Eye_Squint_R']], browDownLeft: [['Brow_Drop_L']], browDownRight: [['Brow_Drop_R']],
   browInnerUp: [['Brow_Raise_Inner_L', 'Brow_Raise_Inner_R']], browOuterUpLeft: [['Brow_Raise_Outer_L']], browOuterUpRight: [['Brow_Raise_Outer_R']],
-  jawOpen: [['Jaw_Open']], mouthSmile: [['Mouth_Smile_L', 'Mouth_Smile_R']], mouthFrown: [['Mouth_Frown_L', 'Mouth_Frown_R']],
+  jawOpen: [['Jaw_Open'], ['vrm_a'], ['vrm_aa']], mouthSmile: [['Mouth_Smile_L', 'Mouth_Smile_R'], ['vrm_joy'], ['vrm_happy']], mouthFrown: [['Mouth_Frown_L', 'Mouth_Frown_R'], ['vrm_sorrow'], ['vrm_sad']],
   mouthPucker: [['Mouth_Pucker_Up_L', 'Mouth_Pucker_Up_R', 'Mouth_Pucker_Down_L', 'Mouth_Pucker_Down_R'], ['Mouth_Pucker']],
   mouthPress: [['Mouth_Press_L', 'Mouth_Press_R']], mouthStretch: [['Mouth_Stretch_L', 'Mouth_Stretch_R']],
   noseSneerLeft: [['Nose_Sneer_L']], noseSneerRight: [['Nose_Sneer_R']], mouthUpperUp: [['Mouth_Up_Upper_L', 'Mouth_Up_Upper_R']],
   viseme_PP: [['V_Explosive']], viseme_FF: [['V_Dental_Lip']], viseme_TH: [['V_Tongue_Out']], viseme_DD: [['V_Tongue_up']], viseme_kk: [['V_Tongue_Raise']],
-  viseme_CH: [['V_Affricate']], viseme_SS: [['V_Tight']], viseme_nn: [['V_Tongue_up']], viseme_RR: [['V_Tight_O']], viseme_aa: [['V_Open']],
-  viseme_E: [['V_Wide']], viseme_I: [['V_Wide']], viseme_O: [['V_Tight_O']], viseme_U: [['V_Tight_O']],
+  viseme_CH: [['V_Affricate'], ['vrm_i'], ['vrm_ih']], viseme_SS: [['V_Tight'], ['vrm_i'], ['vrm_ih']], viseme_nn: [['V_Tongue_up'], ['vrm_e'], ['vrm_ee']], viseme_RR: [['V_Tight_O'], ['vrm_o'], ['vrm_oh']],
+  viseme_aa: [['V_Open'], ['vrm_a'], ['vrm_aa']], viseme_E: [['V_Wide'], ['vrm_e'], ['vrm_ee']], viseme_I: [['V_Wide'], ['vrm_i'], ['vrm_ih']], viseme_O: [['V_Tight_O'], ['vrm_o'], ['vrm_oh']], viseme_U: [['V_Tight_O'], ['vrm_u'], ['vrm_ou']],
+
 };
 
 /** Largest model file the converter takes, in bytes (the command line's limit; the website sets its own, lower one). */
@@ -136,6 +137,7 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
   const groups = new Map<number, number[]>(), materials: Material[] = [], textures: [string, Uint8Array][] = [];
   const morphs = new Map<string, Map<number, Vec3>>();
   const materialIndex = new Map<ThreeMaterial, number>(), textureNames = new Map<Texture, string>();
+  let missingTextures = 0;
   const boneIndex = new Map<Object3D, number>(); // filled once the bones are ordered (below)
   // A body bone outside its limb's chain (a foot held by an IK control) hangs from the bone it belongs to, so it moves
   // with the leg; the animation puts it where the foot goes.
@@ -155,7 +157,7 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
     if (!texture || !options.encodeTexture) return undefined;
     if (textureNames.has(texture)) return textureNames.get(texture);
     const encoded = await options.encodeTexture(texture, exact).catch(() => undefined);
-    if (!encoded) return undefined;
+    if (!encoded) { missingTextures++;return undefined; }
     const name = `${options.textureKey}-${textureNames.size}.${encoded.type}`;
     textureNames.set(texture, name);textures.push([name, encoded.bytes]);
     return name;
@@ -311,6 +313,7 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
   const params: HumanParams = { ...DEFAULT_PARAMS, name: options.name.slice(0, 60) || 'Imported character', rig: 'game', restPose, faceShapes: faceNames.length > 0, speechShapes: faceNames.some((n) => n.startsWith('viseme_')), faceBones: false, weapon: 'none', carry: 'none', vehicle: 'none', animations: true };
   const animated = rigBones.filter((b) => RIG_NAMES.has(b.name)).length;
   if (!faceNames.length) notes.push('No face shapes were found, so the face stays still (no expressions, blinking or lip-sync).');
+  if (missingTextures && options.encodeTexture) notes.push(`${missingTextures} of its textures aren't inside the file (it only names image files kept beside it), so it shows in plain colours. Open a GLB or VRM of it, or export the FBX with its media embedded.`);
   return {
     character: { params, mesh, rig, height, ...(faceNames.length ? { face: { names: faceNames, defaults: faceNames.map(() => 0) } } : {}) },
     textures,
@@ -319,17 +322,17 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
 }
 
 /**
- * Reads a model file (GLB, glTF or FBX) and turns it into an Ara character, `id` naming it among imported
+ * Reads a model file (GLB, glTF, VRM or FBX) and turns it into an Ara character, `id` naming it among imported
  * characters (its textures are registered under that ID).
  */
 export async function characterFromFile(bytes: Uint8Array, fileName: string, options: Omit<ModelOptions, 'format' | 'textureKey' | 'name'> & { id: string; name?: string }): Promise<ImportedCharacter> {
   const ext = /\.([a-z0-9]+)$/i.exec(fileName)?.[1].toLowerCase();
-  if (ext !== 'glb' && ext !== 'gltf' && ext !== 'fbx') throw Error(`${fileName}: open a GLB, glTF or FBX character.`);
+  if (ext !== 'glb' && ext !== 'gltf' && ext !== 'vrm' && ext !== 'fbx') throw Error(`${fileName}: open a GLB, glTF, VRM or FBX character.`);
   if (bytes.length > MAX_MODEL_SIZE) throw Error(`${fileName} is larger than ${MAX_MODEL_SIZE / 1e6} MB.`);
   const { readAnimationFile } = await import('../packs/build');
   options.progress?.('Reading the file');
   const file = await readAnimationFile(bytes, fileName);
-  if ('bvh' in file) throw Error(`${fileName}: open a GLB, glTF or FBX character.`);
+  if ('bvh' in file) throw Error(`${fileName}: open a GLB, glTF, VRM or FBX character.`);
   const name = options.name ?? fileName.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
   const result = await characterFromModel(file.root, { ...options, name, format: ext === 'fbx' ? 'fbx' : 'gltf', textureKey: `imported-${options.id}` });
   result.character.imported = options.id;
