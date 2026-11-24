@@ -112,7 +112,7 @@ await check('a model without a skeleton is refused with what to do', async () =>
   await assert.rejects(characterFromFile(new Uint8Array(10), 'notes.txt', { id: 'x' }), /GLB, glTF or FBX/);
 });
 
-await check('skeletons named another way are worked out: Character Creator, Unreal, Daz, VRoid', () => {
+await check('skeletons named another way are worked out: Character Creator, Unreal, Daz, VRoid, CATS/MMD', () => {
   /** A skeleton from [joint, parent] pairs, with both sides and five fingers made from templates ("{s}" = the side). */
   const skeleton = (body: [string, string?][], limbs: [string, string][], side: (s: 'L' | 'R') => string) => {
     const rows: [string, string | undefined][] = [...body.map(([n, p]) => [n, p] as [string, string | undefined])];
@@ -139,6 +139,10 @@ await check('skeletons named another way are worked out: Character Creator, Unre
   const vroid = skeleton([['J_Bip_C_Hips'], ['J_Bip_C_Spine', 'J_Bip_C_Hips'], ['J_Bip_C_Chest', 'J_Bip_C_Spine'], ['J_Bip_C_UpperChest', 'J_Bip_C_Chest'], ['J_Bip_C_Neck', 'J_Bip_C_UpperChest'], ['J_Bip_C_Head', 'J_Bip_C_Neck'], ['J_Adj_L_FaceEye', 'J_Bip_C_Head']],
     [['J_Bip_{s}_UpperLeg', 'J_Bip_C_Hips'], ['J_Bip_{s}_LowerLeg', 'J_Bip_{s}_UpperLeg'], ['J_Bip_{s}_Foot', 'J_Bip_{s}_LowerLeg'], ['J_Bip_{s}_ToeBase', 'J_Bip_{s}_Foot'], ['J_Bip_{s}_Shoulder', 'J_Bip_C_UpperChest'], ['J_Bip_{s}_UpperArm', 'J_Bip_{s}_Shoulder'], ['J_Bip_{s}_LowerArm', 'J_Bip_{s}_UpperArm'], ['J_Bip_{s}_Hand', 'J_Bip_{s}_LowerArm'],
       ...fingers('J_Bip_{s}_Hand', (f, k) => `J_Bip_{s}_${f === 'Pinky' ? 'Little' : f}${k}`)], (s) => s);
+  const cats = skeleton([['Hips'], ['Spine', 'Hips'], ['Chest', 'Spine'], ['Neck', 'Chest'], ['Head', 'Neck'], ['HairJoint_0070fd8e', 'Head']],
+    [['{s}_leg', 'Hips'], ['{s}_knee', '{s}_leg'], ['{s}_ankle', '{s}_knee'], ['{s}_toe', '{s}_ankle'], ['J_Sec_{s}_SkirtSide', 'Hips'], ['{s}_shoulder', 'Chest'], ['{s}_arm', '{s}_shoulder'], ['{s}_elbow', '{s}_arm'], ['{s}_wrist', '{s}_elbow'],
+      ...fingers('{s}_wrist', (f, k) => (f === 'Thumb' ? `Thumb${k - 1}_{s}` : `${f === 'Pinky' ? 'Little' : f}Finger${k}_{s}`).replaceAll('{s}_', '{s}_'))], (s) => (s === 'L' ? 'Left' : 'Right'));
+  expect(cats, { Hips: 'Hips', Spine: 'Spine', Spine2: 'Chest', Neck: 'Neck', LeftUpLeg: 'Left_leg', LeftLeg: 'Left_knee', LeftFoot: 'Left_ankle', LeftToeBase: 'Left_toe', RightArm: 'Right_arm', RightForeArm: 'Right_elbow', RightHand: 'Right_wrist' });
   expect(vroid, { Hips: 'J_Bip_C_Hips', Spine: 'J_Bip_C_Spine', Spine1: 'J_Bip_C_Chest', Spine2: 'J_Bip_C_UpperChest', LeftUpLeg: 'J_Bip_L_UpperLeg', LeftLeg: 'J_Bip_L_LowerLeg', RightArm: 'J_Bip_R_UpperArm', RightForeArm: 'J_Bip_R_LowerArm', LeftHandPinky3: 'J_Bip_L_Little3' });
 });
 

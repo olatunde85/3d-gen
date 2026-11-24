@@ -68,6 +68,16 @@ export function guessBoneMap(names: readonly string[], parentOf: (name: string) 
   const l = at('LeftUpLeg') ?? at('LeftArm'), r = at('RightUpLeg') ?? at('RightArm');
   const sideAt = (q: Vec3) => (l && r ? ((q[0] - (l[0] + r[0]) / 2) * (l[0] - r[0]) + (q[1] - (l[1] + r[1]) / 2) * (l[1] - r[1]) + (q[2] - (l[2] + r[2]) / 2) * (l[2] - r[2]) > 0 ? 'Left' : 'Right') : '');
   for (const [name, part] of unsided) { const q = positionOf?.(name);if (q && sideAt(q)) set(name, sideAt(q) + part); }
+  // A limb found by its lower bones names the rest by the chain: some rigs call the thigh just "leg" (Left_leg, then
+  // Left_knee, Left_ankle) or the upper arm by the shoulder's name. The upper bone is the one the lower hangs from.
+  const solid = (n?: string) => { for (let p = n && parentOf(n);p;p = parentOf(p)) if (!words(p).some((x) => HELPER.test(x))) return p;return undefined; };
+  const named = (bone: string) => Object.keys(map).find((k) => map[k] === bone);
+  for (const side of ['Left', 'Right']) {
+    for (const [upper, lower, end] of [['UpLeg', 'Leg', 'Foot'], ['Arm', 'ForeArm', 'Hand']]) {
+      if (!named(side + lower) && named(side + end)) { const p = solid(named(side + end));if (p && (!named(side + upper) || chain(p).includes(named(side + upper)!))) set(p, side + lower); }
+      if (!named(side + upper) && named(side + lower)) set(solid(named(side + lower)), side + upper);
+    }
+  }
   for (const [key, list] of fingers) list.slice(0, 3).forEach((n, i) => set(n, `${key.replace(/^(Left|Right)/, '$1Hand')}${i + 1}`));
   const joint = (bone: string) => Object.keys(map).find((k) => map[k] === bone);
   // The hips: where both legs and the head meet. The spine: the bones between the hips and the neck (or head).
