@@ -64,7 +64,10 @@ export function earringPanel(ctx: Ctx) {
 }
 
 /** Clip that shows off each weapon when it is picked. */
-const WEAPON_IDLE: Partial<Record<WeaponId, string>> = { rifle: 'rifle_idle', pistol: 'pistol_idle', sword: 'sword_idle', knife: 'sword_idle', grenade:'throw_grenade' };
+export const WEAPON_IDLE: Partial<Record<WeaponId, string>> = { rifle: 'rifle_idle', pistol: 'pistol_idle', sword: 'sword_idle', knife: 'sword_idle', grenade:'throw_grenade' };
+
+/** Clip that shows off a carried item when it is picked. */
+export const carryClip = (v: CarryId): string | undefined => ({ parcel: 'carry_idle', head_load: 'head_load_idle', phone: 'phone_call', broom: 'sweep' } as Partial<Record<CarryId, string>>)[v] ?? GYM_CLIPS[v]?.[0];
 
 export function weaponPanel(ctx: Ctx) {
   const { store } = ctx;
@@ -86,11 +89,8 @@ export function carryPanel(ctx: Ctx) {
   const { store } = ctx;
   const row = selectRow(ctx, 'Carry', CARRIED.map((c) => [c, CARRY_LABELS[c]]), () => store.params.carry, (v) => {
     store.set({ carry: v as CarryId });
-    if(v==='parcel'&&store.params.rig!=='none')ctx.playClip('carry_idle');
-    if(v==='head_load'&&store.params.rig!=='none')ctx.playClip('head_load_idle');
-    if(v==='phone'&&store.params.rig!=='none')ctx.playClip('phone_call');
-    if(v==='broom'&&store.params.rig!=='none')ctx.playClip('sweep');
-    if(GYM_CLIPS[v as CarryId]&&store.params.rig!=='none')ctx.playClip(GYM_CLIPS[v as CarryId]![0]);
+    const clip = carryClip(v as CarryId);
+    if (clip && store.params.rig !== 'none') ctx.playClip(clip);
     store.emit('sync');
   });
   return el('div', {}, row, styleControls(ctx, () => (store.params.carry === 'none' ? '' : store.params.carry)));

@@ -514,3 +514,24 @@ html dialog.ai-assist {
 h1 > .brand { display: inline-flex; align-items: center; vertical-align: -3px; }
 h1 > .brand::before { content: ''; width: 20px; height: 20px; margin-right: 8px; background: url(/logo.svg) center / contain no-repeat; }
 h1 > .brand .brand-sub { font-style: normal; color: var(--muted); margin-left: 0.28em; }
+
+/* Imported characters: the panel that stands in for Ara's body and clothing controls, and drag-and-drop on the view. */
+body.imported-character #controls, body.imported-character #quick, body.imported-character .mode-switch, body.imported-character .detailed-only, body.imported-character #save-character, body.imported-character #character-assist-btn { display: none !important; }
+#imported-panel { display: grid; gap: 8px; margin: 4px 0 14px; padding: 12px; border: 1px solid var(--line, #2a2a31); border-radius: 12px; }
+#imported-panel[hidden] { display: none; }
+#imported-panel .imp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#imported-panel .imp-eyebrow { font-size: 10px; letter-spacing: .14em; color: var(--muted); }
+#imported-panel .imp-link { padding: 3px 8px; font-size: 11.5px; }
+#imported-panel .imp-name { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+#imported-panel .imp-name input { font-size: 14px; }
+#imported-panel .imp-facts { margin: 0; font-size: 12.5px; }
+#imported-panel .imp-notes { margin: 0; padding-left: 18px; font-size: 12px; color: var(--muted); }
+#imported-panel .imp-props { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line, #2a2a31); }
+#imported-panel .imp-props .hint { margin: 0; }
+#imported-panel .imp-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#your-characters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 8px; }
+#your-characters[hidden] { display: none; }
+#your-characters .hint { width: 100%; margin: 0; }
+#your-characters button { padding: 4px 10px; font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#your-characters button[aria-pressed="true"] { border-color: var(--on); color: #fff; background: var(--sel); }
+main.dropping::after { content: 'Drop a character model (GLB, glTF, VRM or FBX), or its whole folder with the textures, to open it'; position: absolute; inset: 12px; display: grid; place-items: center; border: 2px dashed var(--on, #fff); border-radius: 16px; background: #0009; color: #fff; font-size: 15px; pointer-events: none; z-index: 20; }

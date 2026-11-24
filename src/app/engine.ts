@@ -2,6 +2,7 @@
 import type { AssetLibrary } from '../core/assets';
 import type { Character } from '../core/human';
 import type { HumanParams } from '../core/params';
+import type { Equipment } from '../core/props/equip';
 import type { ExportFile, ExportSettings } from '../export';
 import type { FromWorker, ToWorker } from './worker';
 import { loadedPacks, onPacksChange } from '../core/packs/registry';
@@ -58,6 +59,14 @@ export class Engine {
       this.pending.set(id, { resolve: resolve as (v: never) => void, reject, progress });
       this.send({ ...m, id } as ToWorker);
     });
+  }
+
+  /**
+   * Makes an imported character (with its textures) the one exports use, with `equipment` (its props) added to it
+   * when given: the character with them comes back.
+   */
+  use(ch: Character, textures: [string, Uint8Array][], equipment?: Equipment): Promise<Character> {
+    return this.call({ type: 'use', ch, textures, ...(equipment ? { equipment } : {}) });
   }
 
   build(params: HumanParams, progress?: Progress): Promise<Character> {

@@ -1,20 +1,16 @@
-import {boneFor} from './rig/poses';
-import {parachutePack,parachuteCanopy,parachuteLine,parachuteHarness,PACKED_CANOPY,SUSPENSION_ANCHORS} from './props/parachute';
-import {carryStyle} from './props/carry';
 /**
  * Builds a complete character: morphed body + fitted proxies (eyes, brows,
  * lashes, hair, clothes, shoes, hat) + skeleton, as one multi-material mesh.
  */
 import type { AssetLibrary, AssetMaterial, CatalogItem, ProxyMeta, Slider } from './assets';
 import { blendInfluences, compact, subdivide, vertexNormals, type PolyMesh } from './geometry';
-import { archFeet, buildGarments, dressing, genTexture, outfitsUsed } from './garments';
-import { buildCarry, GYM_WEIGHTS, gymJoints, headLoad, PARCEL_REST, PLACED_PROPS, PROP_REST, WORN_BAGS } from './props/carry';
+import { archFeet, buildGarments, dressing, outfitsUsed } from './garments';
+import { attachProps } from './props/equip';
 import type { Vec3 } from './math';
-import { applyTPose, baseSkin, placeBones, quatOf, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
+import { applyTPose, baseSkin, placeBones, skeletonDefs, skinFromRefs, skinPart, VertexGrid, type Rig } from './rig/rig';
 import { socketBone, type HandJoints } from './rig/socket';
-import { buildWeapon, type WeaponId, type WeaponPart } from './props/weapons';
-import { Animator } from './anim/evaluate';
-import { qconj, qmul, qrot, type Q } from './anim/quat';
+import type { WeaponId, WeaponPart } from './props/weapons';
+import { qrot, type Q } from './anim/quat';
 import type { Skin } from './geometry';
 import { MeshAssembler, pickGroups, type Material, type MeshData } from './mesh';
 import { applyTargets, targetWeights } from './morph';
@@ -35,6 +31,8 @@ export interface Character {
   height: number;
   /** Facial blend shapes in the mesh (names and the expression's resting weights), if exported. */
   face?: { names: string[]; defaults: number[] };
+  /** A character imported from a model file (see core/characters/model.ts), not built from params: its ID. */
+  imported?: string;
 }
 
 /** MakeHuman units are decimetres. */
@@ -580,134 +578,11 @@ export async function buildHuman(lib: AssetLibrary, p: HumanParams, opts: BuildO
         out[at] = [{ ...m, skin: { j, w } }, out[at][1]];
       }
     }
-    // A bag carried in the hand: that hand's fingers close round its handle.
-    rig = { type: p.rig, restPose: p.restPose, bones, ...(p.carry !== 'none' && !PLACED_PROPS.includes(p.carry) && !WORN_BAGS.includes(p.carry) ? { holds: ['Left' as const] } : {}) };
-
-    // Carried bag: hangs straight down from the left hand with the arms relaxed at the sides (the
-    // animation rest pose), and is bound rigidly to the hand bone.
-    if (p.carry !== 'none'&&!PLACED_PROPS.includes(p.carry)&&!WORN_BAGS.includes(p.carry)) {
-      const a = new Animator(rig);
-      const hand = a.relaxedBone('LeftHand'), mid = a.relaxedBone('LeftHandMiddle1');
-      const hi = bones.findIndex((b) => b.name === (p.rig === 'full' ? 'wrist.L' : 'LeftHand'));
-      if (hand && mid && hi >= 0) {
-        // Grip: inside the closed fist, just past the knuckles and toward the palm (which faces
-        // the thigh); the fingers close round the handle there (rig.holds).
-        const grip: Vec3 = [hand.pos[0] + (mid.pos[0] - hand.pos[0]) * 1.15 - 0.018, hand.pos[1] + (mid.pos[1] - hand.pos[1]) * 1.15, hand.pos[2] + (mid.pos[2] - hand.pos[2]) * 1.15];
-        const toBind = qmul(quatOf(bones[hi].rot), qconj(hand.rot));
-        // The bag rides on its own joint under the hand, so clips that need the hand free (climbing, swimming)
-        // can put it away; everywhere else it moves exactly with the hand.
-        const bag = bones.length;
-        bones.push({ name: 'BagL', parent: hi, head: [...bones[hi].head], tail: [bones[hi].head[0], bones[hi].head[1] + 0.05 * sizeK, bones[hi].head[2]], rot: bones[hi].rot });
-        for (const cp of buildCarry(p.carry, (key, make) => genTexture(lib, key, make), p.garmentStyles)) {
-          const P = cp.mesh.positions, positions = new Float32Array(P.length);
-          for (let i = 0; i < P.length; i += 3) {
-            const w = qrot(toBind, [P[i] + grip[0] - hand.pos[0], P[i + 1] + grip[1] - hand.pos[1], P[i + 2] + grip[2] - hand.pos[2]]);
-            positions.set([bones[hi].head[0] + w[0], bones[hi].head[1] + w[1], bones[hi].head[2] + w[2]], i);
-          }
-          const n = P.length / 3, j = new Uint16Array(n * 4).fill(0), wts = new Float32Array(n * 4);
-          for (let v = 0; v < n; v++) {
-            j[v * 4] = bag;
-            wts[v * 4] = 1;
-          }
-          out.push([{ ...cp.mesh, positions, skin: { j, w: wts } }, cp.material]);
-        }
-      }
-    }
-
-    if(p.carry==='parachute'){
-      // Fit the rig over clothing, not bare skin. Hair and small face parts never push the webbing out.
-      const worn=out.filter(([,m])=>!/hair|eye|brow|lash|teeth|tongue|hat|beard|stubble|earring|pearl/i.test(m.name)).map(([m])=>m.positions);
-      const P=new Float32Array(worn.reduce((n,a)=>n+a.length,0));worn.reduce((o,a)=>(P.set(a,o),o+a.length),0);
-      const chest=bones.findIndex(b=>b.name===boneFor(p.rig,'Spine2')),level=bones[chest].head[1];let back=0;
-      for(let i=0;i<P.length;i+=3)if(Math.abs(P[i+1]-level)<.13*sizeK&&Math.abs(P[i])<.22*sizeK)back=Math.min(back,P[i+2]);
-      const centre:Vec3=[0,level+.12*sizeK,back-.085*sizeK],style=carryStyle('parachute',p.garmentStyles);
-      const attach=(part:import('./props/carry').CarryPart,index:number,offset?:Vec3,k=1)=>{const positions=part.mesh.positions.map((v,i)=>v*k+(offset?.[i%3]??0)),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...part.mesh,positions,skin:{j,w}},part.material]);};
-      const harness=parachuteHarness(P,level,sizeK);
-      for(const part of parachutePack(centre,.32*sizeK,sizeK,style,harness))attach(part,chest);
-      // Packed rest geometry stays inside the pack, including static/bind-pose exports.
-      const addRoot=(name:string)=>{const i=bones.length;bones.push({name,parent:-1,head:[...centre],tail:[centre[0],centre[1]+.01*sizeK,centre[2]],rot:[1,0,0,0,1,0,0,0,1]});return i;};
-      const canopy=addRoot('ParachuteCanopy');for(const part of parachuteCanopy(style))attach(part,canopy,centre,sizeK*PACKED_CANOPY);
-      for(let n=0;n<SUSPENSION_ANCHORS.length+2;n++)attach(parachuteLine(),addRoot(`ParachuteLine${n}`),centre,sizeK*PACKED_CANOPY);
-    }
-
-    // A parcel has its own rigid root, so pickup can leave it on the floor until the grip and
-    // carry can drive it from both wrists. The same bone and motion are exported to game engines.
-    // Head load: on the crown (over the hair), rigid with the head.
-    if(p.carry==='head_load'){
-      const head=bones.findIndex(b=>b.name===boneFor(p.rig,'Head')),base=bones[head].head[1];let crown=base,z=0,top=-Infinity;
-      for(const [m,mat] of out){if(/eye|brow|lash|teeth|tongue/i.test(mat.name))continue;const P=m.positions;for(let i=0;i<P.length;i+=3)if(Math.abs(P[i])<.04*sizeK&&P[i+1]>base){if(P[i+1]>crown)crown=P[i+1];if(!/hair|hat/i.test(mat.name)&&P[i+1]>top){top=P[i+1];z=P[i+2];}}}
-      for(const part of headLoad(carryStyle('head_load',p.garmentStyles))){const positions=part.mesh.positions.map((v,i)=>v*sizeK+[0,crown-.01*sizeK,z][i%3]),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=head;w[i*4]=1;}out.push([{...part.mesh,positions,skin:{j,w}},part.material]);}
-    }
-
-    // Broom and phone: their own root joints, placed by the animator in the clips that use them (hidden otherwise).
-    // At rest (bind pose, static exports) they are packed to nothing inside the hips.
-    if(p.carry==='broom'||p.carry==='phone'){
-      const hips=bones.findIndex(b=>b.parent<0),head:Vec3=[...bones[hips].head],index=bones.length;bones.push({name:p.carry==='broom'?'Broom':'Phone',parent:-1,head,tail:[head[0],head[1]+.1*sizeK,head[2]],rot:[1,0,0,0,1,0,0,0,1]});
-      for(const cp of buildCarry(p.carry,(key,make)=>genTexture(lib,key,make),p.garmentStyles)){const positions=cp.mesh.positions.map((v,i)=>v*sizeK*PROP_REST+head[i%3]),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...cp.mesh,positions,skin:{j,w}},cp.material]);}
-    }
-
-    // Gym weights: the same packed root joints (a dumbbell for each hand), placed in the Fitness clips that lift them.
-    if(GYM_WEIGHTS.includes(p.carry)){
-      const hips=bones.findIndex(b=>b.parent<0),head:Vec3=[...bones[hips].head];
-      // Gym weights (all) colours every weight with its own style.
-      const own=p.garmentStyles.gym_weights,styles=p.carry==='gym_weights'?{...p.garmentStyles,...(own?{dumbbells:own,kettlebell:own,barbell:own}:{})}:p.garmentStyles;
-      for(const [kind,names] of gymJoints(p.carry))for(const name of names){
-        const parts=buildCarry(kind,(key,make)=>genTexture(lib,key,make),styles);
-        const index=bones.length;bones.push({name,parent:-1,head,tail:[head[0],head[1]+.1*sizeK,head[2]],rot:[1,0,0,0,1,0,0,0,1]});
-        for(const cp of parts){const positions=cp.mesh.positions.map((v,i)=>v*sizeK*PROP_REST+head[i%3]),n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}out.push([{...cp.mesh,positions,skin:{j,w}},cp.material]);}
-      }
-    }
-
-    if(p.carry==='parcel'){
-      const index=bones.length,head=PARCEL_REST.map(v=>v*sizeK)as Vec3;
-      bones.push({name:'Parcel',parent:-1,head,tail:[head[0],head[1]+.1*sizeK,head[2]],rot:[1,0,0,0,1,0,0,0,1]});
-      for(const cp of buildCarry('parcel',(key,make)=>genTexture(lib,key,make),p.garmentStyles)){
-        const positions=cp.mesh.positions.map((v,i)=>v*sizeK+head[i%3]);
-        const n=positions.length/3,j=new Uint16Array(n*4),w=new Float32Array(n*4);
-        for(let i=0;i<n;i++){j[i*4]=index;w[i*4]=1;}
-        out.push([{...cp.mesh,positions,skin:{j,w}},cp.material]);
-      }
-    }
-
-    // Weapon: modelled in its own frame, mapped onto the socket and fitted to its reference pose.
-    if (p.weapon && p.weapon !== 'none') {
-      const socket = bones.findIndex(b=>b.name==='WeaponR');
-      let fitRot: Q = [0, 0, 0, 1];
-      let supportZ = 0.3;
-      const ref = p.weapon === 'rifle' ? 'rifle_aim' : p.weapon === 'pistol' ? 'pistol_aim' : null;
-      if (ref) {
-        const a = new Animator(rig);
-        // The same fit the animations use, so the support hand lands on the handguard.
-        const f = a.fitFor(ref === 'rifle_aim' ? 'rifle' : 'pistol');
-        fitRot = f.rot;
-        supportZ = f.supportZ;
-      }
-      const parts = buildWeapon(p.weapon, { supportZ });
-      weapon = { id: p.weapon, rot: fitRot, parts };
-      // A separate rigid root follows WeaponR until release, then travels independently.
-      const propIndex=p.weapon==='grenade'?bones.length:socket;
-      if(p.weapon==='grenade'){const sb=bones[socket];bones.push({...sb,name:'Grenade',parent:-1});}
-      const sb = bones[socket];
-      const sq = quatOf(sb.rot);
-      for (const wp of parts) {
-        const P = wp.mesh.positions;
-        const positions = new Float32Array(P.length);
-        for (let i = 0; i < P.length; i += 3) {
-          const local = qrot(fitRot, [P[i], P[i + 1], P[i + 2]]);
-          const w = qrot(sq, local);
-          positions[i] = sb.head[0] + w[0];
-          positions[i + 1] = sb.head[1] + w[1];
-          positions[i + 2] = sb.head[2] + w[2];
-        }
-        const n = P.length / 3;
-        const j = new Uint16Array(n * 4), wts = new Float32Array(n * 4);
-        for (let v = 0; v < n; v++) {
-          j[v * 4] = propIndex;
-          wts[v * 4] = 1;
-        }
-        out.push([{ ...wp.mesh, positions, skin: { j, w: wts } }, wp.material]);
-      }
-    }
+    rig = { type: p.rig, restPose: p.restPose, bones };
+    // Carried items and the held weapon (see props/equip).
+    const props = attachProps(rig, p, lib, out, sizeK);
+    out.push(...props.parts);
+    weapon = props.weapon;
   }
 
   if(rig)rig.weapon=p.weapon;

@@ -6,8 +6,8 @@
  * them skip the textures some animation files carry.
  */
 import type { AnimationClip, Object3D } from 'three';
-import { bakeMocap, mocapClip, parseBvh, mirrorBvh, bvhTake, uprightTake, type MocapOptions, type Take } from '../anim/mocap';
-import { boneMapFor, jointNames, keyRate, takeFromClip } from '../anim/take-three';
+import { bakeMocap, mocapClip, parseBvh, mirrorBvh, bvhTake, uprightTake, MOCAP_BONES, type MocapOptions, type Take } from '../anim/mocap';
+import { boneMapFor, jointNames, jointParents, keyRate, takeFromClip } from '../anim/take-three';
 import { qmul, qconj, type Q } from '../anim/quat';
 import { ITEM_ID, PACK_CATEGORIES, PACK_ID, PACK_KIND, PACK_VERSION, parsePack, type Pack, type PackAnimation } from './format';
 
@@ -79,27 +79,86 @@ export function trimFbxFooter(bytes: Uint8Array): Uint8Array | undefined {
   return out;
 }
 
-/** Reads an animation file. glTF files with separate .bin files need `resolve` to read them. */
-export async function readAnimationFile(bytes: Uint8Array, name: string): Promise<AnimationFile> {
+/**
+ * VRM avatars (VRoid and others) keep their face shapes unnamed and name them in expression presets (VRM 0.x
+ * blendShapeMaster, VRM 1.0 expressions). Each preset that moves one shape adds that name ("vrm_blink_l") to the
+ * meshes' morph dictionaries, so the character import can use it.
+ */
+function nameVrmExpressions(gltf: { parser: { json: Record<string, any>; associations: Map<object, { meshes?: number; nodes?: number }> }; scene: Object3D }) {
+  const ext = gltf.parser.json.extensions ?? {}, named: [string, 'meshes' | 'nodes', number, number][] = [];
+  for (const g of ext.VRM?.blendShapeMaster?.blendShapeGroups ?? []) {
+    const binds = (g.binds ?? []).filter((b: { weight?: number }) => (b.weight ?? 100) > 0);
+    for (const b of binds) named.push([String(g.presetName && g.presetName !== 'unknown' ? g.presetName : g.name).toLowerCase(), 'meshes', b.mesh, b.index]);
+  }
+  for (const [preset, e] of Object.entries<any>(ext.VRMC_vrm?.expressions?.preset ?? {}))
+    for (const b of e.morphTargetBinds ?? []) named.push([preset.toLowerCase(), 'nodes', b.node, b.index]);
+  if (!named.length) return;
+  gltf.scene.traverse((o) => {
+    const mesh = o as Object3D & { morphTargetDictionary?: Record<string, number> };
+    if (!mesh.morphTargetDictionary) return;
+    // A glTF mesh of several primitives loads as a group of meshes: the association is on the mesh or its parent.
+    const own = gltf.parser.associations.get(o) ?? (o.parent ? gltf.parser.associations.get(o.parent) : undefined);
+    for (const [preset, kind, at, index] of named) if (own?.[kind] === at && !(`vrm_${preset}` in mesh.morphTargetDictionary)) mesh.morphTargetDictionary[`vrm_${preset}`] = index;
+  });
+}
+
+/**
+ * Files kept beside a model that it names (textures an FBX points to, a glTF's .bin and images), by file name: they
+ * are found by name wherever the model's own paths said they were (often the computer it was made on). `used`
+ * collects the names of the ones the model asked for.
+ */
+export interface ModelFiles { files?: ReadonlyMap<string, Uint8Array>; used?: Set<string> }
+const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', tga: 'image/tga', bmp: 'image/bmp', gif: 'image/gif' };
+/** Whether a file can be one a model uses: an image, a glTF's data, or a Unity material (its colour tint). */
+export const isModelFile = (name: string) => (ext(name) in IMAGE_TYPES) || ext(name) === 'bin' || ext(name) === 'mat';
+
+/** three.js's loading manager for a model: names resolved to the files given, and TGA textures decoded. */
+async function managerFor(extra: ModelFiles = {}) {
+  const { LoadingManager } = await import('three');
+  const { TGALoader } = await import('three/examples/jsm/loaders/TGALoader.js');
+  const manager = new LoadingManager(), urls = new Map<string, string>(), files = extra.files;
+  if (files?.size) manager.setURLModifier((url) => {
+    if (/^(blob|data):/.test(url)) return url;
+    const base = decodeURIComponent(url).split(/[\\/]/).pop()!.toLowerCase(), stem = base.replace(/\.[^.]+$/, '');
+    // By name; or the same name in another image format (a .tga named, a .png kept).
+    const key = files.has(base) ? base : [...files.keys()].find((k) => k.replace(/\.[^.]+$/, '') === stem && ext(k) in IMAGE_TYPES);
+    if (!key) return url;
+    extra.used?.add(key);
+    let blob = urls.get(key);
+    if (!blob) { blob = URL.createObjectURL(new Blob([files.get(key)! as BlobPart], { type: IMAGE_TYPES[ext(key)] ?? 'application/octet-stream' }));urls.set(key, blob); }
+    return blob;
+  });
+  manager.addHandler(/\.tga$/i, new TGALoader(manager));
+  return manager;
+}
+
+/** Reads an animation file (and a model's, with the files it names beside it). */
+export async function readAnimationFile(bytes: Uint8Array, name: string, extra?: ModelFiles): Promise<AnimationFile> {
   const type = ext(name);
   if (type === 'bvh') return { bvh: parseBvh(new TextDecoder().decode(bytes)) };
   if (type === 'fbx') {
     const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js');
+    // Files with a camera make three's FBX reader ask for the window's size, which workers and Node don't have: it
+    // gets one just while it reads (removed again, so nothing else takes this for a page).
+    const g = globalThis as { window?: unknown }, stand = g.window === undefined;
+    if (stand) g.window = { innerWidth: 1920, innerHeight: 1080 };
     let root: Object3D;
-    try { root = new FBXLoader().parse(buffer(bytes), ''); }
+    const manager = await managerFor(extra);
+    try { root = new FBXLoader(manager).parse(buffer(bytes), ''); }
     catch (error) {
       const trimmed = trimFbxFooter(bytes);
-      try { if (!trimmed) throw error;root = new FBXLoader().parse(buffer(trimmed), ''); }
+      try { if (!trimmed) throw error;root = new FBXLoader(manager).parse(buffer(trimmed), ''); }
       catch { throw Error(`${name} couldn't be read as FBX: ${(error as Error).message}`); }
-    }
+    } finally { if (stand) delete g.window; }
     return { root, clips: (root as Object3D & { animations: AnimationClip[] }).animations };
   }
-  if (type === 'glb' || type === 'gltf') {
+  if (type === 'glb' || type === 'gltf' || type === 'vrm') {
     const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
     try {
-      const gltf = await new GLTFLoader().parseAsync(type === 'gltf' ? new TextDecoder().decode(bytes) : buffer(bytes), '');
+      const gltf = await new GLTFLoader(await managerFor(extra)).parseAsync(type === 'gltf' ? new TextDecoder().decode(bytes) : buffer(bytes), '');
+      nameVrmExpressions(gltf);
       return { root: gltf.scene, clips: gltf.animations };
-    } catch (error) { throw Error(`${name} couldn't be read as glTF: ${(error as Error).message}`); }
+    } catch (error) { throw Error(`${name} couldn't be read as ${type === 'vrm' ? 'VRM' : 'glTF'}: ${(error as Error).message}`); }
   }
   throw Error(`${name}: use an FBX, glTF (.glb, .gltf) or BVH file.`);
 }
@@ -137,7 +196,7 @@ export function packAnimation(file: AnimationFile, fileName: string, source: Ani
   let take: Take, map: Readonly<Record<string, string>>, fps = source.fps, cmu = false;
   if ('bvh' in file) {
     const bvh = source.mirror ? mirrorBvh(file.bvh) : file.bvh;
-    map = boneMapFor(bvh.joints.map((j) => j.name), source.bones);
+    map = boneMapFor(bvh.joints.map((j) => j.name), source.bones, (n) => { const j = bvh.joints.find((x) => x.name === n);return j && j.parent >= 0 ? bvh.joints[j.parent].name : undefined; });
     cmu = bvh.joints.some((j) => j.name === 'LowerBack');
     take = bvhTake(bvh);
     fps ??= Math.max(24, Math.min(60, Math.round(1 / bvh.frameTime)));
@@ -145,11 +204,13 @@ export function packAnimation(file: AnimationFile, fileName: string, source: Ani
     if (source.mirror) throw Error(`${fileName}: mirror works on BVH files only.`);
     const clip = source.clip ? file.clips.find((c) => c.name === source.clip) : moving(file)[0];
     if (!clip) throw Error(`${fileName}: ${source.clip ? `there's no animation called "${source.clip}". It has: ${file.clips.map((c) => c.name).join(', ')}.` : 'there are no animations in this file.'}`);
-    map = boneMapFor(jointNames(file.root), source.bones);
+    map = boneMapFor(jointNames(file.root), source.bones, jointParents(file.root));
     const hips = Object.entries(map).find(([, g]) => g === 'Hips')![0];
     fps ??= keyRate(clip);
     take = takeFromClip(file.root, clip, hips, Math.min(60, fps * 2));
   }
+  // Animations drive the body and fingers; other bones found (toes, eyes) follow their parents, as in Ara's own clips.
+  map = Object.fromEntries(Object.entries(map).filter(([, bone]) => MOCAP_BONES.includes(bone)));
   take = uprightTake(take, map);
   if (take.poses.length < 2) throw Error(`${fileName}: the animation has a single frame. A pose needs at least two frames.`);
   // Many one-off moves end in the stance they start from (a catch, a kick): only motion meant to repeat loops.

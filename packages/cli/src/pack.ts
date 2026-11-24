@@ -33,14 +33,32 @@ retargeted onto Ara's rig. Add the pack in the builder, Studio or Play (Add anim
 address to the library's packs option, or pass it to ara3d export --pack.
 See https://ara3dgen.com/docs/packs/`;
 
-/** In Node, three.js's loaders can't decode images: animation files' textures are skipped (only motion is read). */
-function nodeLoaders() {
+/**
+ * Lets three.js's loaders read models in Node, which can't decode images. Textures aren't decoded: each keeps its
+ * file's original bytes (a PNG or JPEG embedded in the GLB or FBX) for imported characters, read by `textureBytes`.
+ */
+const blobs = new Map<string, Blob>(), originals = new WeakMap<object, Promise<Uint8Array | undefined>>();
+export function nodeLoaders() {
   (globalThis as { self?: unknown }).self ??= globalThis;
-  TextureLoader.prototype.load = function (_url: string, onLoad?: (texture: Texture) => void) {
-    const texture = new Texture();
+  // three's file loader reports progress with the browser's ProgressEvent (a glTF's separate .bin).
+  (globalThis as { ProgressEvent?: unknown }).ProgressEvent ??= class extends Event { lengthComputable: boolean;loaded: number;total: number;constructor(type: string, o: { lengthComputable?: boolean; loaded?: number; total?: number } = {}) { super(type);this.lengthComputable = !!o.lengthComputable;this.loaded = o.loaded ?? 0;this.total = o.total ?? 0; } };
+  const create = URL.createObjectURL.bind(URL);
+  URL.createObjectURL = (blob: Blob) => { const url = create(blob);blobs.set(url, blob);return url; };
+  TextureLoader.prototype.load = function (this: TextureLoader, url: string, onLoad?: (texture: Texture) => void) {
+    const texture = new Texture(), blob = blobs.get(/^(blob|data):/.test(url) ? url : this.manager.resolveURL((this.path ?? '') + url));
+    originals.set(texture.source, blob ? blob.arrayBuffer().then((b) => new Uint8Array(b)) : Promise.resolve(undefined));
     onLoad?.(texture);
     return texture;
   } as TextureLoader['load'];
+}
+/** A texture's original image file (PNG or JPEG) as read from a model in Node, or undefined for other formats. */
+export async function textureBytes(texture: Texture): Promise<{ bytes: Uint8Array; type: 'png' | 'jpg'; alpha?: 'none' | 'cutout' } | undefined> {
+  const bytes = await originals.get(texture.source);
+  if (!bytes) return undefined;
+  // A PNG with an alpha channel (colour type 4 or 6) may have see-through parts: cut out where they are.
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) return { bytes, type: 'png', alpha: bytes[25] === 4 || bytes[25] === 6 ? 'cutout' : 'none' };
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return { bytes, type: 'jpg' };
+  return undefined;
 }
 
 const isAnimationFile = (f: string) => (ANIMATION_FILE_TYPES as readonly string[]).includes(f.split('.').pop()!.toLowerCase());

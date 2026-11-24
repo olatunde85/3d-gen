@@ -5,7 +5,8 @@ import type { Ctx } from './context';
 import {characterSettings,characterSettingsName,readCharacterSettings} from '../character-file';
 import { $ } from './dom';
 
-export function header(ctx: Ctx): void {
+/** `openModels`: opens a character model (GLB, glTF, VRM, FBX), with any texture files chosen with it, as an imported character. */
+export function header(ctx: Ctx, openModels: (files: File[]) => void): void {
   const { store, cat, viewer } = ctx;
   const fileInput=$<HTMLInputElement>('#character-settings-file'),status=$('#character-file-status');
   $('#save-character').addEventListener('click',async()=>{
@@ -13,7 +14,8 @@ export function header(ctx: Ctx): void {
   });
   $('#open-character').addEventListener('click',()=>fileInput.click());
   fileInput.addEventListener('change',async()=>{const file=fileInput.files?.[0];if(!file)return;
-    try{if(file.size>100_000)throw Error('Use a character JSON smaller than 100 KB.');const params=readCharacterSettings(await file.text(),cat);store.replaceAll(params);status.textContent=`Opened ${params.name||'your character'}.`;}
+    const all=[...(fileInput.files??[])];if(all.some(f=>/\.(glb|gltf|vrm|fbx)$/i.test(f.name))){fileInput.value='';openModels(all);return;}
+    try{if(store.imported)store.leaveImported();if(file.size>100_000)throw Error('Use a character JSON smaller than 100 KB.');const params=readCharacterSettings(await file.text(),cat);store.replaceAll(params);status.textContent=`Opened ${params.name||'your character'}.`;}
     catch(error){status.textContent=(error as Error).message;}finally{fileInput.value='';}
   });
   const presetSel = $<HTMLSelectElement>('#preset');
@@ -28,6 +30,7 @@ export function header(ctx: Ctx): void {
     const name = presetSel.value;
     if (!name) return;
     presetSel.value = '';
+    if (store.imported) store.leaveImported();
     store.replaceAll({ ...DEFAULT_PARAMS, ...PRESETS[name], name, detail: store.params.detail });
   });
 

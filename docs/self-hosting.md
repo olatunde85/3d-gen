@@ -41,6 +41,13 @@ The Terms (`terms/index.html`) and Privacy Policy (`privacy/index.html`) name th
 
 The whole site is static files, and all the character work runs in each visitor's browser, so free static hosting scales with traffic. ara3dgen.com runs as a Cloudflare Worker that serves `dist/` as static files, and static-file requests are free and unmetered. `wrangler.site.jsonc` sets it up: change its `name` and `routes` to your own Worker and domain, run `npx wrangler login` once, then `npm run deploy:site`, which builds the whole site, checks that `dist/` has every part of it (pages, docs, schemas, media) and only then deploys. `dist/` holds about 1,700 files, more than the dashboard's 1,000-file upload accepts, so it deploys with Wrangler. Any other static host works too. Cache headers come with the build (`_headers`). A first visit to the builder downloads about 7 MB (the body shapes its first character uses, its clothes and full-size images), and the browser caches it after that.
 
+### Bigger character models
+
+The builder opens [imported characters](import-characters.md) up to 50 MB, since it converts them in the visitor's browser. On a copy of Ara for yourself or a team with roomier computers, `VITE_MAX_MODEL_MB` raises it, up to 200:
+
+- for `npm run dev` on your computer only, put `VITE_MAX_MODEL_MB=200` in `.env.development.local` (git ignores `*.local` files, and builds for deployment don't read it);
+- for a deployed copy, set it in the environment of `npm run build`.
+
 ## Command line
 
 Generate characters without opening a browser, for batch jobs, CI or asset pipelines. Outside this repository, use [`npx ara3d`](cli.md), which needs no clone. Inside it:

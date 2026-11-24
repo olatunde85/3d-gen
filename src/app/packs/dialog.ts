@@ -8,6 +8,7 @@ import './packs.css';
 import { loadedPack, loadedPacks, onPacksChange, PACK_CATEGORIES, PACK_EXTENSION } from '../../core/packs';
 import type { ImportFile } from '../../core/packs/build';
 import { addPack, editablePack, editPack, importFiles, packFile, removePack, restorePacks, unusablePacks } from './store';
+import { droppedFiles } from '../files';
 
 const html = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 const ANIMATION_FILE = /\.(fbx|glb|gltf|bvh)$/i;
@@ -43,25 +44,6 @@ export function packSummary(): string {
   if (!packs.length) return '';
   const n = packs.reduce((s, p) => s + p.animations.length, 0);
   return `${packs.length} pack${packs.length === 1 ? '' : 's'} · ${n} animation${n === 1 ? '' : 's'}`;
-}
-
-/** Every file in a drop, folders included (read through), with its path; and the folder's name when one was dropped. */
-async function droppedFiles(transfer: DataTransfer): Promise<{ files: File[]; folder?: string }> {
-  const entries = [...transfer.items].map((i) => i.webkitGetAsEntry?.()).filter((e): e is FileSystemEntry => !!e);
-  if (!entries.length) return { files: [...transfer.files] };
-  const files: File[] = [];
-  const walk = async (entry: FileSystemEntry): Promise<void> => {
-    if (entry.isFile) { files.push(await new Promise<File>((ok, fail) => (entry as FileSystemFileEntry).file(ok, fail)));return; }
-    const reader = (entry as FileSystemDirectoryEntry).createReader();
-    for (;;) {
-      const batch = await new Promise<FileSystemEntry[]>((ok, fail) => reader.readEntries(ok, fail));
-      if (!batch.length) break;
-      for (const e of batch) await walk(e);
-    }
-  };
-  for (const e of entries) await walk(e);
-  const folders = entries.filter((e) => e.isDirectory);
-  return { files, ...(folders.length === 1 && entries.length === 1 ? { folder: folders[0].name } : {}) };
 }
 
 function create() {

@@ -22,6 +22,7 @@ import { sidebar } from './ui/sidebar';
 import { Store } from './ui/store';
 import { Viewer } from './viewer';
 import { restorePacks } from './packs/store';
+import { importedCharacterUi } from './ui/imported';
 
 const assetsUrl = new URL(`${import.meta.env.BASE_URL}assets/`, location.href).href;
 // Content packs first, with the catalog: saved export choices and the animation browser may use their animations.
@@ -37,7 +38,8 @@ const ctx: Ctx = { ...base, whenIdle: gen.whenIdle, playClip: (id) => anim.playC
 
 sidebar(ctx);
 const anim = animationBar(ctx);
-header(ctx);
+const imported = importedCharacterUi(ctx);
+header(ctx, (files) => imported.openFiles(files));
 const xp = exportPanel(ctx);
 shareDialog(ctx);
 $('#studio-btn').addEventListener('click', async () => {
@@ -49,6 +51,11 @@ $('#studio-btn').addEventListener('click', async () => {
   url.hash = params.toString();
   location.assign(url.href);
 });
+// Imported characters stay in this browser: no share link or Studio hand-over (they need their model file) yet.
+const syncImported = () => { for (const id of ['#studio-btn', '#share-btn']) { const b = $<HTMLButtonElement>(id);b.disabled = !!store.imported;b.title = store.imported ? 'Not yet available for imported characters' : b.dataset.title ??= b.title; } };
+for (const id of ['#studio-btn', '#share-btn']) $<HTMLButtonElement>(id).dataset.title = $<HTMLButtonElement>(id).title;
+store.on('imported', syncImported);
+syncImported();
 const syncPlayback = () => { viewer.rootMotion = store.exportSettings.rootMotion; viewer.stageProps = store.exportSettings.stageProps !== false; viewer.leftFooted = !!store.exportSettings.leftFooted; };
 syncPlayback();
 store.on('export', syncPlayback);
@@ -62,8 +69,11 @@ const fromLink = shared ? decodeCharacter(shared, detail) : null;
 const presetName = hash.get('preset');
 if (fromLink) store.params = fromLink;
 else if (presetName && PRESETS[presetName]) store.params = { ...DEFAULT_PARAMS, ...PRESETS[presetName], name: presetName, detail: store.params.detail };
+// A link opens the character it names; otherwise an imported character shown last opens again.
+if ((fromLink || (presetName && PRESETS[presetName])) && store.imported) store.leaveImported();
 store.emit('sync');
-gen.regenerate();
+if (store.imported) void imported.restore();
+else gen.regenerate();
 // A character opened from a link (the characters page, a shared link) leaves the address once another character is
 // picked or this one is changed, so a reload keeps the character being worked on (it is saved in the browser).
 if (presetName || shared) {
