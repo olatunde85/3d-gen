@@ -27,7 +27,8 @@ export async function reviewBoarding({enabled,step,evaluate:e,ready,send}: {enab
   }
  });
  await step('Boarding UI uses complete action timing and disables vehicle travel during entry',async()=>{
-  await e(`(()=>{const action=document.getElementById('action');action.value='board_suv';action.dispatchEvent(new Event('change',{bubbles:true}));})()`);await ready();
+  // Studio opens with the camera selected: pick the character's first action first.
+  await e(`(()=>{const pick=document.getElementById('timeline-selection');pick.value=studio.project.actors[0].id+':0';pick.dispatchEvent(new Event('change',{bubbles:true}));const action=document.getElementById('action');action.value='board_suv';action.dispatchEvent(new Event('change',{bubbles:true}));})()`);await ready();
   assert.equal(await e('studio.project.actors[0].beats[0].duration'),CLIPS.find(c=>c.id==='board_suv')!.duration);assert.ok(await e(`document.getElementById('movement').disabled&&!document.getElementById('vehicle-action-settings').hidden&&document.getElementById('action-note').textContent.includes('movement off')`));
  });
  await step('Boarding keeps parked vehicles stationary after alighting and when seeking backwards',async()=>{
