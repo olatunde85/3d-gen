@@ -27,6 +27,20 @@ const RIG_NAMES = new Set([
 ]);
 /** Joints Ara adds or uses for props; a model bone with one of these names is renamed so it can't be mistaken. */
 const RESERVED = /^(WeaponR|Parcel|Broom|BagL|Phone|Camera|Dumbbell[LR]|Kettlebell|Barbell)$/;
+/** Character Creator (CC4) face shapes for Ara's, first set found wins; a set's shapes are added together. */
+const FACE_ALIASES: Record<string, string[][]> = {
+  eyeBlinkLeft: [['Eye_Blink_L']], eyeBlinkRight: [['Eye_Blink_R']], eyeWideLeft: [['Eye_Wide_L']], eyeWideRight: [['Eye_Wide_R']],
+  eyeSquintLeft: [['Eye_Squint_L']], eyeSquintRight: [['Eye_Squint_R']], browDownLeft: [['Brow_Drop_L']], browDownRight: [['Brow_Drop_R']],
+  browInnerUp: [['Brow_Raise_Inner_L', 'Brow_Raise_Inner_R']], browOuterUpLeft: [['Brow_Raise_Outer_L']], browOuterUpRight: [['Brow_Raise_Outer_R']],
+  jawOpen: [['Jaw_Open']], mouthSmile: [['Mouth_Smile_L', 'Mouth_Smile_R']], mouthFrown: [['Mouth_Frown_L', 'Mouth_Frown_R']],
+  mouthPucker: [['Mouth_Pucker_Up_L', 'Mouth_Pucker_Up_R', 'Mouth_Pucker_Down_L', 'Mouth_Pucker_Down_R'], ['Mouth_Pucker']],
+  mouthPress: [['Mouth_Press_L', 'Mouth_Press_R']], mouthStretch: [['Mouth_Stretch_L', 'Mouth_Stretch_R']],
+  noseSneerLeft: [['Nose_Sneer_L']], noseSneerRight: [['Nose_Sneer_R']], mouthUpperUp: [['Mouth_Up_Upper_L', 'Mouth_Up_Upper_R']],
+  viseme_PP: [['V_Explosive']], viseme_FF: [['V_Dental_Lip']], viseme_TH: [['V_Tongue_Out']], viseme_DD: [['V_Tongue_up']], viseme_kk: [['V_Tongue_Raise']],
+  viseme_CH: [['V_Affricate']], viseme_SS: [['V_Tight']], viseme_nn: [['V_Tongue_up']], viseme_RR: [['V_Tight_O']], viseme_aa: [['V_Open']],
+  viseme_E: [['V_Wide']], viseme_I: [['V_Wide']], viseme_O: [['V_Tight_O']], viseme_U: [['V_Tight_O']],
+};
+
 /** Largest model file, in bytes. */
 export const MAX_MODEL_SIZE = 200 * 1024 * 1024;
 
@@ -82,14 +96,16 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
 
   // Every bone of every skin, once: meshes can carry their own copies of the skeleton, merged by name. The model is
   // read as three.js shows it, in the pose it was saved in (its rest pose).
-  const bones: Object3D[] = [], bind = new Set<Object3D>(), byBoneName = new Map<string, Object3D>(), same = new Map<Object3D, Object3D>();
+  const bones: Object3D[] = [], byBoneName = new Map<string, Object3D>(), same = new Map<Object3D, Object3D>();
   for (const mesh of skinned) for (const bone of mesh.skeleton.bones) {
     if (same.has(bone)) continue;
     const first = byBoneName.get(bone.name);
     if (first) { same.set(bone, first);continue; }
-    byBoneName.set(bone.name, bone);same.set(bone, bone);bones.push(bone);bind.add(bone);
+    byBoneName.set(bone.name, bone);same.set(bone, bone);bones.push(bone);
   }
-  const parentOf = (b: Object3D) => { let p = b.parent;while (p && !bind.has(p)) p = p.parent;return p ?? undefined; };
+  // The hierarchy goes by name: a bone's parent is the nearest bone above it with another name (copies of the
+  // skeleton can be nested inside each other, Head under Head, as some FBX exports have), as its one shared copy.
+  const parentOf = (b: Object3D) => { let p = b.parent;while (p && (!same.has(p) || p.name === b.name)) p = p.parent;return p ? same.get(p) : undefined; };
   const map = boneMapFor(bones.map((b) => b.name), options.bones, (name) => { const b = bones.find((x) => x.name === name);const p = b && parentOf(b);return p?.name; });
   const aranames = new Map<Object3D, string>(), used = new Set<string>();
   for (const b of bones) {
@@ -131,8 +147,12 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
     textureNames.set(texture, name);textures.push([name, encoded.bytes]);
     return name;
   }
+  /** A material's index, or -1 for one that can never be seen (fully see-through without a texture, such as the
+   * empty occlusion layers some tools put over the eyes): its surfaces are left out. */
   async function materialOf(m: ThreeMaterial): Promise<number> {
     if (materialIndex.has(m)) return materialIndex.get(m)!;
+    const see = m as ThreeMaterial & { map?: Texture | null; alphaMap?: Texture | null };
+    if (!m.visible || (!see.map && !see.alphaMap && (m.opacity <= 0.001 || (m.alphaTest > 0 && m.opacity < m.alphaTest)) && (m.transparent || m.alphaTest > 0))) { materialIndex.set(m, -1);return -1; }
     const s = m as ThreeMaterial & { color?: { getHexString(): string }; map?: Texture | null; normalMap?: Texture | null; roughness?: number; metalness?: number; shininess?: number; emissive?: { getHexString(): string; r: number; g: number; b: number }; alphaTest: number };
     const roughness = s.roughness ?? (s.shininess !== undefined ? Math.max(0.2, Math.min(1, 1 - Math.sqrt(s.shininess / 100))) : 0.8);
     const material: Material = {
@@ -154,7 +174,7 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
     const g = mesh.geometry as BufferGeometry, pos = g.getAttribute('position'), nor = g.getAttribute('normal'), uv = g.getAttribute('uv');
     if (!pos) return;
     const base = positions.length / 3, world = mesh.matrixWorld, normalM = new Matrix3().getNormalMatrix(world);
-    const holder = skin ? undefined : (() => { let p: Object3D | null = mesh.parent;while (p && !bind.has(p)) p = p.parent;return p; })();
+    const holder = skin ? undefined : (() => { let p: Object3D | null = mesh.parent;while (p && !same.has(p)) p = p.parent;return p && same.get(p); })();
     const p = new Vector3(), n = new Vector3(), q = new Vector3();
     /** Where a point of the mesh (in its own space) shows in the world: skinned by its bones as displayed. */
     const shown = (i: number, local: Vector3) => (skin ? skin.applyBoneTransform(i, local) : local).applyMatrix4(world);
@@ -199,13 +219,14 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
     const ranges = g.groups.length ? g.groups : [{ start: 0, count, materialIndex: 0 }];
     for (const r of ranges) {
       const mi = await materialOf(mats[r.materialIndex ?? 0] ?? mats[0]);
+      if (mi < 0) continue;
       const list = groups.get(mi) ?? [];
       for (let k = r.start; k < Math.min(count, r.start + r.count); k++) list.push(base + (index ? index.getX(k) : k));
       groups.set(mi, list);
     }
   }
   for (const m of skinned) await addMesh(m, m);
-  for (const m of rigid) { let p: Object3D | null = m.parent;while (p && !bind.has(p)) p = p.parent;if (p) await addMesh(m);else notes.push(`${m.name || 'A mesh'} isn't attached to the skeleton, so it was left out.`); }
+  for (const m of rigid) { let p: Object3D | null = m.parent;while (p && !same.has(p)) p = p.parent;if (p) await addMesh(m);else notes.push(`${m.name || 'A mesh'} isn't attached to the skeleton, so it was left out.`); }
 
   // Ground and centre: the lowest vertex on the floor, the hips over the origin.
   let low = Infinity;
@@ -227,14 +248,14 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
   const restPose: 'A' | 'T' = (arm('Left') + arm('Right')) / 2 < 25 ? 'T' : 'A';
   const rig: Rig = { type: 'game', restPose, bones: rigBones };
 
-  // Face shapes Ara uses: by their own name, or a left and right pair added together (mouthSmileLeft + Right).
+  // Face shapes Ara uses: by their own (ARKit) name, a left and right pair added together (mouthSmileLeft + Right),
+  // or Character Creator's names (Eye_Blink_L, Mouth_Smile_L + _R, its V_ visemes).
   const vertexCount = positions.length / 3, faceNames: string[] = [], deltas: Float32Array[] = [];
   const lookup = new Map([...morphs.keys()].map((k) => [k.replace(/^.*[.:]/, '').toLowerCase(), k]));
+  const found = (names: readonly string[]) => { const got = names.map((n) => lookup.get(n.toLowerCase()));return got.every((g) => g) ? got as string[] : undefined; };
   for (const name of FACE_SHAPE_NAMES) {
-    const sources = [name, `${name}Left`, `${name}Right`, `${name}_L`, `${name}_R`].map((n) => lookup.get(n.toLowerCase())).filter((n): n is string => !!n);
-    const own = lookup.get(name.toLowerCase());
-    const use = own ? [own] : sources;
-    if (!use.length) continue;
+    const use = found([name]) ?? found([`${name}Left`, `${name}Right`]) ?? found([`${name}_L`, `${name}_R`]) ?? (FACE_ALIASES[name] ?? []).map(found).find((g) => g);
+    if (!use?.length) continue;
     const delta = new Float32Array(vertexCount * 3);
     for (const s of use) for (const [i, d] of morphs.get(s)!) for (let k = 0; k < 3; k++) delta[i * 3 + k] += d[k] * scale;
     faceNames.push(name);deltas.push(delta);

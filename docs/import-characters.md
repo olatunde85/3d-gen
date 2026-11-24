@@ -26,7 +26,9 @@ The model can face any way, lie along any axis and be measured in any unit: Ara 
 
 ## Faces
 
-Face shapes named like Apple's ARKit ones, which Ready Player Me avatars and many others have, are used for expressions, blinking and lip-sync. Shapes split into left and right halves (`mouthSmileLeft` and `mouthSmileRight`) are combined where Ara uses one. A model without face shapes keeps a still face.
+Face shapes named like Apple's ARKit ones, which Ready Player Me avatars and many others have, and Character Creator's (`Eye_Blink_L`, `Mouth_Smile_L`, its `V_` visemes) are used for expressions, blinking and lip-sync. Shapes split into left and right halves (`mouthSmileLeft` and `mouthSmileRight`) are combined where Ara uses one. A model without face shapes keeps a still face.
+
+Surfaces a model's own materials make invisible, such as the empty occlusion layers some tools put over the eyes, are left out.
 
 ## How it works
 
