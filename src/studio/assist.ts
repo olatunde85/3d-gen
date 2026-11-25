@@ -3,7 +3,7 @@ import {animationGroup} from '../core/anim/groups';
 import { WAREHOUSE_EXAMPLE } from './examples/warehouse';
 import { REEL } from './examples/reel';
 import type { Catalog } from '../core/assets';
-import { parseCharacterInput, characterSchema, characterReference, compactSchema } from '../app/character-assist';
+import { parseCharacterInput, characterSchema, characterReference, compactSchema, table } from '../app/character-assist';
 import { PRESETS } from '../core/params';
 import { CLIPS } from '../core/anim/clips';
 import { MAX_PACK_REFS, PACK_ID, PACK_ITEM_ID, preparePacks } from '../core/packs';
@@ -350,7 +350,7 @@ ${voices}
 ${options.scenes?`\n${SCENES_GUIDE}\n`:''}
 COMPLETE LOCATION CATALOGUE
 Use template as a location ID. Staging notes describe the actual floor plan and are guidance, not additional project fields.
-${JSON.stringify(SETS.map(s => ({ id: s.id, name: s.name, category: s.category, mood: s.mood, description: s.subtitle,...(s.staging?{staging:s.staging}:{}) })))}
+${table(SETS.map(s => ({ id: s.id, name: s.name, category: s.category, mood: s.mood, description: s.subtitle, staging: s.staging })), ['id', 'name', 'category', 'mood', 'description', 'staging'])}
 
 COMPLETE CHARACTER PRESET CATALOGUE
 ${json(Object.keys(PRESETS))}
@@ -362,22 +362,22 @@ Use the characterParams and characterSpecification definitions in the film JSON 
 EQUIPMENT IDS
 ${json({ weapons: WEAPONS.map(id => ({ id, name: WEAPON_LABELS[id] })), bags: CARRIED.map(id => ({ id, name: CARRY_LABELS[id] })) })}
 
-SOUND EFFECT LIBRARY
-${JSON.stringify(SOUND_EFFECTS.map(s=>({id:s.id,name:s.name,category:s.category,duration:s.duration,description:s.description})))}
+SOUND EFFECT LIBRARY (duration in seconds)
+${table(SOUND_EFFECTS,['id','name','category','duration','description'])}
 
 SOUND-EFFECT EXAMPLE — merge into the film's audio object, preserving any speech/music:
 ${json({effects:[{id:'landing',sound:'body-fall-thump',start:2.4,volume:.8,pan:0}]})}
 This is a scene sound. To tag it to a character, add actor with that film actor's exact ID. Replace start with the visible contact time; the sound does not create a fall animation.
 
-MUSIC LIBRARY
-${JSON.stringify(MUSIC_TRACKS.map(t=>({id:t.id,name:t.name,artist:t.artist,category:t.category,duration:t.duration,description:t.description})))}
+MUSIC LIBRARY (duration in seconds)
+${table(MUSIC_TRACKS,['id','name','artist','category','duration','description'])}
 
 COMPLETE ANIMATION CATALOGUE
-Each row: {id, name, group, duration (seconds), loop (only when true), travel (local metres per second with move:true; absent = no travel), note (key into ANIMATION NOTES)}.
+Columns: id, name, group, duration (seconds), loop (yes when it loops), travel (local metres per second with move:true, as x,y,z; empty = no travel), note (key into ANIMATION NOTES).
 ${animationCatalogue()}
 
 JSON SCHEMA
-${JSON.stringify(compactSchema(assistSchema(catalog)))}
+${JSON.stringify(listedAbove(compactSchema(assistSchema(catalog))))}
 Additional constraints: actor ids are unique; shot targets must be all or an actor id; each track, speech clip, sound-effect cue and text cue must finish within ${MAX_DURATION}s. Screen text x/y must be 0..1; actor-relative x/y may be -1..1. Text IDs must be unique. Use move:true only for clips whose catalogue travel is non-null. Unknown fields are rejected.
 
 VALID EXAMPLE (replace it with the requested film)
@@ -388,10 +388,27 @@ Now create the complete importable JSON for the user's brief using only these ca
 
 /** Headline and facts for the review card. */
 /** Compact catalogue: each distinct usage note appears once in ANIMATION NOTES and rows reference it by key. */
+/** Fields whose IDs the guide lists in full in a section of its own, and that section. */
+const LISTED: Record<string, string> = { clip: 'COMPLETE ANIMATION CATALOGUE', preset: 'COMPLETE CHARACTER PRESET CATALOGUE', template: 'COMPLETE LOCATION CATALOGUE', sound: 'SOUND EFFECT LIBRARY', track: 'MUSIC LIBRARY' };
+/**
+ * The film schema as the guide gives it: long ID lists the guide already gives in full, in its catalogue sections,
+ * point to that section instead of being repeated. Films are checked against the full lists on import.
+ */
+function listedAbove<T>(schema: T): T {
+  const walk = (v: unknown, key = ''): unknown => {
+    if (Array.isArray(v)) return v.map((x) => walk(x, key));
+    if (!v || typeof v !== 'object') return v;
+    const o = v as Record<string, unknown>;
+    if (LISTED[key] && Array.isArray(o.enum) && o.enum.length > 10) { const { enum: _ids, ...rest } = o;return { ...rest, type: 'string', description: `An ID from ${LISTED[key]}.` }; }
+    if (key === 'garmentStyles' && (o.propertyNames as { enum?: unknown[] } | undefined)?.enum) return { ...o, propertyNames: { description: 'A garment ID (GARMENTS AND ALLOWED PATTERNS), outfit set ID (OUTFIT SETS) or bag ID (BAG FINISHES).' } };
+    return Object.fromEntries(Object.entries(o).map(([k, x]) => [k, walk(x, k === 'anyOf' || k === 'oneOf' || k === 'items' ? key : k)]));
+  };
+  return walk(schema) as T;
+}
 function animationCatalogue(){
   const keys=new Map<string,string>(),rows=CLIPS.map(c=>{const note=actionNote(c.id);if(!keys.has(note))keys.set(note,`n${keys.size+1}`);const travel=studioTravel(c.id);
     return {id:c.id,name:c.name,group:animationGroup(c),duration:c.duration,...(c.loop?{loop:true}:{}),...(travel?{travel:Array.from(travel)}:{}),note:keys.get(note)};});
-  return `${JSON.stringify(rows)}\n\nANIMATION NOTES\n${JSON.stringify(Object.fromEntries([...keys].map(([note,key])=>[key,note])))}`;
+  return `${table(rows,['id','name','group','duration','loop','travel','note'])}\n\nANIMATION NOTES\n${JSON.stringify(Object.fromEntries([...keys].map(([note,key])=>[key,note])))}`;
 }
 export function describeAssistProject(project: StudioProject) {
   const names = project.actors.map(a => decodeCharacter(a.character, a.detail)?.name || a.id);

@@ -131,6 +131,24 @@ export function characterSchema(cat:Catalog){
   for(const [key,description] of Object.entries(FIELD_NOTES))if(properties[key])properties[key]={...(properties[key] as object),description};
   return{$schema:'https://json-schema.org/draft/2020-12/schema',title:'Ara character input',type:'object',additionalProperties:false,required:['kind','version'],anyOf:[{required:['preset']},{required:['params']}],properties:{$schema:{type:'string',description:'Optional link to this schema, for editors.'},kind:{const:'ara-character'},version:{const:1},preset:enumeration(Object.keys(PRESETS)),params:{type:'object',additionalProperties:false,properties,not:{required:['age','ageYears']}}}};
 }
+/** Rows as a compact table for assistants: a header line naming the columns, then one line per row (lists comma-separated). */
+export function table(rows:readonly Record<string,unknown>[],columns:readonly string[]):string{
+  const cell=(v:unknown)=>v===undefined||v===null||v===false?'':v===true?'yes':Array.isArray(v)?v.join(','):typeof v==='object'?JSON.stringify(v):String(v).replace(/\s*\n\s*/g,' ').replace(/\|/g,'/');
+  return [columns.join(' | '),...rows.map(r=>columns.map(c=>cell(r[c])).join(' | ').replace(/[ |]+$/,''))].join('\n');
+}
+/**
+ * The detail sliders as one list, grouped by the part of the body (an ID is group/name). The range is given only for
+ * one-way sliders, and the meaning only where the name doesn't already say it.
+ */
+function sliderList(props:Record<string,{minimum:number;maximum:number;description?:string}>):string{
+  const groups=new Map<string,string[]>(),plain=(x:string)=>x.toLowerCase().replace(/[^a-z0-9]/g,'');
+  for(const [id,r] of Object.entries(props)){
+    const [group,name]=id.includes('/')?[id.slice(0,id.indexOf('/')),id.slice(id.indexOf('/')+1)]:['',id];
+    const meaning=r.description&&plain(r.description)!==plain(name)&&plain(r.description)!==plain(id)?` ${r.description}`:'';
+    (groups.get(group)??groups.set(group,[]).get(group)!).push(`${name}${r.minimum===-1&&r.maximum===1?'':` ${r.minimum}..${r.maximum}`}${meaning}`);
+  }
+  return `Slider IDs are group/name; two-way (-1..1) unless a range is given. ${[...groups].map(([g,list])=>`${g}/: ${list.join('; ')}.`).join(' ')}`;
+}
 /**
  * A schema as assistants read it: the detail sliders (hundreds of entries, most of the schema's size) become one
  * compact list in the modifiers description. Values are still checked against each slider's range on import.
@@ -141,7 +159,7 @@ export function compactSchema<T>(schema:T):T{
     if(!v||typeof v!=='object')return v;
     const o=v as Record<string,unknown>,props=o.properties as Record<string,{minimum:number;maximum:number;description?:string}>|undefined;
     if(key==='modifiers'&&props&&Object.keys(props).length>50)return {type:'object',maxProperties:o.maxProperties,additionalProperties:{type:'number',minimum:-1,maximum:1},
-      description:`${FIELD_NOTES.modifiers} Slider IDs with range and meaning: ${Object.entries(props).map(([id,r])=>`${id} ${r.minimum}..${r.maximum}${r.description&&r.description!==id?` ${r.description}`:''}`).join('; ')}.`};
+      description:`${FIELD_NOTES.modifiers} ${sliderList(props)}`};
     return Object.fromEntries(Object.entries(o).map(([k,x])=>[k,walk(x,k)]));
   };
   return walk(schema) as T;
@@ -169,7 +187,7 @@ PROCEDURAL HAIR
 ${json(HAIRSTYLES)}
 
 GARMENTS AND ALLOWED PATTERNS
-${json(GARMENTS.map(g=>({id:g.id,name:g.label,slot:g.slot,patterns:g.patterns,color:g.color,color2:g.color2})))}
+${table(GARMENTS.map(g=>({id:g.id,name:g.label,slot:g.slot,patterns:g.patterns,color:g.color,color2:g.color2})),['id','name','slot','patterns','color','color2'])}
 
 OUTFIT SETS
 ${json(OUTFIT_SETS)}
