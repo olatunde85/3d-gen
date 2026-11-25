@@ -137,28 +137,45 @@ export function bvhTake(bvh: Bvh): Take {
 }
 
 /**
- * The take turned to Ara's frame: standing up +Y with its left side towards +X (so it faces +Z), judged from its rest
- * pose. Recordings from other tools often face -Z or lie along Z; a take already in this frame is returned as it is.
+ * The take turned to Ara's frame: standing up +Y with its left side towards +X (so it faces +Z). Recordings from
+ * other tools often face -Z or lie along Z; a take already in this frame is returned as it is.
+ *
+ * Which way is up is judged from the rest pose, and the whole recording turned to match, unless the skeleton rests
+ * lying down while its motion stands up (some BVH exporters build the skeleton along Z and turn it upright with the
+ * hips' rotation). Then only the skeleton is turned upright; the motion keeps its own up and is turned to face +Z
+ * as it starts.
  */
 export function uprightTake(take: Take, map: Readonly<Record<string, string>>): Take {
   const rest: Vec3[] = [];
   take.joints.forEach((j, k) => (rest[k] = j.parent < 0 ? [0, 0, 0] : (rest[j.parent].map((x, d) => x + j.offset[d]) as Vec3)));
-  const at = (g: string) => { const k = take.joints.findIndex((j) => map[j.name] === g);return k < 0 ? undefined : rest[k]; };
+  const index = (g: string) => take.joints.findIndex((j) => map[j.name] === g);
+  const at = (g: string) => { const k = index(g);return k < 0 ? undefined : rest[k]; };
   const unit = (v: Vec3): Vec3 => { const l = Math.hypot(...v) || 1;return [v[0] / l, v[1] / l, v[2] / l]; };
   const sub = (a?: Vec3, b?: Vec3): Vec3 | undefined => a && b && [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
   const up = sub(at('Head'), at('Hips')), left = sub(at('LeftUpLeg'), at('RightUpLeg')) ?? sub(at('LeftArm'), at('RightArm'));
   if (!up || !left) return take;
   // Up is the nearest axis (a natural rest pose holds the head a little forward of the hips); left is measured exactly.
-  const axis = [0, 1, 2].reduce((a, d) => Math.abs(up[d]) > Math.abs(up[a]) ? d : a, 0), vertical: Vec3 = [0, 0, 0];
-  vertical[axis] = Math.sign(up[axis]);
-  const stand = qfromTo(vertical, [0, 1, 0]), side = qrot(stand, left);
-  const turn = qfromTo(unit([side[0], 0, side[2]]), [1, 0, 0]), m = qmul(turn, stand);
-  if (Math.abs(m[3]) > 1 - 1e-12) return take;
-  const mi = qconj(m), r = (v: Vec3) => qrot(m, v);
+  const nearest = (v: Vec3): Vec3 => { const axis = [0, 1, 2].reduce((a, d) => Math.abs(v[d]) > Math.abs(v[a]) ? d : a, 0), out: Vec3 = [0, 0, 0];out[axis] = Math.sign(v[axis]);return out; };
+  const upright = (vertical: Vec3, side: Vec3) => { const stand = qfromTo(vertical, [0, 1, 0]), s = qrot(stand, side);return qmul(qfromTo(unit([s[0], 0, s[2]]), [1, 0, 0]), stand); };
+  const vertical = nearest(up), restTurn = upright(vertical, left);
+  // The world the motion plays in: the rest pose's, unless the skeleton rests lying down and the motion stands.
+  let worldTurn = restTurn;
+  if (vertical[1] !== 1) {
+    // Joint positions in a pose: each joint hangs off its parent by the parent's rotation of its rest offset.
+    const posed = (P: TakePose) => { const p: Vec3[] = [];take.joints.forEach((j, k) => { p[k] = j.parent < 0 ? P.hips : qrot(P.world[j.parent], j.offset).map((x, d) => x + p[j.parent][d]) as Vec3; });return p; };
+    const hips = index('Hips'), head = index('Head'), lu = index('LeftUpLeg') >= 0 ? index('LeftUpLeg') : index('LeftArm'), ru = index('RightUpLeg') >= 0 ? index('RightUpLeg') : index('RightArm');
+    const step = Math.max(1, Math.floor(take.poses.length / 60)), moving: Vec3 = [0, 0, 0];
+    for (let f = 0; f < take.poses.length; f += step) { const p = posed(take.poses[f]), d = unit(sub(p[head], p[hips])!);for (let i = 0; i < 3; i++) moving[i] += d[i]; }
+    const motionUp = nearest(moving);
+    if (motionUp[1] === 1 && hips >= 0 && head >= 0 && lu >= 0 && ru >= 0) { const first = posed(take.poses[0]);worldTurn = upright(motionUp, sub(first[lu], first[ru])!); }
+  }
+  if (Math.abs(restTurn[3]) > 1 - 1e-12 && Math.abs(worldTurn[3]) > 1 - 1e-12) return take;
+  // Offsets turn with the rest pose; a pose turns with the world: world' = W · world · R⁻¹ keeps every bone where W puts it.
+  const ri = qconj(restTurn), r = (v: Vec3) => qrot(restTurn, v);
   return {
     frameTime: take.frameTime,
     joints: take.joints.map((j) => ({ ...j, offset: r(j.offset), ...(j.tip ? { tip: r(j.tip) } : {}) })),
-    poses: take.poses.map((P) => ({ world: P.world.map((q) => qmul(qmul(m, q), mi)), hips: r(P.hips) })),
+    poses: take.poses.map((P) => ({ world: P.world.map((q) => qmul(qmul(worldTurn, q), ri)), hips: qrot(worldTurn, P.hips) })),
   };
 }
 

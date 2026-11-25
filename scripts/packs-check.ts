@@ -159,6 +159,28 @@ await check('CMU recordings keep their skeleton family and need no turning (the 
   const back = uprightTake(turned, map);
   for (const [k, j] of back.joints.entries()) for (let d = 0; d < 3; d++) assert.ok(Math.abs(j.offset[d] - take.joints[k].offset[d]) < 1e-6, 'turned back');
 });
+await check('a skeleton built lying down whose motion stands up (some BVH exporters) plays upright, facing +Z', () => {
+  let text: string;
+  try { text = readFileSync(bvhPath, 'utf8'); } catch { console.log('      (vendor/mocap not downloaded: run npm run setup-assets to include this check)');return; }
+  const bvh = parseBvh(text), map = boneMapFor(bvh.joints.map((j) => j.name)), take = bvhTake(bvh);
+  // The same recording with its skeleton laid along +Z: the motion's rotations stand it back up, as such files do.
+  const lay = qaxis([1, 0, 0], 90), unlay = qconj(lay);
+  const lying: Take = { ...take, joints: take.joints.map((j) => ({ ...j, offset: qrot(lay, j.offset), ...(j.tip ? { tip: qrot(lay, j.tip) } : {}) })), poses: take.poses.map((P) => ({ world: P.world.map((q) => qmul(q, unlay)), hips: P.hips })) };
+  const fixed = uprightTake(lying, map), k = (g: string) => fixed.joints.findIndex((j) => map[j.name] === g);
+  const posed = (t: Take, f: number) => { const p: number[][] = [];t.joints.forEach((j, i) => { p[i] = j.parent < 0 ? t.poses[f].hips : qrot(t.poses[f].world[j.parent], j.offset).map((x, d) => x + p[j.parent][d]); });return p; };
+  const unit = (v: number[]) => v.map((x) => x / Math.hypot(...v));
+  for (const f of [0, Math.floor(fixed.poses.length / 2)]) {
+    const p = posed(fixed, f), up = unit(p[k('Head')].map((x, d) => x - p[k('Hips')][d]));
+    assert.ok(up[1] > 0.9, `frame ${f}: standing (up ${up.map((x) => x.toFixed(2))})`);
+    // Only turned about the vertical: the hips keep their height.
+    assert.ok(Math.abs(p[k('Hips')][1] - posed(take, f)[k('Hips')][1]) < 1e-3, `frame ${f}: hips height kept`);
+  }
+  const first = posed(fixed, 0), left = unit(first[k('LeftUpLeg')].map((x, d) => x - first[k('RightUpLeg')][d]));
+  assert.ok(left[0] > 0.9, `facing +Z as it starts (left ${left.map((x) => x.toFixed(2))})`);
+  // Its rest pose is turned upright too.
+  const rest: number[][] = [];fixed.joints.forEach((j, i) => { rest[i] = j.parent < 0 ? [0, 0, 0] : j.offset.map((x, d) => x + rest[j.parent][d]); });
+  assert.ok(unit(rest[k('Head')].map((x, d) => x - rest[k('Hips')][d]))[1] > 0.9, 'rest pose upright');
+});
 await check('buildPack converts a whole pack.json', async () => {
   const files: Record<string, Uint8Array> = { 'moves.glb': glb.bytes, 'moves.fbx': fbx.bytes };
   const pack = await buildPack({ id: 'moves', name: 'Moves', license: 'CC0-1.0', animations: [{ file: 'moves.glb', clip: 'Walk', category: 'Locomotion' }, { file: 'moves.fbx', clip: 'Wave', id: 'hello', name: 'Hello', category: 'Emotes' }] }, async (f) => files[f]);
