@@ -38,7 +38,8 @@ import { guideAnswer, textParts } from './guides';
 import { filmQuickstart } from './film-quickstart';
 import { compactSchema } from '../../../src/app/character-assist';
 import { stagingReport } from '../../../src/studio/spatial-report';
-import { sceneById, type SetId } from '../../../src/studio/catalog';
+import { BUILT_IN_SETS, isImportedSet, isMissingSet, sceneById, SET_ID, type SetId } from '../../../src/studio/catalog';
+import { loadSetFiles } from './set';
 import { locationMapFile } from '../../../src/studio/spatial-maps';
 
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
@@ -52,10 +53,12 @@ For a height in centimetres, pass height_cm: Ara sets the height slider to match
 Start from a preset (list_presets), a random seed, a share link from the Ara builder, or a character you design: call character_schema for every field, then pass { preset, params } to create_character. A rigged model from another tool on this machine (GLB, glTF, VRM or FBX, such as a Mixamo character) goes in model: it keeps its own look and takes Ara's animations, packs and props.
 When writing files, choose only the animations needed (list_animations): every clip makes the file bigger and the build slower.
 Each result includes a link that opens the character in the Ara builder, so the user can see it and keep editing.
-Films: call film_guide once with the brief and the set's location. It returns a short quickstart (the format, a worked example, sets, presets and everyday clips) and that set's map; it is enough for most films. Give characters a start point and walk them with "to" points; Ara works out facing, travel and timing. Use hidden for entrances and exits, and builder links from create_character for characters made earlier. Then call create_film: it checks the film as Studio does (including the staging check), saves it and returns a Studio link; fix anything it reports and call it again. Read further film_guide topics only when the film needs them. Never ask the user to export a set's map.
+Films: call film_guide once with the brief and the set's location. It returns a short quickstart (the format, a worked example, sets, presets and everyday clips) and that set's map; it is enough for most films. Give characters a start point and walk them with "to" points; Ara works out facing, travel and timing. Use hidden for entrances and exits, and builder links from create_character for characters made earlier. Then call create_film: it checks the film as Studio does (including the staging check), saves it and returns a Studio link; fix anything it reports and call it again. Read further film_guide topics only when the film needs them. Never ask the user to export a set's map. A set the user made in Blender (an Ara Studio set file, .glb) goes in set_files, given to film_guide and create_film alike: its ID (author/set) is then a location, with its own staging note and map. The user imports the same file in Studio (Import a set…) to see the film there.
 Games: read game_guide (an overview, then the topics you need), write the game, then call create_game, which checks it as Ara Play does, saves it and returns a Play link.
 Every answer fits in one tool result: a long topic or schema comes in numbered parts. Read them with these tools, not with shell commands on saved files.
 People: follow the user's description of who a character is. Don't assume a nationality, ethnicity or culture they didn't ask for, and don't carry one character's background over to the next. The catalogue includes clothes, props and places from many cultures; none is a default. When the brief leaves it open, choose to suit the story or ask.`;
+
+const SET_FILES = { type: 'array', items: { type: 'string' }, description: 'Ara Studio set files the user made in Blender (.glb files with the Export for Ara Studio add-on), as paths or https addresses. Their sets join the catalogue with their staging notes and maps, by their author/set IDs.' };
 
 const TOOLS = [
   {
@@ -111,13 +114,14 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {
       topic: { type: 'string', description: 'A topic key from the overview\'s list.' },
       brief: { type: 'string', description: 'What the user wants, included in the overview so the rules can point at it.' },
-      location: { enum: [...sceneById.keys()], description: 'The set the film uses: its staging map (obstacles, seats, routes) comes with the quickstart, or alone with topic "location-map".' },
+      location: { anyOf: [{ enum: [...BUILT_IN_SETS.map((s) => s.id)] }, { type: 'string', pattern: SET_ID.source }], description: 'The set the film uses: its staging map (obstacles, seats, routes) comes with the quickstart, or alone with topic "location-map". A set from set_files goes by its author/set ID.' },
+      set_files: SET_FILES,
     }, additionalProperties: false },
   },
   {
     name: 'create_film',
     description: 'Checks an Ara Studio film (one scene, or up to five scenes in order) as Studio does, including its staging check (characters and vehicles against the set\'s ground, water and obstacles), saves it as .ara-studio.json and returns a summary, any staging problems and a link that opens it in Ara Studio. Errors name the field to fix.',
-    inputSchema: { type: 'object', properties: { film: { type: 'object', description: 'The film, written following film_guide.' }, packs: { type: 'array', items: { type: 'string' }, description: 'Content packs (.ara-pack.json files or https addresses) whose animations the film uses, when the film doesn\'t list them in its own packs.' }, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['film'], additionalProperties: false },
+    inputSchema: { type: 'object', properties: { film: { type: 'object', description: 'The film, written following film_guide.' }, packs: { type: 'array', items: { type: 'string' }, description: 'Content packs (.ara-pack.json files or https addresses) whose animations the film uses, when the film doesn\'t list them in its own packs.' }, set_files: SET_FILES, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['film'], additionalProperties: false },
   },
   {
     name: 'game_guide',
@@ -268,6 +272,7 @@ const fileName = (title: string, fallback: string) => (title.trim().replace(/[^\
 async function createFilm(args: Args) {
   if (!args.film || typeof args.film !== 'object') throw Error('Pass the film as an object in "film".');
   await usePackFiles(Array.isArray(args.packs) ? args.packs.map(String) : []);
+  const loaded = await loadSetFiles(setFiles(args));
   const scenes = await loadStudioFilm(JSON.stringify(args.film), (await data()).catalog), file = filmJson(scenes), many = scenes.length > 1;
   // The link carries the film as written, with the packs its animations come from.
   const json = JSON.stringify(file.packs ? { ...(args.film as object), packs: file.packs } : args.film);
@@ -279,7 +284,20 @@ async function createFilm(args: Args) {
     ? `Staging check: ${issues.length} problem${issues.length === 1 ? '' : 's'} at reference body sizes. Fix them (positions, yaw or durations) and call create_film again:\n  ${issues.slice(0, 12).join('\n  ')}${issues.length > 12 ? `\n  and ${issues.length - 12} more` : ''}`
     : `Staging check: every character and vehicle${many ? ' in every scene' : ''} stays clear of the set's obstacles and water and inside its bounds (at reference body sizes).`;
   const summary = many ? `${scenes.length} scenes, ${Math.round(filmDuration(scenes))}s in all:\n${scenes.map((s, i) => `  Scene ${i + 1}${s.sceneName ? ` (${s.sceneName})` : ''}${i && s.transition === 'fade' ? ', fading in' : ''}: ${summarizeAssistProject(s)}`).join('\n')}` : summarizeAssistProject(scenes[0]);
-  return [`Checked: ${summary}`, report, `Saved: ${path}`, `Open it in Ara Studio to watch, edit and record it as a video: ${fileLink('film', json)}`].join('\n\n');
+  // Sets made in Blender: checked against when their files were given; Studio needs the same files imported.
+  const templates = [...new Set(scenes.map((s) => s.template))];
+  const sets = [
+    ...templates.filter(isMissingSet).map((id) => `Set ${id} isn't loaded, so the staging check used a plain empty room. Pass its set file in set_files and call create_film again, and import that file in Studio (Import a set…) before opening the film.`),
+    ...templates.filter((id) => isImportedSet(id) && !isMissingSet(id)).map((id) => `Set ${id}: import ${loaded.find((s) => s.manifest.id === id)?.source ?? 'its set file'} in Studio (Import a set… under the set search) before opening the link, or the film shows a plain stage.`),
+  ];
+  return [`Checked: ${summary}`, report, ...sets, `Saved: ${path}`, `Open it in Ara Studio to watch, edit and record it as a video: ${fileLink('film', json)}`].join('\n\n');
+}
+
+/** The set_files argument: set files to read (paths or https addresses). */
+function setFiles(args: Args): string[] {
+  if (args.set_files === undefined) return [];
+  if (!Array.isArray(args.set_files)) throw Error('Pass set_files as a list of set files (paths or https addresses).');
+  return args.set_files.map(String);
 }
 
 /** Checks a game (settings and placement on the map), saves it and returns where it went and the link that opens it in Play. */
@@ -312,8 +330,11 @@ async function callTool(name: string, args: Args, progress: (done: number, messa
   if (name === 'create_character') return createCharacter(args, progress);
   const brief = typeof args.brief === 'string' ? args.brief : '';
   if (name === 'film_guide') {
-    const location = typeof args.location === 'string' && sceneById.has(args.location as SetId) ? args.location as SetId : undefined;
-    if (args.location !== undefined && !location) throw Error(`Unknown location "${String(args.location)}". Use an id from the complete-location-catalogue topic.`);
+    const sets = await loadSetFiles(setFiles(args));
+    // One set file and no location: the film is in that set.
+    const asked = args.location ?? (sets.length === 1 ? sets[0].manifest.id : undefined);
+    const location = typeof asked === 'string' && sceneById.has(asked as SetId) && !isMissingSet(asked as SetId) ? asked as SetId : undefined;
+    if (asked !== undefined && !location) throw Error(isImportedSet(String(asked) as SetId) ? `The set "${String(asked)}" isn't loaded: pass its set file (.glb) in set_files.` : `Unknown location "${String(asked)}". Use an id from the complete-location-catalogue topic.`);
     const map = /^location-map(?:-(\d+))?$/.exec(String(args.topic ?? ''));
     if (map) {
       // Any set's full staging map, in parts when it is a big one.
@@ -324,7 +345,7 @@ async function callTool(name: string, args: Args, progress: (done: number, messa
     }
     const guide = generateAssistGuide((await data()).catalog, brief, undefined, location, undefined, undefined, { scenes: true, mapRequest: 'call film_guide with { "topic": "location-map", "location": "<its id>" } to get its full staging map, then plan the routes from it' });
     // The quickstart, with the chosen set's map when there is one, so most films need this one answer.
-    const extra = location && !args.topic ? `\n\nSTAGING MAP: ${location} (obstacles and seats; walk round them)\n${JSON.stringify(locationMapFile(location))}` : '\n\nSTAGING MAPS: once you choose a set, call film_guide with { "location": "<set id>" } (or the topic "location-map" with the location) for its map.';
+    const note = location && sceneById.get(location)?.staging, extra = location && !args.topic ? `${note ? `\n\nSTAGING NOTE: ${location}: ${note}` : ''}\n\nSTAGING MAP: ${location} (obstacles and seats; walk round them)\n${JSON.stringify(locationMapFile(location))}` : '\n\nSTAGING MAPS: once you choose a set, call film_guide with { "location": "<set id>" } (or the topic "location-map" with the location) for its map.';
     return guideAnswer(guide, args.topic, 'film_guide', extra, filmQuickstart(brief));
   }
   if (name === 'game_guide') return guideAnswer(generatePlayGuide((await data()).catalog, brief), args.topic, 'game_guide');

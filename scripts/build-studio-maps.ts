@@ -2,7 +2,7 @@
 import {writeFileSync,readFileSync} from 'node:fs';
 import {createSet,disposeSet} from '../src/studio/sets';
 import {SETS} from '../src/studio/catalog';
-import {measureLocation} from './studio-map-geometry';
+import {measureLocation} from '../src/studio/spatial-measure';
 import {populateStaging} from '../src/studio/spatial-map-routes';
 import type {VehicleEnvelope} from '../src/studio/spatial-types';
 import {nodeLibrary} from './node-assets';

@@ -1872,3 +1872,21 @@ textarea:disabled { opacity: .55; }
 .pack-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .pack-row .setting-hint { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pack-row .text-button { flex: none; margin-left: auto; }
+
+.set-files {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-top: 10px;
+}
+
+.library.dropping {
+  outline: 2px dashed var(--gold);
+  outline-offset: -6px;
+}
+
+.set-card.has-preview {
+  background-size: cover;
+  background-position: center;
+}

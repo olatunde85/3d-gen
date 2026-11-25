@@ -9,7 +9,7 @@ import { DEFAULT_PARAMS, PRESETS, type Detail } from '../core/params';
 import { decodeCharacter, encodeCharacter } from '../app/share';
 import { defaultAudio, parseAudio, type FilmAudio } from './audio/schema';
 import { parseTextCues, type TextCue } from './text';
-import { sceneById, type SetId } from './catalog';
+import { noteMissingSet, sceneById, type SetId } from './catalog';
 import {studioTravel,travelTime,forcedTravel,MAX_TRAVEL_SPEED,STAGE_LIMIT} from './motion';
 import {VEHICLE_SEATS,validateVehicleLinks,type VehicleSeat} from './vehicle-seats';
 import {VEHICLE_CHOICES,VEHICLE_FOR_CLIP,RIDING_VEHICLES,type VehicleChoice} from '../core/props/vehicles';
@@ -93,7 +93,8 @@ export function parseProject(text: string): StudioProject {
     p = { ...p, version: 2, actors: [{ id: 'actor-a', character: p.character, detail: p.detail ?? 'medium', x: 0, y: 0, z: 0, yaw: 0, beats: p.beats }],
       shots: p.beats.map(raw => { const b = record(raw); return { duration: b.duration, shot: b.shot, target: 'all' }; }), view: { azimuth: 0, elevation: 0, zoom: 1 } };
   }
-  if (typeof p.template !== 'string' || !sceneById.has(p.template as SetId) || !member(p.camera, ['locked', 'orbit', 'dolly']) || !member(p.aspect, ['landscape', 'portrait'])) throw new Error('Unsupported scene or camera.');
+  // A set imported in another browser is kept by its ID (see noteMissingSet).
+  if (typeof p.template !== 'string' || !noteMissingSet(p.template) || !member(p.camera, ['locked', 'orbit', 'dolly']) || !member(p.aspect, ['landscape', 'portrait'])) throw new Error('Unsupported scene or camera.');
   if (!Array.isArray(p.actors) || p.actors.length < 1 || p.actors.length > MAX_ACTORS) throw new Error(`A film needs one to ${MAX_ACTORS} characters.`);
   const ids = new Set<string>();
   const actors: ActorTrack[] = p.actors.map((raw, i) => {

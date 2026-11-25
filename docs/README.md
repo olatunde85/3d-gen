@@ -24,6 +24,7 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 **Making films**
 
 - [Ara Studio](studio.md): direct films of up to five scenes, with up to five characters in 71 sets, with dialogue, sound effects, music and Assist, and export an MP4
+- [Your own sets](studio-sets.md): make sets in Blender with their light baked in, export them with the Export for Ara Studio add-on, and import them into Studio
 
 **Playing games**
 

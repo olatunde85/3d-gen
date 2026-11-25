@@ -75,9 +75,12 @@ const entries = [
   ['airliner-cabin', 'Airliner cabin', 'Travel', 'transit', 'day', 'Inside a passenger plane: rows of three-and-three seats, overhead bins and a galley by the door.'],
   ['gym', 'Gym', 'Leisure', 'venue', 'day', 'Rubber floors, a mirror wall and dumbbell rack, a squat rack, treadmills, benches and an open training floor.'],
 ] as const;
-export type SetId = typeof entries[number][0];
+/** Studio's own sets. */
+export type BuiltInSetId = typeof entries[number][0];
+/** A set: one of Studio's own, or one imported from a set file, named <author>/<set> like a pack's items (see set-files.ts). */
+export type SetId = BuiltInSetId | `${string}/${string}`;
 /** Direction notes describe actual floor plans, not collision or interaction simulation. */
-const staging:Partial<Record<SetId,string>>={
+const staging:Partial<Record<BuiltInSetId,string>>={
  'hospital-room':'Open foreground at x=-2..2,z=-.5..3. Bed at x=-3.3,z=-2.7; visitor chairs on the right. No patient lying animation or medical interaction is implied.',
  'police-station':'Reception at z=-3.6, desks to the sides; use the centre/foreground for arrivals and conversations.',
  'interrogation-room':'Interview table centred x=0,z=-2.7. Two registered chairs face each other across it; start sitters near (0,-3.6) or (0,-1.7). Keep walking in the foreground.',
@@ -100,7 +103,7 @@ const staging:Partial<Record<SetId,string>>={
  'gym':'Gym floor x=-6..6,z=-5.5..5.5. The open training floor x=-2.2..2.2,z=-1.3..3.3 (exercise mats at x=-1.2,0,1.2, z=-.8..1) is for Fitness clips; floor exercises (push_up, plank, sit_up) go on a mat. Mirror wall and dumbbell rack at z=-5; squat rack at (-4.4,-3.4) with a bench in front at (-4.4,-.6), and open floor at (-3.4,1.6) for a deadlift; treadmills along x=4.9 at z=-3.4,-1,1.4 (scenery: run on one with a looping run and movement off); a second bench at (3.2,3.6). Equip Dumbbells, Kettlebell or Barbell under Carry for the lifts.',
  'church':'Altar at z=-5.0; pews flank the central aisle. Stage cast in aisle x=-1.7..1.7,z=-1..4 or use registered pew seats, facing the altar. Stained glass is original decorative art.'
 };
-const aliases:Partial<Record<SetId,string>>={
+const aliases:Partial<Record<BuiltInSetId,string>>={
  'hospital-room':'ward clinic medical', 'police-station':'precinct police headquarters', 'interrogation-room':'interview questioning',
  'highway':'motorway freeway road', 'military-base':'army barracks checkpoint', 'prison-cell':'jail jailhouse', 'prison-yard':'jail exercise',
  'public-restroom':'public toilet washroom wc', 'private-bathroom':'ensuite washroom shower bath', 'neon-street':'neon avenue cyberpunk',
@@ -110,12 +113,51 @@ const aliases:Partial<Record<SetId,string>>={
  'private-jet':'inside jet plane airplane aeroplane aircraft luxury business interior vehicle flight', 'airliner-cabin':'inside plane airplane aeroplane aircraft airline flight passenger economy interior vehicle'
 };
 export interface SceneDefinition { staging?:string; id: SetId; name: string; category: SceneCategory; family: SceneFamily; mood: Mood; subtitle: string; index: number; tags: string; accent: string; }
-export const SETS: SceneDefinition[] = entries.map(([id, name, category, family, mood, subtitle], index) => ({
-  id, name, category, family, mood, subtitle, index,...(staging[id]?{staging:staging[id]}:{}),
-  tags: `${id} ${name} ${category} ${family} ${mood} ${subtitle} ${aliases[id]??''}`.toLowerCase(),
+const define = (id: SetId, name: string, category: SceneCategory, family: SceneFamily, mood: Mood, subtitle: string, index: number, extra: { staging?: string; aliases?: string } = {}): SceneDefinition => ({
+  id, name, category, family, mood, subtitle, index, ...(extra.staging ? { staging: extra.staging } : {}),
+  tags: `${id} ${name} ${category} ${family} ${mood} ${subtitle} ${extra.aliases ?? ''}`.toLowerCase(),
   accent: mood === 'night' ? '#51617e' : mood === 'sunset' ? '#c39468' : family === 'pool' || family === 'beach' ? '#67a9b4' : '#a79d88',
-}));
+});
+/** Every set Studio offers: its own, then those imported from set files (see addSets). */
+export const SETS: SceneDefinition[] = entries.map(([id, name, category, family, mood, subtitle], index) => define(id, name, category, family, mood, subtitle, index, { staging: staging[id], aliases: aliases[id] }));
 export const sceneById = new Map(SETS.map(s => [s.id, s]));
+/** Studio's own sets. */
+export const BUILT_IN_SETS: readonly SceneDefinition[] = [...SETS];
+const setListeners: (() => void)[] = [];
+/** Calls `fn` whenever sets are added or removed. */
+export function onSetsChange(fn: () => void) { setListeners.push(fn); }
+/**
+ * Sets imported from set files, replacing any earlier ones: listed after Studio's own (their IDs are <author>/<set>),
+ * searchable and in their category, with "yours" among their search words.
+ */
+export function replaceImportedSets(list: readonly { id: SetId; name: string; category: SceneCategory; family: SceneFamily; mood: Mood; subtitle: string; author: string; staging?: string }[]) {
+  // A set removed from this browser stays known by its ID, for films that use it.
+  const dropped = SETS.slice(BUILT_IN_SETS.length).map((s) => s.id).filter((id) => !list.some((s) => s.id === id));
+  SETS.length = BUILT_IN_SETS.length;
+  sceneById.clear();
+  for (const s of BUILT_IN_SETS) sceneById.set(s.id, s);
+  for (const s of list) { const d = define(s.id, s.name, s.category, s.family, s.mood, s.subtitle, SETS.length, { staging: s.staging, aliases: `yours imported ${s.author}` });SETS.push(d);sceneById.set(d.id, d); }
+  for (const [id, d] of missing) if (!sceneById.has(id)) sceneById.set(id, d);
+  for (const id of dropped) noteMissingSet(id);
+  for (const fn of setListeners) fn();
+}
+/** An imported set's ID: `<author>/<set>`, in lower case. */
+export const SET_ID = /^[a-z0-9][a-z0-9-]{0,39}\/[a-z0-9][a-z0-9-]{0,59}$/;
+export const isImportedSet = (id: SetId) => id.includes('/');
+const missing = new Map<SetId, SceneDefinition>();
+/**
+ * Notes a set a film uses that isn't in this browser, known only by its ID: the film keeps it and shows a stand-in
+ * stage until its set file is imported. Returns false for an ID that can't be an imported set.
+ */
+export function noteMissingSet(id: string): boolean {
+  if (sceneById.has(id as SetId)) return true;
+  if (!SET_ID.test(id)) return false;
+  const words = id.split('/')[1].replace(/-/g, ' '), d = define(id as SetId, words[0].toUpperCase() + words.slice(1), 'Studios', 'studio', 'day', 'Not in this browser: import its set file to see it.', -1);
+  missing.set(id as SetId, d);sceneById.set(id as SetId, d);
+  return true;
+}
+/** Whether a film's set is one noted missing (see noteMissingSet) and not imported since. */
+export const isMissingSet = (id: SetId) => missing.has(id) && !SETS.some((s) => s.id === id);
 export const isOutdoorScene=(id:SetId)=>{const s=sceneById.get(id)!;return s.category==='Outdoors'||['beach','pool','garden','landscape','yacht','street'].includes(s.family)||['street-cafe','restaurant-terrace','rooftop-bar','train-platform','football-stadium','highway'].includes(id);};
 export const SCENE_CATEGORIES = [...new Set(SETS.map(s => s.category))];
 export function searchScenes(query: string, category = '') {

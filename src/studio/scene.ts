@@ -5,8 +5,10 @@ import type { StudioActor } from './actor';
 import { createSet, disposeSet, type StudioSet } from './sets';
 import { durationOf, shotAt, type StudioProject } from './project';
 import { drawTextCues, resolveTextActor, type TextLayout } from './text';
-import { sceneById,isOutdoorScene } from './catalog';
+import { sceneById,isImportedSet,isOutdoorScene } from './catalog';
 import {VehicleStage} from './vehicle-stage';
+import { BAKED_LAYER } from './set-files';
+import { hasSet, loadedSet, loadSet } from './set-store';
 
 export class StudioScene {
   readonly renderer: THREE.WebGLRenderer;
@@ -28,6 +30,11 @@ export class StudioScene {
   private key = new THREE.DirectionalLight('#fff3df', 3);
   private rim = new THREE.DirectionalLight('#dce6ff', 1.8);
   private fill = new THREE.HemisphereLight('#f3f4ff', '#6d675f', 1.3);
+  /** An imported set loading in the background (see set-store.ts): a plain stage stands in, and onSetReady says when it's here. */
+  private setLoading?: Promise<unknown>;
+  onSetReady?: () => void;
+  /** Under the cast on a baked set: catches the cast's shadows (the set's own light is baked). */
+  private shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.42 }));
   constructor(readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1); this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -58,13 +65,28 @@ export class StudioScene {
     }
     const staying=new Set(next.values());for(const actor of previous.values())if(!staying.has(actor))release(actor);
   }
-  async ready() { await Promise.all([...this.actors.values()].map(a => a.ready())); }
+  /** Imported sets that failed to load: the stand-in stays rather than trying again every frame. */
+  private setFailed = new Set<string>();
+  /** Builds the set again on the next frame: its file was imported again or removed. */
+  invalidateSet(id: string) {
+    this.setFailed.delete(id);
+    if (this.set?.group.name === id) { disposeSet(this.set.group);this.set = undefined; }
+  }
+  async ready() { await Promise.all([...this.actors.values()].map(a => a.ready()));await this.setLoading; }
   /** The seats in the project's set, building the set if it isn't showing yet. */
   seatsFor(project: StudioProject) { this.updateSet(project); return this.set!.seats; }
   private updateSet(project: StudioProject) {
     if (this.set?.group.name === project.template) return;
+    // An imported set loads first: a plain dark stage stands in meanwhile, and the scene is drawn again once it's here.
+    // A set that isn't in this browser keeps the stand-in.
+    if (isImportedSet(project.template) && !loadedSet(project.template)) {
+      if (!this.setLoading && hasSet(project.template) && !this.setFailed.has(project.template)) { const id = project.template;this.setLoading = loadSet(id).then(() => { this.setLoading = undefined;this.onSetReady?.(); }, (error) => { this.setLoading = undefined;this.setFailed.add(id);console.error(error);this.onSetReady?.(); }); }
+      if (this.set?.group.name !== 'loading') { if (this.set) disposeSet(this.set.group);this.set = { group: Object.assign(new THREE.Group(), { name: 'loading' }), seats: [], background: '#15171a', floor: '#000000', key: '#fff3df', fill: '#dce6ff', exposure: 1 };this.scene.add(this.set.group);this.scene.background = new THREE.Color('#15171a'); }
+      return;
+    }
     if (this.set) disposeSet(this.set.group);
     this.set = createSet(project.template); this.set.group.name = project.template; this.scene.add(this.set.group);
+    this.shadowCatcher.removeFromParent();
     this.scene.background = new THREE.Color(this.set.background);
     this.scene.fog = new THREE.Fog(this.set.background, isOutdoorScene(project.template)?100:project.template === 'runway' ? 10 : 14, isOutdoorScene(project.template)?450:project.template === 'runway' ? 35 : 60);
     this.renderer.toneMappingExposure = this.set.exposure;
@@ -74,6 +96,19 @@ export class StudioScene {
     this.fill.intensity = night ? 0.45 : 1.2;
     this.scene.environmentIntensity = night ? 0.22 : 0.5;
     this.key.intensity = night ? 1.7 : 3; this.rim.intensity=night?1.3:1.8;
+    // A baked set lights the cast as its bake lights the room: the key from its sun, a matching fill, no fog.
+    const baked = this.set.baked?.manifest;
+    if (baked) {
+      const { sun, fill } = baked.light;
+      this.key.color.set(sun.color);this.key.intensity = sun.intensity;this.rim.intensity = 0.6;
+      this.fill.color.set(fill.color);this.fill.groundColor.set('#3a342e');this.fill.intensity = fill.intensity;
+      this.scene.fog = null;
+      // The environment lights the cast softly and gives the set's surfaces a sheen over their baked light.
+      this.scene.environmentIntensity = 0.3;
+      const [x0, z0, x1, z1] = baked.room;
+      this.shadowCatcher.scale.set(x1 - x0, 1, z1 - z0);this.shadowCatcher.position.set((x0 + x1) / 2, 0.003, (z0 + z1) / 2);
+      this.shadowCatcher.receiveShadow = true;this.scene.add(this.shadowCatcher);
+    }
   }
   render(project: StudioProject, time: number) {
     this.updateSet(project);
@@ -108,11 +143,13 @@ export class StudioScene {
     // Wide exterior shots need depth precision for paths, water and road markings hundreds of metres away.
     const near=Math.max(.03,Math.min(.5,this.camera.position.distanceTo(center)/300));
     if(Math.abs(this.camera.near-near)>.001){this.camera.near=near;this.camera.updateProjectionMatrix();}
-    this.key.position.set(center.x + (project.template === 'courtyard' ? -3.5 : 3.2), center.y+6, center.z + 4);
+    const sun = this.set?.baked?.manifest.light.sun.direction;
+    if (sun) this.key.position.set(center.x - sun[0] * 12, center.y - sun[1] * 12, center.z - sun[2] * 12);
+    else this.key.position.set(center.x + (project.template === 'courtyard' ? -3.5 : 3.2), center.y+6, center.z + 4);
     const shadowExtent=Math.max(5,...subjects.map(a=>a.group.position.distanceTo(center)+2));
     if(Math.abs(this.key.shadow.camera.right-shadowExtent)>0.01){Object.assign(this.key.shadow.camera,{left:-shadowExtent,right:shadowExtent,top:shadowExtent,bottom:-shadowExtent});this.key.shadow.camera.updateProjectionMatrix();}
     this.key.target.position.set(center.x,center.y+.8,center.z);this.rim.position.set(center.x-3,center.y+4,center.z-4);
-    this.renderer.render(this.scene, this.camera);
+    if (this.set?.baked) this.renderBaked(); else this.renderer.render(this.scene, this.camera);
     // Compositing in one output canvas makes preview, PNG and MP4 use exactly the same picture.
     const ctx = this.output.getContext('2d')!, W = this.output.width, H = this.output.height;
     ctx.drawImage(this.renderer.domElement, 0, 0);
@@ -141,6 +178,22 @@ export class StudioScene {
     if (this.darkness > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, this.darkness); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     const visible = this.canvas.getContext('2d')!; visible.clearRect(0, 0, W, H); visible.drawImage(this.output, 0, 0);
     this.drawSelection(visible);
+  }
+  /**
+   * A baked set in two passes: the set first, in its baked light alone (the cast's lights off, so nothing lights it
+   * twice), then the cast and everything else over it in lights matched to the bake, keeping the set's depth so it
+   * hides what's behind it.
+   */
+  private renderBaked() {
+    const lights = [this.key, this.rim, this.fill], background = this.scene.background;
+    for (const light of lights) light.visible = false;
+    this.camera.layers.set(BAKED_LAYER);
+    this.renderer.render(this.scene, this.camera);
+    for (const light of lights) light.visible = true;
+    this.camera.layers.set(0);
+    this.scene.background = null;this.renderer.autoClear = false;
+    this.renderer.render(this.scene, this.camera);
+    this.renderer.autoClear = true;this.scene.background = background;
   }
   private pointerRay(x: number, y: number) {
     const rect=this.canvas.getBoundingClientRect();

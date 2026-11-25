@@ -35,7 +35,7 @@ Use **Check staging & location map** in the left panel for a top-down map and a 
 
 In **Assist**, choose **Location for this film** before copying the guide. Locations are grouped into seven categories, with all 71 real set thumbnails in a horizontal scrolling strip. Filter by category or search, swipe/scroll or use the arrow buttons, then click a thumbnail for a larger preview. **Use this location** selects it; closing the preview keeps your previous choice. The selected location is shown above the strip. Use Left/Right to browse focused thumbnail cards and Enter to expand. Every guide enumerates the sets’ terrain, paths and seats and includes the selected set’s full map. **Save map .json** exports that contract; **All location maps** exports all 70. Reference lanes, starts and harbour boarding anchors are checked at reference scale; custom sizes and tight dock contacts require **Check staging** after building. See [Location staging maps](studio-location-maps.md) for coordinates, centring and boarding rules.
 
-Changing the set of a scene keeps its cast, performances, camera shots and the film's title. Every set is original, built in the browser, with no downloads.
+Changing the set of a scene keeps its cast, performances, camera shots and the film's title. Studio's own sets are original, built in the browser, with no downloads. **Import a set…** under the search adds sets made in Blender: see [Your own sets](studio-sets.md).
 
 ## Direct the cast
 

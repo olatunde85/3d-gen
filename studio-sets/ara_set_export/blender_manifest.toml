@@ -1,0 +1,14 @@
+schema_version = "1.0.0"
+
+id = "ara_set_export"
+version = "0.1.0"
+name = "Export for Ara Studio"
+tagline = "Bake a scene's light and export it as an Ara Studio set"
+maintainer = "Ara"
+type = "add-on"
+blender_version_min = "5.0.0"
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2026 Joshua Olatunde and Ara 3D Gen contributors"]
+
+[permissions]
+files = "Saves a copy of the scene to bake, and writes the set file"

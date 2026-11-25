@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -15,6 +15,7 @@ import { linkedFile } from '../src/app/links';
 import { assistExample } from '../src/studio/assist';
 import { playExample } from '../src/play/assist';
 import { QUICKSTART_EXAMPLE } from '../packages/cli/src/film-quickstart';
+import { FIXTURE_ID, setFile } from './set-fixture';
 
 const root = resolve(import.meta.dirname, '..'), cli = join(root, 'packages/cli/dist/cli.js');
 if (!existsSync(cli)) throw Error('Build the CLI first: npx vite build --config packages/cli/vite.config.ts');
@@ -129,6 +130,20 @@ try {
   for (let n = 1, more = true; more; n++) { const t = (await call('film_guide', { topic: n === 1 ? 'location-map' : `location-map-${n}`, location: 'forest-trail' })).content[0].text;assert.ok(t.length <= LIMIT, `forest-trail map part ${n}`);more = /Continue with/.test(t);if (n > 1) assert.match(t, /^STAGING MAP: forest-trail \(part/); }
   assert.equal((await call('film_guide', { topic: 'location-map', location: 'the-moon' })).isError, true);
   assert.equal((await call('film_guide', { topic: 'location-map' })).isError, true);
+  // A set made in Blender: its file brings its staging note and map; films in it are checked against it, and say to
+  // import the file in Studio. A set whose file isn't given is reported.
+  const setPath = join(out, 'tiny-yard.glb');writeFileSync(setPath, setFile());
+  const yard = (await call('film_guide', { brief: 'Two friends meet', set_files: [setPath] })).content[0].text;
+  assert.match(yard, /STAGING MAP: tester\/tiny-yard/);assert.match(yard, /A 1 m box at x=2, z=1/);
+  const notLoaded = await call('film_guide', { location: 'someone/other-set' });
+  assert.equal(notLoaded.isError, true);assert.match(notLoaded.content[0].text, /isn't loaded: pass its set file/);
+  const yardFilm = { ...structuredClone(QUICKSTART_EXAMPLE), template: FIXTURE_ID };
+  const inYard = (await call('create_film', { film: yardFilm, set_files: [setPath] })).content[0].text;
+  assert.match(inYard, new RegExp(`Set tester/tiny-yard: import ${setPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} in Studio`), inYard);
+  const elsewhere = (await call('create_film', { film: { ...yardFilm, template: 'someone/missing-set' } })).content[0].text;
+  assert.match(elsewhere, /Set someone\/missing-set isn't loaded, so the staging check used a plain empty room/, elsewhere);
+  assert.equal((await call('create_film', { film: yardFilm, set_files: [join(out, 'none.glb')] })).isError, true);
+  console.log('OK set files: film_guide brings their maps, create_film checks against them and says to import them');
   const film = await call('create_film', { film: assistExample() });
   assert.equal(film.isError, false, film.content[0].text);assert.match(film.content[0].text, /^Staging check: /m);
   // A walk straight through the set's walls is reported, so the assistant can fix it.

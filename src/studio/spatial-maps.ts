@@ -3,9 +3,14 @@ import data from './location-maps.generated.json';
 import {type SetId} from './catalog';
 import type {LocationMap,VehicleEnvelope} from './spatial-types';
 import {BOAT_EDGE_TOLERANCE} from './spatial-geometry';
-export const LOCATION_MAPS=data.locations as unknown as LocationMap[];
+/** Every set's staging map: Studio's own (generated), then imported sets' (measured on import, see replaceImportedMaps). */
+export const LOCATION_MAPS=[...data.locations] as unknown as LocationMap[];
+const BUILT_IN_MAPS=LOCATION_MAPS.length;
+/** Staging maps of sets imported from set files, replacing any earlier ones. */
+export function replaceImportedMaps(maps:readonly LocationMap[]){LOCATION_MAPS.length=BUILT_IN_MAPS;LOCATION_MAPS.push(...maps);}
 export const VEHICLE_ENVELOPES=data.vehicleEnvelopes as unknown as Record<string,VehicleEnvelope>;
-export const locationMap=(id:SetId)=>LOCATION_MAPS.find(m=>m.id===id)!;
+/** A set's staging map. A set a film uses that isn't in this browser has an empty room, like a plain stage's. */
+export const locationMap=(id:SetId):LocationMap=>LOCATION_MAPS.find(m=>m.id===id)??{id,bounds:[-6,-5.5,6,5.5],land:{bounds:[-6,-5.5,6,5.5],exceptWater:true},water:[],regions:[],obstacles:[],seats:[],routes:[],starts:[],boarding:[],notes:['This set is not in this browser: its map is a plain empty room.']};
 const validation={boatEdgeTolerance:BOAT_EDGE_TOLERANCE,referenceRoutes:'Verified with zero edge tolerance and the stated clearance.'};
 export function locationMapFile(id:SetId){return {kind:'ara-studio-location-map',version:1,coordinates:data.coordinates,validation,vehicleEnvelopes:VEHICLE_ENVELOPES,location:locationMap(id)};}
 export const allLocationMapsFile=()=>({...data,validation});
