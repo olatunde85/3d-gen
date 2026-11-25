@@ -15,6 +15,7 @@ export async function prepareCast(project:PlayProject,engine:Engine,texture:(fil
  if(previous?.companion)pool.set(recipe(equipped(previous.project.companion.character,'none')),previous.companion.render.character);
  const build=async(params:HumanParams,oldParams:HumanParams|undefined,old:GameActor|undefined)=>{
   const key=recipe(params);if(old&&oldParams&&key===recipe(oldParams))return old;
+  if(params.imported)throw Error(`${params.name||'A character'} was imported from a model file, which Play doesn't use yet: choose an Ara character.`);
   progress(`Preparing ${params.name||'character'}…`);let character=pool.get(key);if(!character){character=await engine.build(params);pool.set(key,character);}
   const actor=new GameActor(character,texture);created.push(actor);await actor.render.ready();return actor;
  };

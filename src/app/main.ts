@@ -45,15 +45,18 @@ shareDialog(ctx);
 $('#studio-btn').addEventListener('click', async () => {
   await ctx.whenIdle();
   const url = new URL(`${import.meta.env.BASE_URL}studio/`, location.href);
-  const params = new URLSearchParams({ c: encodeCharacter(store.params), detail: store.params.detail });
+  // An imported character goes to Studio as a recipe naming it (Studio opens it from this browser) with its props.
+  const recipe = (store.imported && imported.recipe()) || store.params;
+  const params = new URLSearchParams({ c: encodeCharacter(recipe), detail: store.params.detail });
   const studioReturn = new URLSearchParams(location.hash.slice(1)).get('studioReturn');
   if (studioReturn) params.set('studioReturn', studioReturn);
   url.hash = params.toString();
   location.assign(url.href);
 });
-// Imported characters stay in this browser: no share link or Studio hand-over (they need their model file) yet.
-const syncImported = () => { for (const id of ['#studio-btn', '#share-btn']) { const b = $<HTMLButtonElement>(id);b.disabled = !!store.imported;b.title = store.imported ? 'Not yet available for imported characters' : b.dataset.title ??= b.title; } };
-for (const id of ['#studio-btn', '#share-btn']) $<HTMLButtonElement>(id).dataset.title = $<HTMLButtonElement>(id).title;
+// Imported characters stay in this browser: no share link (it would need their model file). Studio, on the same
+// site, opens them from this browser.
+const syncImported = () => { for (const id of ['#share-btn']) { const b = $<HTMLButtonElement>(id);b.disabled = !!store.imported;b.title = store.imported ? 'Not yet available for imported characters' : b.dataset.title ??= b.title; } };
+for (const id of ['#share-btn']) $<HTMLButtonElement>(id).dataset.title = $<HTMLButtonElement>(id).title;
 store.on('imported', syncImported);
 syncImported();
 const syncPlayback = () => { viewer.rootMotion = store.exportSettings.rootMotion; viewer.stageProps = store.exportSettings.stageProps !== false; viewer.leftFooted = !!store.exportSettings.leftFooted; };
@@ -67,12 +70,15 @@ const linkedDetail = hash.get('detail');
 const detail = linkedDetail === 'low' || linkedDetail === 'medium' || linkedDetail === 'high' ? linkedDetail : store.params.detail;
 const fromLink = shared ? decodeCharacter(shared, detail) : null;
 const presetName = hash.get('preset');
-if (fromLink) store.params = fromLink;
+// A link to an imported character (Studio's Edit character) opens it from this browser.
+const linkedImport = fromLink?.imported ? fromLink : null;
+if (fromLink && !linkedImport) store.params = fromLink;
 else if (presetName && PRESETS[presetName]) store.params = { ...DEFAULT_PARAMS, ...PRESETS[presetName], name: presetName, detail: store.params.detail };
 // A link opens the character it names; otherwise an imported character shown last opens again.
-if ((fromLink || (presetName && PRESETS[presetName])) && store.imported) store.leaveImported();
+if (((fromLink && !linkedImport) || (presetName && PRESETS[presetName])) && store.imported) store.leaveImported();
 store.emit('sync');
-if (store.imported) void imported.restore();
+if (linkedImport) void imported.openRecipe(linkedImport).then((ok) => { if (!ok && !store.current) gen.regenerate(); });
+else if (store.imported) void imported.restore();
 else gen.regenerate();
 // A character opened from a link (the characters page, a shared link) leaves the address once another character is
 // picked or this one is changed, so a reload keeps the character being worked on (it is saved in the browser).

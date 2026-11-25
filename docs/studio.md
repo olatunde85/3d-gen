@@ -40,6 +40,7 @@ Changing the set of a scene keeps its cast, performances, camera shots and the f
 ## Direct the cast
 
 - **Add characters:** bring your exact character from the builder, or pick an Ara preset. **Add character** grows the cast to **five**. New characters start in a free spot and the others stay where they are.
+- **Your own characters:** characters imported in the builder from a model file (see [Your own characters](import-characters.md)) are listed under **Your characters** in a character's menu, and the builder's **Studio** button brings the one it shows, with its props. They're opened from the browser they were imported in, so a film with one plays there. Elsewhere, such as from a film link, an Ara character stands in for it, keeping its name and props, and Studio says so. **Character builder** opens it in the builder again.
 - **Select:** a film opens with nobody selected. Click a character in the picture, or their name under **The cast**. The selected character gets a blue ring and a name tag. Click the background, press **Escape** or use **Deselect** to clear it. Equipment and placement say so if you try to use them with nobody selected.
 - **Move:**
   - Drag a character across the floor, or choose **Click to place** (or Shift-click the ground).

@@ -91,6 +91,11 @@ export interface HumanParams {
   /** Teeth variant id or 'none'; the tongue sits behind them. */
   teeth: string;
   tongue: boolean;
+  /**
+   * An imported character (a model file kept in the browser) the recipe stands for, by its ID: its own look and
+   * skeleton replace the body and clothing settings, while its name and props (weapon, carry, vehicle) apply.
+   */
+  imported?: string;
 }
 
 export const DEFAULT_PARAMS: HumanParams = {
@@ -733,6 +738,8 @@ export function sanitizeParams(raw: unknown, base: HumanParams = DEFAULT_PARAMS)
   out.detail = oneOf(src.detail, DETAILS, base.detail);
   out.rig = oneOf(src.rig, ['game', 'game_lite', 'full', 'none'] as const, base.rig);
   out.restPose = oneOf(src.restPose, ['A', 'T'] as const, base.restPose);
+  if (typeof src.imported === 'string' && /^[a-z0-9]{1,24}$/.test(src.imported)) out.imported = src.imported;
+  else delete out.imported;
   out.weapon = oneOf(src.weapon, WEAPONS, base.weapon);
   out.carry = oneOf(src.carry, CARRIED, base.carry);
   out.vehicle = oneOf(src.vehicle, VEHICLE_CHOICES, base.vehicle);

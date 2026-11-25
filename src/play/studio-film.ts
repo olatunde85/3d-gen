@@ -34,7 +34,7 @@ export async function importStudioFilm(file:File,engine:Engine,library:AssetLibr
    const recipe=`${track.detail}:${track.character}`;let actor=[...built.entries()].find(([key,a])=>key.startsWith(recipe+'#')&&!used.has(a))?.[1];
    if(!actor){
     progress(`Building Studio character ${i+1} of ${project.actors.length}${many?` · scene ${index+1}`:''}…`);
-    const params=decodeCharacter(track.character,track.detail);if(!params)throw Error(`Studio character ${i+1} has an invalid recipe.`);
+    const params=decodeCharacter(track.character,track.detail);if(!params)throw Error(`Studio character ${i+1} has an invalid recipe.`);if(params.imported)throw Error(`Studio character ${i+1} (${params.name||'an imported character'}) was imported from a model file, which Play doesn't use yet: choose an Ara character for it in Studio.`);
     actor=new StudioActor(await engine.build({...params,rig:params.rig==='none'?'game':params.rig,animations:true}),name=>library.textureUrl(name));
     built.set(`${recipe}#${built.size}`,actor);await actor.ready();
    }
