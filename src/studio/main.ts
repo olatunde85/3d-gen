@@ -46,7 +46,8 @@ import { MUSIC_TRACKS } from './audio/tracks';
 import { SESSION_KEY, readEditorSession, type EditorState } from './session';
 import { reconcileWeaponActions,equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
 
-import {VEHICLE_FOR_CLIP,RIDING_VEHICLES,VEHICLE_LABELS,VEHICLE_BODY_LABELS,VEHICLE_LIVERY_LABELS,bodiesFor,liveriesFor,vehicleName,vehicleStyleForBody,type VehicleBody,type VehicleStyle} from '../core/props/vehicles';
+import {VEHICLE_FOR_CLIP,RIDING_VEHICLES,VEHICLE_LABELS,VEHICLE_LIVERY_LABELS,bodiesFor,isCar,liveriesFor,vehicleModelChoices,vehicleModelValue,vehicleName,vehicleStyleForModel,type VehicleStyle} from '../core/props/vehicles';
+import {importChosenProp,restoreProps} from '../app/props/store';
 import {defaultWeaponYaw,type WeaponPose} from '../core/anim/riding-weapons';
 import {isFirearm} from '../core/props/weapons';
 import {STAGE_PROP_LABELS,stagePropFor} from '../core/anim/stage';
@@ -319,7 +320,8 @@ function renderUI() {
   for(const key of ['color','accentColor','seatColor']as const)input(`vehicle-${key}`).value=vehicleStyle[key];
   for(const key of ['finish','variant']as const)select(`vehicle-${key}`).value=vehicleStyle[key];
   {const bodies=vehicle?bodiesFor(vehicle):[],designs=vehicle?liveriesFor(vehicle,vehicleStyle):[];
-   select('vehicle-body').replaceChildren(...(vehicle?[new Option(VEHICLE_LABELS[vehicle],''),...bodies.map(b=>new Option(VEHICLE_BODY_LABELS[b],b))]:[]));select('vehicle-body').value=vehicleStyle.body&&bodies.includes(vehicleStyle.body)?vehicleStyle.body:'';$('vehicle-body-field').hidden=!bodies.length;
+   // Ara's model, its other bodies, imported cars standing in for it, and a way to import one.
+   select('vehicle-body').replaceChildren(...(vehicle?vehicleModelChoices(vehicle).map(c=>new Option(c.label,c.value)):[]));select('vehicle-body').value=vehicle?vehicleModelValue(vehicle,vehicleStyle):'';$('vehicle-body-field').hidden=!bodies.length&&!(vehicle&&isCar(vehicle));button('import-car').hidden=!(import.meta.env.DEV&&vehicle&&isCar(vehicle));
    select('vehicle-livery').replaceChildren(...designs.map(d=>new Option(VEHICLE_LIVERY_LABELS[d],d)));select('vehicle-livery').value=vehicleStyle.livery??'none';$('vehicle-livery-field').hidden=!designs.length;
    input('vehicle-number').value=String(vehicleStyle.number??(vehicleStyle.body==='kart'?8:7));$('vehicle-number-field').hidden=!designs.length||vehicleStyle.livery!=='racing';}
   {const box=input('vehicle-delivery-box');box.checked=!!vehicleStyle.deliveryBox;$('vehicle-delivery-box-field').hidden=vehicle!=='motorcycle'||!!vehicleStyle.body;}
@@ -632,7 +634,11 @@ for(const key of ['color','accentColor','seatColor','finish','variant']as const)
 }
 /** Model, design and race number edit the vehicle this beat rides, or the shared vehicle it boards. */
 const editVehicleStyle=(change:(style:VehicleStyle,model:NonNullable<typeof VEHICLE_FOR_CLIP[string]>)=>VehicleStyle)=>void edit(p=>{const selectedTrack=p.actors.find(a=>a.id===selectedActor)!,b=selectedTrack.beats[Math.min(selected,selectedTrack.beats.length-1)],model=VEHICLE_FOR_CLIP[b.clip];if(!model)return;const a=vehicleCatalog(p).get(vehicleKey(selectedTrack,b))?.actor??selectedTrack,params=decodeCharacter(a.character,a.detail)!;params.vehicleStyle=change(params.vehicleStyle,model);a.character=encodeCharacter(params);});
-select('vehicle-body').addEventListener('change',()=>editVehicleStyle((style,model)=>vehicleStyleForBody(model,(select('vehicle-body').value||undefined)as VehicleBody|undefined,style)));
+select('vehicle-body').addEventListener('change',()=>{const value=select('vehicle-body').value;editVehicleStyle((style,model)=>vehicleStyleForModel(model,value,style));});
+// Ara's own cars, made in Blender (studio-props/): imported while developing (the button shows in dev builds only).
+button('import-car').addEventListener('click',()=>input('car-file').click());
+input('car-file').addEventListener('change',()=>{const file=input('car-file').files?.[0];input('car-file').value='';
+  void importChosenProp(file,notify).then(id=>{if(id)editVehicleStyle((style,model)=>vehicleStyleForModel(model,`prop:${id}`,style));});});
 select('vehicle-livery').addEventListener('change',()=>editVehicleStyle(style=>{const next={...style},value=select('vehicle-livery').value;if(value==='none')delete next.livery;else next.livery=value as VehicleStyle['livery'];return next;}));
 input('vehicle-delivery-box').addEventListener('change',()=>editVehicleStyle(style=>({...style,deliveryBox:input('vehicle-delivery-box').checked})));
 input('vehicle-number').addEventListener('change',()=>editVehicleStyle(style=>{const n=Math.round(Number(input('vehicle-number').value));return Number.isFinite(n)&&n>=0&&n<100?{...style,number:n}:style;}));
@@ -823,7 +829,7 @@ async function start() {
   const hash=new URLSearchParams(location.hash.slice(1)),code=hash.get('c');
   let recovered:ReturnType<typeof readEditorSession>,resume:EditorState|undefined,acceptedLink=false,returned=false;
   // Content packs and imported sets first: the saved film, and one returning from the builder, may use them.
-  await Promise.all([restorePacks(),restoreSets()]);
+  await Promise.all([restorePacks(),restoreSets(),restoreProps()]);
   for(const saved of [()=>JSON.parse(localStorage.getItem(SESSION_KEY)||'null')?.film,()=>localStorage.getItem(STORAGE),()=>JSON.parse(sessionStorage.getItem(HANDOFF)||'null')?.film])
     try{const film=saved();if(film)await preparePacks(film);}catch{ /* A pack that can't load is reported when the film opens. */ }
   try{recovered=readEditorSession(localStorage.getItem(SESSION_KEY));}catch{ /* Storage may be unavailable. */ }

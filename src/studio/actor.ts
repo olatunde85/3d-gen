@@ -46,7 +46,7 @@ export class StudioActor {
   private vehiclePlan?:VehicleStage;
   private hipCache=new Map<string,[number,number,number]>();
   get vehicleBody():VehicleBody{return {scale:this.scale,boardingScale:boardingScale(this.character.rig!),weapon:this.character.params.weapon,hip:(clip,model)=>{
-    const key=`${clip}/${model??''}`;let hip=this.hipCache.get(key);if(!hip){const action=clipById.get(clip)!,id=model??VEHICLE_FOR_CLIP[clip],frame=this.animator.frame(action,0,{vehicleLift:id?vehicleLift(id,this.scale):0,weaponPose:'hidden',vehicleMotion:false}),index=this.character.rig!.bones.findIndex(b=>b.name===boneFor(this.character.rig!.type,'Hips'));hip=this.animator.positions(frame)[index];this.hipCache.set(key,hip);}return hip;
+    const style=this.character.params.vehicleStyle,key=`${clip}/${model??''}/${style?.model??''}`;let hip=this.hipCache.get(key);if(!hip){const action=clipById.get(clip)!,id=model??VEHICLE_FOR_CLIP[clip],frame=this.animator.frame(action,0,{vehicleLift:id?vehicleLift(id,this.scale,style):0,weaponPose:'hidden',vehicleMotion:false}),index=this.character.rig!.bones.findIndex(b=>b.name===boneFor(this.character.rig!.type,'Hips'));hip=this.animator.positions(frame)[index];this.hipCache.set(key,hip);}return hip;
   }};}
   private stage(project:StudioProject,time:number,track=project.actors[0]){return this.vehiclePlan?.project===project&&this.vehiclePlan.time===time?this.vehiclePlan:new VehicleStage(project,time,this.vehiclePlan?.bodies??new Map([[track.id,this.vehicleBody]]));}
   private textures: THREE.Texture[] = [];
@@ -118,7 +118,7 @@ export class StudioActor {
     // An exact walk covers its metres at any size: a smaller body steps faster.
     const pace = b.exact && b.move ? 1 / this.scale : 1, local = clip.loop ? (at.phase * pace) % clip.duration : Math.min(at.phase * pace, clip.duration);
     const parcel=parcelStateAt(track,at.time),id=vehicleFor(this.vehicleChoice(track,b),clip.id);
-    const lift=id?vehicleLift(id,this.scale):0;
+    const lift=id?vehicleLift(id,this.scale,this.character.params.vehicleStyle):0;
     const stage=this.stage(project,time,track),state=stage.actor(track);
     let frame = state.passenger?passengerFrame(this.animator,b,local,state,this.scale,faceTime):this.animator.frame(clip, local, { vehicleMotion:false,faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift,weaponPose:b.weaponPose,weaponPitch:b.weaponPitch,weaponYaw:b.weaponYaw });
     frame=this.withExpression(frame,track,at.index);

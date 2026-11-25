@@ -22,11 +22,12 @@ import { sidebar } from './ui/sidebar';
 import { Store } from './ui/store';
 import { Viewer } from './viewer';
 import { restorePacks } from './packs/store';
+import { restoreProps } from './props/store';
 import { importedCharacterUi } from './ui/imported';
 
 const assetsUrl = new URL(`${import.meta.env.BASE_URL}assets/`, location.href).href;
 // Content packs first, with the catalog: saved export choices and the animation browser may use their animations.
-const [lib] = await Promise.all([new AssetLibrary(fetchSource(assetsUrl)).initCatalog(), restorePacks()]);
+const [lib] = await Promise.all([new AssetLibrary(fetchSource(assetsUrl)).initCatalog(), restorePacks(), restoreProps()]);
 // Building and exporting run in a worker, so the UI and the 3D view never freeze.
 const engine = new Engine(lib, assetsUrl);
 const viewer = new Viewer($<HTMLCanvasElement>('#viewport'), (f) => lib.textureUrl(f));

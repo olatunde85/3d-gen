@@ -280,7 +280,7 @@ export class Viewer {
     if (this.clip) {
       el = (now - this.clipStart) * this.speed;
       t = this.clip.loop ? el % this.clip.duration : Math.min(el, this.clip.duration);
-      frame = this.animator.frame(this.clip, t, { rootMotion: this.rootMotion, mirror: this.leftFooted && this.clip.category === 'Sports', faceTime: now,vehicleLift:vehicleFor(this.vehicle,this.clip.id)?vehicleLift(vehicleFor(this.vehicle,this.clip.id)!,this.riderScale):0 });
+      frame = this.animator.frame(this.clip, t, { rootMotion: this.rootMotion, mirror: this.leftFooted && this.clip.category === 'Sports', faceTime: now,vehicleLift:vehicleFor(this.vehicle,this.clip.id)?vehicleLift(vehicleFor(this.vehicle,this.clip.id)!,this.riderScale,this.vehicleStyle):0 });
     } else frame = { ...this.animator.bind(), morph: this.animator.restFace(now) };
     // Crossfade from the previous clip over 0.25 s.
     if (this.blendFrom) {

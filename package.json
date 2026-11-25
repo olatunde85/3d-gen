@@ -44,6 +44,7 @@
     "test:embed": "tsx scripts/embed-check.ts",
     "test:mcp": "tsx scripts/mcp-check.ts",
     "test:sets": "tsx scripts/set-files-check.ts",
+    "test:props": "tsx scripts/props-check.ts",
     "test:landing": "tsx scripts/landing-check.ts",
     "test:developers": "tsx scripts/developers-check.ts",
     "build-assets": "tsx scripts/build-assets.ts",

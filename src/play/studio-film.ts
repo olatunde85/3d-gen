@@ -4,6 +4,7 @@ import type {Engine} from '../app/engine';
 import type {AssetLibrary} from '../core/assets';
 import {loadStudioFilm} from '../studio/assist';
 import {restorePacks} from '../app/packs/store';
+import {restoreProps} from '../app/props/store';
 import {MAX_FILM_SIZE} from '../studio/film';
 import type {StudioProject} from '../studio/project';
 import {openAudioBundle} from '../studio/audio/bundle';
@@ -18,7 +19,7 @@ export async function importStudioFilm(file:File,engine:Engine,library:AssetLibr
  const bundle=/\.zip$/i.test(file.name)||file.type==='application/zip';
  if(!bundle&&file.size>MAX_FILM_SIZE)throw Error('Choose Studio JSON smaller than 500 KB.');
  // Films can use content packs: the ones kept in this browser, and any the film lists by address.
- await restorePacks();
+ await Promise.all([restorePacks(),restoreProps()]);
  const parsed=bundle?await openAudioBundle(file,library.catalog):await loadStudioFilm(await file.text(),library.catalog);
  // Games are made to be shared: films with 18+ characters stay in Studio.
  for(const track of parsed.flatMap(s=>s.actors)){const adult=adultReason(decodeCharacter(track.character,track.detail)??undefined);if(adult)throw Error(`${adult}. Films with 18+ characters can't be attached to games.`);}

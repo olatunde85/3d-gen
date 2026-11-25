@@ -12,8 +12,8 @@ export const v=(x=0,y=0,z=0)=>new T.Vector3(x,y,z);
 export interface Contacts{headTop:V;hip:V;left:V;right:V;footLeft:V;footRight:V;kneeLeft:V;kneeRight:V;chest:T.Quaternion}
 export class RiderFit{
  readonly scale:number;readonly lift:number;readonly samples:Contacts[];
- constructor(readonly rig:Rig,readonly animator:Animator,readonly clip:Clip,readonly id:VehicleId){
-  this.scale=Math.max(...rig.bones.flatMap(b=>[b.head[1],b.tail[1]]))/1.8;this.lift=vehicleLift(id,this.scale);
+ constructor(readonly rig:Rig,readonly animator:Animator,readonly clip:Clip,readonly id:VehicleId,style?:Pick<VehicleStyle,'model'>){
+  this.scale=Math.max(...rig.bones.flatMap(b=>[b.head[1],b.tail[1]]))/1.8;this.lift=vehicleLift(id,this.scale,style);
   this.samples=Array.from({length:24},(_,i)=>this.at(i*clip.duration/24));
  }
  at(time:number):Contacts{

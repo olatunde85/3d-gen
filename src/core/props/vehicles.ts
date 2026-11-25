@@ -6,6 +6,8 @@ export type VehicleChoice=typeof VEHICLE_CHOICES[number];
 export const VEHICLE_LABELS:Record<VehicleChoice,string>={none:'None',auto:'Match animation',bicycle:'Bicycle',car:'Classic convertible',sports_car:'Modern sports car',suv:'SUV',motorcycle:'Motorcycle',horse:'Horse',canoe:'Canoe',kayak:'Kayak',rowboat:'Rowing boat',motorboat:'Motorboat',helicopter:'Helicopter / chopper',pickup:'Pickup truck',tank:'Military tank',jet:'Jet aircraft'};
 import {TRANSITION_BY_CLIP,STUNT_BY_CLIP,ridingClip} from './vehicle-actions';
 import {VEHICLE_MANOEUVRES} from './vehicle-motion';
+import {PROP_ID,SEATED_HIP,propModel,propModelsFor} from './prop-models';
+import {propPaint} from './vehicle-imported';
 export const RIDING_VEHICLES:Readonly<Record<string,VehicleId>>={ride_bicycle:'bicycle',drive_car:'car',sit_passenger:'car',drive_sports_car:'sports_car',sit_sports_car_passenger:'sports_car',drive_suv:'suv',sit_suv_passenger:'suv',ride_motorcycle:'motorcycle',ride_horse:'horse',paddle_canoe:'canoe',paddle_kayak:'kayak',row_boat:'rowboat',drive_boat:'motorboat',fly_helicopter:'helicopter',drive_pickup:'pickup',sit_pickup_passenger:'pickup',drive_tank:'tank',fly_jet:'jet'};
 export const VEHICLE_FOR_CLIP:Readonly<Record<string,VehicleId>>={...RIDING_VEHICLES,...Object.fromEntries(Object.entries(STUNT_BY_CLIP).map(([id,t])=>[id,RIDING_VEHICLES[t.ride]])),...Object.fromEntries(Object.entries(TRANSITION_BY_CLIP).map(([id,t])=>[id,RIDING_VEHICLES[t.ride]])),...Object.fromEntries(Object.entries(VEHICLE_MANOEUVRES).map(([id,m])=>[id,RIDING_VEHICLES[m.ride]]))};
 export const VEHICLE_CLIP:Record<VehicleId,string>={bicycle:'ride_bicycle',car:'drive_car',sports_car:'drive_sports_car',suv:'drive_suv',motorcycle:'ride_motorcycle',horse:'ride_horse',canoe:'paddle_canoe',kayak:'paddle_kayak',rowboat:'row_boat',motorboat:'drive_boat',helicopter:'fly_helicopter',pickup:'drive_pickup',tank:'drive_tank',jet:'fly_jet'};
@@ -23,7 +25,9 @@ export const bodiesFor=(id:VehicleId)=>VEHICLE_BODIES.filter(b=>BODY_BASE[b]===i
 /** The body a style asks for, when it suits this base vehicle. */
 export const bodyFor=(id:VehicleId,style:Pick<VehicleStyle,'body'>):VehicleBody|undefined=>style.body&&BODY_BASE[style.body]===id?style.body:undefined;
 /** A display name for the vehicle a style builds, such as "Danfo minibus" for an SUV ride with that body. */
-export const vehicleName=(id:VehicleId,style:Pick<VehicleStyle,'body'>)=>{const body=bodyFor(id,style);return body?VEHICLE_BODY_LABELS[body]:VEHICLE_LABELS[id];};
+export const vehicleName=(id:VehicleId,style:Pick<VehicleStyle,'body'|'model'>)=>{const prop=importedModel(id,style);if(prop)return prop.manifest.name;const body=bodyFor(id,style);return body?VEHICLE_BODY_LABELS[body]:VEHICLE_LABELS[id];};
+/** The imported prop a style asks for, when it's loaded and stands in for this vehicle. */
+export const importedModel=(id:VehicleId,style:Pick<VehicleStyle,'model'>|undefined)=>{const m=propModel(style?.model);return m&&m.manifest.base===id?m:undefined;};
 export const VEHICLE_FINISHES=['matte','satin','gloss']as const;
 export const VEHICLE_VARIANTS=['classic','sport']as const;
 export const VEHICLE_LIVERIES=['none','stripes','racing','police','taxi']as const;
@@ -35,7 +39,7 @@ export function liveriesFor(id:VehicleId,style:Pick<VehicleStyle,'body'>):readon
  return body==='kart'?['none','racing']:[];
 }
 /** `livery` adds painted designs (racing stripes, a race number, police or taxi colours); `number` is the race number; `body` swaps in another body for the same rider (see VEHICLE_BODIES). */
-export interface VehicleStyle{color:string;accentColor:string;seatColor:string;finish:typeof VEHICLE_FINISHES[number];variant:typeof VEHICLE_VARIANTS[number];livery?:typeof VEHICLE_LIVERIES[number];number?:number;body?:VehicleBody;deliveryBox?:boolean}
+export interface VehicleStyle{color:string;accentColor:string;seatColor:string;finish:typeof VEHICLE_FINISHES[number];variant:typeof VEHICLE_VARIANTS[number];livery?:typeof VEHICLE_LIVERIES[number];number?:number;body?:VehicleBody;deliveryBox?:boolean;/** An imported prop standing in for this vehicle (its ID, author/prop): built from it when it's loaded. */model?:string}
 export const DEFAULT_VEHICLE_STYLE:VehicleStyle={color:'#8a5535',accentColor:'#c7b293',seatColor:'#292827',finish:'satin',variant:'classic'};
 /** Factory paint for a newly chosen modern model; preserve colours the user has edited. */
 export function vehicleStyleForChoice(choice:VehicleChoice,style:VehicleStyle):VehicleStyle{
@@ -56,7 +60,7 @@ const FACTORY_COLORS=new Set([DEFAULT_VEHICLE_STYLE.color,'#58634a','#a5b1bb','#
  * painted it, and a design the new body cannot carry is dropped.
  */
 export function vehicleStyleForBody(id:VehicleId,body:VehicleBody|undefined,style:VehicleStyle):VehicleStyle{
- const next:VehicleStyle={...vehicleStyleForChoice(id,style)};delete next.body;
+ const next:VehicleStyle={...vehicleStyleForChoice(id,style)};delete next.body;delete next.model;
  if(body&&BODY_BASE[body]===id){next.body=body;if(FACTORY_COLORS.has(style.color))Object.assign(next,BODY_PAINT[body]);}
  else if(style.body&&FACTORY_COLORS.has(style.color)){const factory=vehicleStyleForChoice(id,DEFAULT_VEHICLE_STYLE);next.color=factory.color;next.accentColor=factory.accentColor;}
  if(next.livery&&!liveriesFor(id,next).includes(next.livery))delete next.livery;
@@ -65,7 +69,7 @@ export function vehicleStyleForBody(id:VehicleId,body:VehicleBody|undefined,styl
 export function sanitizeVehicleStyle(value:unknown):VehicleStyle{
  const s=value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
  const color=(key:'color'|'accentColor'|'seatColor')=>typeof s[key]==='string'&&/^#[a-f0-9]{6}$/i.test(s[key])?s[key] as string:DEFAULT_VEHICLE_STYLE[key];
- return {color:color('color'),accentColor:color('accentColor'),seatColor:color('seatColor'),finish:VEHICLE_FINISHES.includes(s.finish as VehicleStyle['finish'])?s.finish as VehicleStyle['finish']:'satin',variant:VEHICLE_VARIANTS.includes(s.variant as VehicleStyle['variant'])?s.variant as VehicleStyle['variant']:'classic',...(VEHICLE_LIVERIES.includes(s.livery as never)&&s.livery!=='none'?{livery:s.livery as VehicleStyle['livery']}:{}),...(Number.isInteger(s.number)&&(s.number as number)>=0&&(s.number as number)<100?{number:s.number as number}:{}),...(VEHICLE_BODIES.includes(s.body as VehicleBody)?{body:s.body as VehicleBody}:{}),...(s.deliveryBox===true?{deliveryBox:true}:{})};
+ return {color:color('color'),accentColor:color('accentColor'),seatColor:color('seatColor'),finish:VEHICLE_FINISHES.includes(s.finish as VehicleStyle['finish'])?s.finish as VehicleStyle['finish']:'satin',variant:VEHICLE_VARIANTS.includes(s.variant as VehicleStyle['variant'])?s.variant as VehicleStyle['variant']:'classic',...(VEHICLE_LIVERIES.includes(s.livery as never)&&s.livery!=='none'?{livery:s.livery as VehicleStyle['livery']}:{}),...(Number.isInteger(s.number)&&(s.number as number)>=0&&(s.number as number)<100?{number:s.number as number}:{}),...(VEHICLE_BODIES.includes(s.body as VehicleBody)?{body:s.body as VehicleBody}:{}),...(s.deliveryBox===true?{deliveryBox:true}:{}),...(typeof s.model==='string'&&PROP_ID.test(s.model)?{model:s.model}:{})};
 }
 export function isPassengerClip(id:string){return ridingClip(id).includes('passenger');}
 export function isCar(id:VehicleChoice):id is 'car'|'sports_car'|'suv'|'pickup'{return id==='car'||id==='sports_car'||id==='suv'||id==='pickup';}
@@ -75,4 +79,21 @@ export function vehicleFor(choice:VehicleChoice,clip:string):VehicleId|undefined
  const id=VEHICLE_FOR_CLIP[clip];return choice==='auto'?id:choice===id?id:isCar(choice)&&id==='car'?choice:undefined;
 }
 /** Raised cabin/deck floors. Bicycle, motorcycle and horse already have their authored saddle height. */
-export function vehicleLift(id:VehicleId,scale:number){return ({car:.32,sports_car:.12,suv:.50,canoe:.15,kayak:.15,rowboat:.15,motorboat:.32,helicopter:.52,bicycle:0,motorcycle:0,horse:0,pickup:.55,tank:.25,jet:.55}[id])*scale;}
+/**
+ * How far the rider is raised for this vehicle. An imported car seats its driver at its own seat (its seat anchor
+ * against the seated hip height of Ara's cars).
+ */
+export function vehicleLift(id:VehicleId,scale:number,style?:Pick<VehicleStyle,'model'>){const prop=importedModel(id,style);if(prop)return (prop.seats.driver.y-SEATED_HIP)*scale;return ({car:.32,sports_car:.12,suv:.50,canoe:.15,kayak:.15,rowboat:.15,motorboat:.32,helicopter:.52,bicycle:0,motorcycle:0,horse:0,pickup:.55,tank:.25,jet:.55}[id])*scale;}
+/** The models offered for a vehicle: Ara's own, its other bodies, and imported props standing in for it (value prop:<id>). */
+export function vehicleModelChoices(id:VehicleId):{value:string;label:string}[]{
+ return [{value:'',label:VEHICLE_LABELS[id]},...bodiesFor(id).map(b=>({value:b as string,label:VEHICLE_BODY_LABELS[b]})),...propModelsFor(id).map(m=>({value:`prop:${m.manifest.id}`,label:`${m.manifest.name} (${m.manifest.author})`}))];
+}
+/** The model choice a style shows (see vehicleModelChoices). */
+export function vehicleModelValue(id:VehicleId,style:VehicleStyle){const prop=importedModel(id,style);if(prop)return `prop:${prop.manifest.id}`;const body=bodyFor(id,style);return body??'';}
+/** The style after choosing a model: Ara's own, one of its bodies, or an imported prop. */
+export function vehicleStyleForModel(id:VehicleId,value:string,style:VehicleStyle):VehicleStyle{
+ if(value.startsWith('prop:')){const next=vehicleStyleForBody(id,undefined,style);next.model=value.slice(5);
+  // A prop arrives in its own paint, unless the colour was chosen by hand.
+  const paint=propModel(next.model)&&propPaint(propModel(next.model)!);if(paint&&FACTORY_COLORS.has(style.color))next.color=paint;return next;}
+ return vehicleStyleForBody(id,(value||undefined)as VehicleBody|undefined,style);
+}

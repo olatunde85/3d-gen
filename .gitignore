@@ -30,3 +30,4 @@ studio-sets/.cache/
 studio-sets/out/
 studio-sets/**/__pycache__/
 studio-sets/**/*.zip
+studio-props/out/

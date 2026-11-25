@@ -8,7 +8,8 @@ import type { Ctx } from './context';
 import { color, none, picker, selectRow, thumb } from './controls';
 import { el } from './dom';
 import { styleControls } from './sidebar-clothing';
-import {VEHICLE_FINISHES,VEHICLE_VARIANTS,VEHICLE_FOR_CLIP,VEHICLE_LABELS,VEHICLE_BODY_LABELS,VEHICLE_LIVERY_LABELS,bodiesFor,liveriesFor,vehicleStyleForBody,vehicleStyleForChoice,type VehicleBody,type VehicleStyle} from '../../core/props/vehicles';
+import {VEHICLE_FINISHES,VEHICLE_VARIANTS,VEHICLE_FOR_CLIP,VEHICLE_LIVERY_LABELS,bodiesFor,isCar,liveriesFor,vehicleModelChoices,vehicleModelValue,vehicleStyleForChoice,vehicleStyleForModel,type VehicleStyle} from '../../core/props/vehicles';
+import {importChosenProp} from '../props/store';
 
 export function hairPanel(ctx: Ctx) {
   const { store } = ctx;
@@ -120,17 +121,23 @@ export function vehiclePanel(ctx: Ctx) {
   const modelRow=el('div',{className:'ctl wide'},el('span',{textContent:'Model'}),model),designRow=el('div',{className:'ctl wide'},el('span',{textContent:'Design'}),design),numberRow=el('label',{className:'ctl wide'},el('span',{textContent:'Race number'}),number);
   const deliveryBox=el('input',{type:'checkbox',ariaLabel:'Motorcycle delivery box'}),deliveryBoxRow=el('label',{className:'ctl wide'},el('span',{textContent:'Delivery box'}),deliveryBox);
   deliveryBox.addEventListener('change',()=>set('deliveryBox',deliveryBox.checked));
-  model.addEventListener('change',()=>{const ride=VEHICLE_FOR_CLIP[currentClip];if(ride)store.set({vehicleStyle:vehicleStyleForBody(ride,(model.value||undefined)as VehicleBody|undefined,store.params.vehicleStyle)});});
+  model.addEventListener('change',()=>{const ride=VEHICLE_FOR_CLIP[currentClip];if(ride){store.set({vehicleStyle:vehicleStyleForModel(ride,model.value,store.params.vehicleStyle)});store.emit('sync');}});
+  // Ara's own cars, made in Blender (studio-props/): imported while developing (the button shows in dev builds only).
+  const carFile=el('input',{type:'file',accept:'.glb,model/gltf-binary',hidden:true}),importCar=el('button',{textContent:'Import a car…',title:'Add one of Ara\'s cars (a .glb prop file) to the Model list. It\'s kept in this browser.'});
+  const importRow=el('div',{className:'ctl wide'},el('span',{textContent:''}),importCar,carFile);
+  importCar.addEventListener('click',()=>carFile.click());
+  carFile.addEventListener('change',()=>{const file=carFile.files?.[0];carFile.value='';
+    void importChosenProp(file,(text,ok)=>{if(!ok)alert(text);}).then(id=>{const ride=VEHICLE_FOR_CLIP[currentClip];if(id&&ride){store.set({vehicleStyle:vehicleStyleForModel(ride,`prop:${id}`,store.params.vehicleStyle)});store.emit('sync');}});});
   design.addEventListener('change',()=>{const next:VehicleStyle={...store.params.vehicleStyle};if(design.value==='none')delete next.livery;else next.livery=design.value as VehicleStyle['livery'];store.set({vehicleStyle:next});});
   number.addEventListener('change',()=>{const n=Math.round(Number(number.value));if(Number.isFinite(n)&&n>=0&&n<100)set('number',n);});
   const fill=()=>{
    const ride=VEHICLE_FOR_CLIP[currentClip],st=store.params.vehicleStyle,bodies=ride?bodiesFor(ride):[],designs=ride?liveriesFor(ride,st):[];
-   model.replaceChildren(...(ride?[new Option(VEHICLE_LABELS[ride],''),...bodies.map(b=>new Option(VEHICLE_BODY_LABELS[b],b))]:[]));model.value=st.body&&bodies.includes(st.body)?st.body:'';modelRow.hidden=!bodies.length;
+   model.replaceChildren(...(ride?vehicleModelChoices(ride).map(c=>new Option(c.label,c.value)):[]));model.value=ride?vehicleModelValue(ride,st):'';modelRow.hidden=!bodies.length&&!(ride&&isCar(ride));importRow.hidden=!(import.meta.env.DEV&&ride&&isCar(ride));
    design.replaceChildren(...designs.map(d=>new Option(VEHICLE_LIVERY_LABELS[d],d)));design.value=st.livery??'none';designRow.hidden=!designs.length;
    number.value=String(st.number??(st.body==='kart'?8:7));numberRow.hidden=!designs.length||st.livery!=='racing';
    deliveryBox.checked=!!st.deliveryBox;deliveryBoxRow.hidden=ride!=='motorcycle'||!!st.body;
   };
-  style.prepend(modelRow);style.append(designRow,numberRow,deliveryBoxRow);store.on('sync',fill);store.on('clip',fill);fill();
+  style.prepend(modelRow,importRow);style.append(designRow,numberRow,deliveryBoxRow);store.on('sync',fill);store.on('clip',fill);fill();
   const show=()=>{visible.checked=store.params.vehicle!=='none';row.hidden=!VEHICLE_FOR_CLIP[currentClip];style.hidden=!VEHICLE_FOR_CLIP[currentClip]||store.params.vehicle==='none';};store.on('sync',show);show();
   const note = el('div', { className: 'hint', textContent: 'Choose a riding or driving animation to add its vehicle automatically. Model swaps in another vehicle for the same rider, such as a danfo or bus for the SUV, a keke or scooter for the motorcycle, or a go-kart for the sports car. Design paints race, police and taxi versions.' });
   return el('div', {}, row,style,note);

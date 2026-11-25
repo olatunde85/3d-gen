@@ -11,7 +11,8 @@ import {buildHelicopter} from './vehicle-helicopter';
 import {buildWatercraft} from './vehicle-water';
 import {buildHorse} from './vehicle-horse';
 import {RiderFit,VehicleKit,v} from './vehicle-kit';
-import {sanitizeVehicleStyle,isCar,bodyFor,type VehicleId,type VehicleStyle} from './vehicles';
+import {sanitizeVehicleStyle,isCar,bodyFor,importedModel,isPassengerClip,type VehicleId,type VehicleStyle} from './vehicles';
+import {buildImportedCar} from './vehicle-imported';
 import type {Rig} from '../rig/rig';
 import type {Animator,Frame,BakedClip} from '../anim/evaluate';
 import {clipById,type Clip} from '../anim/clips';
@@ -29,11 +30,12 @@ export class Vehicle{
  private kit?:VehicleKit;private bicycle?:Bicycle;
  constructor(readonly id:VehicleId,rig:Rig,animator:Animator,readonly clip:Clip,style:VehicleStyle,readonly fitOptions?:{cabinRoof?:number;body?:VehicleBody}){
   const reference=clipById.get(ridingClip(clip.id))!;
-  this.fit=new RiderFit(rig,animator,reference,id);this.lift=this.fit.lift;
+  this.fit=new RiderFit(rig,animator,reference,id,sanitizeVehicleStyle(style));this.lift=this.fit.lift;
   if(id==='bicycle'){this.bicycle=new Bicycle(rig,animator,reference,sanitizeVehicleStyle(style));this.group=this.bicycle.group;this.group.userData.component=true;}
   else{const k=this.kit=new VehicleKit(sanitizeVehicleStyle(style),this.fit);this.group=k.group;
-   const body=fitOptions?.body??bodyFor(id,k.style);
-   if(body){buildBody(k,body);if(body==='saloon'||body==='muscle')articulateDoors(k);}
+   const body=fitOptions?.body??bodyFor(id,k.style),prop=isCar(id)&&!fitOptions?.body?importedModel(id,k.style):undefined;
+   if(prop)buildImportedCar(k,prop,isPassengerClip(reference.id));
+   else if(body){buildBody(k,body);if(body==='saloon'||body==='muscle')articulateDoors(k);}
    else if(isCar(id)){buildCar(k);articulateDoors(k);}else if(id==='jet')buildJet(k);else if(id==='tank')buildTank(k);else if(id==='motorcycle')buildMotorcycle(k);else if(id==='horse')buildHorse(k);else if(id==='helicopter')buildHelicopter(k,fitOptions?.cabinRoof);else buildWatercraft(k);
   }
   mergeVehicleParts(this.group);this.stuntRoot.name='Vehicle_motion';this.stuntRoot.userData.component=true;this.stuntRoot.add(...[...this.group.children]);this.group.add(this.stuntRoot);this.update(0);
