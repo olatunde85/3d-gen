@@ -107,7 +107,7 @@ function nameVrmExpressions(gltf: { parser: { json: Record<string, any>; associa
  * are found by name wherever the model's own paths said they were (often the computer it was made on). `used`
  * collects the names of the ones the model asked for.
  */
-export interface ModelFiles { files?: ReadonlyMap<string, Uint8Array>; used?: Set<string> }
+export interface ModelFiles { files?: ReadonlyMap<string, Uint8Array>; used?: Set<string>; /** Where the model came from: files it names that aren't in `files` are read from beside it. */ base?: string }
 const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', tga: 'image/tga', bmp: 'image/bmp', gif: 'image/gif' };
 /** Whether a file can be one a model uses: an image, a glTF's data, or a Unity material (its colour tint). */
 export const isModelFile = (name: string) => (ext(name) in IMAGE_TYPES) || ext(name) === 'bin' || ext(name) === 'mat';
@@ -116,13 +116,14 @@ export const isModelFile = (name: string) => (ext(name) in IMAGE_TYPES) || ext(n
 async function managerFor(extra: ModelFiles = {}) {
   const { LoadingManager } = await import('three');
   const { TGALoader } = await import('three/examples/jsm/loaders/TGALoader.js');
-  const manager = new LoadingManager(), urls = new Map<string, string>(), files = extra.files;
-  if (files?.size) manager.setURLModifier((url) => {
+  const manager = new LoadingManager(), urls = new Map<string, string>(), files = extra.files ?? new Map<string, Uint8Array>();
+  if (files.size || extra.base) manager.setURLModifier((url) => {
     if (/^(blob|data):/.test(url)) return url;
-    const base = decodeURIComponent(url).split(/[\\/]/).pop()!.toLowerCase(), stem = base.replace(/\.[^.]+$/, '');
+    const named = decodeURIComponent(url).split(/[\\/]/).pop()!, base = named.toLowerCase(), stem = base.replace(/\.[^.]+$/, '');
     // By name; or the same name in another image format (a .tga named, a .png kept).
     const key = files.has(base) ? base : [...files.keys()].find((k) => k.replace(/\.[^.]+$/, '') === stem && ext(k) in IMAGE_TYPES);
-    if (!key) return url;
+    // Otherwise from beside the model (the folder it was read from), whatever folder the model's own path names.
+    if (!key) return extra.base && !/^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? new URL(encodeURIComponent(named), extra.base).href : url;
     extra.used?.add(key);
     let blob = urls.get(key);
     if (!blob) { blob = URL.createObjectURL(new Blob([files.get(key)! as BlobPart], { type: IMAGE_TYPES[ext(key)] ?? 'application/octet-stream' }));urls.set(key, blob); }

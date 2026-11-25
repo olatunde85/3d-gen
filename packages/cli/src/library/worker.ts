@@ -1,7 +1,7 @@
 /** The library's background worker: builds characters off the main thread and sends back GLB bytes. */
-import { generate, libraryAt, type CharacterInput, type GenerateOptions } from './generate';
+import { generate, libraryAt, type CharacterInput, type ConvertedModel, type GenerateOptions } from './generate';
 
-export type WorkerRequest = { id: number; assetsUrl: string; input: CharacterInput; options: GenerateOptions };
+export type WorkerRequest = { id: number; assetsUrl: string; input: CharacterInput | ConvertedModel; options: GenerateOptions };
 export type WorkerReply =
   | { id: number; type: 'progress'; label: string; fraction: number }
   | { id: number; type: 'done'; result: Awaited<ReturnType<typeof generate>> }

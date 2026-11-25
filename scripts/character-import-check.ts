@@ -63,6 +63,9 @@ for (const restPose of ['A', 'T'] as const) {
     assert.ok(Math.abs(imported.report.height - original.height) < 0.03, `height ${imported.report.height} vs ${original.height}`);
     const d = difference(original, imported.character);
     assert.ok(d < 0.005, `${(d * 100).toFixed(1)} cm`);
+    // Its parts share one vertex list in the file: each keeps only its own vertices, so the count stays the same.
+    const verts = (m: { positions: Float32Array }) => m.positions.length / 3;
+    assert.ok(verts(imported.character.mesh) <= verts(original.mesh), `${verts(imported.character.mesh)} vertices from ${verts(original.mesh)}`);
   });
   await check(`the same through FBX (Ara's FBX leaves out fingertip bones, so hands are a little freer)`, async () => {
     const imported = await characterFromFile(await exported(original, 'fbx'), 'hero.fbx', { id: 'fbx' });

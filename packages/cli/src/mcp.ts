@@ -4,12 +4,14 @@
  *
  *   claude mcp add ara3d -- npx -y ara3d mcp
  */
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { AssetLibrary } from '../../../src/core/assets';
-import { buildHuman } from '../../../src/core/human';
+import { buildHuman, type Character } from '../../../src/core/human';
+import { equipCharacter } from '../../../src/core/props/equip';
+import { readModel } from './models';
 import { triangleCount } from '../../../src/core/mesh';
 import { DETAILS, PRESETS, type HumanParams } from '../../../src/core/params';
 import { CLIPS } from '../../../src/core/anim/clips';
@@ -47,7 +49,7 @@ const OUT = process.env.ARA3D_OUT || join(homedir(), 'ara3d-characters');
 const INSTRUCTIONS = `ara3d makes realistic, rigged and animated 3D humans on this machine and can write GLB, FBX or OBJ files.
 create_character returns a builder link and writes no file unless you pass formats. After making a character, ask the user whether they want a file and in which format (GLB for the web, Godot or Blender; FBX for Unity or Unreal; OBJ for a static model; or all of them); pass formats only when they ask for one.
 For a height in centimetres, pass height_cm: Ara sets the height slider to match.
-Start from a preset (list_presets), a random seed, a share link from the Ara builder, or a character you design: call character_schema for every field, then pass { preset, params } to create_character.
+Start from a preset (list_presets), a random seed, a share link from the Ara builder, or a character you design: call character_schema for every field, then pass { preset, params } to create_character. A rigged model from another tool on this machine (GLB, glTF, VRM or FBX, such as a Mixamo character) goes in model: it keeps its own look and takes Ara's animations, packs and props.
 When writing files, choose only the animations needed (list_animations): every clip makes the file bigger and the build slower.
 Each result includes a link that opens the character in the Ara builder, so the user can see it and keep editing.
 Films: call film_guide once with the brief and the set's location. It returns a short quickstart (the format, a worked example, sets, presets and everyday clips) and that set's map; it is enough for most films. Give characters a start point and walk them with "to" points; Ara works out facing, travel and timing. Use hidden for entrances and exits, and builder links from create_character for characters made earlier. Then call create_film: it checks the film as Studio does (including the staging check), saves it and returns a Studio link; fix anything it reports and call it again. Read further film_guide topics only when the film needs them. Never ask the user to export a set's map.
@@ -78,7 +80,7 @@ const TOOLS = [
   },
   {
     name: 'create_character',
-    description: 'Builds a character and returns its height and a link that opens it in the Ara builder (also usable as a film character). Writes 3D files only when formats is given. Give exactly one of preset, random, share_link or character.',
+    description: 'Builds a character and returns its height and a link that opens it in the Ara builder (also usable as a film character). Writes 3D files only when formats is given. Give exactly one of preset, random, share_link, character or model.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -86,6 +88,7 @@ const TOOLS = [
         random: { type: 'integer', minimum: 0, maximum: 1_000_000_000, description: 'A seed for a random character; the same seed always gives the same person.' },
         share_link: { type: 'string', description: 'A share link from the Ara builder (https://ara3dgen.com/app/#c=...).' },
         character: { type: 'object', description: 'A designed character: { "preset": "The Adventurer", "params": { ...changes } }, with fields from character_schema.' },
+        model: { type: 'string', description: 'The path of a rigged character model from another tool on this machine: GLB, glTF, VRM or FBX (Mixamo, Ready Player Me, VRoid, Character Creator and others). It keeps its own look; animations, packs and props go on it, and its textures are found in its folder. Write it with formats.' },
         name: { type: 'string', description: 'A name for the character, used for the file names.' },
         animations: { type: 'array', items: { type: 'string' }, description: 'Clip IDs or categories from list_animations (a pack\'s ID picks all its clips). Leave out for every clip (large files), or pass [] for none.' },
         packs: { type: 'array', items: { type: 'string' }, description: 'Content packs whose animations to add: .ara-pack.json files or https addresses. Their clips are "<pack>/<clip>".' },
@@ -163,8 +166,9 @@ async function heightFor(lib: AssetLibrary, params: HumanParams, metres: number)
 
 /** Builds the character and writes its files; reports progress to the assistant as it goes. */
 async function createCharacter(args: Args, progress: (done: number, message: string) => void) {
-  const sources = (['preset', 'random', 'share_link', 'character'] as const).filter((k) => args[k] !== undefined);
-  if (sources.length !== 1) throw Error('Give exactly one of preset, random, share_link or character.');
+  const sources = (['preset', 'random', 'share_link', 'character', 'model'] as const).filter((k) => args[k] !== undefined);
+  if (sources.length !== 1) throw Error('Give exactly one of preset, random, share_link, character or model.');
+  if (args.model !== undefined) return modelCharacter(args, progress);
   const formats = (args.formats as ExportFormat[] | undefined) ?? [];
   for (const f of formats) if (!FORMATS.includes(f)) throw Error(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
   const packs = (await usePackFiles(Array.isArray(args.packs) ? args.packs.map(String) : [])).map((p) => p.pack.id);
@@ -212,6 +216,44 @@ async function createCharacter(args: Args, progress: (done: number, message: str
     written.length ? `Files:\n  ${written.join('\n  ')}` : 'No files written (link only). Ask the user whether they want a file, and which format: GLB (web, Godot, Blender), FBX (Unity, Unreal), OBJ (static) or all of them.',
     `See it and keep editing in the Ara builder: https://ara3dgen.com/app/#c=${encodeCharacter(params)}`,
     ...(Object.keys(colors).length ? [`Colours that can be changed: ${Object.entries(colors).map(([k, v]) => `${k} ${v}`).join(', ')}`] : []),
+  ].join('\n\n');
+}
+
+/** A model from another tool, with the props asked for, written in the formats asked for. */
+async function modelCharacter(args: Args, progress: (done: number, message: string) => void) {
+  const file = resolve(String(args.model));
+  if (!/\.(glb|gltf|vrm|fbx)$/i.test(file)) throw Error('model: give the path of a GLB, glTF, VRM or FBX file.');
+  if (!existsSync(file)) throw Error(`model: there's no file at ${file}.`);
+  for (const key of ['height_cm', 'colors'] as const) if (args[key] !== undefined) throw Error(`${key} changes Ara's own characters; a model from another tool keeps its own look.`);
+  const formats = (args.formats as ExportFormat[] | undefined) ?? [];
+  for (const f of formats) if (!FORMATS.includes(f)) throw Error(`Unknown format "${f}". Use ${FORMATS.join(', ')}.`);
+  const packs = (await usePackFiles(Array.isArray(args.packs) ? args.packs.map(String) : [])).map((p) => p.pack.id);
+  const clips = clipIds(args.animations === undefined ? 'all' : args.animations as string[], packs);
+  progress(0.05, 'Loading the character data');
+  const lib = await data(), started = performance.now();
+  progress(0.15, `Reading ${file.split(/[\\/]/).pop()}`);
+  const { imported, found } = await readModel(lib, file);
+  const carry = (args.carry as HumanParams['carry'] | undefined) ?? (args.animations !== undefined ? carryForClips(clips) : undefined) ?? 'none';
+  const character: Character = equipCharacter(imported.character, { weapon: (args.weapon as HumanParams['weapon'] | undefined) ?? 'none', carry, vehicle: (args.vehicle as HumanParams['vehicle'] | undefined) ?? 'none' }, lib);
+  if (typeof args.name === 'string' && args.name.trim()) character.params = { ...character.params, name: args.name.trim() };
+  if (args.detail) character.params = { ...character.params, detail: args.detail as HumanParams['detail'] };
+  if (!clips.length) character.params = { ...character.params, animations: false };
+  const out = typeof args.out_dir === 'string' && args.out_dir ? (isAbsolute(args.out_dir) ? args.out_dir : resolve(OUT, args.out_dir)) : OUT, written: string[] = [];
+  if (formats.length) mkdirSync(out, { recursive: true });
+  for (const [i, format] of formats.entries()) {
+    progress(0.35 + (0.6 * i) / formats.length, `Writing ${format.toUpperCase()}`);
+    const settings: ExportSettings = {
+      mode: format === 'obj' ? 'static' : character.params.animations ? 'animated' : 'rigged', format: format === 'zip' ? 'all' : format,
+      clips, packaging: 'embedded', clipMesh: false, rootMotion: !!args.root_motion, loopSuffix: false, weaponFile: 'held', stageProps: false,
+    };
+    const result = await runExport(lib, character, planExport(character, settings)), path = join(out, result.name);
+    writeSafely(path, result.data);written.push(`${path} (${(result.data.length / 1e6).toFixed(1)} MB)`);
+  }
+  return [
+    `Read ${character.params.name}: ${(character.height * 100).toFixed(0)} cm tall, ${imported.report.bones} bones (${imported.report.animated} animated by Ara), ${triangleCount(character.mesh).toLocaleString('en')} triangles${imported.report.faceShapes.length ? `, ${imported.report.faceShapes.length} face shapes` : ''}, in ${((performance.now() - started) / 1000).toFixed(1)} s.${found ? ` ${found[0].toUpperCase()}${found.slice(1)}.` : ''}`,
+    ...(imported.report.notes.length ? [`Notes:\n  ${imported.report.notes.join('\n  ')}`] : []),
+    written.length ? `Files:\n  ${written.join('\n  ')}` : 'No files written. Ask the user which format they want: GLB (web, Godot, Blender), FBX (Unity, Unreal), OBJ (static) or all of them, and call create_character again with formats.',
+    'A model from another tool has no builder link: the user can open the file in the Ara builder with Open character (or drop it on the view) to see it there and use it in Studio.',
   ].join('\n\n');
 }
 

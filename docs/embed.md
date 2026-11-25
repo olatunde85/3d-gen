@@ -22,6 +22,7 @@ Use one of these:
 | `share` | `share="https://ara3dgen.com/app/#c=…"` | A share link from the builder: the character exactly as designed |
 | `random` | `random="42"` | A random character; the same number always gives the same person |
 | `src` | `src="/characters/hero.json"` | A character file: an `ara-character` file (`npx ara3d new hero`) or a `params.json` from an export |
+| `model` | `model="/models/hero.fbx"` | A rigged model from another tool (GLB, glTF, VRM or FBX), with its textures beside it. It keeps its own look and plays Ara's animations, with any weapon, carried item or vehicle; see [Your own characters](import-characters.md). It's converted by a second script, loaded from beside `embed.js` the first time a model is shown |
 
 ## Everything else
 

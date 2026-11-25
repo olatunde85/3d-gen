@@ -9,8 +9,12 @@ import { catalog } from './catalog-plugin.ts';
 export default defineConfig({
   root: import.meta.dirname,
   publicDir: false,
+  // Files the library loads (its model worker) are found beside index.js, wherever it is served from.
+  base: './',
   plugins: [catalog()],
-  worker: { format: 'es' },
+  // One file: the worker starts from a blob address, which can't load parts of itself from beside it (such as the
+  // model readers, which the generator loads only when a model is converted).
+  worker: { format: 'es', rollupOptions: { output: { inlineDynamicImports: true } } },
   build: {
     outDir: resolve(import.meta.dirname, 'dist'),
     emptyOutDir: false,

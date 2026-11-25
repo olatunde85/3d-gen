@@ -2,6 +2,15 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.17.0 — 2026-11-25
+
+- **Your own characters in code:** `createCharacter({ model: '/models/hero.fbx' })` takes a rigged model from another tool (GLB, glTF, VRM or FBX) by its address, as a File or as bytes. It keeps its own look and gets Ara's animations, content packs, weapon, carried item and vehicle. A model given by address finds its textures beside it; a File or bytes take them in `files`. Models are converted in a second worker, `dist/assets/model-worker-*.js`, loaded only when one is used, so pages that never open a model download nothing more. `notes` says what happened on the way in (scaled, turned, textures not found).
+- **The embed:** `<ara-character model="/models/hero.fbx">`.
+- **The MCP server:** `create_character` takes `model`, the path of a model on your computer, with its textures in its folder.
+- **Smaller, faster models:** a model's parts keep only the vertices they use (GLB parts that share one vertex list were copied whole), and FBX files' triangle corners that are alike become one vertex again. A GLB comes out the size it went in, and FBX models have about a third of the vertices, on the command line too.
+- **Smaller assistant guides:** `film_guide` and `character_schema` give the animation, location, garment, sound and music lists as compact tables, and the detail sliders grouped by body part. Nothing is left out.
+- **Staging maps:** vehicle sizes match the current vehicles.
+
 ## 0.16.0 — 2026-11-24
 
 - **Your own characters:** `ara3d export --model hero.fbx` takes a rigged character made in another tool (GLB, glTF, VRM or FBX, such as a Mixamo, Ready Player Me, VRoid or Character Creator character) and bakes Ara's animations and any `--pack` into it. Its skeleton is recognised by its names and shape (Mixamo, Character Creator, Unreal, Daz, VRoid, MMD/CATS and Blender naming, hand-made rigs too), and it's stood up, turned forwards and measured in metres. Textures and Unity material colours beside it are found in its folder. Repeat `--model` for several. See [Your own characters](https://ara3dgen.com/docs/import-characters/).

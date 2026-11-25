@@ -8,7 +8,7 @@ In the builder, **Open character** takes a GLB, glTF, VRM (VRoid and other VRM a
 
 While it opens, the view says what's happening: reading the file, matching the skeleton, preparing the mesh and textures. The character is kept in the browser, so it opens again after a reload, and **Your characters**, under Open character, lists every character imported in this browser to open with one click. Its panel renames it and removes it; **Back to Ara characters** returns to the character builder.
 
-On the command line, `--model` exports one:
+On the command line, `--model` exports one; the [library](library.md) (`createCharacter({ model: 'hero.glb' })`), the [embed](embed.md) (`<ara-character model="hero.glb">`) and the [AI assistant tools](mcp.md) take one too:
 
 ```sh
 npx ara3d export --model hero.fbx --animations locomotion,emotes --formats glb,fbx   # textures and Unity material colours are found in its folder and the ones beside it

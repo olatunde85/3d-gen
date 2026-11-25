@@ -52,7 +52,7 @@ Other apps take the same command: `npx -y ara3d mcp`.
 
 | Tool | |
 |---|---|
-| `create_character` | Builds a character and returns its height and a link that opens it in the builder, which also works as a film character. It writes GLB, FBX, OBJ or ZIP files only when you ask for them; the assistant asks whether you want a file and in which format. Starts from a preset, a random seed, a builder share link, or a character the assistant designs. Takes a height in centimetres, animations, [content packs](packs.md), detail, root motion, a weapon, something to carry, a vehicle and colours |
+| `create_character` | Builds a character and returns its height and a link that opens it in the builder, which also works as a film character. It writes GLB, FBX, OBJ or ZIP files only when you ask for them; the assistant asks whether you want a file and in which format. Starts from a preset, a random seed, a builder share link, a character the assistant designs, or a rigged model from another tool on your computer (a GLB, glTF, VRM or FBX path, with its textures in its folder), which keeps its own look. Takes a height in centimetres, animations, [content packs](packs.md), detail, root motion, a weapon, something to carry, a vehicle and colours |
 | `list_presets` | The 65 preset characters |
 | `list_animations` | The 259 animation clips, searchable, such as "dance" or "rifle", and those of any content packs given |
 | `list_props` | Weapons, carried items, vehicles and expressions |

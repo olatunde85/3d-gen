@@ -1,6 +1,6 @@
 /** ara3d: generate rigged, animated Ara characters from the command line. */
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, existsSync } from 'node:fs';
-import { basename, dirname, join, resolve as resolvePath } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { basename, join, resolve as resolvePath } from 'node:path';
 import { parseArgs } from 'node:util';
 import { buildHuman } from '../../../src/core/human';
 import { triangleCount } from '../../../src/core/mesh';
@@ -13,44 +13,15 @@ import { assistSchema } from '../../../src/studio/assist';
 import { playSchema } from '../../../src/play/schema';
 import { loadLibrary } from './data';
 import { mcpCommand } from './mcp';
-import { nodeLoaders, packCommand, textureBytes, usePackFiles } from './pack';
-import { characterFromFile } from '../../../src/core/characters/model';
-import { isModelFile } from '../../../src/core/packs/build';
+import { packCommand, usePackFiles } from './pack';
+import { readModel } from './models';
 import type { AssetLibrary } from '../../../src/core/assets';
 
-/**
- * Image and data files near a model that it may name: in its folder, the folders inside it, and the folders beside
- * it (Unity packages keep _FBX/ beside Texture/). By lower-case name, the nearest first; at most 400 MB read.
- */
-function filesNear(model: string): Map<string, Uint8Array> {
-  const out = new Map<string, Uint8Array>(), here = dirname(resolvePath(model)), up = dirname(here);
-  let total = 0;
-  const take = (dir: string, deeper: boolean) => {
-    let names: string[];
-    try { names = readdirSync(dir); } catch { return; }
-    for (const name of names) {
-      const path = join(dir, name);
-      let stat;
-      try { stat = statSync(path); } catch { continue; }
-      if (stat.isDirectory()) { if (deeper && !name.startsWith('.')) take(path, false);continue; }
-      const key = name.toLowerCase();
-      if (!isModelFile(name) || out.has(key) || stat.size > 64e6 || total + stat.size > 400e6) continue;
-      out.set(key, new Uint8Array(readFileSync(path)));total += stat.size;
-    }
-  };
-  take(here, true);
-  if (up !== here) take(up, true);
-  return out;
-}
-
 /** A rigged model from another tool as an Ara character, its textures (found near it) registered with the character data. */
-async function modelCharacter(lib: AssetLibrary, file: string, n: number) {
-  nodeLoaders();
+async function modelCharacter(lib: AssetLibrary, file: string) {
   try {
-    const imported = await characterFromFile(new Uint8Array(readFileSync(file)), basename(file), { id: `cli${n}`, encodeTexture: textureBytes, files: filesNear(file) });
-    const found = imported.report.files ?? [], mats = found.filter((f) => f.endsWith('.mat')).length, images = found.length - mats, plural = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`;
-    if (found.length) note(`${basename(file)}: ${[images && plural(images, 'texture'), mats && plural(mats, 'Unity material colour')].filter(Boolean).join(' and ')} found beside it.`);
-    for (const [name, bytes] of imported.textures) lib.registerTexture(name, bytes);
+    const { imported, found } = await readModel(lib, file);
+    if (found) note(`${basename(file)}: ${found}.`);
     for (const line of imported.report.notes) note(`${basename(file)}: ${line}`);
     return imported.character;
   } catch (error) { throw new UserError(`${file}: ${(error as Error).message}`); }
@@ -230,7 +201,7 @@ async function exportCommand(args: string[]) {
     // full disk) stop the run.
     try {
       status(`${prefix}${params.name}: ${params.model ? 'reading the model' : 'building the character'}...`);
-      const character = params.model ? equipCharacter(await modelCharacter(lib, params.model, i), params, lib) : await buildHuman(lib, params);
+      const character = params.model ? equipCharacter(await modelCharacter(lib, params.model), params, lib) : await buildHuman(lib, params);
       if (params.model && params.animations === false) character.params = { ...character.params, animations: false };
       for (const format of formats) {
         status(`${prefix}${params.name}: writing ${format.toUpperCase()}...`);

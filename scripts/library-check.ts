@@ -138,6 +138,15 @@ window.motionTest = async () => {
   hero.dispose();
   return { gaits, walkSpeed: legs.walkSpeed, runSpeed: legs.runSpeed, turn, open, closed, error };
 };
+// A model from another tool: its name, notes, textures, clips and the weapon socket.
+window.modelTest = async (input, options) => {
+  try {
+    const hero = await createCharacter(input, { assetsUrl: '/assets/', detail: 'low', ...options });
+    let maps = 0;hero.scene.traverse((o) => { for (const m of [].concat(o.material ?? [])) if (m.map) maps++; });
+    const result = { name: hero.params.name, height: hero.height, notes: hero.notes, maps, clips: hero.animations.length, aim: !!hero.clip('rifle_aim'), socket: !!hero.scene.getObjectByName('WeaponR'), colors: hero.colors };
+    hero.dispose();return result;
+  } catch (error) { return { error: error.message }; }
+};
 window.ready = true;
 </script></body></html>`;
 
@@ -146,6 +155,20 @@ window.ready = true;
 TextureLoader.prototype.load = function (_url: string, onLoad?: (t: Texture) => void) { const t = new Texture();onLoad?.(t);return t; } as TextureLoader['load'];
 const packLib = await nodeLibrary(), packCharacter = await buildHuman(packLib, { ...DEFAULT_PARAMS, ...PRESETS['The Adventurer'], detail: 'low' });
 const packGlb = await runExport(packLib, packCharacter, planExport(packCharacter, { ...DEFAULT_EXPORT, mode: 'animated', format: 'glb', packaging: 'embedded', clips: ['wave'], stageProps: false }));
+// A rigged character model from another tool (Ara's own export stands in): a GLB, and a .gltf whose data and images are
+// separate files, named with folders from another computer, served from one folder.
+const modelGlb = (await runExport(packLib, packCharacter, planExport(packCharacter, { ...DEFAULT_EXPORT, mode: 'rigged', format: 'glb', packaging: 'embedded', clips: [], stageProps: false }))).data;
+const MODEL_FILES = new Map<string, Uint8Array>([['/models/hero.glb', modelGlb]]);
+{
+  const length = new DataView(modelGlb.buffer, modelGlb.byteOffset).getUint32(12, true), json = JSON.parse(new TextDecoder().decode(modelGlb.subarray(20, 20 + length))), bin = modelGlb.subarray(20 + length + 8);
+  MODEL_FILES.set('/models/split/data.bin', bin);json.buffers = [{ uri: 'C:\\Users\\artist\\export\\data.bin', byteLength: json.buffers[0].byteLength }];
+  (json.images ?? []).forEach((img: { bufferView?: number; uri?: string; mimeType?: string }, i: number) => {
+    const view = json.bufferViews[img.bufferView!], name = `Skin_${i}.${img.mimeType === 'image/jpeg' ? 'jpg' : 'png'}`;
+    MODEL_FILES.set(`/models/split/${name}`, bin.slice(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength));
+    delete img.bufferView;delete img.mimeType;img.uri = `../Textures/${name}`;
+  });
+  MODEL_FILES.set('/models/split/hero.gltf', new TextEncoder().encode(JSON.stringify(json)));
+}
 const PACK = JSON.stringify(await buildPack({ id: 'check-moves', name: 'Check moves', animations: [{ file: 'm.glb', id: 'big_wave', name: 'Big wave', category: 'Emotes' }] }, async () => packGlb.data));
 
 // Only these paths are served.
@@ -156,6 +179,7 @@ const server = createServer((req, res) => {
   const path = decodeURIComponent((req.url ?? '/').split('?')[0]);
   if (path === '/' || path === '/index.html') { res.setHeader('Content-Type', 'text/html');res.end(PAGE);return; }
   if (path === '/packs/check-moves.ara-pack.json') { res.setHeader('Content-Type', 'application/json');res.end(PACK);return; }
+  if (MODEL_FILES.has(path)) { res.setHeader('Content-Type', 'application/octet-stream');res.end(MODEL_FILES.get(path));return; }
   // The first request for the catalogue gets a 503, like a busy CDN: the library has to try again.
   if (path === '/assets/catalog.json' && !refusedOnce) { refusedOnce = true;res.statusCode = 503;res.end();return; }
   const mount = MOUNTS.find(([prefix]) => path.startsWith(prefix)), file = mount && resolve(mount[1], path.slice(mount[0].length));
@@ -236,6 +260,25 @@ try {
     assert.equal(r.name, name === 'random' ? 'random_42' : 'Shared priest');
     await photo(name);console.log(`OK ${name}: ${r.name}, ${r.height.toFixed(2)} m`);
   }
+  // Models from other tools: by address (with a rifle in its hand), as a glTF that finds its textures beside it, and as bytes.
+  const byUrl = await evaluate<any>(`window.run({ model: '/models/hero.glb' }, { animations: ['idle', 'rifle_aim'], weapon: 'rifle', detail: 'low' }, { play: 'rifle_aim', az: 0.6, dist: 4.2 })`);
+  assert.ok(!byUrl.error, `model by address: ${byUrl.error}`);assert.ok(byUrl.clipFound, 'rifle_aim plays on it');assert.equal(byUrl.name, 'hero');
+  assert.ok(Math.abs(byUrl.height - packCharacter.height) < 0.03, `its height (${byUrl.height} vs ${packCharacter.height})`);
+  await photo('model-rifle');console.log(`OK model by address: ${byUrl.name}, ${byUrl.height.toFixed(2)} m, ${byUrl.clips.length} clips, ${(byUrl.glb / 1e6).toFixed(1)} MB`);
+  const armed = await evaluate<any>(`window.modelTest({ model: '/models/hero.glb', name: 'Hero' }, { animations: ['idle', 'rifle_aim'], weapon: 'rifle' })`);
+  assert.ok(!armed.error && armed.aim && armed.socket && armed.name === 'Hero', `model with a rifle: ${JSON.stringify(armed)}`);
+  assert.deepEqual(armed.colors, {}, 'a model keeps its own colours');
+  const split = await evaluate<any>(`window.modelTest({ model: '/models/split/hero.gltf' }, { animations: ['idle'] })`);
+  assert.ok(!split.error, `glTF with its files beside it: ${split.error}`);
+  assert.ok(split.maps > 0 && !split.notes.some((n: string) => /weren't found/.test(n)), `textures found beside it: ${JSON.stringify(split)}`);
+  console.log(`OK glTF with its files beside it: ${split.maps} textured materials, notes: ${split.notes.join(' ') || 'none'}`);
+  const bytes = await evaluate<any>(`(async () => window.modelTest({ model: await (await fetch('/models/hero.glb')).arrayBuffer(), fileName: 'mine.glb', name: 'Mine' }, { animations: ['idle'] }))()`);
+  assert.ok(!bytes.error && bytes.name === 'Mine' && bytes.maps > 0, `model as bytes: ${JSON.stringify(bytes)}`);
+  const unnamed = await evaluate<any>(`(async () => window.modelTest({ model: await (await fetch('/models/hero.glb')).arrayBuffer() }, {}))()`);
+  assert.match(unnamed.error ?? '', /fileName/);
+  const recoloured = await evaluate<any>(`window.modelTest({ model: '/models/hero.glb' }, { colors: { top: '#ffffff' } })`);
+  assert.match(recoloured.error ?? '', /keeps its own look/);
+  console.log('OK model as bytes; without a file name:', unnamed.error, '/ with colors:', recoloured.error);
   const broken = await evaluate<any>(`window.run('https://ara3dgen.com/app/#c=broken', {}, { play: 'idle', az: 0, dist: 4 })`);
   assert.match(broken.error ?? '', /share link could not be read/);console.log('OK broken share link:', broken.error);
   // Faces: an expression, a mouth shape, blinking, and switching blinking off.

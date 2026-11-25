@@ -17,7 +17,7 @@ import CATALOG from 'virtual:ara-catalog';
 import { ANIMATIONS, createCharacter, VEHICLE_CLIPS, type AraCharacter, type Sequence, type CharacterColors, type CharacterInput, type CharacterOptions } from './index';
 
 /** Attributes that change the character itself, so it's rebuilt. */
-const BUILD = ['preset', 'random', 'share', 'src', 'clips', 'packs', 'detail', 'weapon', 'carry', 'vehicle', 'colors', 'assets-url'];
+const BUILD = ['preset', 'random', 'share', 'src', 'model', 'clips', 'packs', 'detail', 'weapon', 'carry', 'vehicle', 'colors', 'assets-url'];
 /** Attributes that apply at once. */
 const LIVE = ['animation', 'expression', 'orbit', 'zoom', 'auto-rotate', 'background', 'margin', 'look-at'];
 
@@ -330,7 +330,9 @@ export class AraCharacterElement extends HTMLElement {
 
   /** What to build, from the attributes. */
   private async input(): Promise<CharacterInput> {
-    const src = this.getAttribute('src'), share = this.getAttribute('share'), random = this.getAttribute('random'), preset = this.getAttribute('preset');
+    const src = this.getAttribute('src'), share = this.getAttribute('share'), random = this.getAttribute('random'), preset = this.getAttribute('preset'), model = this.getAttribute('model');
+    // A rigged model from another tool (GLB, glTF, VRM or FBX): textures it names are found beside it.
+    if (model) return { model: new URL(model, document.baseURI).href };
     if (src) {
       const response = await fetch(new URL(src, document.baseURI));
       if (!response.ok) throw Error(`Could not load ${src} (${response.status}).`);
@@ -369,7 +371,7 @@ export class AraCharacterElement extends HTMLElement {
     // While a new character builds, the loading figure stands in for the old one.
     if (this.character) { this.character.scene.visible = false;for (const p of this.character.props) p.scene.visible = false; }
     // The figure matches who's coming: a preset's own body, otherwise the character being replaced.
-    const preset = this.getAttribute('preset'), coming = this.hasAttribute('src') || this.hasAttribute('share') || this.hasAttribute('random') ? undefined : preset;
+    const preset = this.getAttribute('preset'), coming = this.hasAttribute('model') || this.hasAttribute('src') || this.hasAttribute('share') || this.hasAttribute('random') ? undefined : preset;
     this.figure.dataset.body = coming ? (WOMEN.has(coming) ? 'female' : 'male') : this.character && this.character.params.gender < 0.5 ? 'female' : this.figure.dataset.body ?? 'male';
     this.figure.hidden = false;
     try {

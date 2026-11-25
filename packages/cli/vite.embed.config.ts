@@ -9,8 +9,10 @@ import { catalog } from './catalog-plugin.ts';
 export default defineConfig({
   root: import.meta.dirname,
   publicDir: false,
+  // The model worker, loaded the first time a model is shown, is found beside embed.js wherever it is served from.
+  base: './',
   plugins: [catalog()],
-  worker: { format: 'es' },
+  worker: { format: 'es', rollupOptions: { output: { inlineDynamicImports: true } } },
   build: {
     outDir: resolve(import.meta.dirname, 'dist'),
     emptyOutDir: false,
