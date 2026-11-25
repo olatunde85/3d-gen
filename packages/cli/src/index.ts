@@ -13,7 +13,9 @@
 import { LoopRepeat, NumberKeyframeTrack, type AnimationAction, type AnimationClip, type AnimationMixer, type Group, type Object3D, type Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import AraWorker from './library/worker?worker&inline';
-import type { CharacterInput, Generated, GenerateOptions } from './library/generate';
+import type { CharacterInput as WorkerInput, Generated, GenerateOptions, ModelInput } from './library/generate';
+import type { ModelReply, ModelRequest } from './library/model-worker';
+import type { ImportedCharacter } from '../../../src/core/characters/model';
 import type { CharacterColors } from './library/colors';
 import { parseSteps, type SequenceStep } from './library/sequence';
 import { lipSync, locomotion, lookControls, type LipSync, type LipSyncSource, type Locomotion, type LocomotionOptions, type LookOptions } from './library/motion';
@@ -24,7 +26,30 @@ import DATA from './data-pin.json';
 // Built from the generator's own lists at build time (see vite.lib.config.ts).
 import CATALOG from 'virtual:ara-catalog';
 
-export type { CharacterColors, CharacterInput, GenerateOptions, SequenceStep, LipSync, LipSyncSource, Locomotion, LocomotionOptions, LookOptions };
+export type { CharacterColors, GenerateOptions, SequenceStep, LipSync, LipSyncSource, Locomotion, LocomotionOptions, LookOptions };
+
+/**
+ * A rigged character model from another tool: GLB, glTF, VRM or FBX, such as a Mixamo, Ready Player Me or VRoid
+ * character. It keeps its own look; Ara's animations, packs and props go on it.
+ */
+export interface CharacterModel {
+  /** The model: its address (a relative one is read against the page), its bytes, or a File or Blob. */
+  model: string | ArrayBuffer | Uint8Array | Blob;
+  /** Its file name, which says what kind of file it is (hero.fbx): needed for bytes, and for a Blob that isn't a File. */
+  fileName?: string;
+  /**
+   * Files it names (textures, a glTF's .bin), by name: addresses, bytes or Blobs; or Files, such as a folder from a
+   * file picker. A model read from an address finds the files it names beside it without this.
+   */
+  files?: Record<string, string | ArrayBuffer | Uint8Array | Blob> | readonly File[];
+  /** Its name, used for file names; the file's name by default. */
+  name?: string;
+}
+/**
+ * What to build: a preset name, a share link from the Ara builder, { random: seed }, an "ara-character" object,
+ * character settings (as in a params.json), or a model from another tool ({ model }).
+ */
+export type CharacterInput = string | { random: number; name?: string } | CharacterModel | Record<string, unknown>;
 
 /** Options for playSequence(). */
 export interface SequenceOptions {
@@ -77,6 +102,8 @@ export interface AraCharacter {
   colors: CharacterColors;
   /** Standing height in metres. */
   height: number;
+  /** For a model from another tool, what happened on the way in: scaled, turned to face forward, textures not found. */
+  notes: string[];
   /** The character as a GLB file, for downloading or uploading. */
   glb: Uint8Array;
   /** Changes the facial expression (see EXPRESSIONS), blended by `amount` from 0 to 1. */
@@ -130,9 +157,61 @@ function generator() {
   return worker;
 }
 
-function run(input: CharacterInput, options: CharacterOptions = {}): Promise<Generated> {
+/** A file's bytes, from its address (relative to the page), its bytes or a Blob. */
+async function bytesOf(source: string | ArrayBuffer | Uint8Array | Blob, what: string): Promise<Uint8Array> {
+  if (typeof source === 'string') {
+    const url = new URL(source, globalThis.location?.href), response = await fetch(url).catch(() => undefined);
+    if (!response?.ok) throw Error(`Couldn't load ${what} at ${url}${response ? ` (${response.status})` : ''}.`);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+  if (source instanceof Uint8Array) return source.slice();
+  if (source instanceof ArrayBuffer) return new Uint8Array(source.slice(0));
+  return new Uint8Array(await source.arrayBuffer());
+}
+const isCharacterModel = (input: CharacterInput): input is CharacterModel => typeof input === 'object' && input !== null && 'model' in input;
+/** Reads a model and the files it names, here on the page, for the worker. */
+async function readModel(input: CharacterModel): Promise<ModelInput> {
+  const source = input.model, url = typeof source === 'string' ? new URL(source, globalThis.location?.href) : undefined;
+  const fileName = input.fileName ?? (url ? decodeURIComponent(url.pathname.split('/').pop() ?? '') : (source as Partial<File>).name ?? '');
+  if (!/\.(glb|gltf|vrm|fbx)$/i.test(fileName)) throw Error('Say what kind of model it is with fileName, such as "hero.fbx" (a GLB, glTF, VRM or FBX file).');
+  const given: (readonly [string, string | ArrayBuffer | Uint8Array | Blob])[] = !input.files ? [] : Array.isArray(input.files) ? (input.files as readonly File[]).map((f) => [f.name, f] as const) : Object.entries(input.files);
+  const files = await Promise.all(given.map(async ([name, data]) => [name.split(/[\\/]/).pop()!.toLowerCase(), await bytesOf(data, name)] as [string, Uint8Array]));
+  return { model: { fileName, bytes: await bytesOf(source, fileName), ...(files.length ? { files } : {}), ...(url ? { base: url.href } : {}) }, ...(input.name ? { name: input.name } : {}) };
+}
+
+// Models from other tools are converted in a worker of their own (dist/model-worker.js), started the first time one is
+// opened: the model readers are large, and most pages never need them.
+let modelWorker: Worker | undefined, nextModel = 1;
+const modelJobs = new Map<number, { resolve: (c: ImportedCharacter) => void; reject: (e: Error) => void; progress?: (label: string) => void }>();
+function convert(input: ModelInput, progress?: (label: string) => void): Promise<ImportedCharacter> {
+  if (!modelWorker) {
+    const started = new Worker(new URL('./library/model-worker.ts', import.meta.url), { type: 'module' });
+    started.onmessage = ({ data }: MessageEvent<ModelReply>) => {
+      const job = modelJobs.get(data.id);
+      if (!job) return;
+      if (data.type === 'progress') { job.progress?.(data.label);return; }
+      modelJobs.delete(data.id);
+      if (data.type === 'done') job.resolve(data.result);else job.reject(Error(data.message));
+    };
+    started.onerror = (event) => {
+      const error = Error(`ara3d's model worker (in ara3d's dist/assets folder, next to index.js) failed${event.message ? `: ${event.message}` : ' to start'}.`);
+      for (const job of modelJobs.values()) job.reject(error);
+      modelJobs.clear();started.terminate();modelWorker = undefined;
+    };
+    modelWorker = started;
+  }
+  return new Promise((resolve, reject) => {
+    const id = nextModel++;
+    modelJobs.set(id, { resolve, reject, progress });
+    const request: ModelRequest = { id, input };
+    modelWorker!.postMessage(request, [input.model.bytes.buffer as ArrayBuffer]);
+  });
+}
+
+async function run(input: CharacterInput, options: CharacterOptions = {}): Promise<Generated> {
   // Browsers don't start workers on pages opened straight from disk.
-  if (globalThis.location?.protocol === 'file:') return Promise.reject(Error('This page was opened as a file, and browsers block ara3d there. Open it from a web server instead, such as: npx serve'));
+  if (globalThis.location?.protocol === 'file:') throw Error('This page was opened as a file, and browsers block ara3d there. Open it from a web server instead, such as: npx serve');
+  const ready: WorkerInput | { converted: ImportedCharacter } = isCharacterModel(input) ? { converted: await convert({ ...(await readModel(input)), textureSize: options.detail === 'high' ? 2048 : 1024 }, (label) => options.onProgress?.(label, 0)) } : input as WorkerInput;
   const { assetsUrl = DEFAULT_ASSETS_URL, onProgress, ...rest } = options;
   // Resolve relative URLs against the page, since the worker runs from a blob: address.
   const absolute = new URL(assetsUrl, globalThis.location?.href).href;
@@ -140,7 +219,7 @@ function run(input: CharacterInput, options: CharacterOptions = {}): Promise<Gen
   return new Promise((resolve, reject) => {
     const id = next++;
     pending.set(id, { resolve, reject, progress: onProgress });
-    const request: WorkerRequest = { id, assetsUrl: absolute, input, options: rest };
+    const request: WorkerRequest = { id, assetsUrl: absolute, input: ready, options: rest };
     generator().postMessage(request);
   });
 }
@@ -301,7 +380,8 @@ export async function createCharacterGLB(input: CharacterInput, options?: Charac
 
 /**
  * Builds a character as three.js objects. `input` is a preset name ("The Soldier"), an "ara-character" object
- * ({ preset, params }), or character settings such as a params.json from an export.
+ * ({ preset, params }), character settings such as a params.json from an export, or a rigged model from another
+ * tool ({ model: 'hero.glb' }), which keeps its own look and takes Ara's animations and props.
  */
 export async function createCharacter(input: CharacterInput, options?: CharacterOptions): Promise<AraCharacter> {
   const generated = await run(input, options), loader = new GLTFLoader();
@@ -316,7 +396,7 @@ export async function createCharacter(input: CharacterInput, options?: Character
   const look = lookControls(character.scene);
   let speech: ReturnType<typeof lipSync> | undefined;
   const hero: AraCharacter = {
-    ...character, props, params: generated.params, colors: generated.colors, height: generated.height, glb: main.data,
+    ...character, props, params: generated.params, colors: generated.colors, height: generated.height, notes: generated.notes, glb: main.data,
     clip: (id) => byName.get(generated.clipNames[id] ?? id),
     setExpression: face.setExpression, setMouth: face.setMouth, setFace: face.setFace,
     blinking: true,

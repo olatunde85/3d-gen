@@ -16,12 +16,24 @@ import type { BakedClip } from '../../../../src/core/anim/evaluate';
 import { vehicleStyleForChoice } from '../../../../src/core/props/vehicles';
 import { applyColors, colorsOf, type CharacterColors } from './colors';
 import { carryForClipList, carryNeeded } from '../../../../src/core/props/clip-carry';
+import type { ImportedCharacter } from '../../../../src/core/characters/model';
+import { equipCharacter } from '../../../../src/core/props/equip';
+import type { Character } from '../../../../src/core/human';
 
 /**
  * What to build: a preset name, a share link from the Ara builder, { random: seed }, an "ara-character" object, or
  * character settings (as in a params.json).
  */
-export type CharacterInput = string | { random: number; name?: string } | Record<string, unknown>;
+export type CharacterInput = string | { random: number; name?: string } | ModelInput | Record<string, unknown>;
+/**
+ * A rigged character model from another tool (GLB, glTF, VRM or FBX), read: its bytes and name, the files beside it
+ * (its textures, by lower-case name) and, for a model read from an address, that address (other files it names are
+ * read from beside it).
+ */
+export interface ModelInput { model: { fileName: string; bytes: Uint8Array; files?: [string, Uint8Array][]; base?: string }; name?: string; /** Largest texture size kept, in pixels across (1024 below high detail, as for Ara's characters). */ textureSize?: number }
+/** A model from another tool, converted into an Ara character (see characterFromFile), with its textures. */
+export interface ConvertedModel { converted: ImportedCharacter }
+const isConverted = (input: CharacterInput | ConvertedModel): input is ConvertedModel => typeof input === 'object' && 'converted' in input && !!input.converted;
 
 export interface GenerateOptions {
   /** Clip IDs, groups (such as "locomotion") or pack IDs, "all" (the default: Ara's clips and the packs') or "none". */
@@ -49,6 +61,8 @@ export interface Generated {
   colors: CharacterColors;
   /** Standing height in metres. */
   height: number;
+  /** What happened to a model from another tool on the way in (scaled, turned, textures not found). */
+  notes: string[];
   /** Clip ID -> the animation's name inside the GLB. */
   clipNames: Record<string, string>;
   /**
@@ -161,10 +175,28 @@ export function carryForClips(clips: readonly string[], carry?: string): HumanPa
   return needed ?? (clash ? carryNeeded(clips.find((id) => carryNeeded(id))!) : undefined);
 }
 
-export async function generate(lib: AssetLibrary, input: CharacterInput, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
-  let params = characterParams(lib, input);
+/**
+ * A model from another tool (converted) as an Ara character with the chosen props: its textures join the character
+ * data, so the exporter finds them.
+ */
+export function modelCharacter(lib: AssetLibrary, imported: ImportedCharacter, options: GenerateOptions, carry?: HumanParams['carry']): Character {
+  if (options.colors) throw Error('colors recolour the clothes of Ara characters; a model from another tool keeps its own look.');
+  for (const [name, bytes] of imported.textures) if (!lib.hasTexture(name)) lib.registerTexture(name, bytes);
+  const character = equipCharacter(imported.character, { weapon: options.weapon ?? 'none', carry: carry ?? 'none', vehicle: options.vehicle ?? 'none' }, lib);
+  character.params = { ...character.params, ...(options.detail ? { detail: options.detail } : {}), animations: options.animations !== 'none' };
+  return character;
+}
+
+/** Builds a character, or puts props on a converted model from another tool, and exports it. */
+export async function generate(lib: AssetLibrary, input: CharacterInput | ConvertedModel, options: GenerateOptions = {}, onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
   const clips = clipIds(options.animations, await usePacks(options.packs));
   const needed = Array.isArray(options.animations) ? carryForClips(clips, options.carry) : undefined;
+  const character = isConverted(input) ? modelCharacter(lib, input.converted, options, options.carry ?? needed) : await buildFrom(lib, characterParams(lib, input), options, needed, onProgress);
+  return exportCharacter(lib, character, clips, options, isConverted(input) ? input.converted.report.notes : [], onProgress);
+}
+
+/** An Ara character from its settings and the options. */
+async function buildFrom(lib: AssetLibrary, params: HumanParams, options: GenerateOptions, needed: HumanParams['carry'] | undefined, onProgress?: (label: string, fraction: number) => void): Promise<Character> {
   params = {
     ...params,
     ...(options.detail ? { detail: options.detail } : {}),
@@ -178,7 +210,12 @@ export async function generate(lib: AssetLibrary, input: CharacterInput, options
   onProgress?.('Building the character', 0);
   // Only the body shapes this character uses are downloaded.
   await lib.loadTargets(neededTargets(lib, params));
-  const character = await buildHuman(lib, params);
+  return buildHuman(lib, params);
+}
+
+/** A character as GLB files, with its clips' names and facial movement. */
+async function exportCharacter(lib: AssetLibrary, character: Character, clips: string[], options: GenerateOptions, notes: string[], onProgress?: (label: string, fraction: number) => void): Promise<Generated> {
+  const params = character.params;
   const settings: ExportSettings = {
     mode: !character.rig ? 'static' : params.animations && clips.length ? 'animated' : 'rigged',
     format: 'glb', clips, packaging: 'embedded', clipMesh: false, rootMotion: !!options.rootMotion, loopSuffix: false, weaponFile: 'held', stageProps: false,
@@ -198,5 +235,5 @@ export async function generate(lib: AssetLibrary, input: CharacterInput, options
       .map(([path, data]) => ({ name: path.split('/').pop()!, data, main: !path.includes('/props/') && path.endsWith(`/${own}`) }))
       .sort((a, b) => Number(b.main) - Number(a.main)).map(({ name, data }) => ({ name, data }))
     : [{ name: file.name, data: file.data }];
-  return { files, params, colors: colorsOf(params), height: character.height, clipNames: Object.fromEntries(clips.map((id) => [id, exportClipName(id, settings)])), faces };
+  return { files, params, colors: character.imported ? {} : colorsOf(params), height: character.height, notes, clipNames: Object.fromEntries(clips.map((id) => [id, exportClipName(id, settings)])), faces };
 }

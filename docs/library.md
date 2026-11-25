@@ -45,6 +45,13 @@ It's written in TypeScript and ships its types, so editors autocomplete every op
   await createCharacter({ preset: 'The Bride', params: { name: 'Ada', ageYears: 30 } });
   ```
 - **Character settings:** the `params.json` from any export, or your own values. See the [character schema](https://ara3dgen.com/schemas/character.v1.json) for every field and what it means.
+- **A rigged model from another tool:** a GLB, glTF, VRM or FBX file, such as a Mixamo, Ready Player Me or VRoid character. It keeps its own look, and Ara's animations, [content packs](packs.md), weapon, carried item and vehicle go on it, as in the builder (see [Your own characters](import-characters.md)):
+  ```js
+  await createCharacter({ model: '/models/hero.fbx' }, { animations: ['idle', 'rifle_aim'], weapon: 'rifle' });
+  await createCharacter({ model: file, files: [...folder] }); // a File from an <input type="file">, with the textures picked with it
+  await createCharacter({ model: bytes, fileName: 'hero.glb', name: 'Hero' });
+  ```
+  A model given by its address finds the textures it names beside it. One given as a File or bytes takes them in `files`, as Files or by name: `{ 'skin.png': url }`. Models are converted in a second worker, `dist/assets/model-worker-*.js`, loaded the first time one is used. The `colors` option recolours Ara's clothes, so it doesn't apply to a model.
 
 Unknown fields and out-of-range values are rejected with a message that says what's wrong.
 
@@ -78,6 +85,7 @@ Choose only the clips you need. A character with every clip is about 28 MB and t
 | `params` | The character's full settings. Save them to rebuild the same character later |
 | `colors` | The current colour of each part you can recolour, such as `{ top: '#5b6b3a', bottom: '#5b6b3a' }` |
 | `height` | Standing height in metres |
+| `notes` | For a model from another tool, what happened on the way in: scaled to metres, turned to face forward, textures not found, no face shapes |
 | `glb` | The character as a GLB file, for downloading or uploading |
 | `dispose()` | Frees the GPU memory when you remove the character |
 

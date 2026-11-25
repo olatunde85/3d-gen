@@ -49,7 +49,7 @@ try {
   const LIMIT = 20_000;
   const schemaParts: string[] = [];
   for (let part = 1; part < 10; part++) { const t = (await call('character_schema', { part })).content[0].text;schemaParts.push(t);assert.ok(t.length <= LIMIT, `character_schema part ${part}: ${t.length} characters`);if (!/Continue with/.test(t)) break; }
-  assert.match(schemaParts[0], /"\$schema"/);assert.match(schemaParts.join(''), /Slider IDs with range and meaning: \S+ -?\d/);
+  assert.match(schemaParts[0], /"\$schema"/);assert.match(schemaParts.join(''), /Slider IDs are group\/name; two-way \(-1\.\.1\) unless a range is given\. \w+\/: [\w-]+/);
   assert.equal((await call('character_schema', { part: 99 })).isError, true);
   console.log('OK lists and schema');
 
@@ -69,6 +69,19 @@ try {
   const designed = await call('create_character', { character: { preset: 'The Adventurer', params: { name: 'Desert scout', ageYears: 40 } }, animations: [], detail: 'low' });
   assert.equal(designed.isError, false, designed.content[0].text);assert.match(designed.content[0].text, /Made Desert scout/);
   console.log('OK designed character:', designed.content[0].text.split('\n')[0]);
+  // A model from another tool (the GLB just written stands in for one): a rifle and animations on it, written as GLB.
+  const modelFile = join(out, readdirSync(out).find((f) => f.endsWith('.glb'))!);
+  const model = await call('create_character', { model: modelFile, name: 'Imported hero', weapon: 'rifle', animations: ['idle', 'rifle_aim'], formats: ['glb'], out_dir: 'models' }), modelText = model.content[0].text;
+  assert.equal(model.isError, false, modelText);assert.match(modelText, /^Read Imported hero: \d+ cm tall, \d+ bones/);assert.match(modelText, /has no builder link/);
+  const written = /Files:\n {2}(.+\.glb) \(/.exec(modelText)?.[1];
+  assert.ok(written && existsSync(written), `model written: ${modelText}`);
+  const json = (() => { const d = readFileSync(written!);return JSON.parse(d.subarray(20, 20 + d.readUInt32LE(12)).toString()); })();
+  assert.deepEqual(json.animations.map((a: { name: string }) => a.name).sort(), ['Idle', 'Rifle aim idle'].sort(), 'its animations');
+  assert.ok(json.nodes.some((n: { name?: string }) => n.name === 'WeaponR'), 'the rifle on its WeaponR socket');
+  for (const [args, expected] of [[{ model: join(out, 'nobody.fbx') }, /there's no file/], [{ model: join(out, 'hero.obj') }, /GLB, glTF, VRM or FBX/], [{ model: modelFile, colors: { top: '#ffffff' } }, /keeps its own look/], [{ model: modelFile, preset: 'The Bride' }, /exactly one of/]] as const) {
+    const r = await call('create_character', args);assert.equal(r.isError, true);assert.match(r.content[0].text, expected);
+  }
+  console.log('OK model from another tool:', modelText.split('\n')[0]);
   // Without formats, only the link: no file, and the assistant is told to ask which format the user wants.
   const before = existsSync(out) ? readdirSync(out).length : 0;
   const linkOnly = await call('create_character', { preset: 'Teen', name: 'Linked teen', height_cm: 158 }), linkText = linkOnly.content[0].text;

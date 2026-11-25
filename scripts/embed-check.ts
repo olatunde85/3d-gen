@@ -12,6 +12,10 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
+import { buildHuman } from '../src/core/human';
+import { DEFAULT_PARAMS, PRESETS } from '../src/core/params';
+import { DEFAULT_EXPORT, planExport, runExport } from '../src/export';
+import { nodeLibrary } from './node-assets';
 
 const root = resolve(import.meta.dirname, '..'), out = join(root, 'out/embed');
 if (!existsSync(join(root, 'packages/cli/dist/embed.js'))) throw Error('Build the embed first: npx vite build --config packages/cli/vite.embed.config.ts');
@@ -27,6 +31,9 @@ const PAGE = `<!doctype html><html><head><meta name="viewport" content="width=de
 <ara-character id="broken" preset="Nobody" assets-url="/assets/"></ara-character>
 </body></html>`;
 const HERO = JSON.stringify({ kind: 'ara-character', version: 1, preset: 'The Bride', params: { name: 'Ada' } });
+// A rigged model from another tool, for the model attribute: Ara's own export stands in for one.
+const modelLib = await nodeLibrary(), modelSource = await buildHuman(modelLib, { ...DEFAULT_PARAMS, ...PRESETS['The Adventurer'], detail: 'low' });
+const MODEL = (await runExport(modelLib, modelSource, planExport(modelSource, { ...DEFAULT_EXPORT, mode: 'rigged', format: 'glb', packaging: 'embedded', clips: [], stageProps: false }))).data;
 
 // Only these paths are served.
 const MOUNTS: [string, string][] = [['/ara3d/', join(root, 'packages/cli/dist/')], ['/assets/', join(root, 'public/assets/')]];
@@ -35,6 +42,7 @@ const server = createServer((req, res) => {
   const path = decodeURIComponent((req.url ?? '/').split('?')[0]);
   if (path === '/') { res.setHeader('Content-Type', 'text/html');res.end(PAGE);return; }
   if (path === '/hero.json') { res.setHeader('Content-Type', 'application/json');res.end(HERO);return; }
+  if (path === '/models/hero.glb') { res.setHeader('Content-Type', 'model/gltf-binary');res.end(MODEL);return; }
   const mount = MOUNTS.find(([prefix]) => path.startsWith(prefix)), file = mount && resolve(mount[1], path.slice(mount[0].length));
   if (!mount || !file || !file.startsWith(mount[1]) || !existsSync(file) || statSync(file).isDirectory()) { res.statusCode = 404;res.end();return; }
   res.setHeader('Content-Type', TYPES[extname(file)] ?? 'application/octet-stream');res.end(readFileSync(file));
@@ -107,6 +115,13 @@ try {
   await evaluate("document.getElementById('random').remove()");
   assert.equal(await evaluate("document.getElementById('random') ? 1 : document.querySelectorAll('ara-character').length"), 5);
   console.log('OK removed element');
+  // A model from another tool, with a rifle: its model worker loads beside embed.js.
+  await evaluate(`(()=>{const m=document.createElement('ara-character');m.id='model';for(const [k,v] of [['model','/models/hero.glb'],['weapon','rifle'],['animation','rifle_idle'],['assets-url','/assets/']])m.setAttribute(k,v);document.body.append(m);})()`);
+  await until(`events.some((e)=>e.startsWith('load:model:')||e.startsWith('error:model:'))`, 'the model element');
+  const modelEvent = (await evaluate<string[]>('events')).find((e) => e.includes(':model:'))!;
+  assert.equal(modelEvent, 'load:model:hero', modelEvent);
+  assert.ok(await evaluate<boolean>(`(()=>{const c=document.getElementById('model').character;return !!c.clip('rifle_idle')&&!!c.scene.getObjectByName('WeaponR')})()`), 'rifle_idle and the rifle socket');
+  console.log('OK model attribute: a GLB from another tool, with a rifle');
   await sleep(1200);await photo('page-after');
   console.log(`Embed checks passed. Photos in ${out}`);
 } finally {

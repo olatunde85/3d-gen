@@ -8,6 +8,7 @@
  * Ara doesn't animate (hair, tails, accessories) are kept and follow their parents.
  */
 import { BufferAttribute, DoubleSide, Matrix3, Vector3, type BufferGeometry, type Material as ThreeMaterial, type Mesh, type Object3D, type SkinnedMesh, type Texture } from 'three';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Vec3 } from '../math';
 import type { Character } from '../human';
 import type { Material, MeshData, MeshGroup } from '../mesh';
@@ -225,14 +226,31 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
     const p = new Vector3(), n = new Vector3(), q = new Vector3();
     /** Where a point of the mesh (in its own space) shows in the world: skinned by its bones as displayed. */
     const shown = (i: number, local: Vector3) => (skin ? skin.applyBoneTransform(i, local) : local).applyMatrix4(world);
-    for (let i = 0; i < pos.count; i++) {
+    // Only the vertices its visible triangles use: meshes often share one vertex list, each using a part of it (a
+    // GLB's primitives), and some files carry vertices nothing uses.
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const index = g.getIndex(), count = index ? index.count : pos.count;
+    const ranges = g.groups.length ? g.groups : [{ start: 0, count, materialIndex: 0 }];
+    const kept = new Int32Array(pos.count).fill(-1), order: number[] = [], triangles: [number, number[]][] = [];
+    for (const r of ranges) {
+      const mi = await materialOf(mats[r.materialIndex ?? 0] ?? mats[0]);
+      if (mi < 0) continue;
+      const list: number[] = [];
+      for (let k = r.start; k < Math.min(count, r.start + r.count); k++) {
+        const v = index ? index.getX(k) : k;
+        if (kept[v] < 0) { kept[v] = order.length;order.push(v); }
+        list.push(base + kept[v]);
+      }
+      triangles.push([mi, list]);
+    }
+    const si = g.getAttribute('skinIndex'), sw = g.getAttribute('skinWeight');
+    for (const i of order) {
       shown(i, p.fromBufferAttribute(pos, i));
       positions.push(...place(v3(p)));
       if (nor && skin) { shown(i, q.fromBufferAttribute(pos, i).addScaledVector(n.fromBufferAttribute(nor, i), 0.01));normals.push(...qrot(turn, v3(q.sub(p).normalize()))); }
       else if (nor) { n.fromBufferAttribute(nor, i).applyMatrix3(normalM).normalize();normals.push(...qrot(turn, v3(n))); } else normals.push(0, 1, 0);
       if (uv) uvs.push(uv.getX(i), options.format === 'gltf' ? 1 - uv.getY(i) : uv.getY(i));else uvs.push(0, 0);
       if (skin) {
-        const si = g.getAttribute('skinIndex'), sw = g.getAttribute('skinWeight');
         let total = 0;
         const js: number[] = [], ws: number[] = [];
         for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k), b = skin.skeleton.bones[si.getComponent(i, k)], own = b && same.get(b);js.push(own ? boneIndex.get(own) ?? 0 : 0);ws.push(own ? w : 0);total += own ? w : 0; }
@@ -250,28 +268,23 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
         const attr = targets[t] as BufferAttribute;
         const out = morphs.get(name) ?? new Map<number, Vec3>();
         for (let i = 0; i < attr.count; i++) {
+          if (kept[i] < 0) continue;
           const d = new Vector3().fromBufferAttribute(attr, i);
           if (!g.morphTargetsRelative) d.sub(new Vector3().fromBufferAttribute(pos, i));
           if (d.lengthSq() < 1e-14) continue;
           // The offset as shown: the shape's point and the rest point, both skinned and placed.
           shown(i, rest.fromBufferAttribute(pos, i));shown(i, moved.fromBufferAttribute(pos, i).add(d));
-          out.set(base + i, qrot(turn, v3(moved.sub(rest))));
+          out.set(base + kept[i], qrot(turn, v3(moved.sub(rest))));
         }
         morphs.set(name, out);
       }
     }
     // Triangles, by material.
-    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const index = g.getIndex(), count = index ? index.count : pos.count;
-    const ranges = g.groups.length ? g.groups : [{ start: 0, count, materialIndex: 0 }];
-    for (const r of ranges) {
-      const mi = await materialOf(mats[r.materialIndex ?? 0] ?? mats[0]);
-      if (mi < 0) continue;
-      const list = groups.get(mi) ?? [];
-      for (let k = r.start; k < Math.min(count, r.start + r.count); k++) list.push(base + (index ? index.getX(k) : k));
-      groups.set(mi, list);
-    }
+    for (const [mi, list] of triangles) { const all = groups.get(mi) ?? [];for (const v of list) all.push(v);groups.set(mi, all); }
   }
+  // Meshes without shared vertices (FBX gives every triangle corner its own): corners alike in every way (place,
+  // normal, texture position, weights, face shapes) become one vertex again, keeping seams.
+  for (const m of [...skinned, ...rigid]) if (!m.geometry.index) m.geometry = mergeVertices(m.geometry);
   let done = 0;
   for (const m of skinned) { options.progress?.(`Preparing the mesh and textures (${++done} of ${skinned.length})`);await addMesh(m, m); }
   for (const m of rigid) { let p: Object3D | null = m.parent;while (p && !same.has(p)) p = p.parent;if (p) await addMesh(m);else notes.push(`${m.name || 'A mesh'} isn't attached to the skeleton, so it was left out.`); }
@@ -357,13 +370,13 @@ export async function characterFromModel(root: Object3D, options: ModelOptions):
  * Reads a model file (GLB, glTF, VRM or FBX) and turns it into an Ara character, `id` naming it among imported
  * characters (its textures are registered under that ID).
  */
-export async function characterFromFile(bytes: Uint8Array, fileName: string, options: Omit<ModelOptions, 'format' | 'textureKey' | 'name'> & { id: string; name?: string; /** Files kept beside it, by name (its textures). */ files?: ReadonlyMap<string, Uint8Array> }): Promise<ImportedCharacter> {
+export async function characterFromFile(bytes: Uint8Array, fileName: string, options: Omit<ModelOptions, 'format' | 'textureKey' | 'name'> & { id: string; name?: string; /** Files kept beside it, by name (its textures). */ files?: ReadonlyMap<string, Uint8Array>; /** Its address: textures it names that aren't in `files` are read from beside it. */ base?: string }): Promise<ImportedCharacter> {
   const ext = /\.([a-z0-9]+)$/i.exec(fileName)?.[1].toLowerCase();
   if (ext !== 'glb' && ext !== 'gltf' && ext !== 'vrm' && ext !== 'fbx') throw Error(`${fileName}: open a GLB, glTF, VRM or FBX character.`);
   if (bytes.length > MAX_MODEL_SIZE) throw Error(`${fileName} is larger than ${MAX_MODEL_SIZE / 1e6} MB.`);
   const { readAnimationFile } = await import('../packs/build');
   options.progress?.('Reading the file');
-  const used = new Set<string>(), file = await readAnimationFile(bytes, fileName, { files: options.files, used });
+  const used = new Set<string>(), file = await readAnimationFile(bytes, fileName, { files: options.files, used, ...(options.base ? { base: options.base } : {}) });
   if ('bvh' in file) throw Error(`${fileName}: open a GLB, glTF, VRM or FBX character.`);
   const name = options.name ?? fileName.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
   const unity = options.files ? unityTints(options.files) : undefined;
