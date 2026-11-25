@@ -17,10 +17,11 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `ara3d animations [--pack <file\|address>]` | Lists the 259 animation clips by group, and those of any packs given |
 | `ara3d props` | Lists the weapons, carried items and vehicles |
 | `ara3d new <name> [--preset P]` | Writes a starter character file to edit |
-| `ara3d schema [character\|film\|game\|pack]` | Prints a JSON schema, for editors and AI tools |
+| `ara3d schema [character\|film\|game\|pack\|set]` | Prints a JSON schema, for editors and AI tools |
 | `ara3d pack <folder\|files...>` | Turns animation files (FBX such as Mixamo downloads, GLB, glTF, BVH) into a [content pack](packs.md), `<name>.ara-pack.json`, with names, groups and loops filled in |
 | `ara3d pack check <file\|address>` | Checks a pack and lists its animations |
 | `ara3d pack new <folder>`, `ara3d pack build <folder>` | Write a `pack.json` to set names, groups and other options yourself, then build the pack from it |
+| `ara3d set check <file\|address> [--json]` | Checks an [Ara Studio set file](studio-sets.md) as Studio does when it's imported: its details, what it costs to play against Studio's limits, and its staging map. `--json` prints the details, cost and map |
 | `ara3d --help`, `ara3d --version` | Help and the installed version |
 
 ### Export options
@@ -130,8 +131,9 @@ The schemas are published at [ara3dgen.com/schemas/](https://ara3dgen.com/schema
 - `studio-film.v2.json`: an Ara 3D Studio film
 - `play-game.v2.json`: an Ara Play game (`.ara-play.json`)
 - `pack.v1.json`: a [content pack](packs.md) (`.ara-pack.json`), and `pack-source.v1.json`: the `pack.json` that `ara3d pack build` reads
+- `studio-set.v1.json`: the details inside a [Studio set file](studio-sets.md) (its GLB's `extras.ara_set`)
 
-`ara3d schema character` (or `film`, `game` or `pack`) prints the schema for the installed version, with no network needed after the first run. A file can name its schema in a `"$schema"` field, so editors check it and suggest values as you type.
+`ara3d schema character` (or `film`, `game`, `pack` or `set`) prints the schema for the installed version, with no network needed after the first run. A file can name its schema in a `"$schema"` field, so editors check it and suggest values as you type.
 
 ## Settings
 

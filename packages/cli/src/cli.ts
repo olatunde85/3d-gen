@@ -27,6 +27,8 @@ async function modelCharacter(lib: AssetLibrary, file: string) {
   } catch (error) { throw new UserError(`${file}: ${(error as Error).message}`); }
 }
 import { packSchema } from '../../../src/core/packs/schema';
+import { setSchema } from '../../../src/studio/set-schema';
+import { setCommand } from './set';
 import { carryForClips } from './library/generate';
 import { finish, megabytes, note, result, seconds, status } from './status';
 import { explain, isFatal, removeLeftovers, UserError, writeSafely } from './safety';
@@ -46,9 +48,10 @@ Usage
   ara3d animations                List the animation clips and their groups
   ara3d props                     List the weapons, carried items and vehicles
   ara3d new <name> [--preset P]   Write a starter character file to edit
-  ara3d schema [character|film|game|pack]  Print a JSON schema (for editors and AI tools)
+  ara3d schema [character|film|game|pack|set]  Print a JSON schema (for editors and AI tools)
   ara3d pack new|build|check      Make a content pack from your own animations (FBX from
                                   Mixamo, glTF, BVH), or check one (ara3d pack --help)
+  ara3d set check <file|address>  Check an Ara Studio set file, made in Blender (ara3d set --help)
   ara3d mcp                       Run as an MCP server, so AI assistants can make characters
                                   (Claude Code: claude mcp add ara3d -- npx -y ara3d mcp)
 
@@ -236,7 +239,8 @@ function newCommand(args: string[]) {
 async function schemaCommand(args: string[]) {
   const which = args[0] ?? 'character';
   if (which === 'pack') return console.log(JSON.stringify(packSchema(), null, 2));
-  if (which !== 'character' && which !== 'film' && which !== 'game') throw new UserError('ara3d schema takes character, film, game or pack.');
+  if (which === 'set') return console.log(JSON.stringify({ $id: 'https://ara3dgen.com/schemas/studio-set.v1.json', ...setSchema() }, null, 2));
+  if (which !== 'character' && which !== 'film' && which !== 'game') throw new UserError('ara3d schema takes character, film, game, pack or set.');
   const { catalog } = await loadLibrary();finish();
   console.log(JSON.stringify(which === 'character' ? characterSchema(catalog) : which === 'film' ? assistSchema(catalog) : playSchema(catalog), null, 2));
 }
@@ -249,6 +253,7 @@ async function main(argv: string[]) {
   if (command === 'presets') return console.log(Object.keys(PRESETS).join('\n'));
   if (command === 'animations') return animationsCommand(rest);
   if (command === 'pack') return packCommand(rest);
+  if (command === 'set') return setCommand(rest);
   if (command === 'props') return propsCommand();
   if (command === 'new') return newCommand(rest);
   if (command === 'schema') return schemaCommand(rest);

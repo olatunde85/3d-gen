@@ -24,6 +24,7 @@
       <h1 class="sr-only">Scene editor</h1>
       <label class="sr-only" for="scene-search">Search scenes</label><input id="scene-search" type="search" placeholder="Search 50 scenes…" />
       <label class="sr-only" for="scene-category">Scene category</label><select id="scene-category"><option value="">All locations</option></select>
+      <div class="set-files"><button id="import-set" class="text-button" title="Add a set made with Ara's set builder (a .glb set file). It's kept in this browser.">Import a set…</button><input id="set-file" type="file" accept=".glb,model/gltf-binary" multiple hidden /><button id="remove-set" class="text-button" hidden></button></div>
       <div id="set-list" class="set-list" aria-label="Scene results"></div><p id="scene-empty" hidden>No matching scenes. Try another search.</p>
       <div class="section-heading cast-heading"><span>02 / THE CAST <small id="cast-count">1 / 5</small></span><a id="edit-character" href="../app/" title="Edit this character in Ara 3D Gen">Character builder ↗</a></div>
       <div id="cast-roster" class="cast-roster" aria-label="Characters"></div><div class="cast-actions"><button id="add-actor">+ Add character</button><button id="add-custom-actor" title="Add custom character settings saved from Ara 3D Gen">+ Custom</button><input id="custom-character-file" type="file" accept=".json,application/json" hidden /><button id="remove-actor" hidden>Remove</button></div>

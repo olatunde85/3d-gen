@@ -2,6 +2,12 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.18.0 — 2026-11-25
+
+- **Studio sets made in Blender:** `ara3d set check <file|address>` checks an Ara Studio set file as Studio does when it's imported: its details, what it costs to play against Studio's limits, and its staging map, measured from its geometry. `--json` prints them; `ara3d schema set` prints the schema of a set's details (also at ara3dgen.com/schemas/studio-set.v1.json).
+- **The MCP server:** `film_guide` and `create_film` take `set_files`, set files as paths or https addresses. Their sets join the catalogue with their staging notes and maps, so an assistant plans a film in the set and `create_film` checks it against the set. Its answer says to import the file in Studio; a film whose set isn't given is checked against a plain empty room and says so.
+- **Staging notes in the quickstart:** `film_guide` gives the chosen set's staging note beside its map.
+
 ## 0.17.0 — 2026-11-25
 
 - **Your own characters in code:** `createCharacter({ model: '/models/hero.fbx' })` takes a rigged model from another tool (GLB, glTF, VRM or FBX) by its address, as a File or as bytes. It keeps its own look and gets Ara's animations, content packs, weapon, carried item and vehicle. A model given by address finds its textures beside it; a File or bytes take them in `files`. Models are converted in a second worker, `dist/assets/model-worker-*.js`, loaded only when one is used, so pages that never open a model download nothing more. `notes` says what happened on the way in (scaled, turned, textures not found).

@@ -11,6 +11,7 @@ import { characterFor } from '../app/characters/build';
 import { importedCharacters } from '../app/characters/store';
 import { StudioActor } from './actor';
 import { StudioScene } from './scene';
+import { hasSet, importSetFile, loadedSet, loadSet, removeSet, restoreSets, setDetails, setPreview } from './set-store';
 import { exportMovie, exportFilm, supportsMp4, audioCodec } from './export';
 import { MAX_SCENES, filmDuration, filmJson, historyEntry, parseFilm, readHistoryEntry, sceneLabel, shareFilmSettings, fadeLevel } from './film';
 import { setupScenes } from './scenes-ui';
@@ -18,7 +19,7 @@ import { defaultAudio } from './audio/schema';
 import { CAST, MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, beat, beatId, blankProject, propSpan, durationOf, newProject, parseProject, presetCode, shotAt, timelineAt, trackDuration, type ActorTrack, type Expression, type StudioProject } from './project';
 import { EXPRESSIONS } from '../core/face';
 import { carryNeeded } from '../core/props/clip-carry';
-import { SETS, SCENE_CATEGORIES, sceneById, searchScenes } from './catalog';
+import { SETS, SCENE_CATEGORIES, isMissingSet, onSetsChange, sceneById, searchScenes, type SetId } from './catalog';
 import { animationCategories, searchAnimations, actionNote } from './animations';
 import { orbitControls } from './orbit';
 import {timelineHandles} from './timeline-handles';
@@ -61,6 +62,8 @@ const BASE = import.meta.env.BASE_URL, STORAGE = 'ara.studio.project.v2', HANDOF
 if (import.meta.env.DEV) $<HTMLAnchorElement>('video-licence').href = 'https://github.com/Vanilagy/mediabunny/blob/main/LICENSE';
 const soundtrack=new AudioPlayback();let playToken=0,preparingSound=false;
 const scene = new StudioScene($<HTMLCanvasElement>('film'));
+// An imported set loads in the background: the scene is drawn again when it arrives.
+scene.onSetReady = () => { dirty = true; };
 /** Characters imported in the builder and kept in this browser, for the cast picker. */
 let yours: Awaited<ReturnType<typeof importedCharacters>> = [];
 // A film opens with no character selected: the whole picture shows, without a selection ring.
@@ -206,7 +209,8 @@ function renderScenes() {
     const card = document.createElement('button'); card.className = `set-card scene-card family-${s.family}`; card.dataset.set = s.id; card.style.setProperty('--scene-accent',s.accent);
     card.setAttribute('aria-pressed',String(project.template===s.id));card.classList.toggle('active',project.template===s.id);card.tabIndex=(s.id===project.template||!results.some(r=>r.id===project.template)&&s===results[0])?0:-1;
     const tag=document.createElement('small'),name=document.createElement('strong'),description=document.createElement('span');
-    tag.textContent=`${s.category} · ${s.mood}`;name.textContent=s.name;description.textContent=s.subtitle;card.append(tag,name,description);
+    const preview=setPreview(s.id);if(preview){card.classList.add('has-preview');card.style.backgroundImage=`url("${preview}")`;}
+    const details=setDetails(s.id);tag.textContent=`${details?`${details.author} · `:''}${s.category} · ${s.mood}`;if(details)card.title=`${s.name} ${details.release}, by ${details.author} · ${details.license}`;name.textContent=s.name;description.textContent=s.subtitle;card.append(tag,name,description);
     card.addEventListener('click',()=>void edit(p=>{p.template=s.id;}));$('set-list').append(card);
   }
   if(focused)$('set-list').querySelector<HTMLButtonElement>(`[data-set="${focused}"]`)?.focus({preventScroll:true});
@@ -280,7 +284,7 @@ function renderUI() {
   if(!characterSelected){cameraSelection=true;clickToPlace=false;button('place-actor').setAttribute('aria-pressed','false');button('place-actor').textContent='Click to place';$('film').classList.remove('click-placement');}
   const a=actorTrack(), ai=project.actors.indexOf(a), items=cameraSelection?project.shots:a.beats;
   selected=Math.max(0,Math.min(selected,items.length-1));
-  scene.selectionId=characterSelected?selectedActor:undefined;$('scene-name').textContent=(scenes.length>1?`Scene ${sceneIndex+1} · `:'')+sceneById.get(project.template)!.name;renderScenes();
+  scene.selectionId=characterSelected?selectedActor:undefined;$('scene-name').textContent=(scenes.length>1?`Scene ${sceneIndex+1} · `:'')+sceneById.get(project.template)!.name;renderScenes();renderSetFiles();
   $('cast-roster').replaceChildren();for(const [i,actor]of project.actors.entries()){
     const b=document.createElement('button');b.className='cast-member';b.setAttribute('aria-pressed',String(characterSelected&&actor.id===selectedActor));b.textContent=`${i+1} · ${actorName(actor)}`;
     b.addEventListener('click',()=>{characterSelected=true;selectedActor=actor.id;cameraSelection=false;selected=0;renderUI();$('film').focus({preventScroll:true});});$('cast-roster').append(b);
@@ -382,6 +386,9 @@ async function apply(next: StudioProject, keepHistory=true) {
   if(loading||exporting)return false;
   let valid:StudioProject;try{valid=parseProject(JSON.stringify(next));}catch(e){notify((e as Error).message);renderUI();return false;}
   let applied=true;
+  // An imported set is loaded before its scene shows, so seats and staging use it at once.
+  if(valid.template!==project.template)announceMissingSet(valid.template);
+  if(hasSet(valid.template)&&!loadedSet(valid.template)){loading=true;renderUI();try{await loadSet(valid.template);}catch(e){loading=false;notify(`That set couldn't load: ${(e as Error).message}`);renderUI();return false;}loading=false;}
   const previous=project;if(keepHistory)remember();project=valid;soundtrack.invalidate();time=Math.min(time,durationOf(project));setPlaying(false);
   if(needsBuild()){loading=true;renderUI();try{await syncActors();}catch(e){applied=false;project=previous;if(keepHistory)history.pop();notify(`Character unchanged: ${(e as Error).message}`);}finally{loading=false;}}
   if(applied)seatCharacters(true);
@@ -452,7 +459,39 @@ const timeline=timelineHandles(document.querySelector<HTMLElement>('.timeline-sc
 });
 input('scene-search').placeholder=`Search ${SETS.length} scenes…`;input('animation-search').placeholder='Search…';
 for(const c of SCENE_CATEGORIES)select('scene-category').append(new Option(c,c));
-input('scene-search').addEventListener('input',renderScenes);select('scene-category').addEventListener('change',renderScenes);
+input('scene-search').addEventListener('input',renderScenes);
+onSetsChange(()=>{input('scene-search').placeholder=`Search ${SETS.length} scenes…`;renderScenes();renderSetFiles();});
+/** Shows the set import row: and, when the film's set is imported, a way to remove it. */
+function renderSetFiles(){const id=project.template,ours=hasSet(id);button('remove-set').hidden=!ours;if(ours)button('remove-set').textContent=`Remove “${sceneById.get(id)!.name}”`;}
+/** Says when the film's set isn't in this browser (it was imported elsewhere, or removed). */
+function announceMissingSet(id:SetId){if(isMissingSet(id))notify(`This film uses the set “${sceneById.get(id)!.name}” (${id}), which isn't in this browser. Import its set file to see it.`);}
+async function importSets(files:readonly File[]){
+  const sets=files.filter(f=>/\.glb$/i.test(f.name));
+  if(!sets.length){notify('Choose a set file (.glb) to import.');return;}
+  if(loading||exporting||importing)return;
+  importing=true;lock();
+  try{
+    for(const file of sets){
+      notify(`Importing ${file.name}…`);
+      const set=await importSetFile(file);scene.invalidateSet(set.id);
+      await edit(p=>{p.template=set.id;});
+      $('set-list').querySelector(`[data-set="${set.id}"]`)?.scrollIntoView({block:'nearest'});
+      notify(set.replaced?`Updated “${set.name}” to ${set.release}.`:`Imported “${set.name}” ${set.release} by ${set.author}. It's kept in this browser.`);
+    }
+  }catch(e){notify((e as Error).message);}
+  finally{importing=false;renderUI();}
+}
+button('import-set').addEventListener('click',()=>input('set-file').click());
+input('set-file').addEventListener('change',()=>{const files=[...input('set-file').files??[]];input('set-file').value='';void importSets(files);});
+button('remove-set').addEventListener('click',async()=>{
+  const id=project.template,name=sceneById.get(id)?.name;if(!hasSet(id)||!confirm(`Remove the set “${name}” from this browser? Films that use it keep it, and show a plain stage until you import it again.`))return;
+  await removeSet(id);scene.invalidateSet(id);dirty=true;renderUI();notify(`Removed “${name}”.`);
+});
+// A set file dropped on the set list imports it.
+const library=document.querySelector<HTMLElement>('.library')!;
+library.addEventListener('dragover',e=>{if(e.dataTransfer?.types.includes('Files')){e.preventDefault();library.classList.add('dropping');}});
+library.addEventListener('dragleave',e=>{if(!library.contains(e.relatedTarget as Node))library.classList.remove('dropping');});
+library.addEventListener('drop',e=>{library.classList.remove('dropping');if(!e.dataTransfer?.files.length)return;e.preventDefault();void importSets([...e.dataTransfer.files]);});select('scene-category').addEventListener('change',renderScenes);
 $('set-list').addEventListener('keydown',e=>{if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const cards=[...$('set-list').querySelectorAll<HTMLButtonElement>('button')];const at=cards.indexOf(document.activeElement as HTMLButtonElement),to=e.key==='Home'?0:e.key==='End'?cards.length-1:Math.max(0,Math.min(cards.length-1,at+(['ArrowUp','ArrowLeft'].includes(e.key)?-1:1)));cards.forEach((b,i)=>b.tabIndex=i===to?0:-1);cards[to]?.focus();});
 select('timeline-selection').addEventListener('change',()=>{const [id,index]=select('timeline-selection').value.split(':');cameraSelection=id==='camera';if(!cameraSelection)selectedActor=id;characterSelected=!cameraSelection;selected=Number(index);const items=cameraSelection?project.shots:actorTrack().beats;time=items.slice(0,selected).reduce((sum,b)=>sum+b.duration,0);setPlaying(false);renderUI();});
 /** The category menu: Ara's groups, then one per content pack (kept when the chosen one is still there). */
@@ -783,8 +822,8 @@ window.addEventListener('beforeunload', (e) => { saveSession();if (exporting) { 
 async function start() {
   const hash=new URLSearchParams(location.hash.slice(1)),code=hash.get('c');
   let recovered:ReturnType<typeof readEditorSession>,resume:EditorState|undefined,acceptedLink=false,returned=false;
-  // Content packs first: the saved film, and one returning from the builder, may use their animations.
-  await restorePacks();
+  // Content packs and imported sets first: the saved film, and one returning from the builder, may use them.
+  await Promise.all([restorePacks(),restoreSets()]);
   for(const saved of [()=>JSON.parse(localStorage.getItem(SESSION_KEY)||'null')?.film,()=>localStorage.getItem(STORAGE),()=>JSON.parse(sessionStorage.getItem(HANDOFF)||'null')?.film])
     try{const film=saved();if(film)await preparePacks(film);}catch{ /* A pack that can't load is reported when the film opens. */ }
   try{recovered=readEditorSession(localStorage.getItem(SESSION_KEY));}catch{ /* Storage may be unavailable. */ }
@@ -812,7 +851,7 @@ async function start() {
   }catch(e){notify((e as Error).message);try{recover();}catch{ /* Keep the default project if saved data is invalid. */ }}
   renderUI();
   try{
-    const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);await syncActors();seatCharacters(false);loading=false;renderUI();
+    const assets=new URL(`${BASE}assets/`,location.href).href;lib=await new AssetLibrary(fetchSource(assets)).initCatalog();engine=new Engine(lib,assets);if(hasSet(project.template))await loadSet(project.template).catch(e=>notify((e as Error).message));else announceMissingSet(project.template);await syncActors();seatCharacters(false);loading=false;renderUI();
     // A link can carry a film (#film=…, or #src= for a hosted file): it opens like a file from disk.
     if(hasLinkedFile(location.hash,'film')){try{const text=await linkedFile(location.hash,'film');if(text&&await importStudioProject(text)){clearLinkedFile('film');notify('Opened the film from the link.');}}catch(e){notify((e as Error).message);}}
     if(resume){
@@ -831,6 +870,6 @@ async function start() {
 function historyReplaceHash(hash:string){const url=new URL(location.href);url.hash=hash;window.history.replaceState(window.history.state,'',url);}
 
 void start();
-if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&!importing&&scene.actors.size===project.actors.length;},exportMovie,exportFilm,supportsMp4,setProject:apply,get film(){return film();},get sceneIndex(){return sceneIndex;},setFilm:applyFilm,showScene,sets:SETS,audio:{playback:soundtrack,editor:soundEditor}}});
+if(new URLSearchParams(location.hash.slice(1)).has('demo'))Object.assign(window,{studio:{scene,importSet:importSetFile,get project(){return project;},seek:(t:number)=>{time=t;dirty=true;setPlaying(false);},get ready(){return !loading&&!importing&&scene.actors.size===project.actors.length;},exportMovie,exportFilm,supportsMp4,setProject:apply,get film(){return film();},get sceneIndex(){return sceneIndex;},setFilm:applyFilm,showScene,sets:SETS,audio:{playback:soundtrack,editor:soundEditor}}});
 
 input('beat-weapon-pitch').addEventListener('change',()=>void edit(p=>{p.actors.find(a=>a.id===selectedActor)!.beats[selected].weaponPitch=Number(input('beat-weapon-pitch').value);}));

@@ -11,7 +11,8 @@ import { mountAskAra } from '../app/keys/chat';
 import { peekFilm } from '../app/keys/peek';
 import type { Catalog } from '../core/assets';
 import type { StudioProject } from './project';
-import {SETS,type SetId} from './catalog';
+import {SETS,isImportedSet,type SetId} from './catalog';
+import {setPreview} from './set-store';
 import {locationMapFile,allLocationMapsFile} from './spatial-maps';
 import {stagingReport,type SpatialBody,type StagingReport} from './spatial-report';
 
@@ -25,6 +26,8 @@ interface AssistEditor {
   update(project: StudioProject): Promise<boolean>;
 }
 
+/** A set's picture for Assist: Studio's own from the site, an imported set's from its file (if it has one). */
+const picture=(id:SetId,kind:'thumbs'|'previews')=>isImportedSet(id)?setPreview(id)??'':`${import.meta.env.BASE_URL}studio-location-${kind}/${id}.webp`;
 const SKIP = new Set(['the', 'and', 'with', 'city', 'night', 'day', 'small', 'big', 'old', 'new', 'room', 'area', 'place']);
 /** Locations a message names (other than the open one), best match first: "rooftop" finds City rooftop and Rooftop bar. */
 export function mentionedLocations(text: string, open: string): string[] {
@@ -56,11 +59,11 @@ export function setupAssist(editor: AssistEditor) {
     contextLabel: 'Start from my current film (to revise it)',
     guideFile: 'ara-studio-llm-guide.txt',
     guide: (brief, current, location) => generateAssistGuide(editor.catalog(), brief, current ? editor.project() : undefined,location as SetId|undefined,current?filmContext():undefined,voices),
-    reference:{label:'Location for this film',choices:SETS.map(s=>({id:s.id,name:s.name,category:s.category,description:s.subtitle,tags:s.tags,thumbnail:import.meta.env.BASE_URL+'studio-location-thumbs/'+s.id+'.webp',preview:import.meta.env.BASE_URL+'studio-location-previews/'+s.id+'.webp'})),current:()=>editor.project().template,
+    reference:{label:'Location for this film',get choices(){return SETS.map(s=>({id:s.id,name:s.name,category:s.category,description:s.subtitle,tags:s.tags,thumbnail:picture(s.id,'thumbs'),preview:picture(s.id,'previews')}));},current:()=>editor.project().template,
       file:id=>({name:`ara-studio-${id}-map.json`,text:JSON.stringify(locationMapFile(id as SetId),null,2)}),all:{name:'ara-studio-all-location-maps.json',text:()=>JSON.stringify(allLocationMapsFile())}},
     parse: json => parseStudioInput(json, editor.catalog()),
     describe: describeAssistProject,
-    picture: project => `${import.meta.env.BASE_URL}studio-location-previews/${project.template}.webp`,
+    picture: project => picture(project.template,'previews'),
     revisionContext:project=>JSON.stringify(locationMapFile(project.template)),
     example: assistExample,
     examples: ASSIST_EXAMPLES,

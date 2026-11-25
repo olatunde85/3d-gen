@@ -58,9 +58,10 @@ const assisted=customFilmFixture(),generated=parseStudioInput(JSON.stringify(ass
 assert.equal(generated.template,'resort-pool');assert.equal(generated.actors.length,2);assert.equal(durationOf(generated),9);
 assert.equal(decodeCharacter(generated.actors[0].character,'medium')!.carry,'briefcase');assert.equal(decodeCharacter(generated.actors[1].character,'medium')!.carry,'backpack');
 assert.deepEqual(parseStudioInput(JSON.stringify(generated)),generated);assert.deepEqual(parseStudioInput('```json\n'+JSON.stringify(assisted)+'\n```'),generated);assert.deepEqual(parseStudioInput(JSON.stringify(legacy)),migrated);
-for(const name of Object.keys(PRESETS)){const input=structuredClone(assisted);input.actors[0].preset=name;delete (input.actors[0] as {params?:unknown}).params;const film=parseStudioInput(JSON.stringify(input));assert.equal(decodeCharacter(film.actors[0].character,'medium')!.name,name);}
+for(const name of Object.keys(PRESETS)){const input=structuredClone(assisted);(input.actors[0] as {preset?:string}).preset=name;delete (input.actors[0] as {params?:unknown}).params;const film=parseStudioInput(JSON.stringify(input));assert.equal(decodeCharacter(film.actors[0].character,'medium')!.name,name);}
 const guide=generateAssistGuide(catalog,'Keep two actors talking.',generated),schema=assistSchema(catalog);
-for(const scene of SETS)assert.ok(guide.includes('"'+scene.id+'"'));for(const clip of CLIPS)assert.ok(guide.includes('"'+clip.id+'"'));
+// The catalogues are tables: one row per set and per clip, starting with its ID.
+for(const scene of SETS)assert.ok(guide.includes('\n'+scene.id+' | '),scene.id);for(const clip of CLIPS)assert.ok(guide.includes('\n'+clip.id+' | '),clip.id);
 for(const preset of Object.keys(PRESETS))assert.ok(guide.includes(preset));assert.ok(guide.includes(JSON.stringify(projectForAssist(generated),null,2)));assert.ok(guide.includes('Keep two actors talking.'));
 assert.equal(schema.properties.actors.maxItems,5);assert.deepEqual(schema.properties.template.enum,SETS.map(s=>s.id));assert.ok(guide.length<250_000);
 assert.ok(!generateAssistGuide(catalog).includes('CURRENT FILM —'));

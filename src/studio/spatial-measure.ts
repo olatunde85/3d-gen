@@ -1,8 +1,11 @@
-/** Extract before material batching: the map is measured from the very same set recipes. */
+/**
+ * A set's staging map, measured from its geometry: Studio's own sets by build-studio-maps (before material batching),
+ * imported sets when their file is imported.
+ */
 import * as T from 'three';
-import type {StudioSet} from '../src/studio/sets';
-import {isOutdoorScene,type SetId} from '../src/studio/catalog';
-import type {LocationMap,Rect,SpatialObstacle,SpatialRegion} from '../src/studio/spatial-types';
+import type {StudioSet} from './sets';
+import {isOutdoorScene,type SetId} from './catalog';
+import type {LocationMap,Rect,SpatialObstacle,SpatialRegion} from './spatial-types';
 const round=(n:number)=>Math.round(n*1000)/1000;
 const rect=(b:{minX:number;minZ:number;maxX:number;maxZ:number}):Rect=>[b.minX,b.minZ,b.maxX,b.maxZ];
 const area=(r:Rect)=>(r[2]-r[0])*(r[3]-r[1]);

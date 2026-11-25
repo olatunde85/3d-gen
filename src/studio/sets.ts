@@ -1,11 +1,13 @@
 /** Lazy set recipes share original geometry and release resources when the location changes. */
 import * as THREE from 'three';
-import { sceneById,isOutdoorScene, type SetId, type SceneDefinition } from './catalog';
+import { sceneById,isImportedSet,isOutdoorScene, type SetId, type SceneDefinition } from './catalog';
 import {extendOutdoor} from './sets/outdoor-extension';
 import {STORY_SETS} from './sets/story';
 import { SetBuilder, type Seat } from './sets/builder';
 import { createOriginalSet } from './sets/original';
-export interface StudioSet { group: THREE.Group; background: string; floor: string; key: string; fill: string; exposure: number; seats: Seat[] }
+import type { Baked } from './set-files';
+import { loadedSet } from './set-store';
+export interface StudioSet { group: THREE.Group; background: string; floor: string; key: string; fill: string; exposure: number; seats: Seat[]; /** An imported set's baked lighting (see set-files.ts). */ baked?: Baked }
 export type { Seat };
 const HALF_TURN = Math.PI, LEFT = Math.PI / 2, RIGHT = -Math.PI / 2;
 function office(b: SetBuilder, s: SceneDefinition) {
@@ -222,6 +224,8 @@ function studio(b: SetBuilder, s: SceneDefinition) {
   else if (s.id === 'black-box') { for (const x of [-4, 4]) for (const z of [-4, 0, 4]) { const light = b.box([0.05, 2.8, 0.05], [x, 1.4, z], '#d0b68c'); light.material = b.material('#d0b68c', 0.7, 0, 1); } }
 }
 export function createSet(id: SetId, options:{compact?:boolean}={}): StudioSet {
+  // Imported sets are files, loaded first (see set-store's loadSet); Studio's own are built in code.
+  if (isImportedSet(id)) { const set = loadedSet(id); if (!set) throw Error(`The ${id} set hasn't loaded yet.`); return set; }
   if (id === 'portrait' || id === 'runway' || id === 'courtyard') {
     const set=createOriginalSet(id);if(id==='courtyard'){const b=new SetBuilder('sunset');extendOutdoor(b,sceneById.get(id)!);if(options.compact!==false)b.compact();set.group.add(b.group);set.group.userData.performanceBounds=b.group.userData.performanceBounds;set.group.userData.spatialRegions=b.group.userData.spatialRegions;}return set;
   }
@@ -241,5 +245,7 @@ export function disposeSet(group: THREE.Group) {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
   group.traverse(o => { const m = o as THREE.Mesh; if (!m.isMesh) return; geometries.add(m.geometry);
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) { materials.add(mat); for (const value of Object.values(mat)) if (value instanceof THREE.Texture) textures.add(value); } });
+  // Freed on the GPU. An imported set keeps its model and lightmaps in memory (three uploads them again if it comes
+  // back), so returning to it doesn't read its file again.
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); group.removeFromParent();
 }

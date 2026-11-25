@@ -24,3 +24,9 @@ publish/.wrangler/
 
 # Copied from public/assets by npm run release-cli
 packages/data/assets/
+
+# Studio sets: downloaded CC0 sources, and the baked set files (plug-in data, kept off the repository)
+studio-sets/.cache/
+studio-sets/out/
+studio-sets/**/__pycache__/
+studio-sets/**/*.zip
