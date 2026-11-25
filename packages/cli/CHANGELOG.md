@@ -2,6 +2,10 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.18.1 — 2026-11-25
+
+- **BVH files built lying down:** some exporters build the skeleton along Z and stand it up with the hips' rotation. `ara3d pack` (and Add animations in the apps) turned such a recording a second time, so the character lay on its back; it now plays upright, facing forward as it starts. Mixamo, CMU and other files whose skeleton stands are converted as before.
+
 ## 0.18.0 — 2026-11-25
 
 - **Studio sets made in Blender:** `ara3d set check <file|address>` checks an Ara Studio set file as Studio does when it's imported: its details, what it costs to play against Studio's limits, and its staging map, measured from its geometry. `--json` prints them; `ara3d schema set` prints the schema of a set's details (also at ara3dgen.com/schemas/studio-set.v1.json).
