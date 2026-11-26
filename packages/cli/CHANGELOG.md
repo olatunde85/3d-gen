@@ -2,6 +2,15 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.19.0 — 2026-11-26
+
+- **Moves danced upside down:** a headspin, handstand or any move whose feet never touch the ground stood on its feet in the air, so the body sank through the floor. `ara3d pack` (and Add animations in the apps) and the library now find the floor from the lowest point of the body, the crown of the head included. Ara's own animations play exactly as before.
+- **Poses:** a file with a single still frame, such as a pose downloaded from Mixamo, becomes a stance in a content pack that holds and loops. A frame that only stands in the skeleton's rest pose (a character file in a T-pose) is still left out.
+- **Your own characters:** limbs aim along their own chain, so a VRoid model's skirt joints no longer cross its legs in walks and runs.
+- **FBX export:** fast turns stay smooth. Rotations could flip between equivalent angles from one key to the next, and a helicopter's blades drifted up to 14 cm.
+- **Old FBX files:** an FBX 6 file (2010 or earlier) says to re-export it as FBX 7 or GLB, instead of failing to read.
+- **Films:** text cues take two new styles, `caption` (a headline on a dark band with an accent bar, sliding in from the nearer side, with a detail line under it) and `title` (a title card: headline, tagline and accent lines over a soft glow), and sizes up to 144. `film_guide` describes them.
+
 ## 0.18.1 — 2026-11-25
 
 - **BVH files built lying down:** some exporters build the skeleton along Z and stand it up with the hips' rotation. `ara3d pack` (and Add animations in the apps) turned such a recording a second time, so the character lay on its back; it now plays upright, facing forward as it starts. Mixamo, CMU and other files whose skeleton stands are converted as before.
