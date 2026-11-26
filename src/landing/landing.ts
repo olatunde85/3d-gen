@@ -59,11 +59,12 @@ for (const reel of reels) {
   }
 }
 
-// Sections rise into place once; grids follow one card after another.
+// Sections rise into place once, starting a little before they scroll into view so they are there by the time
+// you reach them; grids follow one card after another.
 document.querySelectorAll<HTMLElement>('.stagger').forEach((grid) => [...grid.children].forEach((c, i) => (c as HTMLElement).style.setProperty('--i', String(i))));
 const reveal = new IntersectionObserver((entries) => {
   for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); reveal.unobserve(e.target); }
-}, { rootMargin: '0px 0px -8% 0px' });
+}, { rootMargin: '0px 0px 12% 0px' });
 document.querySelectorAll('.reveal, .stagger').forEach((el) => reveal.observe(el));
 
 // Numbers count up the first time they are seen.

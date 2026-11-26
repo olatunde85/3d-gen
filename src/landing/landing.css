@@ -253,6 +253,27 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
 .tools { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 28px; margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--line); }
 .tools > span { color: var(--faint); font: 500 12.5px var(--mono); }
 .tools ul { display: flex; flex-wrap: wrap; gap: 10px 28px; margin: 0; padding: 0; list-style: none; color: var(--muted); font: 600 16px var(--display); letter-spacing: -0.01em; }
+.tools li { display: inline-flex; align-items: center; gap: 9px; }
+.tools .logo { width: 20px; height: 20px; }
+
+/* Brand marks: single-colour logos (Simple Icons, CC0) tinted like the text around them. */
+.logo { display: inline-block; flex: none; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
+
+/* The platforms Ara takes characters, animations, sets, AI and voices from, large; names without a logo set in type. */
+.logo-wall { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px 24px; margin: clamp(36px, 4vw, 48px) 0 0; padding: 26px 0; list-style: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font: 650 19px/1 var(--display); letter-spacing: -0.02em; }
+.logo-wall li { display: inline-flex; align-items: center; gap: 11px; }
+.logo-wall .logo { width: 26px; height: 26px; color: var(--text); }
+@media (max-width: 560px) { .logo-wall { justify-content: flex-start; gap: 16px 26px; font-size: 17px; } .logo-wall .logo { width: 22px; height: 22px; } }
+
+/* Bring your own: one card per kind of thing you bring, with the tools and formats it takes. */
+.bring { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: clamp(40px, 5vw, 56px); }
+.bring article { display: flex; flex-direction: column; gap: 14px; padding: 24px 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-2); }
+.bring h3 { margin: 0; font: 600 19px/1.2 var(--display); letter-spacing: -0.015em; }
+.bring p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
+.bring .more { margin-top: auto; padding-top: 6px; }
+.marks { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.marks li { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--text); font: 550 13px/1 var(--sans); }
+.marks .fmt { color: var(--muted); font: 500 12px/1 var(--mono); letter-spacing: 0.02em; border-style: dashed; }
 
 /* --- Get started --- */
 .start {
@@ -282,9 +303,9 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
 .footer-credits { flex-basis: 100%; padding-top: 24px; border-top: 1px solid var(--line); font-size: 13px; }
 
 /* --- Scroll reveals (only when the script runs, so nothing stays hidden without it) --- */
-.js .reveal, .js .stagger > * { opacity: 0; transform: translateY(14px); transition: opacity 0.7s cubic-bezier(.2, .7, .2, 1), transform 0.7s cubic-bezier(.2, .7, .2, 1); }
+.js .reveal, .js .stagger > * { opacity: 0; transform: translateY(8px); transition: opacity 0.4s cubic-bezier(.2, .7, .2, 1), transform 0.4s cubic-bezier(.2, .7, .2, 1); }
 .js .reveal.in, .js .stagger.in > * { opacity: 1; transform: none; }
-.js .stagger.in > * { transition-delay: calc(var(--i, 0) * 45ms); }
+.js .stagger.in > * { transition-delay: calc(var(--i, 0) * 25ms); }
 
 /* --- Video lightbox --- */
 .video-modal { padding: 0; border: 0; background: transparent; max-width: min(1280px, 94vw); width: 100%; overflow: visible; }
@@ -296,6 +317,7 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
 @media (max-width: 1080px) {
   .specs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .specs-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bring { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .locations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .devx { grid-template-columns: minmax(0, 1fr); }
   .devx-tabs { grid-auto-flow: column; grid-auto-columns: minmax(170px, 1fr); overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); scrollbar-width: none; }
@@ -337,6 +359,7 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
   .cta .btn { flex: 1 1 auto; }
   .cta .btn-primary { flex-basis: 100%; }
   .specs, .specs-5 { grid-template-columns: minmax(0, 1fr); }
+  .bring { grid-template-columns: minmax(0, 1fr); }
   /* On a phone the hero keeps only the formats under its buttons. */
   .meta li:not(:last-child) { display: none; }
   .cast { grid-auto-columns: 30vw; }
