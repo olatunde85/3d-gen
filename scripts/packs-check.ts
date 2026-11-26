@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Object3D, Texture, TextureLoader } from 'three';
+import { AnimationClip, Object3D, Texture, TextureLoader, type KeyframeTrack } from 'three';
 import { BUILT_IN_CLIPS, CLIPS, clipById, onClipsChange } from '../src/core/anim/clips';
 import { animationGroup } from '../src/core/anim/groups';
 import { Animator } from '../src/core/anim/evaluate';
@@ -16,7 +16,7 @@ import { qaxis, qmul, qconj, qrot } from '../src/core/anim/quat';
 import { boneMapFor, jointNames, takeFromClip } from '../src/core/anim/take-three';
 import { buildHuman } from '../src/core/human';
 import { DEFAULT_PARAMS, PRESETS, type HumanParams } from '../src/core/params';
-import { buildPack, cleanName, guessCategory, idFrom, importAnimations, packAnimation, readAnimationFile, type AnimationFile } from '../src/core/packs/build';
+import { animationNames, buildPack, cleanName, guessCategory, idFrom, importAnimations, packAnimation, readAnimationFile, type AnimationFile } from '../src/core/packs/build';
 import { parsePack, PACK_CATEGORIES, type Pack } from '../src/core/packs/format';
 import { ensurePacks, loadedPacks, missingPackMessage, packRefsFor, readPackRefs, registerPack, syncPacks, unregisterPack } from '../src/core/packs';
 import { DEFAULT_EXPORT, exportClipName, planExport, runExport } from '../src/export';
@@ -199,6 +199,18 @@ await check('names are cleaned and groups guessed from file names', () => {
   for (const [name, want] of groups) assert.equal(guessCategory(name), want, name);
   assert.equal(idFrom('Jog forward', ['jog_forward'], 'item'), 'jog_forward_2');
   assert.equal(idFrom('Soccer game pack', [], 'pack'), 'soccer-game-pack');
+});
+await check('a still pose (as Mixamo\'s poses download) becomes a stance that holds and loops; a frame in the rest pose (a T-pose) is left out', () => {
+  const file = glb.file as Extract<AnimationFile, { root: unknown }>, wave = file.clips.find((c) => /wave/i.test(c.name))!;
+  // One frame, keyed twice: the wave's first pose, or each bone as the skeleton rests.
+  const still = (value: (t: KeyframeTrack) => number[]) => new AnimationClip('mixamo.com', 1 / 30, wave.tracks.map((t) => { const v = value(t);return new (t.constructor as new (n: string, times: number[], values: number[]) => KeyframeTrack)(t.name, [0, 1 / 30], [...v, ...v]); }));
+  const posed = { root: file.root, clips: [still((t) => Array.from(t.values.slice(0, t.getValueSize())))] };
+  const rest = { root: file.root, clips: [still((t) => { const [node, prop] = t.name.split('.');return ['position', 'quaternion', 'scale'].includes(prop) ? (file.root.getObjectByName(node) as unknown as Record<string, { toArray(): number[] }>)[prop].toArray() : Array.from(t.values.slice(0, t.getValueSize())); })] };
+  assert.deepEqual(animationNames(posed, 'pose.fbx'), ['mixamo.com']);
+  assert.deepEqual(animationNames(rest, 'character.fbx'), [], 'a T-pose frame is not a pose');
+  const anim = packAnimation(posed, 'Standing pose.fbx', { file: 'Standing pose.fbx', clip: 'mixamo.com', id: 'standing_pose', name: 'Standing pose', category: 'Idle & stance' });
+  assert.equal(anim.motion.loop, true);
+  assert.ok(Math.abs(anim.motion.duration - 2) < 0.05, `held for ${anim.motion.duration} s`);
 });
 await check('files become a pack with nothing to fill in: copies and non-animations are skipped, loops only for motion that repeats', async () => {
   const { pack, added, skipped } = await importAnimations([

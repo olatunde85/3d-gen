@@ -375,27 +375,23 @@ export function mocapClip(source: Bvh | Take, o: MocapOptions): Clip {
       mid[2] += (poses[f].hips[2] - q0[2] - vel[2] * tt) / (f1 - f0 + 1);
     }
   }
-  // Feet height (Foot and ToeBase joints and the toe tips) per frame; the lowest over the clip is the floor.
-  const footJ = [...footChain('Left'), ...footChain('Right')];
+  // The floor is the lowest the body reaches over the clip (its joints and their tips): the soles, mostly, but the
+  // head in a headspin or the hands of a move danced upside down, whose feet never come down.
   const ankle = ['Left', 'Right'].map((side) => jointOf(`${side}Foot`));
-  const ankleY: number[][] = [[], []];
-  const footLow = poses.map((P, f) => {
+  const ankleY: number[][] = [[], []], bodyLow: number[] = [];
+  poses.forEach((P, f) => {
     const pos: Vec3[] = [];
     joints.forEach((j, k) => {
       pos[k] = j.parent < 0 ? P.hips : (qrot(P.world[j.parent], j.offset).map((v, d) => v + pos[j.parent][d]) as Vec3);
     });
     ankle.forEach((k, s) => (ankleY[s][f] = k >= 0 ? pos[k][1] : 0));
-    let low = Infinity;
-    for (const k of footJ) {
-      low = Math.min(low, pos[k][1]);
-      const tip = joints[k].tip;
-      if (tip) low = Math.min(low, pos[k][1] + qrot(P.world[k], tip)[1]);
-    }
-    return low;
+    let body = Infinity;
+    joints.forEach((j, k) => { body = Math.min(body, pos[k][1]);if (j.tip) body = Math.min(body, pos[k][1] + qrot(P.world[k], j.tip)[1]); });
+    bodyLow[f] = body;
   });
   // Floor and foot calibration come from the cut, or the whole take for chained cuts.
   const [c0, c1] = fr >= 0 ? [0, poses.length - 1] : [f0, f1];
-  const floor = Math.min(...footLow.slice(c0, c1 + 1));
+  const floor = Math.min(...bodyLow.slice(c0, c1 + 1));
   // Closed legs: the swinging leg turns out at the hip as its foot lifts (most at its highest, as
   // it passes the other), so the feet clear each other and still land on the line.
   if (o.swing) {

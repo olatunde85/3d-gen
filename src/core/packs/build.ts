@@ -149,7 +149,12 @@ export async function readAnimationFile(bytes: Uint8Array, name: string, extra?:
     catch (error) {
       const trimmed = trimFbxFooter(bytes);
       try { if (!trimmed) throw error;root = new FBXLoader(manager).parse(buffer(trimmed), ''); }
-      catch { throw Error(`${name} couldn't be read as FBX: ${(error as Error).message}`); }
+      catch {
+        // FBX 6 and older (2006 and before) predate the version three.js reads.
+        const version = /FileVersion:\s*(\d+)/.exec((error as Error).message)?.[1];
+        if (version && Number(version) < 7000) throw Error(`${name} is an old FBX file (version ${Number(version) / 1000}). Re-export it as FBX 7 or newer (2011 onwards) or as GLB, for example with Autodesk's FBX Converter or the tool it came from.`);
+        throw Error(`${name} couldn't be read as FBX: ${(error as Error).message}`);
+      }
     } finally { if (stand) delete g.window; }
     return { root, clips: (root as Object3D & { animations: AnimationClip[] }).animations };
   }
@@ -165,10 +170,27 @@ export async function readAnimationFile(bytes: Uint8Array, name: string, extra?:
 }
 
 /** Animations shorter than this are poses (a T-pose, a tool's empty take), not motion. */
-const MIN_SECONDS = 0.1;
+const MIN_SECONDS = 0.1, POSE_SECONDS = 2;
 const moving = (file: Extract<AnimationFile, { clips: unknown }>) => file.clips.filter((c) => c.duration >= MIN_SECONDS);
 /** The animations in a file, by name (BVH holds one, named after the file). */
-export const animationNames = (file: AnimationFile, name: string) => 'bvh' in file ? [name.replace(/\.[^.]+$/, '')] : moving(file).map((c) => c.name);
+/** How far (degrees) a body bone of a still frame must turn from the skeleton's rest for the frame to be a pose. */
+const POSE_TURN = 15;
+/**
+ * A file's still frame that is a pose of its own (as Mixamo's poses download), when it has no animation: not a
+ * skeleton standing in its rest pose, as a character file's frame does (a T-pose).
+ */
+function stillPose(file: Extract<AnimationFile, { clips: unknown }>): AnimationClip | undefined {
+  if (moving(file).length) return undefined;
+  let map: Readonly<Record<string, string>>;
+  try { map = boneMapFor(jointNames(file.root), undefined, jointParents(file.root)); } catch { return undefined; }
+  const hips = Object.entries(map).find(([, g]) => g === 'Hips')?.[0];
+  if (!hips) return undefined;
+  return file.clips.find((clip) => {
+    const take = takeFromClip(file.root, clip, hips, 30), pose = take.poses[0];
+    return take.joints.some((j, k) => MOCAP_BONES.includes(map[j.name]) && (2 * Math.acos(Math.min(1, Math.abs(pose.world[k][3]))) * 180) / Math.PI > POSE_TURN);
+  });
+}
+export const animationNames = (file: AnimationFile, name: string) => 'bvh' in file ? [name.replace(/\.[^.]+$/, '')] : [...moving(file), ...[stillPose(file)].filter((c) => c)].map((c) => c!.name);
 
 /** How far a loop's last pose may be from its first (average degrees per bone) for it to loop. */
 const LOOP_TOLERANCE = 7;
@@ -194,7 +216,7 @@ export function packAnimation(file: AnimationFile, fileName: string, source: Ani
   if (!ITEM_ID.test(id)) throw Error(`${fileName}: the id "${id}" must be lower-case letters, digits and underscores.`);
   const category = source.category ?? 'Actions';
   if (!(PACK_CATEGORIES as readonly string[]).includes(category)) throw Error(`${fileName}: category must be one of ${PACK_CATEGORIES.join(', ')}.`);
-  let take: Take, map: Readonly<Record<string, string>>, fps = source.fps, cmu = false;
+  let take: Take, map: Readonly<Record<string, string>>, fps = source.fps, cmu = false, pose = false;
   if ('bvh' in file) {
     const bvh = source.mirror ? mirrorBvh(file.bvh) : file.bvh;
     map = boneMapFor(bvh.joints.map((j) => j.name), source.bones, (n) => { const j = bvh.joints.find((x) => x.name === n);return j && j.parent >= 0 ? bvh.joints[j.parent].name : undefined; });
@@ -203,19 +225,21 @@ export function packAnimation(file: AnimationFile, fileName: string, source: Ani
     fps ??= Math.max(24, Math.min(60, Math.round(1 / bvh.frameTime)));
   } else {
     if (source.mirror) throw Error(`${fileName}: mirror works on BVH files only.`);
-    const clip = source.clip ? file.clips.find((c) => c.name === source.clip) : moving(file)[0];
+    // A file with only a still frame (a pose, as Mixamo's poses download) becomes a stance held for POSE_SECONDS.
+    const clip = source.clip ? file.clips.find((c) => c.name === source.clip) : moving(file)[0] ?? stillPose(file);
     if (!clip) throw Error(`${fileName}: ${source.clip ? `there's no animation called "${source.clip}". It has: ${file.clips.map((c) => c.name).join(', ')}.` : 'there are no animations in this file.'}`);
     map = boneMapFor(jointNames(file.root), source.bones, jointParents(file.root));
     const hips = Object.entries(map).find(([, g]) => g === 'Hips')![0];
     fps ??= keyRate(clip);
     take = takeFromClip(file.root, clip, hips, Math.min(60, fps * 2));
+    if (clip.duration < MIN_SECONDS) { pose = true;take = { ...take, frameTime: 1 / 30, poses: Array.from({ length: POSE_SECONDS * 30 + 1 }, () => take.poses[0]) }; }
   }
   // Animations drive the body and fingers; other bones found (toes, eyes) follow their parents, as in Ara's own clips.
   map = Object.fromEntries(Object.entries(map).filter(([, bone]) => MOCAP_BONES.includes(bone)));
   take = uprightTake(take, map);
   if (take.poses.length < 2) throw Error(`${fileName}: the animation has a single frame. A pose needs at least two frames.`);
   // Many one-off moves end in the stance they start from (a catch, a kick): only motion meant to repeat loops.
-  const loop = source.loop ?? (endsWhereItStarts(take, map) && (LOOPING_GROUPS.has(category) || LOOPING_WORDS.test(`${source.name ?? ''} ${base}`)));
+  const loop = source.loop ?? (pose || endsWhereItStarts(take, map) && (LOOPING_GROUPS.has(category) || LOOPING_WORDS.test(`${source.name ?? ''} ${base}`)));
   const options: MocapOptions = {
     id, name: source.name ?? base, category, loop, start: source.start, end: source.end, map,
     // CMU actors wore marker caps (their neutral head pose varies) and hold their arms in close; animated sources mean their poses.
@@ -336,7 +360,7 @@ export async function importAnimations(files: readonly ImportFile[], options: { 
     let file: AnimationFile;
     try { file = await readAnimationFile(f.bytes, label); } catch (error) { skipped.push({ file: label, reason: (error as Error).message });continue; }
     const takes = animationNames(file, label);
-    if (!takes.length) { skipped.push({ file: label, reason: 'it holds a pose, not an animation' });continue; }
+    if (!takes.length) { skipped.push({ file: label, reason: 'it only stands in its rest pose, with no animation or pose of its own' });continue; }
     for (const take of takes) {
       // Mixamo calls every animation "mixamo.com": the file's name says more.
       const title = cleanName(takes.length === 1 || /^mixamo\.com$/i.test(take) ? label : take);

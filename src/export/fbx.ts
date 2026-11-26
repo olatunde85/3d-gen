@@ -488,15 +488,19 @@ export function exportFBX(
         curveNodeCount++;
       };
       B.forEach((b, i) => {
-        // Euler angles, unwrapped so curves stay continuous.
+        // Euler angles kept continuous: every rotation has two XYZ forms, (x, y, z) and (x + 180, 180 - y, z + 180);
+        // each key takes the form (unwrapped by whole turns) nearest the one before, so a part spinning about Y
+        // doesn't flip between them and play backwards between keys.
         const eul: number[][] = [];
         for (const f of c.frames) {
           const e = qToEulerXYZ(f.rot[i]);
           if (eul.length) {
             const p = eul[eul.length - 1];
-            for (let k = 0; k < 3; k++) e[k] += Math.round((p[k] - e[k]) / 360) * 360;
-          }
-          eul.push([...e]);
+            const near = (v: number[]) => v.map((x, k) => x + Math.round((p[k] - x) / 360) * 360);
+            const a = near(e), b = near([e[0] + 180, 180 - e[1], e[2] + 180]);
+            const gap = (v: number[]) => v.reduce((sum, x, k) => sum + Math.abs(x - p[k]), 0);
+            eul.push(gap(b) < gap(a) ? b : a);
+          } else eul.push([...e]);
         }
         curveNode(boneIds[i], 'Lcl Rotation', 'R', eul);
         if (b.parent < 0) curveNode(boneIds[i], 'Lcl Translation', 'T', c.frames.map((f) => f.rootPos.get(i)!.map((x) => x * CM)));

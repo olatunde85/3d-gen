@@ -54,10 +54,10 @@ def group_of(scene, obj):
 
 
 def groups(scene):
-    """Lightmap groups (name to objects), and the glass, which isn't baked."""
+    """Lightmap groups (name to objects), and what isn't baked: glass, and self-lit things (a sky dome, signs)."""
     out, glass = {}, []
     for o in set_objects(scene):
-        if o.ara_set.glass:
+        if o.ara_set.glass or o.ara_set.unlit:
             glass.append(o)
         else:
             out.setdefault(group_of(scene, o), []).append(o)
@@ -368,8 +368,29 @@ def render_preview(scene, path, samples=64):
     r.resolution_x, r.resolution_y, r.resolution_percentage, r.filepath, r.image_settings.file_format, scene.cycles.samples = saved
 
 
+def rgb_images(objects):
+    """Greyscale images (a model's roughness or cut-out map, often a one-channel JPEG) copied to RGB: WebP, which the
+    export writes, has no one-channel form, and the exporter would leave the texture out."""
+    for m in _materials(objects):
+        if not m.use_nodes:
+            continue
+        for node in m.node_tree.nodes:
+            img = getattr(node, 'image', None)
+            # Blender reports a one-channel image as 8 bits deep.
+            if node.type != 'TEX_IMAGE' or not img or img.depth != 8:
+                continue
+            copy = bpy.data.images.get(img.name + ' (RGB)')
+            if not copy:
+                copy = bpy.data.images.new(img.name + ' (RGB)', img.size[0], img.size[1], alpha=False)
+                copy.colorspace_settings.name = img.colorspace_settings.name
+                copy.pixels.foreach_set(list(img.pixels))
+                copy.pack()
+            node.image = copy
+
+
 def export_glb(path, objects):
     """`objects` as a GLB: meshes with both UV maps, materials, textures as WebP, and their ara_ properties as extras."""
+    rgb_images(objects)
     _select(objects)
     bpy.ops.export_scene.gltf(
         filepath=path, export_format='GLB', use_selection=True, export_extras=True, export_lights=False, export_texcoords=True,
@@ -439,7 +460,8 @@ def export_set(scene, path, log=print):
     for objects, image in colours:
         use_baked_colour(objects, image)
     for o in glass:
-        o['ara_glass'] = True
+        if o.ara_set.glass:
+            o['ara_glass'] = True
     log('Exporting')
     export_glb(os.path.join(folder, 'set.glb'), [o for objs in by_group.values() for o in objs] + glass)
     preview = None

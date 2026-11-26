@@ -1,4 +1,4 @@
-import { MAX_TEXT_CUES, TEXT_STYLES, TEXT_LABELS, textActorAnchor, parseSubtitles, subtitlesToSrt, type TextCue } from './text';
+import { MAX_TEXT_CUES, MAX_TEXT_SIZE, TEXT_STYLES, TEXT_LABELS, textActorAnchor, textColours, parseSubtitles, subtitlesToSrt, type TextCue } from './text';
 import { beatId, durationOf, parseProject, type StudioProject } from './project';
 interface TextEditor {
   project():StudioProject; time():number; actor():string|undefined; canEdit():boolean;
@@ -22,7 +22,7 @@ export function setupTextEditor(editor:TextEditor){
     if(document.activeElement!==body)body.value=cue.text;
     for(const key of ['start','duration','size','color','background']as const)if(document.activeElement!==input(key))input(key).value=String(cue[key]);
     input('x').value=String(Math.round(cue.x*10000)/100);input('y').value=String(Math.round(cue.y*10000)/100);
-    select('style').value=cue.style;input('background').parentElement!.hidden=cue.style==='text';select('anchor').replaceChildren(new Option('Fixed in the frame','screen'));
+    select('style').value=cue.style;input('background').parentElement!.hidden=cue.style==='text';input('size').max=String(MAX_TEXT_SIZE);$('text-background-label').textContent=cue.style==='caption'||cue.style==='title'?'Accent':'Background';select('anchor').replaceChildren(new Option('Fixed in the frame','screen'));
     editor.project().actors.forEach((a,i)=>select('anchor').append(new Option(`Follow character ${i+1}`,textActorAnchor(a.id))));select('anchor').value=cue.anchor;
     $('text-x-label').textContent=cue.anchor==='screen'?'Position X %':'Offset X %';$('text-y-label').textContent=cue.anchor==='screen'?'Position Y %':'Offset Y %';
     input('x').min=input('y').min=cue.anchor==='screen'?'0':'-100';
@@ -44,7 +44,7 @@ export function setupTextEditor(editor:TextEditor){
   body.addEventListener('input',()=>{const now=performance.now(),remember=lastTypedCue!==selected||now-lastTyping>750;lastTyping=now;lastTypedCue=selected;void update({text:body.value},remember);});
   for(const key of ['start','duration','size','x','y']as const)input(key).addEventListener('change',()=>{lastTyping=0;lastTypedCue='';void update({[key]:Number(input(key).value)/(key==='x'||key==='y'?100:1)});});
   for(const key of ['color','background']as const)input(key).addEventListener('change',()=>{lastTypedCue='';void update({[key]:input(key).value});});
-  select('style').addEventListener('change',()=>{lastTypedCue='';const style=select('style').value as TextCue['style'];void update({style,background:style==='subtitle'?'#151820':style==='shout'?'#ffe584':'#ffffff',color:style==='text'||style==='subtitle'?'#ffffff':'#141414'});});
+  select('style').addEventListener('change',()=>{lastTypedCue='';const style=select('style').value as TextCue['style'];const screen=['subtitle','text','caption','title'].includes(style),cue=current();void update({style,...textColours(style),...(screen&&cue&&cue.anchor!=='screen'?{anchor:'screen',x:.5,y:style==='title'?.45:style==='caption'?.78:.9}:{}),...(style==='title'&&cue&&cue.size<56?{size:72}:style==='caption'&&cue&&cue.size<36?{size:40}:{})});});
   select('anchor').addEventListener('change',()=>{lastTypedCue='';const anchor=select('anchor').value;void update({anchor,x:anchor==='screen'?.5:0,y:anchor==='screen'?(current()?.style==='subtitle'?.9:.2):-.12});});
   $('text-delete').addEventListener('click',()=>{lastTyping=0;void editor.edit(p=>{p.texts=p.texts.filter(c=>c.id!==selected);});});
   $('text-preview').addEventListener('click',()=>{const cue=current();if(cue){editor.seek(Math.min(durationOf(editor.project()),cue.start+.01));dialog.close();}});

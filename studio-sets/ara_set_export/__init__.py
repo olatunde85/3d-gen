@@ -61,6 +61,7 @@ class AraObjectSettings(bpy.types.PropertyGroup):
     lightmap: StringProperty(name='Lightmap group', description='Objects in a group share one lightmap (by default, their top-level collection)')
     lightmap_size: EnumProperty(name='Lightmap size', items=SIZE_ITEMS)
     glass: BoolProperty(name='Glass', description='See-through, and not baked')
+    unlit: BoolProperty(name='Self-lit', description='Shows its own colour and glow, not baked (a sky dome, a lit sign)')
     skip: BoolProperty(name='Leave out', description='Not part of the set (a helper, or a stand-in)')
     seat: BoolProperty(name='Seat', description='Characters can sit here, facing along its -Y axis')
 
@@ -256,6 +257,7 @@ class ARA_PT_selected(_Panel, bpy.types.Panel):
             return
         col.prop(o.ara_set, 'skip')
         col.prop(o.ara_set, 'glass')
+        col.prop(o.ara_set, 'unlit')
         col.prop(o.ara_set, 'lightmap', text='Group')
         col.prop(o.ara_set, 'lightmap_size', text='Size')
         if o.active_material:

@@ -37,6 +37,7 @@ import {checkStoryScenes} from './studio-scenes-check';
 import { captureStudioExample } from './studio-example-capture';
 import { captureStudioReel } from './reel/capture';
 import { TOUR_STORAGE_KEY } from '../src/studio/tour-content';
+import { FIXTURE_ID, setFile } from './set-fixture';
 
 const winDirs = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA].filter((d): d is string => !!d);
 const CHROME = process.env.CHROME ?? [
@@ -311,7 +312,7 @@ try{
   await evaluate("document.querySelectorAll('.cast-member')[0].click()");
   for(const [width,height]of [[1366,768],[1280,720]]){
    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});await pause(300);
-   const clipped=await evaluate<string[]>(`(()=>{const ids=['open-text','open-assist','new-project','load-project','save-project','open-export','title','scene-search','scene-category','character','actor-weapon','actor-carry','timeline-selection','action','beat-duration','actor-x','actor-y','actor-z','actor-yaw','blocking','camera','landscape','portrait','caption','scrub','play'];return ids.filter(id=>{const r=document.getElementById(id).getBoundingClientRect();return r.width<=0||r.height<=0||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth})})()`);
+   const clipped=await evaluate<string[]>(`(()=>{const ids=['open-text','open-assist','new-project','load-project','save-project','open-export','title','scene-search','scene-category','character','actor-weapon','actor-carry','timeline-selection','action','beat-duration','actor-x','actor-y','actor-z','actor-yaw','blocking','camera','landscape','portrait','caption','scrub','play'];const out=ids.filter(id=>{const el=document.getElementById(id),panel=el.closest('.library,.inspector');/* Controls in the side panels are reached by scrolling the panel, never the page. */if(panel){const a=el.getBoundingClientRect(),b=panel.getBoundingClientRect();if(a.bottom>b.bottom)panel.scrollTop+=a.bottom-b.bottom+4;else if(a.top<b.top)panel.scrollTop-=b.top-a.top+4;}const r=el.getBoundingClientRect(),p=panel?.getBoundingClientRect();const bad=r.width<=0||r.height<=0||r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth||(p&&(r.top<p.top-1||r.bottom>p.bottom+1));if(bad)el.dataset.clip=[r.left,r.top,r.right,r.bottom,p?.top,p?.bottom].map(Math.round).join(',');return bad;});return out.map(id=>id+' ['+document.getElementById(id).dataset.clip+']');})()`);
    if(clipped.length)throw Error(`${width}×${height} clipped: ${clipped.join(', ')}`);await shot(`compact-${width}`);
   }
   await send('Emulation.setDeviceMetricsOverride',{width:1500,height:1100,deviceScaleFactor:1,mobile:false});await pause();
@@ -502,7 +503,7 @@ try{
     p.texts=[{id:'bubble',text:'Hello, world!\\nA story begins.',start:0,duration:5,style:'speech',anchor:p.actors[0].id,x:0,y:-.12,size:28,color:'#141414',background:'#ffffff'}];
     s.resize(1280,720);s.render(p,.5);s.freezeCamera=true;s.render(p,.5);const first=s.textLayouts[0]?.anchor;s.render(p,2);const second=s.textLayouts[0]?.anchor;s.freezeCamera=false;
     if(!first||!second||Math.hypot(first.x-second.x,first.y-second.y)<.005)throw Error('Bubble did not follow the animated head');
-    for(const style of ['subtitle','text','speech','thought','shout']){p.texts[0].style=style;p.texts[0].background=style==='shout'?'#ffe584':style==='subtitle'?'#151820':'#ffffff';p.texts[0].color=style==='subtitle'||style==='text'?'#ffffff':'#141414';p.texts[0].anchor=style==='subtitle'?'screen':p.actors[0].id;p.texts[0].x=style==='subtitle'?.5:0;p.texts[0].y=style==='subtitle'?.9:-.12;s.render(p,1);const b=s.textLayouts[0];if(!b||b.x<0||b.y<0||b.x+b.width>1280||b.y+b.height>720)throw Error('Clipped '+style);frames[style]=s.output.toDataURL();}
+    for(const style of ['subtitle','text','caption','title','speech','thought','shout']){const screen=['subtitle','caption','title'].includes(style);p.texts[0].style=style;p.texts[0].background=style==='shout'?'#ffe584':style==='subtitle'?'#151820':screen?'#6d8dff':'#ffffff';p.texts[0].color=screen||style==='text'?'#ffffff':'#141414';p.texts[0].anchor=screen?'screen':p.actors[0].id;p.texts[0].x=style==='subtitle'||style==='title'?.5:0;p.texts[0].y=style==='subtitle'?.9:style==='caption'?.8:style==='title'?.45:-.12;p.texts[0].size=style==='title'?110:28;s.render(p,1);const b=s.textLayouts[0];if(!b||b.x<0||b.y<0||b.x+b.width>1280||b.y+b.height>720)throw Error('Clipped '+style);frames[style]=s.output.toDataURL();}
     s.render(p,5);if(s.textLayouts.length)throw Error('Text remained after its end');p.texts[0].start=2;s.render(p,1);if(s.textLayouts.length)throw Error('Text appeared before its start');
     p.aspect='portrait';p.texts[0].start=0;p.texts[0].style='speech';p.texts[0].text='A longer comic bubble wraps clearly in a portrait film, too.';s.resize(1080,1920);s.render(p,1);const b=s.textLayouts[0];if(!b||b.x<0||b.y<0||b.x+b.width>1080||b.y+b.height>1920)throw Error('Portrait text clipped');frames.portrait=s.output.toDataURL();s.resize(1280,720);s.render(window.studio.project,0);return frames;})()`);
   for(const [style,url]of Object.entries(frames))writeFileSync(`${folder}/text-${style}.png`,Buffer.from(url.split(',')[1],'base64'));
@@ -525,6 +526,18 @@ try{
   for(let i=0;i<pixels[0].length;i++)if(Math.abs(pixels[0][i]-pixels[1][i])>40){withError+=Math.abs(pixels[0][i]-pixels[2][i]);withoutError+=Math.abs(pixels[1][i]-pixels[2][i]);count++;}
   if(count<1000||withError>withoutError*.55)throw Error('Decoded MP4 did not preserve the subtitles/comic text');
   const encoded=await evaluate<string>(`(async()=>{const bytes=new Uint8Array(await(await fetch(document.querySelector('#download-film').href)).arrayBuffer());let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(s)})()`);writeFileSync(`${folder}/ara-studio-duet-720p.mp4`,Buffer.from(encoded,'base64'));await shot('export-ready');await evaluate("document.querySelector('#close-export').click()");
+ });
+ await step('A set removed from the browser, or used by a film without it, imports again',async()=>{
+  const original=await evaluate<string>('JSON.stringify(window.studio.project)'),bytes=Buffer.from(setFile()).toString('base64');
+  const give=()=>evaluate(`(()=>{const b=Uint8Array.from(atob('${bytes}'),c=>c.charCodeAt(0)),dt=new DataTransfer();dt.items.add(new File([b],'tiny-yard.glb'));const e=document.querySelector('#set-file');e.files=dt.files;e.dispatchEvent(new Event('change'));})()`);
+  await give();await waitFor("/Imported/.test(document.querySelector('#notice').textContent)",'set import');
+  const p=JSON.parse(original);p.template=FIXTURE_ID;await upload(JSON.stringify(p));await ready();
+  await evaluate("window.confirm=()=>true;document.querySelector('#remove-set').click()");await waitFor("/Removed/.test(document.querySelector('#notice').textContent)",'set removal');
+  // The open film still names the set, so Studio knows its ID while it's gone.
+  await give();await waitFor("/Imported|already/.test(document.querySelector('#notice').textContent)",'set import again');
+  const notice=await evaluate<string>("document.querySelector('#notice').textContent");if(!/Imported/.test(notice))throw Error('Importing a removed set again: '+notice);
+  await evaluate("window.confirm=()=>true;document.querySelector('#remove-set').click()");await waitFor("/Removed/.test(document.querySelector('#notice').textContent)",'set removal');
+  await upload(original);await ready();
  });
  await step('Full HD portrait film includes both characters',async()=>{
   await evaluate('window.studio.seek(1)');await pause();

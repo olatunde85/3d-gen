@@ -30,7 +30,7 @@ Then:
    - **Set:** an ID (`author/set`, in lower case), a name, a line about it, the author, a licence (such as CC-BY-4.0), a release (such as 1.0), a category, a kind of place and a time of day. The staging note tells Assist where things are, in metres, in Studio's axes (x across, z toward the front, which is Blender's −Y).
    - **Light on the cast:** the sun's colour and strength, a fill, the exposure and the background colour. Characters are lit live, so set these to sit them in the baked light.
    - **Room and seats:** select the floor and choose **Room from selection**; place the 3D cursor where a character would sit and choose **Add seat**, then turn the seat so its −Y axis points the way a seated character faces, and set its height to the seat's.
-   - **Selected:** tick **Glass** for see-through panes (not baked), **Leave out** for helpers and stand-ins, and **Bake its colour** for a material whose colour comes from nodes (noise, mixes without an image), which glTF can't carry.
+   - **Selected:** tick **Glass** for see-through panes (not baked), **Self-lit** for things that show their own colour and glow (a sky dome, a lit sign; not baked either), **Leave out** for helpers and stand-ins, and **Bake its colour** for a material whose colour comes from nodes (noise, mixes without an image), which glTF can't carry.
 4. **Check** shows what the set will cost Studio and anything to fix. **Export set** bakes a copy of your file in the background, so you can keep working; the status bar shows its progress, and Esc stops it. The set file goes next to your `.blend`, named after the set, unless you choose another place.
 
 ### Lightmaps

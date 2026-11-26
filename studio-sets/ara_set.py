@@ -454,6 +454,34 @@ def _select(objects):
     bpy.context.view_layer.objects.active = objects[0]
 
 
+def haze(bounds, density=0.012, anisotropy=0.55):
+    """Dust in the air, for previews: shafts of light show in it. (Studio draws its own shafts.)"""
+    (x0, y0, z0), (x1, y1, z1) = bounds
+    obj = box('Haze', (x1 - x0, y1 - y0, z1 - z0), ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), bpy.data.materials.new('Haze'))
+    m = obj.data.materials[0]
+    nodes, links = m.node_tree.nodes, m.node_tree.links
+    nodes.remove(nodes['Principled BSDF'])
+    vol = nodes.new('ShaderNodeVolumePrincipled')
+    vol.inputs['Density'].default_value = density
+    vol.inputs['Anisotropy'].default_value = anisotropy
+    links.new(vol.outputs['Volume'], nodes['Material Output'].inputs['Volume'])
+    obj['ara_preview_only'] = True
+    return obj
+
+
+def stand_in(path, location=(0, 0, 0), turn=0.0):
+    """A character (an Ara GLB) standing in the set for previews, for scale and to judge how the cast looks in it."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before]
+    for o in new:
+        if o.parent is None:
+            o.location = location
+            o.rotation_euler = (0, 0, turn)
+        o['ara_preview_only'] = True
+    return new
+
+
 def preview(path, camera_location, target, lens=28, samples=128, resolution=(1600, 900)):
     """A still from Cycles, for judging the set before it's baked."""
     scene = bpy.context.scene

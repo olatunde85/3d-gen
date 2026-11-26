@@ -762,6 +762,8 @@ export class Animator {
 
   private mocapRests = new Map<string, Q>();
   private mocapGrounds = new Map<string, number>();
+  /** Each bone's tip from its joint, in its animation-rest frame (for the floor of upside-down moves). */
+  private restTips?: Vec3[];
   /** Grounding key: per clip, or shared by chained cuts. */
   private groundKey = (m: NonNullable<Sample['mocap']>) => m.anchor?.key ?? m.key;
   private mocapGround(m: NonNullable<Sample['mocap']>, clip: Clip): number {
@@ -777,8 +779,13 @@ export class Animator {
       } else
         for (let n = 0; n <= 120; n++) {
           const t = (n / 120) * clip.duration;
-          const { pos } = this.solve(clip.sample(t), clip, t, {});
+          const { pos, world } = this.solve(clip.sample(t), clip, t, {});
           for (const i of this.feet) low = Math.min(low, pos[i][1]);
+          // Moves danced upside down (a headspin) never put a foot down: then the head or hands find the floor, a
+          // body bone resting on it (its joint or its tip: the crown of the head) counted as the lowest foot joint
+          // stands at rest. Only the body's own bones count (not hair, skirts or other extras).
+          this.restTips ??= this.rig.bones.map((b, i) => qrot(qconj(this.animRest[i]), [b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]]));
+          pos.forEach((p, i) => { if (this.names[i] && !this.feet.includes(i)) low = Math.min(low, p[1] + this.restFootY, p[1] + qrot(world[i], this.restTips![i])[1] + this.restFootY); });
         }
       g = this.feet.length ? this.restFootY - low : 0;
       this.mocapGrounds.set(key, g);

@@ -25,7 +25,8 @@ Either way there's nothing to fill in:
 - **Names** come from the files: `goalkeeper body block (2).fbx` becomes "Goalkeeper body block 2". Mixamo names every animation "mixamo.com", so the file's name is used instead.
 - **Groups** are guessed from the names: jogs and strafes go to Locomotion, kicks, headers and goalkeeping to Sports, punches to Combat, dances to Emotes, idles to Idle & stance. Anything else goes to Actions.
 - **Loops** are found from the motion: a walk, jog, idle or dance that ends in the pose it starts with repeats; one-off moves such as a catch or a kick play once and hold their last pose.
-- **Copies** are skipped: a file identical to another (Mixamo's `walk (2).fbx` downloaded twice) is imported once. Files that hold a pose rather than an animation, such as a character in a T-pose, are left out, and the Packs window and the command say why.
+- **Poses:** a file with a single still frame, such as a pose downloaded from Mixamo, becomes a stance that holds for as long as you play it.
+- **Copies** are skipped: a file identical to another (Mixamo's `walk (2).fbx` downloaded twice) is imported once. Files that only stand in their rest pose, such as a character in a T-pose, are left out, and the Packs window and the command say why.
 - **Clashes** are told apart: a pack named like one of Ara's groups or another pack is listed as, for example, "Sports (import)", and an animation named like another shows its pack's name, such as "Idle (Soccer)".
 
 In the Packs window, **Edit** on an imported pack renames it, renames and regroups its animations, and removes any. **Download** saves the pack file, to host it or share it.

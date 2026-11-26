@@ -5,7 +5,7 @@
  *   npm run test:character-import
  */
 import assert from 'node:assert/strict';
-import { Mesh, BoxGeometry, MeshStandardMaterial, Object3D, Group } from 'three';
+import { Bone, Mesh, BoxGeometry, MeshStandardMaterial, Object3D, Group, SkinnedMesh } from 'three';
 import { nodeLoaders, textureBytes } from '../packages/cli/src/pack';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Animator } from '../src/core/anim/evaluate';
@@ -85,6 +85,37 @@ await check('a model facing backwards and lying along Z (Z-up tools) stands up a
   for (const c of [...file.root.children]) turn.add(c);
   file.root.add(turn);
   const imported = await characterFromModel(file.root, { name: 'Turned', textureKey: 't', format: 'gltf' });
+  const d = difference(original, imported.character);
+  assert.ok(d < 0.005, `${(d * 100).toFixed(1)} cm`);
+});
+await check('extra joints hung from a limb (VRoid\'s skirt joints on the thighs) don\'t turn its bones: the walk moves as on the original', async () => {
+  const file = await readAnimationFile(glb, 'hero.glb') as { root: Object3D };
+  // A skirt joint as the first child of each thigh, hanging behind it, as VRoid exports them.
+  // In the skeleton too, listed before the knee, as VRoid lists them.
+  const skirts = new Map<Object3D, Bone>();
+  file.root.traverse((o) => {
+    if ((o as { isBone?: boolean }).isBone && /^(Left|Right)UpLeg$/.test(o.name)) {
+      const skirt = new Bone();
+      skirt.name = `J_Sec_${o.name}_SkirtBack`;skirt.position.set(0, -0.05, -0.12);
+      o.add(skirt);o.children.unshift(o.children.pop()!);skirts.set(o, skirt);
+    }
+  });
+  file.root.updateMatrixWorld(true);
+  file.root.traverse((o) => {
+    const skeleton = (o as SkinnedMesh).skeleton;
+    if (!(o as SkinnedMesh).isSkinnedMesh || !skeleton) return;
+    for (const [thigh, skirt] of skirts) {
+      const at = skeleton.bones.indexOf(thigh as Bone);
+      if (at < 0 || skeleton.bones.includes(skirt)) continue;
+      skeleton.bones.splice(at + 1, 0, skirt);skeleton.boneInverses.splice(at + 1, 0, skirt.matrixWorld.clone().invert());
+    }
+  });
+  const imported = await characterFromModel(file.root, { name: 'Skirted', textureKey: 's', format: 'gltf' });
+  const bones = imported.character.rig!.bones, bone = (n: string) => bones.find((b) => b.name === n)!;
+  for (const side of ['Left', 'Right']) {
+    const thigh = bone(`${side}UpLeg`), knee = bone(`${side}Leg`);
+    assert.ok(Math.hypot(...thigh.tail.map((t, d) => t - knee.head[d])) < 1e-6, `${side} thigh points at the knee`);
+  }
   const d = difference(original, imported.character);
   assert.ok(d < 0.005, `${(d * 100).toFixed(1)} cm`);
 });

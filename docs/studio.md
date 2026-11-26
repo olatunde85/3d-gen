@@ -97,7 +97,8 @@ The angle is saved with the film, so the preview, saved frames and the exported 
 
 Choose **Text & subtitles** above the timeline, then add a **Subtitle**, **Text** or **Bubble**.
 
-- **Styles:** subtitle plates, outlined text, speech bubbles, thought bubbles and comic bursts.
+- **Styles:** subtitle plates, outlined text, caption bands, title cards, speech bubbles, thought bubbles and comic bursts.
+- **Caption bands and title cards** are for trailers and promos. A caption band is a heavy headline on a dark band with an accent bar; it sits against the nearer side of the frame and slides in from it, and a second line becomes a smaller detail line. A title card is a large headline with an accent rule, a tagline on the second line and small lines in the accent colour after that, over a soft dark glow; its lines rise in one after another. Both ease out at the end, and **Accent** sets their colour.
 - **Placement:** **Fixed in the frame**, or **Follow** a character so the text moves with their head.
 - **Timing:** set the start, duration, size and colours. Up to **64 cues** can overlap.
 - **SRT:** **Import SRT** adds timed subtitles, and **Save SRT** exports them. SRT keeps text and timing only; styles are saved in the project.

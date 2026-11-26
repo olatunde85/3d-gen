@@ -131,9 +131,15 @@ export function placeBones(defs: BoneDef[], joint: (name: string) => Vec3): RigB
   defs.forEach((d, i) => {
     if (d.parent && !firstChild.has(d.parent)) firstChild.set(d.parent, i);
   });
-  // Prefer the "main" child where several exist (spine over legs, middle finger over others).
-  for (const [parent, child] of [['Hips', 'Spine'], ['Spine2', 'Neck'], ['LeftHand', 'LeftHandMiddle1'], ['RightHand', 'RightHandMiddle1'], ['Head', 'HeadTop_End']] as const)
-    if (index.has(parent) && index.has(child)) firstChild.set(parent, index.get(child)!);
+  // Prefer the "main" child where several exist (spine over legs, middle finger over others). Along the limbs and
+  // spine, a bone points at the next joint of its chain, not at an extra joint hung from it (a skirt or sleeve
+  // joint on a VRoid thigh or arm), which would turn its frame and every rotation applied in it.
+  const CHAINS: [string, string][] = [['Hips', 'Spine'], ['Spine', 'Spine1'], ['Spine1', 'Spine2'], ['Spine2', 'Neck'], ['Neck', 'Head'],
+    ['LeftHand', 'LeftHandMiddle1'], ['RightHand', 'RightHandMiddle1'], ['Head', 'HeadTop_End'],
+    ...(['Left', 'Right'] as const).flatMap((s): [string, string][] => [[`${s}UpLeg`, `${s}Leg`], [`${s}Leg`, `${s}Foot`], [`${s}Foot`, `${s}ToeBase`],
+      [`${s}Shoulder`, `${s}Arm`], [`${s}Arm`, `${s}ForeArm`], [`${s}ForeArm`, `${s}Hand`]])];
+  for (const [parent, child] of CHAINS)
+    if (index.has(parent) && index.has(child) && defs[index.get(child)!].parent === parent) firstChild.set(parent, index.get(child)!);
   const bones: RigBone[] = [];
   defs.forEach((d, i) => {
     const parent = d.parent ? index.get(d.parent)! : -1;

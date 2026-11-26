@@ -3,7 +3,7 @@
  * set's details, staging map and preview, read when Studio opens, and its file, read when a film first shows it.
  * Studio calls restoreSets() once before it opens saved work.
  */
-import { sceneById, type SetId } from './catalog';
+import { isMissingSet, sceneById, type SetId } from './catalog';
 import { registerSets, stagingMapOf } from './set-check';
 import { buildSet, MAX_SET_FILE, readSetFile, type SetManifest } from './set-files';
 import { disposeSet, type StudioSet } from './sets';
@@ -84,7 +84,8 @@ export async function importSetFile(file: Blob): Promise<{ id: SetId; name: stri
   await restoreSets();
   if (file.size > MAX_SET_FILE) throw Error(`That set file is over ${MAX_SET_FILE / 1024 / 1024} MB.`);
   const bytes = await file.arrayBuffer(), { manifest, preview } = readSetFile(bytes);
-  if (sceneById.has(manifest.id) && !kept.has(manifest.id)) throw Error(`A set with the ID ${manifest.id} is already in Studio.`);
+  // A set removed earlier, or one a film opened without it uses, is only noted by its ID: importing it is welcome.
+  if (sceneById.has(manifest.id) && !kept.has(manifest.id) && !isMissingSet(manifest.id)) throw Error(`A set with the ID ${manifest.id} is already in Studio.`);
   const set = await buildSet(bytes);
   let map: LocationMap;
   try { map = stagingMapOf(manifest, set); }

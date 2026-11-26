@@ -1,6 +1,12 @@
 /** Timed film typography. Drawn into the clean output, so preview, stills and video agree. */
-export const TEXT_STYLES = ['subtitle', 'text', 'speech', 'thought', 'shout'] as const;
-export const TEXT_LABELS = { subtitle: 'Subtitle', text: 'Plain text', speech: 'Speech bubble', thought: 'Thought bubble', shout: 'Comic burst' };
+export const TEXT_STYLES = ['subtitle', 'text', 'caption', 'title', 'speech', 'thought', 'shout'] as const;
+export const TEXT_LABELS = { subtitle: 'Subtitle', text: 'Plain text', caption: 'Caption band', title: 'Title card', speech: 'Speech bubble', thought: 'Thought bubble', shout: 'Comic burst' };
+export const MAX_TEXT_SIZE = 144;
+/** The colours a style starts with: text, then background (the accent bar of captions and titles). */
+export const textColours = (style: typeof TEXT_STYLES[number]) => ({
+  color: ['subtitle', 'text', 'caption', 'title'].includes(style) ? '#ffffff' : '#141414',
+  background: style === 'subtitle' ? '#151820' : style === 'shout' ? '#ffe584' : style === 'caption' || style === 'title' ? '#6d8dff' : '#ffffff',
+});
 export const MAX_TEXT_CUES = 64;
 // Older films may contain an actor literally named screen; keep those projects importable.
 export const textActorAnchor=(id:string)=>id==='screen'?'actor:screen':id;
@@ -34,7 +40,7 @@ export function parseTextCues(raw: unknown, actors: Set<string>): TextCue[] {
     const color = (key: string, fallback: string) => { const v = c[key] ?? fallback; if (typeof v !== 'string' || !/^#[a-fA-F0-9]{6}$/.test(v)) throw Error(`${label}: ${key} needs a #RRGGBB colour.`); return v; };
     return { id, text: c.text, start, duration, style: c.style as TextCue['style'], anchor: c.anchor,
       x: number('x',c.anchor==='screen'?0:-1,1,c.anchor==='screen'?.5:0), y: number('y',c.anchor==='screen'?0:-1,1,c.anchor==='screen'?.9:-.12),
-      size: number('size',14,72,28), color: color('color',c.style==='subtitle'||c.style==='text'?'#ffffff':'#141414'), background: color('background',c.style==='subtitle'?'#151820':c.style==='shout'?'#ffe584':'#ffffff') };
+      size: number('size',14,MAX_TEXT_SIZE,28), color: color('color',textColours(c.style as TextCue['style']).color), background: color('background',textColours(c.style as TextCue['style']).background) };
   });
 }
 export interface TextAnchor { x: number; y: number }
@@ -60,6 +66,7 @@ export function drawTextCues(ctx: CanvasRenderingContext2D, cues: readonly TextC
     if(time+1e-7<cue.start||time>=cue.start+cue.duration-1e-7||!cue.text.trim())continue;
     const anchor=cue.anchor==='screen'?undefined:actorAnchor(cue.anchor);
     if(cue.anchor!=='screen'&&!anchor)continue;
+    if(cue.style==='caption'||cue.style==='title'){result.push((cue.style==='caption'?drawCaption:drawTitle)(ctx,cue,time,W,H));continue;}
     ctx.save();
     const comic=['speech','thought','shout'].includes(cue.style),pad=(comic?16:10)*scale;
     const maxWidth=Math.min(W-margin*2,(comic?(W>H?.32:.8):cue.style==='subtitle'?.88:.75)*W)-pad*2;
@@ -94,6 +101,94 @@ export function drawTextCues(ctx: CanvasRenderingContext2D, cues: readonly TextC
     ctx.restore();
   }
   return result;
+}
+
+// Captions and titles: heavy display type with an accent, eased in and out.
+const DISPLAY = '"Helvetica Neue", "Arial Black", Arial, sans-serif', MONO = 'Menlo, "SF Mono", Consolas, monospace';
+const smooth = (v: number) => { const t = clamp(v, 0, 1);return t * t * (3 - 2 * t); };
+function setFont(ctx: CanvasRenderingContext2D, font: string, spacing = 0) {
+  ctx.font = font;
+  if ('letterSpacing' in ctx) (ctx as { letterSpacing: string }).letterSpacing = `${spacing}px`;
+}
+/** How far into its entrance and exit a cue is (0 to 1 each), the entrance taking `rise` seconds and the exit `fall`. */
+function phase(cue: TextCue, time: number, rise: number, fall: number) {
+  const r = Math.min(rise, cue.duration * .3), f = Math.min(fall, cue.duration * .25), local = time - cue.start;
+  return { local, enter: (delay = 0) => smooth((local - delay * r / rise) / r), exit: smooth((local - (cue.duration - f)) / f) };
+}
+/** A caption: a heavy uppercase headline on a dark band with an accent bar, flush with the nearer side of the frame,
+ * sliding in from it and back out. Further lines are a smaller detail line under the headline. */
+function drawCaption(ctx: CanvasRenderingContext2D, cue: TextCue, time: number, W: number, H: number): TextLayout {
+  const scale = Math.min(W, H) / 720, [head, ...rest] = cue.text.split('\n'), detail = rest.join(' ').trim();
+  const fromRight = cue.x > .5, bar = Math.max(4, cue.size * .14 * scale), inset = bar + cue.size * .55 * scale, maxWidth = W * .82 - inset * 2;
+  let size = cue.size * scale, heads: string[] = [], details: string[] = [];
+  for (;;) {
+    setFont(ctx, `900 ${size}px ${DISPLAY}`, -size * .01);heads = wrap(ctx, head.toUpperCase(), maxWidth);
+    setFont(ctx, `600 ${size * .5}px ${DISPLAY}`);details = detail ? wrap(ctx, detail, maxWidth) : [];
+    if (heads.length + details.length <= 3 || size <= 14 * scale) break;
+    size -= scale;
+  }
+  setFont(ctx, `900 ${size}px ${DISPLAY}`, -size * .01);
+  const headWidth = Math.max(...heads.map((l) => ctx.measureText(l).width));
+  setFont(ctx, `600 ${size * .5}px ${DISPLAY}`);
+  const detailWidth = Math.max(0, ...details.map((l) => ctx.measureText(l).width));
+  const pad = size * .3, headLine = size * 1.02, detailLine = size * .66, gap = details.length ? size * .12 : 0;
+  const width = Math.max(headWidth, detailWidth) + inset * 2, height = pad * 2 + heads.length * headLine + gap + details.length * detailLine;
+  const margin = Math.min(W, H) * .035, restX = fromRight ? W - width : 0, y = clamp(cue.y * H - height / 2, margin, H - margin - height);
+  const { enter, exit } = phase(cue, time, .4, .32), slide = (1 - enter()) + exit, x = restX + (fromRight ? 1 : -1) * slide * (width + 4 * scale);
+  ctx.save();
+  ctx.fillStyle = 'rgba(11,7,18,.74)';ctx.fillRect(x, y, width, height);
+  ctx.fillStyle = cue.background;ctx.fillRect(fromRight ? x + width - bar : x, y, bar, height);
+  ctx.beginPath();ctx.rect(x, y, width, height);ctx.clip();
+  // The words follow the band a beat behind, so the bar leads.
+  const lag = (1 - enter(.35)) * size * .9 * (fromRight ? 1 : -1), textX = fromRight ? x + width - inset + lag : x + inset + lag;
+  ctx.textAlign = fromRight ? 'right' : 'left';ctx.textBaseline = 'middle';ctx.fillStyle = cue.color;
+  setFont(ctx, `900 ${size}px ${DISPLAY}`, -size * .01);
+  heads.forEach((l, i) => ctx.fillText(l, textX, y + pad + headLine * (i + .5) + size * .03));
+  ctx.globalAlpha = enter(.6) * .86;setFont(ctx, `600 ${size * .5}px ${DISPLAY}`);
+  details.forEach((l, i) => ctx.fillText(l, textX, y + pad + heads.length * headLine + gap + detailLine * (i + .5)));
+  ctx.restore();
+  return { id: cue.id, x: restX, y, width, height };
+}
+/** A title card over the scene: a heavy headline, an accent rule under it, a tagline (the second line) and small
+ * spaced lines in the accent colour (any further lines), over a soft dark glow. They rise and settle in turn, and
+ * fade out together. */
+function drawTitle(ctx: CanvasRenderingContext2D, cue: TextCue, time: number, W: number, H: number): TextLayout {
+  const scale = Math.min(W, H) / 720, margin = Math.min(W, H) * .05, [head, tagline, ...notes] = cue.text.split('\n').map((l) => l.trim());
+  const maxWidth = W - margin * 2;
+  let size = cue.size * scale, heads: string[] = [];
+  for (;;) { setFont(ctx, `900 ${size}px ${DISPLAY}`, -size * .02);heads = wrap(ctx, head, maxWidth);if (heads.length <= 2 || size <= 14 * scale) break;size -= scale; }
+  const tagSize = Math.max(14 * scale, size * .3), noteSize = Math.max(12 * scale, size * .22);
+  setFont(ctx, `700 ${tagSize}px ${DISPLAY}`);const tags = tagline ? wrap(ctx, tagline, maxWidth) : [];
+  const headLine = size * 1.0, rule = Math.max(3 * scale, size * .06), ruleGap = size * .32, tagLine = tagSize * 1.3, noteLine = noteSize * 1.6;
+  const height = heads.length * headLine + ruleGap * 2 + rule + tags.length * tagLine + (notes.length ? noteSize * .9 + notes.length * noteLine : 0);
+  const cx = clamp(cue.x, .1, .9) * W, top = clamp(cue.y * H - height / 2, margin, H - margin - height);
+  const { enter, exit } = phase(cue, time, .7, .45), fade = 1 - exit, grow = 1 + exit * .03;
+  ctx.save();
+  // A soft dark glow behind the words keeps them clear on any scene.
+  const glow = ctx.createRadialGradient(cx, top + height / 2, 0, cx, top + height / 2, Math.max(W, H) * .58);
+  glow.addColorStop(0, `rgba(8,6,14,${.72 * enter() * fade})`);glow.addColorStop(.55, `rgba(8,6,14,${.4 * enter() * fade})`);glow.addColorStop(1, 'rgba(8,6,14,0)');
+  ctx.fillStyle = glow;ctx.fillRect(0, 0, W, H);
+  ctx.translate(cx, top + height / 2);ctx.scale(grow, grow);ctx.translate(-cx, -(top + height / 2));
+  ctx.textAlign = 'center';ctx.textBaseline = 'middle';ctx.shadowColor = 'rgba(0,0,0,.45)';ctx.shadowBlur = 18 * scale;ctx.shadowOffsetY = 3 * scale;
+  let y = top, widest = 0;
+  const line = (text: string, lineHeight: number, at: number, colour: string, font: string, spacing = 0) => {
+    const a = enter(at);ctx.globalAlpha = a * fade;ctx.fillStyle = colour;setFont(ctx, font, spacing);
+    widest = Math.max(widest, ctx.measureText(text).width);
+    ctx.fillText(text, cx, y + lineHeight / 2 + (1 - a) * lineHeight * .35);y += lineHeight;
+  };
+  const headScale = 1.06 - .06 * enter();
+  ctx.save();ctx.translate(cx, top + heads.length * headLine / 2);ctx.scale(headScale, headScale);ctx.translate(-cx, -(top + heads.length * headLine / 2));
+  for (const l of heads) line(l, headLine, 0, cue.color, `900 ${size}px ${DISPLAY}`, -size * .02);
+  ctx.restore();
+  y += ruleGap;
+  const ruleWidth = Math.min(size * 1.1, widest) * enter(.3);
+  ctx.globalAlpha = fade;ctx.shadowBlur = 0;ctx.fillStyle = cue.background;ctx.fillRect(cx - ruleWidth / 2, y, ruleWidth, rule);ctx.shadowBlur = 18 * scale;
+  y += rule + ruleGap;
+  for (const l of tags) line(l, tagLine, .4, cue.color, `700 ${tagSize}px ${DISPLAY}`);
+  if (notes.length) y += noteSize * .9;
+  for (const l of notes) line(l, noteLine, .6, cue.background, `500 ${noteSize}px ${MONO}`, noteSize * .04);
+  ctx.restore();
+  return { id: cue.id, x: clamp(cx - widest / 2 - 8 * scale, 0, W), y: top, width: Math.min(W, widest + 16 * scale), height };
 }
 
 export function parseSubtitles(source:string):TextCue[]{
