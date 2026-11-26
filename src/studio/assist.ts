@@ -15,8 +15,8 @@ import { SOUND_EFFECTS } from './audio/effects-catalog';
 import { MAX_TEXT_CUES, TEXT_STYLES } from './text';
 import { actionNote } from './animations';
 import { equipActor, WEAPONS, WEAPON_LABELS, CARRIED, CARRY_LABELS } from './equipment';
-import { MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, parseProject, presetCode, durationOf, type StudioProject } from './project';
-import { MAX_FILM_SIZE, MAX_SCENES, filmScenes, sceneSource, shareFilmSettings } from './film';
+import { FILM_LIMITS, LESSON_LIMITS, MAX_ACTORS, MAX_ACTIONS, MAX_SHOTS, MAX_DURATION, parseProject, presetCode, durationOf, type StudioProject } from './project';
+import { MAX_FILM_SIZE, MAX_LESSON_SIZE, MAX_SCENES, filmScenes, sceneSource, shareFilmSettings } from './film';
 
 import {VEHICLE_FOR_CLIP} from '../core/props/vehicles';
 import {WEAPON_POSES} from '../core/anim/riding-weapons';
@@ -42,13 +42,14 @@ function fields(value: Record<string, unknown>, allowed: string[], path: string)
 
 /** A film of one or more scenes, saved or written by an assistant: version 3 lists scenes, each checked like a one-scene film. */
 export function parseStudioFilm(text: string, catalog?: Catalog): StudioProject[] {
-  if (text.length > MAX_FILM_SIZE) throw Error('Use JSON smaller than 500 KB.');
+  if (text.length > MAX_LESSON_SIZE) throw Error('Use JSON smaller than 5 MB.');
   const source = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, '$1');
   let value: unknown;
   try { value = JSON.parse(source); }
   catch { throw Error('This is not valid JSON. Paste the complete JSON object, without surrounding explanation.'); }
+  if (text.length > MAX_FILM_SIZE && !(object(value) && value.lesson === true)) throw Error('Use JSON smaller than 500 KB.');
   if (!object(value) || value.version !== 3) return [parseStudioInput(source, catalog)];
-  fields(value, ['kind', 'version', 'title', 'aspect', 'caption', 'scenes', 'packs'], 'Film');
+  fields(value, ['kind', 'version', 'title', 'aspect', 'caption', 'lesson', 'scenes', 'packs'], 'Film');
   const scenes = filmScenes(value).map((scene, i) => {
     try { return parseStudioInput(JSON.stringify(sceneSource(value, scene)), catalog); }
     catch (error) { throw Error(`Scene ${i + 1}: ${(error as Error).message}`); }
@@ -64,13 +65,14 @@ export async function loadStudioFilm(text: string, catalog?: Catalog): Promise<S
 
 /** Accept saved projects or LLM-friendly preset/equipment names; keep the canonical validator authoritative. */
 export function parseStudioInput(text: string, catalog?: Catalog): StudioProject {
-  if (text.length > 100_000) throw Error('Use JSON smaller than 100 KB.');
+  if (text.length > LESSON_LIMITS.size) throw Error('Use JSON smaller than 1 MB.');
   const source = text.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, '$1');
   let value: unknown;
   try { value = JSON.parse(source); }
   catch { throw Error('This is not valid JSON. Paste the complete JSON object, without surrounding explanation.'); }
+  if (text.length > FILM_LIMITS.size && !(object(value) && value.lesson === true)) throw Error('Use JSON smaller than 100 KB.');
   if (!object(value) || value.version !== 2) return parseProject(source);
-  fields(value, ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption', 'texts', 'audio', 'sceneName', 'transition', 'packs'], 'Film');
+  fields(value, ['kind', 'version', 'title', 'template', 'actors', 'shots', 'camera', 'view', 'aspect', 'caption', 'texts', 'audio', 'sceneName', 'transition', 'packs', 'lesson', 'boards'], 'Film');
   if (object(value.view)) fields(value.view, ['azimuth', 'elevation', 'zoom'], 'View');
   if (Array.isArray(value.shots)) value.shots.forEach((shot, i) => {
     if (object(shot)) {fields(shot, ['id', 'duration', 'shot', 'target','view','camera'], `Shot ${i + 1}`);if(object(shot.view))fields(shot.view,['azimuth','elevation','zoom'],`Shot ${i+1} view`);}
@@ -81,7 +83,7 @@ export function parseStudioInput(text: string, catalog?: Catalog): StudioProject
     const path = `Character ${i + 1}`;
     fields(raw, ['id', 'preset', 'character', 'params', 'detail', 'weapon', 'carry', 'vehicle', 'x', 'y', 'z', 'yaw', 'start', 'beats'], path);
     if (Array.isArray(raw.beats)) raw.beats.forEach((beat, j) => {
-      if (object(beat)) fields(beat, ['id', 'clip', 'duration', 'move', 'travelSpeed', 'flightHeight', 'showVehicle', 'showProp', 'showBlood', 'weaponPose', 'weaponYaw', 'weaponPitch', 'vehicleId', 'vehicleSeat', 'face', 'hidden', 'expression', 'to', 'exact'], `${path}, action ${j + 1}`);
+      if (object(beat)) fields(beat, ['id', 'clip', 'duration', 'move', 'travelSpeed', 'flightHeight', 'showVehicle', 'showProp', 'showBlood', 'weaponPose', 'weaponYaw', 'weaponPitch', 'vehicleId', 'vehicleSeat', 'face', 'hidden', 'expression', 'board', 'rate', 'to', 'exact'], `${path}, action ${j + 1}`);
       if (object(beat) && beat.expression !== undefined && !(EXPRESSIONS as readonly unknown[]).includes(beat.expression)) throw Error(`${path}, action ${j + 1}: expression must be one of ${EXPRESSIONS.join(', ')}.`);
     });
     route(raw, path);

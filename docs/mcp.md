@@ -1,6 +1,6 @@
 # AI assistants (MCP)
 
-`ara3d mcp` lets AI assistants make Ara characters, Studio films and Play games for you: Claude, Cursor, VS Code's Copilot and any other app that supports the [Model Context Protocol](https://modelcontextprotocol.io). Ask in plain words, and the assistant designs the character, builds it on your machine and writes the 3D files.
+`ara3d mcp` lets AI assistants make Ara characters, Studio films, Educate lessons and Play games for you: Claude, Cursor, VS Code's Copilot and any other app that supports the [Model Context Protocol](https://modelcontextprotocol.io). Ask in plain words, and the assistant designs the character, builds it on your machine and writes the 3D files.
 
 > *Make a cyberpunk hacker with a rifle, walking and running, as a GLB for my Godot game.*
 >
@@ -11,6 +11,8 @@
 > *Write a 20-second film of two agents arguing in the warehouse, with a slow push-in.*
 >
 > *Make a three-scene film: she rides the bus, takes the train, then flies home.*
+>
+> *Write a 3-minute lesson for beginners on what a fraction is, with pizza as the example.*
 >
 > *Make a rescue mission at the military base with three guards and a pickup getaway.*
 
@@ -54,17 +56,19 @@ Other apps take the same command: `npx -y ara3d mcp`.
 |---|---|
 | `create_character` | Builds a character and returns its height and a link that opens it in the builder, which also works as a film character. It writes GLB, FBX, OBJ or ZIP files only when you ask for them; the assistant asks whether you want a file and in which format. Starts from a preset, a random seed, a builder share link, a character the assistant designs, or a rigged model from another tool on your computer (a GLB, glTF, VRM or FBX path, with its textures in its folder), which keeps its own look. Takes a height in centimetres, animations, [content packs](packs.md), detail, root motion, a weapon, something to carry, a vehicle and colours |
 | `list_presets` | The 65 preset characters |
-| `list_animations` | The 259 animation clips, searchable, such as "dance" or "rifle", and those of any content packs given |
+| `list_animations` | The 261 animation clips, searchable, such as "dance" or "rifle", and those of any content packs given |
 | `list_props` | Weapons, carried items, vehicles and expressions |
 | `character_schema` | Every field of a character, so the assistant can design one: body, face, hair, clothes, colours and rig. It comes in parts |
 | `create_film` | Checks an [Ara Studio](studio.md) film of one scene, or up to five scenes in different sets, as Studio does, saves it as `.ara-studio.json` and returns a link that opens it in Studio, to watch, edit and record as a video. It also runs Studio's staging check on every scene and lists any place a character or vehicle walks or drives through something, so the assistant can fix the route. A film in a [set made in Blender](studio-sets.md) is checked against that set when its file is given in `set_files`, and the answer says to import the file in Studio |
 | `film_guide` | How to write a film. Its first answer is a short quickstart: the format, a worked example, the sets, the presets and the everyday animations, with the chosen set's staging map. Most films need nothing more. Further topics come on request: the core rules (including films of several scenes), the full animation catalogue, sounds and the full format. Set files given in `set_files` (paths or https addresses) join the sets, with their staging notes and maps |
+| `create_lesson` | Checks an [Ara Educate](educate.md) lesson as Educate does (every step, the writing and graphs, the 10-minute limit), lists anything worth a look (writing that goes over earlier writing, long speeches, steps where the teacher says nothing), saves it as `.ara-lesson.json` and returns a link that opens it in Educate, to hear it, change it and export the video |
+| `lesson_guide` | How to write a lesson: the format, every kind of step, how to teach well and an example. Given a lesson, it asks to revise that one |
 | `create_game` | Checks an [Ara Play](play.md) game as Play does, including where everything goes on the map, saves it as `.ara-play.json` and returns a link that opens it in Play, to play, edit, download or publish |
 | `game_guide` | How to write a game: the core rules, then topics on request (game modes, the map library, appearance rules) |
 
 Assistants usually ask before running a tool, and show what they're about to make.
 
-Films and games are small files, so they are written straight away; there is nothing to build until Studio or Play opens them. No answer is longer than 20,000 characters, which every assistant accepts in one go: the guides come as topics, and a long topic, a big set's map or the character schema comes in numbered parts. Chapters of a game can come in any order of modes, such as a runner, then a race, then a rescue mission, and `create_game` describes each chapter. Film and game links carry the file after the `#` in the address, which stays in the browser, so opening one sends nothing to ara3dgen.com.
+Films, lessons and games are small files, so they are written straight away; there is nothing to build until Studio, Educate or Play opens them. A lesson's voices are made in Educate. No answer is longer than 20,000 characters, which every assistant accepts in one go: the guides come as topics, and a long topic, a big set's map or the character schema comes in numbered parts. Chapters of a game can come in any order of modes, such as a runner, then a race, then a rescue mission, and `create_game` describes each chapter. Film, lesson and game links carry the file after the `#` in the address, which stays in the browser, so opening one sends nothing to ara3dgen.com.
 
 ## Options
 
@@ -75,5 +79,5 @@ Films and games are small files, so they are written straight away; there is not
 
 ## Good to know
 
-- **Smaller, faster files:** ask for only the animations you need. Every clip makes the file bigger and the build slower; a character with all 259 is about 28 MB.
+- **Smaller, faster files:** ask for only the animations you need. Every clip makes the file bigger and the build slower; a character with all 261 is about 28 MB.
 - **Licence:** characters are built from CC0 MakeHuman data, with animations from the CMU Graphics Lab Motion Capture Database, so you can use them in commercial projects.

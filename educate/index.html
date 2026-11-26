@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ara Educate — lessons with a teacher and a board</title>
+  <meta name="description" content="Make a lesson video: write the steps, and an Ara teacher writes them on a whiteboard, chalkboard or screen, explains them and points them out. Free, in your browser." />
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#09090b" />
+  <link rel="stylesheet" href="/src/educate/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../" aria-label="Ara home"><img src="../logo.svg" alt="" width="22" height="22" />Ara<span>Educate</span></a>
+    <label class="sr-only" for="title">Lesson title</label><input id="title" class="title" maxlength="80" type="text" placeholder="Untitled lesson" />
+    <div class="voices" id="voices" role="status" aria-live="polite"><span class="dot"></span><span id="voices-label">Voices</span><button id="voices-retry" class="link" hidden>Try again</button></div>
+    <nav class="file-tools" aria-label="Lesson file">
+      <button id="open-assist" class="ghost">Assist</button>
+      <button id="new-lesson" class="ghost">New</button>
+      <button id="open-lesson" class="ghost">Open</button><input id="lesson-file" type="file" accept=".json,application/json" hidden />
+      <button id="save-lesson" class="ghost">Save</button>
+      <button id="open-export" class="primary">Export video</button>
+    </nav>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar" aria-label="Lesson">
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tab-steps" aria-selected="true" aria-controls="panel-steps">Steps <span id="step-count" class="count"></span></button>
+        <button role="tab" id="tab-preferences" aria-selected="false" aria-controls="panel-preferences">Preferences</button>
+      </div>
+
+      <section id="panel-steps" role="tabpanel" class="panel">
+        <ol id="steps" class="steps" aria-label="Steps"></ol>
+        <div class="add">
+          <button id="add-step" class="add-button" aria-expanded="false" aria-controls="add-menu">＋ Add a step</button>
+          <div id="add-menu" class="add-menu" hidden></div>
+        </div>
+      </section>
+
+      <section id="panel-preferences" role="tabpanel" class="panel" hidden>
+        <div class="group">
+          <h3>Where</h3>
+          <div id="sets" class="choices"></div>
+        </div>
+        <div class="group">
+          <h3>Writing board</h3>
+          <div id="boards" class="segmented"></div>
+          <p class="hint">Slides, code and terminals appear on a projector screen that comes down when they're needed.</p>
+        </div>
+        <div class="group" id="font-group">
+          <h3>Handwriting</h3>
+          <div id="fonts" class="fonts"></div>
+        </div>
+        <div class="group">
+          <h3>Teacher</h3>
+          <select id="teacher"></select>
+        </div>
+        <div class="group">
+          <h3>Voice</h3>
+          <select id="voice"></select>
+          <p class="hint" id="voice-hint"></p>
+          <label class="switch"><input id="captions" type="checkbox" /><span></span>Show what the teacher says as captions</label>
+        </div>
+      </section>
+    </aside>
+
+    <section class="stage" aria-label="Preview">
+      <div class="viewport" id="viewport">
+        <div class="frame" id="frame">
+          <canvas id="view" width="1280" height="720"></canvas>
+          <div class="view-tools"><span class="hint">Drag to turn · scroll to zoom</span><button id="reset-view" class="chip" hidden>Reset camera</button></div>
+          <div id="loading" class="loading"><div class="spinner"></div><span id="loading-label">Getting the classroom ready…</span></div>
+        </div>
+      </div>
+      <div class="transport">
+        <button id="play" class="play" aria-label="Play"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path id="play-icon" d="M8 5v14l11-7z" fill="currentColor"/></svg></button>
+        <div class="timeline">
+          <div id="marks" class="marks" aria-hidden="true"></div>
+          <input id="scrub" type="range" min="0" max="10" step="0.01" value="0" aria-label="Time in the lesson" />
+        </div>
+        <span id="clock" class="clock">0:00 / 0:00</span>
+      </div>
+      <p id="notice" class="notice" role="status"></p>
+    </section>
+  </main>
+
+  <dialog id="export-dialog" class="dialog export" aria-labelledby="export-title">
+    <header class="dialog-head">
+      <h2 id="export-title">Export video</h2>
+      <button id="close-export" class="icon" aria-label="Close">✕</button>
+    </header>
+    <!-- Before: the size and a summary. -->
+    <div id="export-ready" class="export-pane">
+      <div class="sizes" role="radiogroup" aria-label="Video size">
+        <label><input type="radio" name="size" value="720" checked /><span>720p</span></label>
+        <label><input type="radio" name="size" value="1080" /><span>1080p</span></label>
+      </div>
+      <p id="export-summary" class="summary"></p>
+      <button id="start-export" class="primary wide">Make the video</button>
+    </div>
+    <!-- While it works: one line, one bar. -->
+    <div id="export-working" class="export-pane" hidden>
+      <p id="export-step" class="step-line">Getting ready…</p>
+      <progress id="export-progress" max="1" value="0"></progress>
+      <p id="export-detail" class="summary"></p>
+      <button id="cancel-export" class="ghost wide">Cancel</button>
+    </div>
+    <!-- Done, or what went wrong. -->
+    <div id="export-done" class="export-pane" hidden>
+      <div class="done-line"><span class="tick" aria-hidden="true">✓</span><div><b>Your video is ready</b><p id="export-file" class="summary"></p></div></div>
+      <div class="dialog-tools"><a id="download-lesson" class="primary button" download="lesson.mp4">Download</a><button id="export-again" class="ghost">Make another</button></div>
+    </div>
+    <div id="export-failed" class="export-pane" hidden>
+      <p id="export-error" class="error" role="alert"></p>
+      <button id="retry-export" class="primary wide">Try again</button>
+    </div>
+  </dialog>
+  <dialog id="start-dialog" class="dialog start" aria-labelledby="start-title">
+    <header class="dialog-head">
+      <div><h2 id="start-title">Start a lesson</h2><p class="summary">Begin with a ready-made lesson and make it yours, or start blank.</p></div>
+      <button id="close-start" class="icon" aria-label="Close">✕</button>
+    </header>
+    <div id="templates" class="templates"></div>
+    <footer id="start-foot" class="start-foot" hidden>
+      <span>This replaces the lesson that’s open.</span>
+      <button id="start-save" class="ghost">Save it first</button>
+    </footer>
+  </dialog>
+  <script type="module" src="/src/educate/main.ts"></script>
+</body>
+</html>

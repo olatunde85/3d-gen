@@ -41,6 +41,8 @@ import { stagingReport } from '../../../src/studio/spatial-report';
 import { BUILT_IN_SETS, isImportedSet, isMissingSet, sceneById, SET_ID, type SetId } from '../../../src/studio/catalog';
 import { loadSetFiles } from './set';
 import { locationMapFile } from '../../../src/studio/spatial-maps';
+import { describeLesson, lessonGuide, parseAssistLesson } from '../../../src/educate/guide';
+import { parseLesson } from '../../../src/educate/lesson';
 
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 const FORMATS: readonly ExportFormat[] = ['glb', 'fbx', 'obj', 'zip'];
@@ -54,6 +56,7 @@ Start from a preset (list_presets), a random seed, a share link from the Ara bui
 When writing files, choose only the animations needed (list_animations): every clip makes the file bigger and the build slower.
 Each result includes a link that opens the character in the Ara builder, so the user can see it and keep editing.
 Films: call film_guide once with the brief and the set's location. It returns a short quickstart (the format, a worked example, sets, presets and everyday clips) and that set's map; it is enough for most films. Give characters a start point and walk them with "to" points; Ara works out facing, travel and timing. Use hidden for entrances and exits, and builder links from create_character for characters made earlier. Then call create_film: it checks the film as Studio does (including the staging check), saves it and returns a Studio link; fix anything it reports and call it again. Read further film_guide topics only when the film needs them. Never ask the user to export a set's map. A set the user made in Blender (an Ara Studio set file, .glb) goes in set_files, given to film_guide and create_film alike: its ID (author/set) is then a location, with its own staging note and map. The user imports the same file in Studio (Import a set…) to see the film there.
+Lessons: call lesson_guide with the brief (and the lesson to revise, if any), write the lesson it describes, then call create_lesson: it checks the lesson as Ara Educate does, lists anything worth a look (writing that goes over earlier writing, long speeches), saves it and returns an Educate link where the user hears it, changes it and exports the video. Lessons are facts people learn from: be accurate, and leave out anything you're unsure of.
 Games: read game_guide (an overview, then the topics you need), write the game, then call create_game, which checks it as Ara Play does, saves it and returns a Play link.
 Every answer fits in one tool result: a long topic or schema comes in numbered parts. Read them with these tools, not with shell commands on saved files.
 People: follow the user's description of who a character is. Don't assume a nationality, ethnicity or culture they didn't ask for, and don't carry one character's background over to the next. The catalogue includes clothes, props and places from many cultures; none is a default. When the brief leaves it open, choose to suit the story or ask.`;
@@ -122,6 +125,16 @@ const TOOLS = [
     name: 'create_film',
     description: 'Checks an Ara Studio film (one scene, or up to five scenes in order) as Studio does, including its staging check (characters and vehicles against the set\'s ground, water and obstacles), saves it as .ara-studio.json and returns a summary, any staging problems and a link that opens it in Ara Studio. Errors name the field to fix.',
     inputSchema: { type: 'object', properties: { film: { type: 'object', description: 'The film, written following film_guide.' }, packs: { type: 'array', items: { type: 'string' }, description: 'Content packs (.ara-pack.json files or https addresses) whose animations the film uses, when the film doesn\'t list them in its own packs.' }, set_files: SET_FILES, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['film'], additionalProperties: false },
+  },
+  {
+    name: 'lesson_guide',
+    description: 'How to write an Ara Educate lesson: a 3D teacher writes on a whiteboard or chalkboard, shows slides, code and terminals on a projector screen, points and speaks every line, as a video of up to 10 minutes. Returns the format, the step types, how to teach well and an example.',
+    inputSchema: { type: 'object', properties: { brief: { type: 'string', description: 'What to teach and who it\'s for, included in the guide.' }, lesson: { type: 'object', description: 'A lesson to revise (an .ara-lesson.json\'s contents): the guide asks to keep what the brief doesn\'t change.' } }, additionalProperties: false },
+  },
+  {
+    name: 'create_lesson',
+    description: 'Checks an Ara Educate lesson as Educate does (every step, the writing and graphs, the 10-minute limit), lists anything worth a look before the user films it, saves it as .ara-lesson.json and returns a link that opens it in Ara Educate. Errors name the step or field to fix.',
+    inputSchema: { type: 'object', properties: { lesson: { type: 'object', description: 'The lesson, written following lesson_guide.' }, out_dir: { type: 'string', description: `The folder to write to (default ${OUT}).` } }, required: ['lesson'], additionalProperties: false },
   },
   {
     name: 'game_guide',
@@ -300,6 +313,20 @@ function setFiles(args: Args): string[] {
   return args.set_files.map(String);
 }
 
+/** Checks a lesson, saves it and returns what it holds, what to look over and the link that opens it in Educate. */
+function createLesson(args: Args) {
+  if (!args.lesson || typeof args.lesson !== 'object') throw Error('Pass the lesson as an object in "lesson".');
+  const lesson = parseAssistLesson(JSON.stringify(args.lesson)), json = JSON.stringify(lesson, null, 2), about = describeLesson(lesson);
+  const path = join(outDir(args), `${fileName(lesson.title, 'lesson')}.ara-lesson.json`);
+  writeSafely(path, new TextEncoder().encode(json + '\n'));
+  return [
+    `Checked: ${about.headline}\n  ${about.facts.join('\n  ')}`,
+    ...(about.warnings.length ? [`Worth a look (fix these and call create_lesson again, or tell the user):\n  ${about.warnings.join('\n  ')}`] : []),
+    `Saved: ${path}`,
+    `Open it in Ara Educate to hear it, change it and export the video (voices are made in the browser): ${fileLink('lesson', JSON.stringify(lesson))}`,
+  ].join('\n\n');
+}
+
 /** Checks a game (settings and placement on the map), saves it and returns where it went and the link that opens it in Play. */
 async function createGame(args: Args) {
   if (!args.game || typeof args.game !== 'object') throw Error('Pass the game as an object in "game".');
@@ -351,6 +378,11 @@ async function callTool(name: string, args: Args, progress: (done: number, messa
   if (name === 'game_guide') return guideAnswer(generatePlayGuide((await data()).catalog, brief), args.topic, 'game_guide');
   if (name === 'create_film') return createFilm(args);
   if (name === 'create_game') return createGame(args);
+  if (name === 'lesson_guide') {
+    const current = args.lesson === undefined ? undefined : parseLesson(JSON.stringify(args.lesson));
+    return lessonGuide(typeof args.brief === 'string' ? args.brief : '', current);
+  }
+  if (name === 'create_lesson') return createLesson(args);
   throw Error(`Unknown tool "${name}".`);
 }
 

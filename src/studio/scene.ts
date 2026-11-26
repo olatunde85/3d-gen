@@ -9,6 +9,11 @@ import { sceneById,isImportedSet,isOutdoorScene } from './catalog';
 import {VehicleStage} from './vehicle-stage';
 import { BAKED_LAYER } from './set-files';
 import { hasSet, loadedSet, loadSet } from './set-store';
+import { boardFocus, drawBoard, loadBoardFonts, type Board } from './board';
+import { BoardModel } from './board-model';
+
+/** What a shot frames: a character, or a board standing in the set. */
+interface Framed { stagePosition: THREE.Vector3; height: number; halfWidth?: number; framingPadding: number; framingBounds?: THREE.Box3; group: THREE.Object3D }
 
 export class StudioScene {
   readonly renderer: THREE.WebGLRenderer;
@@ -32,6 +37,10 @@ export class StudioScene {
   private fill = new THREE.HemisphereLight('#f3f4ff', '#6d675f', 1.3);
   /** An imported set loading in the background (see set-store.ts): a plain stage stands in, and onSetReady says when it's here. */
   private setLoading?: Promise<unknown>;
+  /** Boards standing in the set, by board ID, and the shape each was built for. */
+  private boards = new Map<string, { model: BoardModel; built: string }>();
+  private boardFonts?: Promise<void>;
+  private boardFontKey = '';
   onSetReady?: () => void;
   /** Under the cast on a baked set: catches the cast's shadows (the set's own light is baked). */
   private shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.42 }));
@@ -72,11 +81,13 @@ export class StudioScene {
     this.setFailed.delete(id);
     if (this.set?.group.name === id) { disposeSet(this.set.group);this.set = undefined; }
   }
-  async ready() { await Promise.all([...this.actors.values()].map(a => a.ready()));await this.setLoading; }
+  async ready() { await Promise.all([...this.actors.values()].map(a => a.ready()));await this.setLoading;await this.boardFonts; }
   /** The seats in the project's set, building the set if it isn't showing yet. */
   seatsFor(project: StudioProject) { this.updateSet(project); return this.set!.seats; }
   private updateSet(project: StudioProject) {
-    if (this.set?.group.name === project.template) return;
+    // A lesson's set is built for lessons (see SetBuilder.lesson), so it's a different build of the same set.
+    const built = project.lesson ? `${project.template}|lesson` : project.template;
+    if (this.set?.group.name === built) return;
     // An imported set loads first: a plain dark stage stands in meanwhile, and the scene is drawn again once it's here.
     // A set that isn't in this browser keeps the stand-in.
     if (isImportedSet(project.template) && !loadedSet(project.template)) {
@@ -85,7 +96,7 @@ export class StudioScene {
       return;
     }
     if (this.set) disposeSet(this.set.group);
-    this.set = createSet(project.template); this.set.group.name = project.template; this.scene.add(this.set.group);
+    this.set = createSet(project.template, { lesson: !!project.lesson }); this.set.group.name = built; this.scene.add(this.set.group);
     this.shadowCatcher.removeFromParent();
     this.scene.background = new THREE.Color(this.set.background);
     this.scene.fog = new THREE.Fog(this.set.background, isOutdoorScene(project.template)?100:project.template === 'runway' ? 10 : 14, isOutdoorScene(project.template)?450:project.template === 'runway' ? 35 : 60);
@@ -110,16 +121,44 @@ export class StudioScene {
       this.shadowCatcher.receiveShadow = true;this.scene.add(this.shadowCatcher);
     }
   }
+  /** Puts the scene's boards in the set (built again when their kind or place changes) and shows each as it stands at `time`. */
+  private updateBoards(project: StudioProject, time: number) {
+    const standing = (project.boards ?? []).filter((b) => b.place !== 'frame');
+    for (const [id, entry] of this.boards) if (!standing.some((b) => b.id === id)) { entry.model.dispose();this.boards.delete(id); }
+    // The fonts the boards use load once; the boards are drawn again when they arrive.
+    const fontKey = [...new Set((project.boards ?? []).map((b) => b.font))].sort().join();
+    if (fontKey && fontKey !== this.boardFontKey) {
+      this.boardFontKey = fontKey;
+      this.boardFonts = loadBoardFonts(project.boards!).then(() => { for (const { model } of this.boards.values()) model.invalidate();this.onSetReady?.(); });
+    }
+    for (const board of standing) {
+      const built = JSON.stringify([board.kind, board.place]);
+      let entry = this.boards.get(board.id);
+      if (entry?.built !== built) { entry?.model.dispose();entry = { model: new BoardModel(board), built };this.boards.set(board.id, entry);this.scene.add(entry.model.group); }
+      entry.model.update(board, time);
+    }
+  }
+  /** Draws every board again (an image it shows has arrived). */
+  invalidateBoards() { for (const { model } of this.boards.values()) model.invalidate(); }
+  /** A standing board as something a shot can frame. */
+  private boardFrame(model: BoardModel): Framed {
+    return { stagePosition: model.group.position.clone(), height: (model.group.userData.surfaceCentre as number) + model.height / 2, halfWidth: model.width / 2 + 0.1, framingPadding: 0, framingBounds: new THREE.Box3().setFromObject(model.group), group: model.group };
+  }
   render(project: StudioProject, time: number) {
     this.updateSet(project);
+    this.updateBoards(project, time);
     const at = shotAt(project, time), beat = at.shot;
     const vehicles=new VehicleStage(project,time,new Map([...this.actors].map(([id,actor])=>[id,actor.vehicleBody])));
     for (const track of project.actors) this.actors.get(track.id)?.pose(project, time, track, this.set?.seats,vehicles);
     // Off-stage characters are not framed; a shot of only off-stage characters frames everyone on stage.
-    const onStage = project.actors.map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a && !a.hidden);
-    const chosen = project.actors.filter(a => beat.target === 'all' || a.id === beat.target).map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a && !a.hidden);
-    const subjects = chosen.length ? chosen : onStage;
-    const position=(a:StudioActor)=>a.stagePosition;
+    const onStage: Framed[] = project.actors.map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a && !a.hidden);
+    const chosen: Framed[] = project.actors.filter(a => beat.target === 'all' || a.id === beat.target).map(a => this.actors.get(a.id)).filter((a): a is StudioActor => !!a && !a.hidden);
+    // Boards standing in the set join a shot of everyone; a shot of one board frames that board.
+    const boardShot = beat.target.startsWith('board:') ? this.boards.get(beat.target.slice(6))?.model : undefined;
+    const shotBoard: Board | undefined = boardShot && project.boards?.find((b) => `board:${b.id}` === beat.target);
+    if (beat.target === 'all') for (const { model } of this.boards.values()) chosen.push(this.boardFrame(model));
+    const subjects = boardShot ? [] : chosen.length ? chosen : onStage;
+    const position=(a:Framed)=>a.stagePosition;
     const h = Math.max(1.6, ...subjects.map(a => a.height)), center = new THREE.Vector3();
     for (const a of subjects) center.add(position(a)); if(subjects.length)center.multiplyScalar(1/subjects.length);
     const u = at.progress, eased = u * u * (3 - 2 * u);
@@ -131,14 +170,27 @@ export class StudioScene {
     const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     let extent = 0, depth = 0;
     for(const a of subjects){const dx=position(a).x-center.x,dz=position(a).z-center.z;
-      extent=Math.max(extent,Math.abs(dx*Math.cos(angle)-dz*Math.sin(angle))+a.height*0.29);
+      extent=Math.max(extent,Math.abs(dx*Math.cos(angle)-dz*Math.sin(angle))+(a.halfWidth??a.height*0.29));
       depth=Math.max(depth,Math.abs(dx*Math.sin(angle)+dz*Math.cos(angle)));
     }
     let distance = Math.max(h*size/(2*tan),extent/(tan*this.camera.aspect))*view.zoom + depth + Math.max(0,...subjects.map(a=>a.framingPadding));
     if (cameraMove === 'dolly') distance *= 1.07 - 0.12 * eased;
     const elevation=THREE.MathUtils.degToRad(view.elevation);
     if(beat.shot==='wide')for(const actor of subjects){const bounds=actor.framingBounds;if(!bounds)continue;let fit=0;for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z]){const dx=x-center.x,dz=z-center.z,dy=y-targetY,lateral=dx*Math.cos(angle)-dz*Math.sin(angle),forward=dx*Math.sin(angle)+dz*Math.cos(angle),up=dy*Math.cos(elevation)-forward*Math.sin(elevation),towards=dy*Math.sin(elevation)+forward*Math.cos(elevation);fit=Math.max(fit,Math.abs(lateral)/(tan*this.camera.aspect)+towards,Math.abs(up)/tan+towards);}distance=Math.max(distance,fit*1.08*view.zoom);}
-    if(!this.freezeCamera){this.camera.position.set(center.x+Math.sin(angle)*distance*Math.cos(elevation),Math.max(0.12,targetY+h*0.025+Math.sin(elevation)*distance),center.z+Math.cos(angle)*distance*Math.cos(elevation));
+    if(boardShot&&!this.freezeCamera){
+      // Square on to the board (turned by the shot's azimuth): wide shows the whole board and its stand, medium the
+      // surface, close a third of it.
+      const span={wide:1.45,medium:1.08,close:.5}[beat.shot],across=boardShot.width*span/2,up=boardShot.height*span/2;
+      // A close shot follows the writing, kept within the board.
+      let c=boardShot.centre;
+      if(beat.shot==='close'&&shotBoard){const [u,v]=boardFocus(shotBoard,time),w=boardShot.width,bh=boardShot.height,halfW=Math.min(w/2,across),halfH=Math.min(bh/2,up);
+        const lx=THREE.MathUtils.clamp((u-.5)*w,-w/2+halfW*.9,w/2-halfW*.9),ly=THREE.MathUtils.clamp((.5-v)*bh,-bh/2+halfH*.9,bh/2-halfH*.9);
+        c=boardShot.group.localToWorld(new THREE.Vector3(lx,(boardShot.group.userData.surfaceCentre as number)+ly,0));}
+      const yaw=boardShot.group.rotation.y+THREE.MathUtils.degToRad(view.azimuth)+(cameraMove==='orbit'?(eased-.5)*.35:0);
+      let d=Math.max(across/(tan*this.camera.aspect),up/tan)*view.zoom;if(cameraMove==='dolly')d*=1.07-.12*eased;
+      this.camera.position.set(c.x+Math.sin(yaw)*d*Math.cos(elevation),c.y+Math.sin(elevation)*d,c.z+Math.cos(yaw)*d*Math.cos(elevation));
+      this.camera.lookAt(c);center.copy(c).setY(0);
+    }else if(!this.freezeCamera){this.camera.position.set(center.x+Math.sin(angle)*distance*Math.cos(elevation),Math.max(0.12,targetY+h*0.025+Math.sin(elevation)*distance),center.z+Math.cos(angle)*distance*Math.cos(elevation));
     this.camera.lookAt(center.x, targetY, center.z); }
     // Wide exterior shots need depth precision for paths, water and road markings hundreds of metres away.
     const near=Math.max(.03,Math.min(.5,this.camera.position.distanceTo(center)/300));
@@ -153,6 +205,8 @@ export class StudioScene {
     // Compositing in one output canvas makes preview, PNG and MP4 use exactly the same picture.
     const ctx = this.output.getContext('2d')!, W = this.output.width, H = this.output.height;
     ctx.drawImage(this.renderer.domElement, 0, 0);
+    // A board that fills the frame covers the picture.
+    for (const board of project.boards ?? []) if (board.place === 'frame') drawBoard(ctx, board, time, W, H);
     if (project.caption && project.title && this.titleCard) {
       const duration = durationOf(project),titleLift=(project.texts??[]).some(c=>c.style==='subtitle'&&c.anchor==='screen'&&c.y>.7&&time>=c.start&&time<c.start+c.duration)?.11:0;
       const opacity = Math.min(1, time / 0.65, (duration - time) / 0.4);

@@ -21,6 +21,7 @@ import { FITNESS } from './fitness';
 import { RUNNER_MOVES } from './runner';
 import { SWIMMING } from './swimming';
 import { EVERYDAY } from './everyday';
+import { TEACHING } from './teaching';
 import { CLIMBING } from './climbing';
 import { INTERACTIONS } from './interaction';
 import { REACTIONS } from './reactions';
@@ -84,6 +85,7 @@ export const CLIPS: Clip[] = withFaces(
     ...SWIMMING,
     ...CLIMBING,
     ...EVERYDAY,
+    ...TEACHING,
     wave,
     cheer,
     laugh,

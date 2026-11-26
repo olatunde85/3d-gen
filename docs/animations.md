@@ -1,6 +1,6 @@
 # Animations
 
-There are 259 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
+There are 261 clips. The character loads playing **Idle**. The animation bar at the top of the viewport has quick buttons (Bind pose, Idle, Walk, Run), previous / next, and **All animations**, a drawer with search and categories that keeps the character in view.
 
 | Category | Clips |
 | --- | --- |
@@ -79,6 +79,8 @@ Interaction hands use chest-space IK; the pickup reach uses floor-space targets 
 **Talk with gestures**, **Phone call**, **Texting**, **Look around** and **Sweep** are loops for background characters. In **Phone call** the character talks in two bursts, with the mouth moving and the free hand gesturing, and listens in between. **Lean on wall** folds the arms, rests one foot on the wall and expects a wall about 20 cm behind the heels.
 
 **Clap**, **Dance (groove)** (a step-touch at 120 bpm) and **Dance (party bounce)** (alternating raised hands) loop. **Point** and **Thumbs up** raise the hand and hold; **Bow** goes down and back up. Wave keeps the head and eyes facing forward. Cheer raises the fists to head height once every 0.8 seconds, with a soft bounce in the knees. Laugh loops every 4.8 seconds in two bouts that fade into a breath, with matching facial timing; **Laugh hard** is motion-captured, a bigger laugh that leans back and doubles over.
+
+**Write on the board** holds the right hand up at the board, gripping a marker, with the body leaning in a little; **Point at the board** raises the right arm and points with the index finger, then holds. On their own the hand rests in front of the character; [Ara Educate](educate.md) moves it with the writing as it appears (turning the chest and head to follow), aims the point at what's shown, and puts a marker or a stick of chalk in the hand.
 
 ## Two people
 

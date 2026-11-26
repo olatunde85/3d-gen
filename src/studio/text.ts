@@ -1,4 +1,5 @@
 /** Timed film typography. Drawn into the clean output, so preview, stills and video agree. */
+import { FILM_LIMITS, durationWords, type SceneLimits } from './limits';
 export const TEXT_STYLES = ['subtitle', 'text', 'caption', 'title', 'speech', 'thought', 'shout'] as const;
 export const TEXT_LABELS = { subtitle: 'Subtitle', text: 'Plain text', caption: 'Caption band', title: 'Title card', speech: 'Speech bubble', thought: 'Thought bubble', shout: 'Comic burst' };
 export const MAX_TEXT_SIZE = 144;
@@ -15,9 +16,9 @@ export interface TextCue {
   id: string; text: string; start: number; duration: number; style: typeof TEXT_STYLES[number];
   anchor: string; x: number; y: number; size: number; color: string; background: string;
 }
-export function parseTextCues(raw: unknown, actors: Set<string>): TextCue[] {
+export function parseTextCues(raw: unknown, actors: Set<string>, limits: SceneLimits = FILM_LIMITS): TextCue[] {
   if (raw === undefined) return [];
-  if (!Array.isArray(raw) || raw.length > MAX_TEXT_CUES) throw Error(`Use at most ${MAX_TEXT_CUES} text cues.`);
+  if (!Array.isArray(raw) || raw.length > limits.texts) throw Error(`Use at most ${limits.texts} text cues.`);
   const ids = new Set<string>();
   return raw.map((value, i) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error(`Invalid text cue ${i + 1}.`);
@@ -35,8 +36,8 @@ export function parseTextCues(raw: unknown, actors: Set<string>): TextCue[] {
       if (typeof n !== 'number' || !Number.isFinite(n) || n < min || n > max) throw Error(`${label}: invalid ${key} (${min}–${max}).`);
       return n;
     };
-    const start = number('start',0,59.9), duration = number('duration',.1,60);
-    if (start + duration > 60 + 1e-7) throw Error(`${label}: finish within 60 seconds.`);
+    const start = number('start',0,limits.duration-.1), duration = number('duration',.1,limits.duration);
+    if (start + duration > limits.duration + 1e-7) throw Error(`${label}: finish within ${durationWords(limits.duration)}.`);
     const color = (key: string, fallback: string) => { const v = c[key] ?? fallback; if (typeof v !== 'string' || !/^#[a-fA-F0-9]{6}$/.test(v)) throw Error(`${label}: ${key} needs a #RRGGBB colour.`); return v; };
     return { id, text: c.text, start, duration, style: c.style as TextCue['style'], anchor: c.anchor,
       x: number('x',c.anchor==='screen'?0:-1,1,c.anchor==='screen'?.5:0), y: number('y',c.anchor==='screen'?0:-1,1,c.anchor==='screen'?.9:-.12),

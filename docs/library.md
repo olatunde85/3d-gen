@@ -59,7 +59,7 @@ Unknown fields and out-of-range values are rejected with a message that says wha
 
 | Option | Meaning |
 |---|---|
-| `animations` | Clip IDs or categories, such as `['walk', 'run']` or `['locomotion', 'shooter']`; `'all'` (the default, 259 clips plus those of any `packs`) or `'none'`. `ANIMATIONS` lists them. A pack's clip is `'<pack>/<clip>'`, and a pack's ID takes all its clips |
+| `animations` | Clip IDs or categories, such as `['walk', 'run']` or `['locomotion', 'shooter']`; `'all'` (the default, 261 clips plus those of any `packs`) or `'none'`. `ANIMATIONS` lists them. A pack's clip is `'<pack>/<clip>'`, and a pack's ID takes all its clips |
 | `packs` | [Content packs](packs.md) whose animations the character can use: addresses of `.ara-pack.json` files (relative ones are read against the page), or packs already read |
 | `detail` | `'low'` (about 25–50k triangles dressed), `'medium'` (about 45–65k) or `'high'` (about 130–170k); see [Detail levels](characters.md#detail-levels). Low and medium use textures up to 1024 pixels across, which look the same at web sizes and download faster; high uses the full 2048-pixel textures |
 | `rootMotion` | Walks, runs and strafes move the character forward instead of playing in place |

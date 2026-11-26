@@ -223,7 +223,7 @@ function studio(b: SetBuilder, s: SceneDefinition) {
   else if (s.id === 'photo-loft') { for (const x of [-3.5, 3.5]) { b.cylinder(0.025, 2.4, [x, 1.2, -0.5], '#424b4d'); b.box([1, 0.85, 0.12], [x, 2.4, -0.5], '#e5e3d4'); } b.wall(6, 3.7, [0, 1.85, -4.4], '#bdad94'); }
   else if (s.id === 'black-box') { for (const x of [-4, 4]) for (const z of [-4, 0, 4]) { const light = b.box([0.05, 2.8, 0.05], [x, 1.4, z], '#d0b68c'); light.material = b.material('#d0b68c', 0.7, 0, 1); } }
 }
-export function createSet(id: SetId, options:{compact?:boolean}={}): StudioSet {
+export function createSet(id: SetId, options:{compact?:boolean;lesson?:boolean}={}): StudioSet {
   // Imported sets are files, loaded first (see set-store's loadSet); Studio's own are built in code.
   if (isImportedSet(id)) { const set = loadedSet(id); if (!set) throw Error(`The ${id} set hasn't loaded yet.`); return set; }
   if (id === 'portrait' || id === 'runway' || id === 'courtyard') {
@@ -231,7 +231,7 @@ export function createSet(id: SetId, options:{compact?:boolean}={}): StudioSet {
   }
   const s = sceneById.get(id); if (!s) throw new Error('Unknown scene.');
   const surface = s.family==='bedroom'||s.family==='lounge'||s.family==='yacht'?'wood':s.family==='beach'||s.id==='desert-outpost'?'sand':s.family==='landscape'||s.family==='garden'?'grass':'stone';
-  const b = new SetBuilder(s.mood,surface);
+  const b = new SetBuilder(s.mood,surface);b.lesson=!!options.lesson;
   const builders = { studio, office, bedroom, lounge, kitchen, beach: coast, pool: coast, garden, street: urban, transit: urban, warehouse: urban, restaurant, landscape, yacht };
   const story=STORY_SETS[id];if(story)story(b);else{const build=builders[s.family as keyof typeof builders];if(!build)throw Error('Missing scene recipe.');build(b,s);}b.group.name=id;
   if(isOutdoorScene(id)&&!b.group.userData.performanceBounds)extendOutdoor(b,s);

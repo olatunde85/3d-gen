@@ -7,6 +7,8 @@ import type { Mood } from '../catalog';
 export interface Seat { x: number; y: number; z: number; yaw: number }
 
 export class SetBuilder {
+  /** Built for a lesson: the set's own written whiteboards become quiet noticeboards, so they don't compete with the lesson's board. */
+  lesson = false;
   constructor(readonly mood: Mood = 'day', readonly surface: 'stone' | 'wood' | 'sand' | 'grass' = 'stone') {}
   private surfaceMaps = new Map<string, THREE.CanvasTexture>();
   readonly group = new THREE.Group();
@@ -192,6 +194,7 @@ export class SetBuilder {
   }
   /** A whiteboard on the back wall, with a pen tray, markers and an eraser. */
   whiteboard(x: number, z: number, width: number, lines: string[]) {
+    if (this.lesson) return this.noticeboard(x, z, width);
     const h = width * 0.36, y = 1.55;
     this.box([width + 0.1, h + 0.1, 0.04], [x, y, z], '#b9bec2', 0.3, 0.6);
     this.writing(lines, [x, y, z + 0.022], width, h, '#f4f5f1', ['#2b4fa3', '#2c2f33', '#b23a32']);
@@ -201,6 +204,22 @@ export class SetBuilder {
       const cap = this.cylinder(0.012, 0.035, [x - 0.565 + i * 0.12, y - h / 2 - 0.035, z + 0.07], ink); cap.rotation.z = Math.PI / 2;
     });
     this.box([0.15, 0.04, 0.06], [x + 0.35, y - h / 2 - 0.025, z + 0.07], '#3a3f45'); this.box([0.15, 0.015, 0.06], [x + 0.35, y - h / 2 - 0.05, z + 0.07], '#d5d0c4');
+  }
+  /** A cork noticeboard in a wooden frame with a few sheets pinned to it, nothing on them to read. */
+  noticeboard(x: number, z: number, width: number) {
+    const h = width * 0.4, y = 1.6;
+    this.box([width + 0.08, h + 0.08, 0.035], [x, y, z], '#6b4a2e', 0.7);
+    this.box([width, h, 0.02], [x, y, z + 0.012], '#b98d5f', 0.95);
+    // Sheets: a column on the left, a pair on the right, each slightly askew, with a coloured pin.
+    const sheets: [number, number, number, number, number, string][] = [
+      [-0.36, 0.12, 0.19, 0.26, 0.04, '#f3f1ea'], [-0.36, -0.16, 0.19, 0.14, -0.05, '#f2e7a6'], [-0.08, 0.06, 0.24, 0.3, -0.02, '#eef1f4'],
+      [0.22, 0.1, 0.17, 0.22, 0.06, '#f3f1ea'], [0.34, -0.14, 0.15, 0.13, -0.04, '#d9e8d2'],
+    ];
+    sheets.forEach(([u, v, w, hh, tilt, colour], i) => {
+      const sx = x + u * width, sy = y + v * h * 2.2, sheet = this.box([w * width / 2, hh * h * 1.6, 0.003], [sx, sy, z + 0.024], colour, 0.9);
+      sheet.rotation.z = tilt;
+      this.ball([0.012, 0.012, 0.012], [sx + Math.sin(-tilt) * hh * h * 0.75, sy + hh * h * 0.72, z + 0.03], ['#c43d33', '#2b4fa3', '#2f7d4a', '#d1a32b', '#c43d33'][i]);
+    });
   }
   /** A desk with a seat behind it, a monitor facing the seat, keyboard and mug. The sitter faces +Z before turning. */
   workstation(x: number, z: number, yaw = 0, top = '#86694d', chair = '#4f5a60', picture = '#5b8a98') {

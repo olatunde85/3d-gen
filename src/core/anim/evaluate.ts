@@ -332,11 +332,20 @@ export class Animator {
    * `faceTime`: blink and glance on this continuous clock (seconds) instead of at fixed times inside
    * the clip. The live preview uses it so every clip blinks, as a game layering a face would.
    */
-  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;/** false: Studio supplies vehicle flight motion. */vehicleMotion?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number;/** Perform a keyframed clip with the other side of the body (a left-footed kick, a left-hand throw). */mirror?:boolean } = {}): Frame {
+  frame(clip: Clip, time: number, opts: { rootMotion?: boolean; noSupport?: boolean; faceTime?: number; parcelGrounded?:boolean;vehicleLift?:number;/** false: Studio supplies vehicle flight motion. */vehicleMotion?:boolean;weaponPose?:WeaponPose;weaponYaw?:number;weaponPitch?:number;/** Perform a keyframed clip with the other side of the body (a left-footed kick, a left-hand throw). */mirror?:boolean;
+    /** Where the reaching hand goes, in floor space, for clips whose hand target only the scene knows (writing on a board, pointing at it); `weight` fades it. */reach?:{pos:[number,number,number];weight?:number} } = {}): Frame {
     if(opts.mirror&&!clip.vehicleTransition)clip=mirrored(clip);
     const weapon=this.rig.weapon??'none',pose=ENCLOSED_CLIPS.has(clip.id)?'hidden':opts.weaponPose??(clip.vehicleTransition||clip.vehicleStunt||clip.category==='Aerial'||clip.category==='Swimming'||weapon==='grenade'&&RIDING_VEHICLES[clip.id]?'hidden':'hold');
     const mounted=weapon!=='none'&&weapon!=='grenade'&&pose!=='hidden'&&!!RIDING_VEHICLES[clip.id];
     let sample=clip.sample(mounted&&PADDLING_CLIPS.has(clip.id)?0:time);
+    const reaching=sample.ik?.Right?.space==='floor'?'Right':sample.ik?.Left?.space==='floor'?'Left':undefined;
+    if(opts.reach&&reaching){
+      // The hand goes where the scene says; the chest turns a little towards it and the head looks at it.
+      const [x,y,z]=opts.reach.pos,w=opts.reach.weight??1,yaw=Math.atan2(-x,Math.max(.05,z))*180/Math.PI,pitch=Math.atan2(1.55-y,Math.max(.2,Math.hypot(x,z)))*180/Math.PI;
+      const add=(b:string,ch:Ch)=>{const c=sample.bones[b]??[0,0,0];return [c[0]+ch[0]*w,c[1]+ch[1]*w,c[2]+ch[2]*w] as Ch;};
+      sample={...sample,bones:{...sample.bones,Spine1:add('Spine1',[0,-yaw*.18,0]),Spine2:add('Spine2',[0,-yaw*.18,0]),Neck:add('Neck',[pitch*.3,-yaw*.2,0]),Head:add('Head',[pitch*.35,-yaw*.2,0])},
+        ik:{...sample.ik,[reaching]:{...sample.ik![reaching]!,pos:[x,y,z]}},ikWeight:{...sample.ikWeight,[reaching]:(sample.ikWeight?.[reaching]??1)*w}};
+    }
     if(!mounted&&isFirearm(weapon)&&supportsWeaponAim(clip.id)&&opts.weaponPose&&pose!=='hidden'){
       const reference=clipById.get(clip.id==='pistol_aim_one_hand'&&pose==='aim'?'pistol_aim_one_hand':`${weapon}_${pose==='fire'?'fire':pose==='aim'?'aim':'idle'}`)!;
       const upper=reference.sample(time%reference.duration);if(clip.id==='pistol_aim_one_hand'){upper.ik={Right:upper.ik?.Right?{...upper.ik.Right,pos:[-.23,upper.ik.Right.pos[1],upper.ik.Right.pos[2]]}:undefined};for(const key of Object.keys(upper.bones))if(key.startsWith('Left'))delete upper.bones[key];}

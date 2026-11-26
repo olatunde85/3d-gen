@@ -16,6 +16,8 @@ import { assistExample } from '../src/studio/assist';
 import { playExample } from '../src/play/assist';
 import { QUICKSTART_EXAMPLE } from '../packages/cli/src/film-quickstart';
 import { FIXTURE_ID, setFile } from './set-fixture';
+import { TEMPLATES } from '../src/educate/templates';
+import { parseLesson } from '../src/educate/lesson';
 
 const root = resolve(import.meta.dirname, '..'), cli = join(root, 'packages/cli/dist/cli.js');
 if (!existsSync(cli)) throw Error('Build the CLI first: npx vite build --config packages/cli/vite.config.ts');
@@ -39,7 +41,7 @@ try {
   assert.equal(init.result.protocolVersion, '2025-06-18');assert.equal(init.result.serverInfo.name, 'ara3d');assert.ok(init.result.capabilities.tools);
   server.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
   const tools = (await request('tools/list')).result.tools.map((t: any) => t.name);
-  assert.deepEqual(tools, ['list_presets', 'list_animations', 'list_props', 'character_schema', 'create_character', 'film_guide', 'create_film', 'game_guide', 'create_game']);
+  assert.deepEqual(tools, ['list_presets', 'list_animations', 'list_props', 'character_schema', 'create_character', 'film_guide', 'create_film', 'lesson_guide', 'create_lesson', 'game_guide', 'create_game']);
   console.log('OK handshake and tools:', tools.join(', '));
 
   assert.match((await call('list_presets')).content[0].text, /^The Soldier$/m);
@@ -191,6 +193,26 @@ try {
   const badFilm = await call('create_film', { film: { ...assistExample(), template: 'the-moon' } });
   assert.equal(badFilm.isError, true);
   console.log('OK film and game mistakes reported as tool errors:', badGame.content[0].text.split('\n')[0], '/', badFilm.content[0].text.split('\n')[0]);
+
+  // Lessons: the guide carries the brief (and a lesson to revise); a lesson is checked, saved and opens in Educate from
+  // its link; what's worth a look is listed; mistakes name the step.
+  const lessonGuideText = (await call('lesson_guide', { brief: 'Fractions with pizza' })).content[0].text;
+  assert.match(lessonGuideText, /Fractions with pizza/);assert.match(lessonGuideText, /"kind": "ara-lesson"/);
+  assert.match((await call('lesson_guide', { brief: 'Shorter', lesson: TEMPLATES[1].lesson })).content[0].text, /REVISE THIS LESSON[^]*Solving for x/);
+  const sample = TEMPLATES.find((t) => t.id === 'python')!.lesson;
+  const lessonCall = await call('create_lesson', { lesson: sample });
+  assert.equal(lessonCall.isError, false, lessonCall.content[0].text);
+  const lessonText = lessonCall.content[0].text, lessonLink = /(https:\/\/ara3dgen\.com\/educate\/#lesson=[\w-]+)/.exec(lessonText)![1];
+  assert.ok(existsSync(/Saved: (.+)$/m.exec(lessonText)![1]));assert.doesNotMatch(lessonText, /Worth a look/);
+  assert.deepEqual(parseLesson((await linkedFile(new URL(lessonLink).hash, 'lesson'))!).steps.map((s) => s.type), sample.steps.map((s) => s.type));
+  console.log('OK create_lesson:', lessonText.split('\n')[0]);
+  const crowded = { ...sample, steps: Array.from({ length: 14 }, (_, i) => ({ type: 'write', text: `Line ${i + 1}`, say: `Line ${i + 1}.` })) };
+  assert.match((await call('create_lesson', { lesson: crowded })).content[0].text, /Worth a look[^]*Step 13: the board is full/);
+  const badLesson = await call('create_lesson', { lesson: { ...sample, steps: [{ type: 'shape', shape: 'graph', fn: 'x +* 2' }] } });
+  assert.equal(badLesson.isError, true);
+  const imageLesson = await call('create_lesson', { lesson: { ...sample, steps: [{ type: 'image', image: 'abc' }] } });
+  assert.equal(imageLesson.isError, true);assert.match(imageLesson.content[0].text, /image steps/);
+  console.log('OK lesson review notes and mistakes:', badLesson.content[0].text.split('\n')[0]);
 
   assert.equal((await request('nope/method')).error.code, -32601);
   console.log('OK mistakes reported as tool errors');

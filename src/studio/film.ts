@@ -8,20 +8,21 @@ import { packRefsFor } from '../core/packs/registry';
 
 export const MAX_SCENES = 5;
 /** Largest film file, in characters: five full scenes. */
-export const MAX_FILM_SIZE = 500_000;
+export const MAX_FILM_SIZE = 500_000, MAX_LESSON_SIZE = 5_000_000;
 /** Seconds of each half of a fade through black between scenes. */
 export const FADE = 0.4;
-const SHARED = ['title', 'aspect', 'caption'] as const;
+const SHARED = ['title', 'aspect', 'caption', 'lesson'] as const;
 
 const record = (v: unknown): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error('Choose a valid Ara Studio project.');
   return v as Record<string, unknown>;
 };
 
-/** Copies the film-wide settings (title, frame, title card) from one scene to every scene. */
+/** Copies the film-wide settings (title, frame, title card, whether it's a lesson) from one scene to every scene. */
 export function shareFilmSettings(scenes: StudioProject[], from = scenes[0]): StudioProject[] {
   return scenes.map((s, i) => {
     const next = { ...s, title: from.title, aspect: from.aspect, caption: from.caption };
+    if (from.lesson) next.lesson = true;else delete next.lesson;
     if (i === 0) delete next.transition;
     return next;
   });
@@ -38,7 +39,7 @@ export function filmJson(scenes: StudioProject[]): Record<string, unknown> {
   if (scenes.length === 1) { const only = { ...scenes[0] };delete only.transition;return { ...only, ...filmPacks(scenes) } as unknown as Record<string, unknown>; }
   const first = scenes[0];
   return {
-    kind: 'ara-studio', version: 3, title: first.title, aspect: first.aspect, caption: first.caption, ...filmPacks(scenes),
+    kind: 'ara-studio', version: 3, title: first.title, aspect: first.aspect, caption: first.caption, ...(first.lesson ? { lesson: true } : {}), ...filmPacks(scenes),
     scenes: scenes.map((scene, i) => {
       const rest: Record<string, unknown> = { ...scene };
       for (const key of ['kind', 'version', ...SHARED]) delete rest[key];
@@ -52,7 +53,7 @@ export function filmJson(scenes: StudioProject[]): Record<string, unknown> {
 export function sceneSource(film: Record<string, unknown>, scene: unknown): Record<string, unknown> {
   const s = record(scene);
   for (const key of ['kind', 'version', ...SHARED]) if (key in s) throw Error(`Put ${key} on the film, not on a scene.`);
-  return { ...s, kind: 'ara-studio', version: 2, title: film.title, aspect: film.aspect, caption: film.caption };
+  return { ...s, kind: 'ara-studio', version: 2, title: film.title, aspect: film.aspect, caption: film.caption, ...(film.lesson === undefined ? {} : { lesson: film.lesson }) };
 }
 
 /** Checks a version 3 film's outer shape, and returns its scenes. */
@@ -64,8 +65,12 @@ export function filmScenes(film: Record<string, unknown>): unknown[] {
 
 /** Any saved Studio film: version 1 or 2 (one scene) or version 3 (up to five scenes). */
 export function parseFilm(text: string): StudioProject[] {
-  if (text.length > MAX_FILM_SIZE) throw Error('Choose a film smaller than 500 KB.');
-  const value = record(JSON.parse(text));
+  if (text.length > MAX_LESSON_SIZE) throw Error('Choose a file smaller than 5 MB.');
+  const tooBig = () => Error('Choose a film smaller than 500 KB.');
+  let parsed: unknown;
+  try { parsed = JSON.parse(text); } catch (error) { if (text.length > MAX_FILM_SIZE) throw tooBig(); throw error; }
+  const value = record(parsed);
+  if (text.length > MAX_FILM_SIZE && value.lesson !== true) throw tooBig();
   if (value.version !== 3) return [parseProject(text)];
   const scenes = filmScenes(value).map((scene, i) => {
     try { return parseProject(JSON.stringify(sceneSource(value, scene))); }

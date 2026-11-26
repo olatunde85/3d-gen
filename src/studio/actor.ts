@@ -22,6 +22,8 @@ import {doorOpenAt,boardProgress} from '../core/props/vehicle-actions';
 import {ridingClip,boardingScale} from '../core/props/vehicle-actions';
 import type { Seat } from './sets/builder';
 import { hipsAt, isSeated, nearestSeat, seatedAt, SEAT_REACH, type Sitter } from './seating';
+import { BOARD_CLIPS } from '../core/anim/clips/teaching';
+import { boardFocus, boardPen, boardWorld, DEFAULT_INK, type Board } from './board';
 
 export class StudioActor {
   readonly group = new THREE.Group();
@@ -37,6 +39,8 @@ export class StudioActor {
   /** Camera/selection follow authored entry footwork as well as the actor's travel track. */
   get stagePosition(){return this.group.localToWorld(this.blockingOffset.clone());}
   private bones: THREE.Bone[];
+  /** The marker in the hand while writing on a board. */
+  private marker?: THREE.Mesh;
   private sittingHips?: [number, number, number];
   private rides=new Map<string,Vehicle>();
   private base={position:new THREE.Vector3(),yaw:0};
@@ -112,15 +116,69 @@ export class StudioActor {
       const timeout = setTimeout(() => { clearInterval(poll); reject(new Error('A character texture could not load. Please try again.')); }, 25_000);
     })));
   }
+  /**
+   * Where the right hand goes at the board, in this character's floor space: holding the marker just off the surface
+   * where the pen is (resting at the side once it has been still a moment), or pointing at what was written last.
+   */
+  private boardReach(project: StudioProject, time: number, beat: Beat, state: { x: number; y: number; z: number; yaw: number }) {
+    const board = project.boards?.find((x) => x.place !== 'frame' && (beat.board === undefined || x.id === beat.board));
+    if (!board) return undefined;
+    const writing = beat.clip === 'board_write', pen = writing ? boardPen(board, time) : { at: boardFocus(board, time), still: 0 };
+    const [wx, wy, wz] = boardWorld(board, pen.at[0], pen.at[1], writing ? 0.085 : 0.22);
+    const a = (state.yaw * Math.PI) / 180, dx = wx - state.x, dz = wz - state.z;
+    const weight = writing ? 1 - Math.min(1, Math.max(0, (pen.still - 0.8) / 0.6)) : 1;
+    return { pos: [(dx * Math.cos(a) - dz * Math.sin(a)) / this.scale, (wy - state.y) / this.scale, (dx * Math.sin(a) + dz * Math.cos(a)) / this.scale] as [number, number, number], weight: weight * weight * (3 - 2 * weight) };
+  }
+  /**
+   * While writing on a board, a marker in the right fist, in the colour being written: from the fist to the pen's point
+   * on the board as the hand writes, and held in the fist once the hand rests.
+   */
+  private placeMarker(project: StudioProject, time: number, beat: Beat) {
+    const board = beat.clip === 'board_write' ? project.boards?.find((x) => x.place !== 'frame' && (beat.board === undefined || x.id === beat.board)) : undefined;
+    const index = this.character.rig!.bones.findIndex((b) => b.name === boneFor(this.character.rig!.type, 'RightHand'));
+    if (!board || index < 0) { if (this.marker) this.marker.visible = false;return; }
+    // Chalk is a short white stick; a marker is longer and thicker.
+    const chalk = board.kind === 'chalkboard', want = chalk ? 'chalk' : 'marker';
+    if (this.marker?.name !== want) {
+      if (this.marker) { this.marker.removeFromParent();this.marker.geometry.dispose();(this.marker.material as THREE.Material).dispose(); }
+      const body = chalk ? new THREE.CylinderGeometry(0.0058, 0.0062, 1, 12) : new THREE.CylinderGeometry(0.0095, 0.0095, 1, 14);
+      this.marker = new THREE.Mesh(body, new THREE.MeshStandardMaterial({ roughness: chalk ? 0.95 : 0.45 }));this.marker.name = want;this.marker.castShadow = true;this.group.add(this.marker);
+    }
+    const ink = this.inkAt(board, time);
+    (this.marker.material as THREE.MeshStandardMaterial).color.set(ink);
+    this.group.updateMatrixWorld(true);
+    const hand = this.bones[index], wrist = hand.getWorldPosition(new THREE.Vector3()), q = hand.getWorldQuaternion(new THREE.Quaternion());
+    const fingers = new THREE.Vector3(0, 1, 0).applyQuaternion(q), across = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const fist = wrist.clone().addScaledVector(fingers, 0.075 * this.scale);
+    const pen = boardPen(board, time), tip = new THREE.Vector3(...boardWorld(board, pen.at[0], pen.at[1], 0.003));
+    // Its tip on the pen's point and its back in the fist; held across the fist when the hand is away from the board.
+    const length = chalk ? 0.075 : 0.13, toBoard = tip.clone().sub(fist), onBoard = toBoard.length() < length + 0.06;
+    const dir = onBoard ? toBoard.clone().normalize() : across.clone().multiplyScalar(-1);
+    const centre = onBoard ? tip.clone().addScaledVector(dir, -length / 2) : fist.clone().addScaledVector(dir, length * 0.2);
+    this.marker.visible = true;
+    this.marker.scale.set(1, length, 1);
+    this.marker.position.copy(this.group.worldToLocal(centre));
+    const local = dir.clone().transformDirection(this.group.matrixWorld.clone().invert());
+    this.marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), local);
+  }
+  /** The colour of the writing at `time`: the item being drawn, or the board's ink. */
+  private inkAt(board: Board, time: number) {
+    let colour: string = DEFAULT_INK[board.kind];
+    for (const item of board.items) if (item.start <= time && 'color' in item) colour = item.color ?? DEFAULT_INK[board.kind];
+    return colour;
+  }
   frame(project: StudioProject, time: number, track = project.actors[0]): Frame {
     const at = timelineAt(project, time, track), b = track.beats[at.index], clip = clipById.get(b.clip)!;
     const faceTime = time + Math.max(0, project.actors.indexOf(track)) * 0.83;
     // An exact walk covers its metres at any size: a smaller body steps faster.
-    const pace = b.exact && b.move ? 1 / this.scale : 1, local = clip.loop ? (at.phase * pace) % clip.duration : Math.min(at.phase * pace, clip.duration);
+    const pace = (b.exact && b.move ? 1 / this.scale : 1) * (b.rate ?? 1), local = clip.loop ? (at.phase * pace) % clip.duration : Math.min(at.phase * pace, clip.duration);
     const parcel=parcelStateAt(track,at.time),id=vehicleFor(this.vehicleChoice(track,b),clip.id);
     const lift=id?vehicleLift(id,this.scale,this.character.params.vehicleStyle):0;
     const stage=this.stage(project,time,track),state=stage.actor(track);
-    let frame = state.passenger?passengerFrame(this.animator,b,local,state,this.scale,faceTime):this.animator.frame(clip, local, { vehicleMotion:false,faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift,weaponPose:b.weaponPose,weaponPitch:b.weaponPitch,weaponYaw:b.weaponYaw });
+    const reach=BOARD_CLIPS.has(clip.id)?this.boardReach(project,time,b,state):undefined;
+    // Pointing is done with the hand on the board's side: the left hand (the clip mirrored) when the board is on the left.
+    const mirror=clip.id==='board_point'&&!!reach&&reach.pos[0]>0;
+    let frame = state.passenger?passengerFrame(this.animator,b,local,state,this.scale,faceTime):this.animator.frame(clip, local, { vehicleMotion:false,faceTime,parcelGrounded:parcel.grounded,vehicleLift:lift,weaponPose:b.weaponPose,weaponPitch:b.weaponPitch,weaponYaw:b.weaponYaw,reach,mirror });
     frame=this.withExpression(frame,track,at.index);
     const previousClip=clipById.get(track.beats[Math.max(0,at.index-1)].clip)!,fromVehicle=VEHICLE_FOR_CLIP[previousClip.id],toVehicle=VEHICLE_FOR_CLIP[clip.id];
     // Also ease between actions on the same vehicle (driving ↔ gunner, flying ↔ bail-out) and from a bail-out into free fall.
@@ -194,6 +252,7 @@ export class StudioActor {
     this.hidden=!!track.beats[at.index].hidden;this.group.visible=!this.hidden;
     this.group.position.y += this.seatLift(project, track, seats, track.beats[at.index].clip, at.phase);
     this.base={position:this.group.position.clone(),yaw:this.group.rotation.y};
+    this.placeMarker(project,time,track.beats[at.index]);
     // A flown jet pitches and banks about its main-gear contact; the pilot rides in the same frame.
     this.jet=state.vehicle?.model==='jet'&&!state.passenger?jetAttitude(project,track,time,this.scale):undefined;
     if(this.jet){
@@ -287,6 +346,6 @@ export class StudioActor {
     this.bleed?.update(hits);
   }
   detach() { this.group.removeFromParent(); }
-  dispose() { this.bleed?.dispose();this.rides.forEach(r=>r.dispose());this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
+  dispose() { this.bleed?.dispose();this.marker?.geometry.dispose();(this.marker?.material as THREE.Material | undefined)?.dispose();this.rides.forEach(r=>r.dispose());this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material[]).forEach((m) => m.dispose());
     this.mesh.skeleton.dispose(); this.textures.forEach((t) => t.dispose()); this.group.removeFromParent(); }
 }

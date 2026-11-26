@@ -43,6 +43,7 @@
     "test:web-assets": "tsx scripts/web-assets-check.ts",
     "test:embed": "tsx scripts/embed-check.ts",
     "test:mcp": "tsx scripts/mcp-check.ts",
+    "test:educate": "tsx scripts/educate-check.ts",
     "test:sets": "tsx scripts/set-files-check.ts",
     "test:props": "tsx scripts/props-check.ts",
     "test:landing": "tsx scripts/landing-check.ts",

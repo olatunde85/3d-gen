@@ -9,6 +9,9 @@ import { DEFAULT_PARAMS, PRESETS, type Detail } from '../core/params';
 import { decodeCharacter, encodeCharacter } from '../app/share';
 import { defaultAudio, parseAudio, type FilmAudio } from './audio/schema';
 import { parseTextCues, type TextCue } from './text';
+import { boardItemEnd, parseBoards, type Board } from './board';
+import { BOARD_CLIPS } from '../core/anim/clips/teaching';
+import { FILM_LIMITS, LESSON_LIMITS, durationWords, limitsFor } from './limits';
 import { noteMissingSet, sceneById, type SetId } from './catalog';
 import {studioTravel,travelTime,forcedTravel,MAX_TRAVEL_SPEED,STAGE_LIMIT} from './motion';
 import {VEHICLE_SEATS,validateVehicleLinks,type VehicleSeat} from './vehicle-seats';
@@ -30,7 +33,11 @@ export interface Beat { id: string; clip: Action; duration: number; move: boolea
   /** The facial expression from this action on (the character's own until one is set). */
   expression?:Expression;
   /** Travels its distance in metres whatever the body size (a smaller body takes more steps): route actions. */
-  exact?:boolean }
+  exact?:boolean;
+  /** The board a board action writes on or points at (the scene's first standing board when left out). */
+  board?:string;
+  /** How fast an on-foot move plays (0.5–2, default 1): the legs and the distance covered both scale. */
+  rate?:number }
 export interface ActorTrack { id: string; character: string; detail: Detail; x: number; y: number; z: number; yaw: number; beats: Beat[];vehicle?:VehicleChoice }
 export interface CameraShot { view?: View; camera?: CameraMove; id: string; duration: number; shot: Shot; target: string }
 export interface View { azimuth: number; elevation: number; zoom: number }
@@ -39,10 +46,15 @@ export interface StudioProject {
   camera: CameraMove; view: View; aspect: 'landscape' | 'portrait'; caption: boolean; texts: TextCue[]; audio: FilmAudio;
   /** In a film of several scenes: this scene's name, and how it follows the one before (a cut, or a fade through black). */
   sceneName?: string; transition?: Transition;
+  /** A lesson (made in Ara Educate): runs longer and holds more (see limits.ts). */
+  lesson?: true;
+  /** Whiteboards, chalkboards and screens, and what appears on them (see board.ts). */
+  boards?: Board[];
 }
 export type Transition = 'cut' | 'fade';
 export const CAST = ['The Female Executive', 'The Adventurer', 'The Priest', 'The Miami Dealer', 'The Corporate High-Flier', 'The Gangster'];
-export const MAX_DURATION = 60, MAX_ACTIONS = 16, MAX_SHOTS = 12, MAX_ACTORS = 5;
+export const MAX_DURATION = FILM_LIMITS.duration, MAX_ACTIONS = FILM_LIMITS.actions, MAX_SHOTS = FILM_LIMITS.shots, MAX_ACTORS = 5;
+export { FILM_LIMITS, LESSON_LIMITS, limitsFor };
 let nextId = 0;
 export const beatId = () => `beat-${Date.now().toString(36)}-${++nextId}`;
 export const beat = (clip: Action, duration: number, move = false): Beat => ({ id: beatId(), clip, duration, move });
@@ -69,7 +81,7 @@ export function blankProject(): StudioProject {
   project.shots=[{id:beatId(),duration:3,shot:'wide',target:'all'}];
   return project;
 }
-export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.audio?.music.track!=='none'&&p.audio?.music.duration!==undefined?(p.audio.music.start??0)+p.audio.music.duration:0,p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration),...(p.audio?.speech??[]).map(c=>c.start+c.duration),...(p.audio?.effects??[]).map(c=>c.start+c.duration)) * 30 - 1e-7) / 30;
+export const durationOf = (p: StudioProject) => Math.ceil(Math.max(p.audio?.music.track!=='none'&&p.audio?.music.duration!==undefined?(p.audio.music.start??0)+p.audio.music.duration:0,p.shots.reduce((sum, s) => sum + s.duration, 0), ...p.actors.map(trackDuration),...(p.texts??[]).map(c=>c.start+c.duration),...(p.audio?.speech??[]).map(c=>c.start+c.duration),...(p.audio?.effects??[]).map(c=>c.start+c.duration),...(p.boards??[]).flatMap(b=>b.items.map(boardItemEnd))) * 30 - 1e-7) / 30;
 const member = <T extends string>(v: unknown, values: readonly T[]): v is T => typeof v === 'string' && values.includes(v as T);
 function number(v: unknown, min: number, max: number, name: string) {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) throw new Error(`Invalid ${name}.`);
@@ -85,8 +97,11 @@ function record(v: unknown): Record<string, unknown> { if (!v || typeof v !== 'o
 function parseView(raw:unknown):View { const v=record(raw);return {azimuth:angle(v.azimuth,'camera rotation'),elevation:number(v.elevation,-35,65,'camera elevation'),zoom:number(v.zoom,.5,3,'camera zoom')}; }
 /** Migrate saved v1 films; reject unsupported versions and malformed tracks before building models. */
 export function parseProject(text: string): StudioProject {
-  if (text.length > 100_000) throw new Error('Choose a project smaller than 100 KB.');
+  if (text.length > LESSON_LIMITS.size) throw new Error(`Choose a project smaller than ${LESSON_LIMITS.size / 1_000_000} MB.`);
   let p = record(JSON.parse(text));
+  if (p.lesson !== undefined && p.lesson !== true) throw Error('lesson is true, or left out.');
+  const limits = limitsFor({ lesson: p.lesson === true });
+  if (text.length > limits.size) throw new Error(`Choose a project smaller than ${limits.size / 1000} KB.`);
   if (p.kind !== 'ara-studio' || ![1, 2].includes(p.version as number)) throw new Error('Choose an Ara Studio project (version 1 or 2).');
   if (p.version === 1) {
     if (!Array.isArray(p.beats)) throw new Error('This project has no actions.');
@@ -101,7 +116,7 @@ export function parseProject(text: string): StudioProject {
     const a = record(raw);
     if (typeof a.id !== 'string' || !/^[a-zA-Z0-9_-]{1,50}$/.test(a.id) || ids.has(a.id) || ['all','camera'].includes(a.id)) throw new Error('Character IDs must be unique.'); ids.add(a.id);
     if (!member(a.detail, ['low', 'medium', 'high']) || typeof a.character !== 'string' || !decodeCharacter(a.character, a.detail)) throw new Error('Invalid character recipe or detail.');
-    if (!Array.isArray(a.beats) || !a.beats.length || a.beats.length > MAX_ACTIONS) throw new Error(`Use one to ${MAX_ACTIONS} actions per character.`);
+    if (!Array.isArray(a.beats) || !a.beats.length || a.beats.length > limits.actions) throw new Error(`Use one to ${limits.actions} actions per character.`);
     const actorParams=decodeCharacter(a.character,a.detail)!,inherited=actorParams.vehicle,legacy=a.vehicle??inherited;
     const migrate=(clip:string)=>a.vehicle!=='auto'&&(legacy==='sports_car'||legacy==='suv')?(clip==='drive_car'?(legacy==='suv'?'drive_suv':'drive_sports_car'):clip==='sit_passenger'?(legacy==='suv'?'sit_suv_passenger':'sit_sports_car_passenger'):clip):clip;
     const beats = a.beats.map((rawBeat, j) => { const b = record(rawBeat);
@@ -126,24 +141,32 @@ export function parseProject(text: string): StudioProject {
       const face=b.face===undefined?undefined:angle(b.face,'facing');
       if(b.hidden!==undefined&&typeof b.hidden!=='boolean')throw Error('Hidden is true or false.');
       if(b.exact!==undefined&&typeof b.exact!=='boolean')throw Error('Exact is true or false.');
+      if(b.board!==undefined&&(typeof b.board!=='string'||!BOARD_CLIPS.has(clip)))throw Error('board is for Write on the board and Point at the board.');
+      const rate=b.rate===undefined?undefined:number(b.rate,.5,2,'move rate');if(rate!==undefined&&(RIDING_VEHICLES[clip]||!clipById.get(clip)?.travel))throw Error('rate is for moves on foot (walks, runs and sidesteps).');
       if(b.expression!==undefined&&!member(b.expression,EXPRESSIONS))throw Error(`Choose an expression: ${EXPRESSIONS.join(', ')}.`);
-      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: (b.move||forcedTravel(clip)) && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(b.showProp!==undefined?{showProp:b.showProp as boolean}:{}),...(b.showBlood!==undefined?{showBlood:b.showBlood as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}),...(face!==undefined?{face}:{}),...(b.hidden===true?{hidden:true}:{}),...(b.exact===true?{exact:true}:{}),...(b.expression!==undefined?{expression:b.expression as Expression}:{}) };
+      return { id: `a${i}-${j}`, clip, duration: number(b.duration, 0.1, 12, 'action duration'), move: (b.move||forcedTravel(clip)) && !!studioTravel(clip),...(speed!==undefined?{travelSpeed:speed}:{}),...(height!==undefined?{flightHeight:height}:{}),...(b.showVehicle!==undefined?{showVehicle:b.showVehicle as boolean}:{}),...(b.showProp!==undefined?{showProp:b.showProp as boolean}:{}),...(b.showBlood!==undefined?{showBlood:b.showBlood as boolean}:{}),...(pose!==undefined?{weaponPose:pose as WeaponPose}:{}),...(yaw!==undefined?{weaponYaw:yaw}:{}),...(pitch!==undefined?{weaponPitch:pitch}:{}),...(b.vehicleId!==undefined?{vehicleId:b.vehicleId as string}:{}),...(b.vehicleSeat!==undefined?{vehicleSeat:b.vehicleSeat as VehicleSeat}:{}),...(face!==undefined?{face}:{}),...(b.hidden===true?{hidden:true}:{}),...(b.exact===true?{exact:true}:{}),...(b.expression!==undefined?{expression:b.expression as Expression}:{}),...(b.board!==undefined?{board:b.board as string}:{}),...(rate!==undefined?{rate}:{}) };
     });
     if(a.vehicle!==undefined&&!member(a.vehicle,VEHICLE_CHOICES))throw Error('Choose an available vehicle.');
     return { id: a.id, character: a.character, detail: a.detail, x: number(a.x, -STAGE_LIMIT, STAGE_LIMIT, 'character X'), y: number(a.y ?? 0, 0, 3, 'character elevation'), z: number(a.z, -STAGE_LIMIT, STAGE_LIMIT, 'character Z'), yaw: angle(a.yaw, 'character rotation'), beats,...(a.vehicle==='none'?{vehicle:'none' as const}:a.vehicle!==undefined||inherited!=='none'?{vehicle:'auto' as const}:{}) };
   });
-  if (!Array.isArray(p.shots) || !p.shots.length || p.shots.length > MAX_SHOTS) throw new Error(`Use one to ${MAX_SHOTS} camera shots.`);
+  const boards = parseBoards(p.boards, limits, STAGE_LIMIT);
+  // Board actions need a standing board: the one they name, or the scene's first.
+  for (const a of actors) for (const b of a.beats) if (BOARD_CLIPS.has(b.clip) && !boards.some((x) => x.place !== 'frame' && (b.board === undefined || x.id === b.board))) throw Error(b.board === undefined ? `${clipById.get(b.clip)?.name}: add a board standing in the set.` : `There's no standing board called ${b.board}.`);
+  const framesBoard = (target: string) => target.startsWith('board:') && boards.some((b) => b.id === target.slice(6) && b.place !== 'frame');
+  if (!Array.isArray(p.shots) || !p.shots.length || p.shots.length > limits.shots) throw new Error(`Use one to ${limits.shots} camera shots.`);
   const shots = p.shots.map((raw, i): CameraShot => { const s = record(raw);
-    if (!member(s.shot, ['wide', 'medium', 'close']) || typeof s.target !== 'string' || s.target !== 'all' && !ids.has(s.target)) throw new Error('Invalid shot framing or subject.');
+    if (!member(s.shot, ['wide', 'medium', 'close']) || typeof s.target !== 'string' || s.target !== 'all' && !ids.has(s.target) && !framesBoard(s.target)) throw new Error('Invalid shot framing or subject.');
     if(s.camera!==undefined&&!member(s.camera,['locked','dolly','orbit']))throw Error('Invalid shot camera movement.');
     return { ...(s.view===undefined?{}:{view:parseView(s.view)}),...(s.camera===undefined?{}:{camera:s.camera as CameraMove}),id: `shot-${i}`, duration: number(s.duration, 0.1, 12, 'shot duration'), shot: s.shot, target: s.target };
   });
   const result: StudioProject = { kind: 'ara-studio', version: 2, template: p.template as SetId, title: typeof p.title === 'string' ? p.title.trim().slice(0, 60) : '', actors, shots,
-    camera: p.camera, aspect: p.aspect, caption: p.caption === true, texts:parseTextCues(p.texts,ids), audio:parseAudio(p.audio,ids), view: parseView(p.view) };
+    camera: p.camera, aspect: p.aspect, caption: p.caption === true, texts:parseTextCues(p.texts,ids,limits), audio:parseAudio(p.audio,ids,limits), view: parseView(p.view) };
+  if (p.lesson === true) result.lesson = true;
+  if (boards.length) result.boards = boards;
   if(p.sceneName!==undefined){if(typeof p.sceneName!=='string')throw Error('Invalid scene name.');const name=p.sceneName.trim().slice(0,60);if(name)result.sceneName=name;}
   if(p.transition!==undefined){if(!member(p.transition,['cut','fade']))throw Error('Choose a cut or a fade between scenes.');if(p.transition==='fade')result.transition='fade';}
   const music=result.audio.music;if(music.track!=='none'&&music.duration===undefined&&(music.start??0)>=durationOf(result))throw Error('Music starts beyond the film. Set its duration or move its start earlier.');
-  if (durationOf(result) > MAX_DURATION) throw new Error(`Keep films under ${MAX_DURATION} seconds.`);
+  if (durationOf(result) > limits.duration) throw new Error(result.lesson ? `Keep a lesson's scene under ${durationWords(limits.duration)}.` : `Keep films under ${MAX_DURATION} seconds.`);
   validateVehicleLinks(result);
   return result;
 }
@@ -177,7 +200,7 @@ export function beatTurns(actor: Pick<ActorTrack, 'yaw' | 'beats'>): number[] {
 export function timelineAt(p: StudioProject, time: number, actor = p.actors[0]): TimelinePoint {
   const t = Math.max(0, Math.min(trackDuration(actor), time)), turns = beatTurns(actor);
   let start = 0, x = 0, y = 0, z = 0, fx = 0, fz = 0, index = actor.beats.length - 1;
-  const span = (b: Beat, local: number) => travelTime(b.clip, local, b.duration);
+  const span = (b: Beat, local: number) => travelTime(b.clip, local * (b.rate ?? 1), b.duration * (b.rate ?? 1));
   /** Local travel over `local` seconds of action i, turned by its facing (in the actor's own frame). */
   const step = (i: number, local: number): [number, number, number] => {
     const b = actor.beats[i], v = b.move ? studioTravel(b.clip, b.travelSpeed) : undefined;

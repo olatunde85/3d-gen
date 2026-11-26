@@ -22,6 +22,7 @@ export default defineConfig({
         app: resolve(import.meta.dirname, 'app/index.html'),
         studio: resolve(import.meta.dirname, 'studio/index.html'),
         play: resolve(import.meta.dirname, 'play/index.html'),
+        educate: resolve(import.meta.dirname, 'educate/index.html'),
         terms: resolve(import.meta.dirname, 'terms/index.html'),
         privacy: resolve(import.meta.dirname, 'privacy/index.html'),
         developers: resolve(import.meta.dirname, 'developers/index.html'),

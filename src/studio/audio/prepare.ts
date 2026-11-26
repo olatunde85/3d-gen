@@ -3,6 +3,7 @@ import { parseProject, type StudioProject } from '../project';
 import { getAsset, type AudioAsset } from './assets';
 import { generateSoundEffect, composeMusic, canGenerate } from './generate';
 import { durationOf } from '../project';
+import { durationWords, limitsFor } from '../limits';
 import { generateSpeech, releaseSpeechEngine, speechIsCurrent, speechModel } from './tts';
 
 export interface SpeechPreparation {
@@ -37,7 +38,8 @@ export async function prepareDialogue(project:StudioProject,options:SpeechPrepar
       if(!asset){asset=await generateSpeech(cue.text,cue.voice,message=>progress(`Line ${index+1} of ${cues.length} · ${cue.name} · ${message}`),signal,cue.delivery);takes.set(key,asset.id);if(takes.size>128)takes.delete(takes.keys().next().value!);}
       signal.throwIfAborted();
       const duration=Math.max(cue.duration,asset.duration/cue.speed);
-      if(cue.start+duration>60)throw Error(`“${cue.name}” needs ${(asset.duration/cue.speed).toFixed(1)} seconds. Move it earlier or shorten its script to fit the 60-second film.`);
+      const end=limitsFor(next).duration;
+      if(cue.start+duration>end)throw Error(`“${cue.name}” needs ${(asset.duration/cue.speed).toFixed(1)} seconds. Move it earlier or shorten its script to fit the ${next.lesson?`${durationWords(end)} of a lesson's scene`:'60-second film'}.`);
       Object.assign(cue,{asset:asset.id,offset:0,duration});
       await options.updated?.(structuredClone(next));
     }
@@ -47,7 +49,7 @@ export async function prepareDialogue(project:StudioProject,options:SpeechPrepar
       for(const [index,cue]of sounds.entries()){
         signal.throwIfAborted();progress(`Sound ${index+1} of ${sounds.length} · ${cue.name}…`);
         const asset=await generateSoundEffect(cue.prompt!,{seconds:Math.min(30,Math.max(.5,cue.duration*cue.speed)),loop:cue.loop},signal);
-        Object.assign(cue,{asset:asset.id,offset:0,duration:Math.min(cue.duration,asset.duration/cue.speed,60-cue.start)});
+        Object.assign(cue,{asset:asset.id,offset:0,duration:Math.min(cue.duration,asset.duration/cue.speed,limitsFor(next).duration-cue.start)});
         await options.updated?.(structuredClone(next));
       }
       const music=next.audio.music;

@@ -1,7 +1,8 @@
 /**
- * Links that open Ara Studio with a film, or Ara Play with a game, already loaded. The file travels in the address
+ * Links that open Ara Studio with a film, Ara Play with a game, or Ara Educate with a lesson, already loaded. The file travels in the address
  * after "#", packed like a builder share link, or as an https address of a JSON file to download:
  *   https://ara3dgen.com/studio/#film=<packed>    https://ara3dgen.com/play/#game=<packed>
+ *   https://ara3dgen.com/educate/#lesson=<packed>
  *   https://ara3dgen.com/studio/#src=https://…/film.json
  * Everything after "#" stays in the browser, so a link never sends the file to ara3dgen.com. The file then goes through
  * the same checks as opening it from disk.
@@ -9,9 +10,9 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
 import { fromB64Url, toB64Url } from './share';
 
-export type LinkKind = 'film' | 'game';
+export type LinkKind = 'film' | 'game' | 'lesson';
 const SITE = 'https://ara3dgen.com';
-const PAGE: Record<LinkKind, string> = { film: 'studio', game: 'play' };
+const PAGE: Record<LinkKind, string> = { film: 'studio', game: 'play', lesson: 'educate' };
 /** The largest file a link may carry or download, as for files opened from disk. */
 const MAX_BYTES = 512_000;
 

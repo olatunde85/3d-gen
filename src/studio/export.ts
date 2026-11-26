@@ -1,5 +1,5 @@
 /** Deterministic, bounded video encoding. A slow render still creates an exact 30 fps movie. */
-import { BufferTarget, CanvasSource, Mp4OutputFormat, Output, AudioBufferSource, canEncodeAudio, canEncodeVideo } from 'mediabunny';
+import { BufferTarget, CanvasSource, Mp4OutputFormat, Output, AudioBufferSource, StreamTarget, canEncodeAudio, canEncodeVideo, type StreamTargetChunk } from 'mediabunny';
 import { hasAudio } from './audio/schema';
 import { renderSoundtrack } from './audio/mix';
 import type { StudioScene } from './scene';
@@ -32,13 +32,25 @@ async function filmSoundtrack(scenes: StudioProject[], signal: AbortSignal): Pro
 export const exportMovie = (scene: StudioScene, project: StudioProject, options: ExportOptions) => exportFilm(scene, [project], options);
 /** A film of one or more scenes as one MP4, at exactly 30 frames a second. */
 export async function exportFilm(scene: StudioScene, scenes: StudioProject[], options: ExportOptions): Promise<Blob> {
+  const target = new BufferTarget();
+  await encodeFilm(scene, scenes, options, target, 'in-memory');
+  if (!target.buffer) throw new Error('The encoder did not produce a video.');
+  return new Blob([target.buffer], { type: 'video/mp4' });
+}
+/**
+ * Writes a film straight into a file as it's made (a file the person chose to save, from showSaveFilePicker), so a
+ * long film never has to fit in memory. The file is closed when the film is done.
+ */
+export async function exportFilmToFile(scene: StudioScene, scenes: StudioProject[], options: ExportOptions, file: WritableStream<StreamTargetChunk>): Promise<void> {
+  await encodeFilm(scene, scenes, options, new StreamTarget(file, { chunked: true }), false);
+}
+async function encodeFilm(scene: StudioScene, scenes: StudioProject[], options: ExportOptions, target: BufferTarget | StreamTarget, fastStart: 'in-memory' | false): Promise<void> {
   const { width, height, signal, progress } = options;
   if (!await supportsMp4(width, height)) throw new Error('MP4 encoding is unavailable at this resolution. Try 720p in a current Chrome, Edge or Safari browser.');
   const sound = scenes.some(s => hasAudio(s.audio)), codec = sound ? await audioCodec() : undefined;
   if (sound && !codec) throw Error('This browser cannot encode the film audio. Save the soundtrack as WAV or export in a current Chrome/Edge/Safari browser.');
   const mix = sound ? await filmSoundtrack(scenes, signal) : undefined;
-  const target = new BufferTarget();
-  const output = new Output({ format: new Mp4OutputFormat({ fastStart: 'in-memory' }), target });
+  const output = new Output({ format: new Mp4OutputFormat({ fastStart }), target });
   const source = new CanvasSource(scene.output, { codec: 'avc', bitrate: options.bitrate??bitrateFor(width, height), keyFrameInterval: 2 });
   output.addVideoTrack(source, { frameRate: 30 });
   const audio=codec?new AudioBufferSource({codec,bitrate:128000}):undefined;if(audio)output.addAudioTrack(audio);
@@ -58,8 +70,6 @@ export async function exportFilm(scene: StudioScene, scenes: StudioProject[], op
       }
     }
     source.close(); await output.finalize(); signal.throwIfAborted();
-    if (!target.buffer) throw new Error('The encoder did not produce a video.');
-    return new Blob([target.buffer], { type: 'video/mp4' });
   } catch (error) { await output.cancel().catch(() => {}); throw error; }
   finally { scene.resize(old.width, old.height); scene.titleCard = true; scene.darkness = 0; }
 }

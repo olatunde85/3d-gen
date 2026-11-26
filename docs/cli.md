@@ -14,10 +14,10 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 |---|---|
 | `ara3d export [options]` | Builds characters and writes GLB, FBX, OBJ or ZIP files |
 | `ara3d presets` | Lists the preset characters |
-| `ara3d animations [--pack <file\|address>]` | Lists the 259 animation clips by group, and those of any packs given |
+| `ara3d animations [--pack <file\|address>]` | Lists the 261 animation clips by group, and those of any packs given |
 | `ara3d props` | Lists the weapons, carried items and vehicles |
 | `ara3d new <name> [--preset P]` | Writes a starter character file to edit |
-| `ara3d schema [character\|film\|game\|pack\|set]` | Prints a JSON schema, for editors and AI tools |
+| `ara3d schema [character\|film\|game\|lesson\|pack\|set]` | Prints a JSON schema, for editors and AI tools |
 | `ara3d pack <folder\|files...>` | Turns animation files (FBX such as Mixamo downloads, GLB, glTF, BVH) into a [content pack](packs.md), `<name>.ara-pack.json`, with names, groups and loops filled in |
 | `ara3d pack check <file\|address>` | Checks a pack and lists its animations |
 | `ara3d pack new <folder>`, `ara3d pack build <folder>` | Write a `pack.json` to set names, groups and other options yourself, then build the pack from it |
@@ -47,7 +47,7 @@ The first run downloads the character data (about 50 MB) and caches it, so later
 | `--out <dir>` | Output folder; the default is `./ara3d-out` |
 | `--debug` | Adds technical details when something fails |
 
-Characters include all 259 animations unless you choose. Most games need far fewer, and files shrink a lot: the Soldier is about 28 MB as a GLB with every clip, 7 MB with `--animations walk,run,idle`, and 5 MB with `--no-animations`. A group name, such as `locomotion`, `combat`, `shooter`, `vehicles` or `emotes`, takes every clip in it.
+Characters include all 261 animations unless you choose. Most games need far fewer, and files shrink a lot: the Soldier is about 28 MB as a GLB with every clip, 7 MB with `--animations walk,run,idle`, and 5 MB with `--no-animations`. A group name, such as `locomotion`, `combat`, `shooter`, `vehicles` or `emotes`, takes every clip in it.
 
 Prop flags replace only the prop they name, so a character file's other props stay. A character with a vehicle or a separate prop is written as a zip holding the character, a `props/` folder and a README on how to line them up. If you pick a vehicle but none of its riding clips, `ara3d` suggests the clips to add.
 
@@ -129,11 +129,12 @@ The schemas are published at [ara3dgen.com/schemas/](https://ara3dgen.com/schema
 
 - `character.v1.json`: a character, as used by `--params`, the builder's LLM Assist and Ara Play casts
 - `studio-film.v2.json`: an Ara 3D Studio film
+- `educate-lesson.v1.json`: an [Ara Educate](educate.md) lesson (`.ara-lesson.json`)
 - `play-game.v2.json`: an Ara Play game (`.ara-play.json`)
 - `pack.v1.json`: a [content pack](packs.md) (`.ara-pack.json`), and `pack-source.v1.json`: the `pack.json` that `ara3d pack build` reads
 - `studio-set.v1.json`: the details inside a [Studio set file](studio-sets.md) (its GLB's `extras.ara_set`)
 
-`ara3d schema character` (or `film`, `game`, `pack` or `set`) prints the schema for the installed version, with no network needed after the first run. A file can name its schema in a `"$schema"` field, so editors check it and suggest values as you type.
+`ara3d schema character` (or `film`, `game`, `lesson`, `pack` or `set`) prints the schema for the installed version, with no network needed after the first run. A file can name its schema in a `"$schema"` field, so editors check it and suggest values as you type.
 
 ## Settings
 

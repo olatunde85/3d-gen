@@ -28,6 +28,7 @@ async function modelCharacter(lib: AssetLibrary, file: string) {
 }
 import { packSchema } from '../../../src/core/packs/schema';
 import { setSchema } from '../../../src/studio/set-schema';
+import { lessonSchema } from '../../../src/educate/schema';
 import { setCommand } from './set';
 import { carryForClips } from './library/generate';
 import { finish, megabytes, note, result, seconds, status } from './status';
@@ -48,11 +49,12 @@ Usage
   ara3d animations                List the animation clips and their groups
   ara3d props                     List the weapons, carried items and vehicles
   ara3d new <name> [--preset P]   Write a starter character file to edit
-  ara3d schema [character|film|game|pack|set]  Print a JSON schema (for editors and AI tools)
+  ara3d schema [character|film|game|lesson|pack|set]  Print a JSON schema (for editors and AI tools)
   ara3d pack new|build|check      Make a content pack from your own animations (FBX from
                                   Mixamo, glTF, BVH), or check one (ara3d pack --help)
   ara3d set check <file|address>  Check an Ara Studio set file, made in Blender (ara3d set --help)
-  ara3d mcp                       Run as an MCP server, so AI assistants can make characters
+  ara3d mcp                       Run as an MCP server, so AI assistants can make characters,
+                                  films, lessons and games
                                   (Claude Code: claude mcp add ara3d -- npx -y ara3d mcp)
 
 Export options
@@ -240,7 +242,8 @@ async function schemaCommand(args: string[]) {
   const which = args[0] ?? 'character';
   if (which === 'pack') return console.log(JSON.stringify(packSchema(), null, 2));
   if (which === 'set') return console.log(JSON.stringify({ $id: 'https://ara3dgen.com/schemas/studio-set.v1.json', ...setSchema() }, null, 2));
-  if (which !== 'character' && which !== 'film' && which !== 'game') throw new UserError('ara3d schema takes character, film, game, pack or set.');
+  if (which === 'lesson') return console.log(JSON.stringify({ $id: 'https://ara3dgen.com/schemas/educate-lesson.v1.json', ...lessonSchema() }, null, 2));
+  if (which !== 'character' && which !== 'film' && which !== 'game') throw new UserError('ara3d schema takes character, film, game, lesson, pack or set.');
   const { catalog } = await loadLibrary();finish();
   console.log(JSON.stringify(which === 'character' ? characterSchema(catalog) : which === 'film' ? assistSchema(catalog) : playSchema(catalog), null, 2));
 }

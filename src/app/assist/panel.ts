@@ -28,7 +28,7 @@ export interface AssistConfig<T> {
   /** The panel's name: "Assist" in Studio, "LLM Assist" in the builder. */
   name: string;
   app: string;
-  noun: 'film' | 'character' | 'game';
+  noun: 'film' | 'character' | 'game' | 'lesson';
   buildLabel?:string;
   recoveryNote?:string;
   maxBytes?:number;
@@ -71,6 +71,8 @@ export interface AssistConfig<T> {
   snapshot?(): T;
   /** Finishes a build made outside the panel, as closing the panel does after Build (Play's preview). */
   commit?(): void;
+  /** The heading over the result's warnings, the button that copies a request to fix them, and that request. */
+  notes?: { heading: string; fixLabel: string; fix(warnings: string[], json: string): string };
   /** Where drafts persist when the host doesn't save them itself. */
   storageKey?: string;
 }
@@ -191,7 +193,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
       const { headline, facts, warnings=[] } = cfg.describe(parsed);
       result.classList.add('ok');
       result.innerHTML = `<p class="ai-result-title"><span aria-hidden="true">${preparing?'…':'✓'}</span> ${preparing?'Preparing dialogue voices':'Ready to build'}</p><p class="ai-headline">${html(headline)}</p>
-        <ul class="ai-facts">${facts.map(f => `<li>${html(f)}</li>`).join('')}</ul>${warnings.length?`<div class="ai-staging-notes"><b>Staging needs review</b><ul>${warnings.map(w=>`<li>${html(w)}</li>`).join('')}</ul><button class="ai-btn" data-r="fix-staging">Copy staging fix request</button></div>`:''}${cleaned ? '<p class="ai-note">Found the JSON in the reply and ignored the text around it.</p>' : ''}`;
+        <ul class="ai-facts">${facts.map(f => `<li>${html(f)}</li>`).join('')}</ul>${warnings.length?`<div class="ai-staging-notes"><b>${html(cfg.notes?.heading??'Staging needs review')}</b><ul>${warnings.map(w=>`<li>${html(w)}</li>`).join('')}</ul><button class="ai-btn" data-r="fix-staging">${html(cfg.notes?.fixLabel??'Copy staging fix request')}</button></div>`:''}${cleaned ? '<p class="ai-note">Found the JSON in the reply and ignored the text around it.</p>' : ''}`;
     } else if (error) {
       result.classList.add('error');
       result.innerHTML = `<p class="ai-result-title"><span aria-hidden="true">!</span> Needs a fix</p><p class="ai-error-text"></p>
@@ -380,7 +382,7 @@ export function assistPanel<T>(cfg: AssistConfig<T>) {
       try { await navigator.clipboard.writeText(fixRequest(error, noun)); status.textContent = 'Fix request copied. Send it in the same chat, then paste the new reply here.'; }
       catch { status.textContent = fixRequest(error, noun); }
     }
-    if(r==='fix-staging'&&parsed){const warnings=cfg.describe(parsed).warnings??[],text=`Revise the film JSON to resolve these spatial-staging findings. Use the selected location map, calculate every transition and validate the entire path. Preserve the rest of the film. Return complete importable JSON.\n\n${warnings.join('\n')}\n\nLOCATION REFERENCE\n${cfg.revisionContext?.(parsed)??''}\n\nCURRENT JSON\n${draft.value}`;try{await navigator.clipboard.writeText(text);(e.target as HTMLElement).textContent='Fix request copied';}catch{guide.value=text;details.open=true;guide.focus();guide.select();}}
+    if(r==='fix-staging'&&parsed){const warnings=cfg.describe(parsed).warnings??[],text=cfg.notes?cfg.notes.fix(warnings,draft.value):`Revise the film JSON to resolve these spatial-staging findings. Use the selected location map, calculate every transition and validate the entire path. Preserve the rest of the film. Return complete importable JSON.\n\n${warnings.join('\n')}\n\nLOCATION REFERENCE\n${cfg.revisionContext?.(parsed)??''}\n\nCURRENT JSON\n${draft.value}`;try{await navigator.clipboard.writeText(text);(e.target as HTMLElement).textContent='Fix request copied';}catch{guide.value=text;details.open=true;guide.focus();guide.select();}}
   });
   $('paste').addEventListener('click', async () => {
     try {

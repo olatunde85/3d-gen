@@ -8,7 +8,7 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 - [Command line (ara3d)](cli.md): `npx ara3d` builds characters in any project, no clone needed; character files and schemas
 - [JavaScript library (ara3d)](library.md): `createCharacter()` builds rigged, animated three.js characters in your own web app or game
 - [Embed a character](embed.md): `<ara-character>` puts a live, animated character on any web page with one tag
-- [AI assistants (MCP)](mcp.md): Claude, Cursor and VS Code make characters for you with `npx ara3d mcp`
+- [AI assistants (MCP)](mcp.md): Claude, Cursor and VS Code make characters, films, lessons and games for you with `npx ara3d mcp`
 - [Using characters in your engine](engines.md): Unity, Unreal, Godot, Blender and the web
 
 **Making characters**
@@ -25,6 +25,10 @@ Guides and reference for [Ara 3D Gen](../README.md), the open-source generator f
 
 - [Ara Studio](studio.md): direct films of up to five scenes, with up to five characters in 71 sets, with dialogue, sound effects, music and Assist, and export an MP4
 - [Your own sets](studio-sets.md): make sets in Blender with their light baked in, export them with the Export for Ara Studio add-on, and import them into Studio
+
+**Making lessons**
+
+- [Ara Educate](educate.md): lesson videos of up to 10 minutes, with a teacher who writes on a board, shows slides, code and images on a screen and explains them; templates, Assist, the lesson format and links
 
 **Playing games**
 

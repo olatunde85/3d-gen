@@ -36,7 +36,7 @@
 
 ### The character builder
 
-Shape a body, dress it, give it hair, tattoos and a weapon, pick from **259 animations** and export **GLB, FBX, OBJ or a ZIP bundle** for Unity, Unreal, Godot, Blender or the web. Start from 65 ready-made characters, or open your own.
+Shape a body, dress it, give it hair, tattoos and a weapon, pick from **261 animations** and export **GLB, FBX, OBJ or a ZIP bundle** for Unity, Unreal, Godot, Blender or the web. Start from 65 ready-made characters, or open your own.
 
 <p align="center"><img src="docs/media/demo.gif" alt="A motion-captured walk, a face with expressions that talks, and riding a bicycle in Ara 3D Gen" width="560"></p>
 
@@ -124,7 +124,7 @@ Online character generators are convenient, but you rent them. Ara 3D Gen is you
 </details>
 
 <details>
-<summary><strong>259 animations</strong></summary>
+<summary><strong>261 animations</strong></summary>
 
 Motion-captured walks, a catwalk, runs and turns; jumps; unarmed and sword fighting; football (shots, passes, slide tackles, goalkeeping, throw-ins and the Siu celebration); gunshot reactions; a shooter set with cover, rifle hits and deaths; reactions and get-ups; picking up, pressing, opening doors, pushing and carrying (in the hands or on the head); everyday actions (talking, phone calls, texting, leaning, sweeping); emotes and dances; sitting and lying; swimming and diving; ladders, vaults and ledges; rolls and dodges; parachuting; and riding all fourteen vehicles. Optional root motion, and what you see in the preview is what you export. [Animations](docs/animations.md).
 

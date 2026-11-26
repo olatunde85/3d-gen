@@ -9,6 +9,7 @@ import { characterSchema } from '../src/app/character-assist';
 import { assistSchema } from '../src/studio/assist';
 import { playSchema } from '../src/play/schema';
 import { setSchema } from '../src/studio/set-schema';
+import { lessonSchema } from '../src/educate/schema';
 import { nodeLibrary } from './node-assets';
 
 const root = resolve(import.meta.dirname, '..'), out = join(root, 'dist/schemas'), site = 'https://ara3dgen.com/schemas/';
@@ -19,6 +20,7 @@ const schemas = [
   { file: 'pack.v1.json', title: 'Ara content pack', description: 'A content pack: animations made in other tools, retargeted onto Ara\'s rig (written by ara3d pack build).', schema: packSchema() },
   { file: 'pack-source.v1.json', title: 'Ara pack source', description: 'A pack.json: the animation files ara3d pack build turns into a content pack.', schema: packSourceSchema() },
   { file: 'studio-set.v1.json', title: 'Ara Studio set', description: 'The details of a Studio set file (a GLB\'s extras.ara_set): ID, credits, room, seats, light and lightmaps (version 1).', schema: setSchema() },
+  { file: 'educate-lesson.v1.json', title: 'Ara Educate lesson', description: 'An Ara Educate lesson: teacher, board and steps, each with what the teacher says (kind "ara-lesson", version 1).', schema: lessonSchema() },
   { file: 'play-game.v2.json', title: 'Ara Play game', description: 'An Ara Play game: mode, missions, cast, city, story and chapters (kind "ara-play", version 2).', schema: playSchema(catalog) },
 ];
 mkdirSync(out, { recursive: true });

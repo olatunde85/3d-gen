@@ -11,9 +11,9 @@ import { onKeysChange } from './store';
 import { ARA_MARK, thinking, type Thinking } from './thinking';
 
 export interface AskAra {
-  /** "Character Builder", "Studio" or "Play". */
+  /** "Character Builder", "Studio", "Educate" or "Play". */
   appName: string;
-  noun: 'character' | 'film' | 'game';
+  noun: 'character' | 'film' | 'game' | 'lesson';
   /** What the app is for and what's on screen, in a few sentences. */
   primer(): string;
   /** The app's full Assist guide, with the current character, film or game. */
