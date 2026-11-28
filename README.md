@@ -23,6 +23,7 @@
   <a href="https://ara3dgen.com/app/">Builder</a> ·
   <a href="https://ara3dgen.com/studio/">Studio</a> ·
   <a href="https://ara3dgen.com/play/">Play</a> ·
+  <a href="https://ara3dgen.com/educate/">Educate</a> ·
   <a href="https://ara3dgen.com/characters/">Characters</a> ·
   <a href="https://ara3dgen.com/docs/">Docs</a> ·
   <a href="https://github.com/olatunde85/3d-gen/discussions">Discussions</a>
@@ -32,7 +33,7 @@
 
 *Ara* is Yoruba for "body". No accounts, credits or limits, and what you export is yours.
 
-## Three apps, one cast
+## Four apps, one cast
 
 ### The character builder
 
@@ -51,6 +52,12 @@ Direct films of up to five scenes with up to five characters on **71 sets**, or 
 Build games from missions, arcade races and endless runs, string them into a campaign of up to ten chapters, and publish it online in about a minute. No code, no engine, no install.
 
 <p align="center"><a href="https://ara3dgen.com/play/"><img src="docs/media/ara-play.gif" alt="Dead Drop, a game made in Ara Play: escaping with a rescued companion, a shootout, driving through the city, runner power-ups, an arcade race, then customizing the game and publishing it online" width="640"></a><br><sub>Dead Drop, a ten-chapter game made in Ara Play · <a href="https://ara3dgen.com/media/ara-play-promo.mp4">Watch with sound</a></sub></p>
+
+### Ara Educate
+
+Make lesson videos of up to ten minutes. Write the steps and what to say, and an Ara teacher writes them on a whiteboard or chalkboard, points and explains, and shows code, terminals, slides and diagrams on a projector screen, with a voice that moves their lips and captions.
+
+<p align="center"><a href="https://ara3dgen.com/educate/"><img src="docs/media/ara-educate.gif" alt="An Ara Educate lesson: a teacher writes an equation on a whiteboard, solves it step by step and circles the answer, then Python code types out on a projector screen, runs in a terminal, and a slide checks the answer" width="640"></a><br><sub>A lesson made and exported in Ara Educate · <a href="https://ara3dgen.com/media/ara-educate-lesson.mp4">Watch with sound</a></sub></p>
 
 ## Made anywhere, at home in Ara
 
@@ -136,7 +143,7 @@ Motion-captured walks, a catwalk, runs and turns; jumps; unarmed and sword fight
 - **Films:** up to five scenes, each up to a minute, with up to five Ara or imported characters on 71 searchable sets or your own.
 - **Directing:** shots and camera moves, characters that walk, drive and sit through the set, and staging checks for paths and seats.
 - **Words on screen:** subtitles (and SRT import and export), outlined text, caption bands, title cards, and speech and thought bubbles that follow a character.
-- **Sound:** typed, recorded or uploaded dialogue with natural voices (your Gemini or ElevenLabs voices, or free local voices), voice effects, timed sound effects and music.
+- **Sound:** typed, recorded or uploaded dialogue with natural voices (your Gemini or ElevenLabs voices, or free local voices) and lips that follow it, voice effects, timed sound effects and music.
 - **Export:** a 720p or 1080p MP4 with sound. [Studio guide](docs/studio.md).
 
 </details>
@@ -152,6 +159,18 @@ Motion-captured walks, a catwalk, runs and turns; jumps; unarmed and sword fight
 - **Endless runs:** 11 settings and 7 power-ups, including spring boots and a hoverboard.
 - **Campaigns and story:** up to ten chapters in any mix of modes, with branching choices, dialogue, voices and opening and ending films.
 - **Publish online:** live in about a minute with no sign-up, or download the game and host it anywhere. [Play guide](docs/play.md) · [Hosting your game](docs/hosting-games.md).
+
+</details>
+
+<details>
+<summary><strong>Ara Educate</strong></summary>
+
+- **The board:** handwriting on a whiteboard or chalkboard in three styles, with underlines, circles, ticks, crosses, arrows and graphs drawn from a formula.
+- **The projector screen:** code typed out with its colours, highlighted lines, mistakes and fixes, and changes; terminals with their output; slides revealed point by point; images zoomed and highlighted.
+- **The teacher:** any Ara character walks to the board, writes, points and talks to the class, with lips that follow the voice, in a classroom, laboratory, studio, office or home library.
+- **Voices and captions:** free voices made on your device, or Gemini and ElevenLabs voices with your own key.
+- **Starting points:** six ready-made lessons across maths, science, coding and English, Assist to write a lesson from a description, and MCP tools for AI assistants.
+- **Export:** a 720p or 1080p MP4 of up to ten minutes. [Educate guide](docs/educate.md).
 
 </details>
 
@@ -175,7 +194,7 @@ The full guides live in [`docs/`](docs/README.md), also at [ara3dgen.com/docs](h
 
 - [Self-hosting](docs/self-hosting.md) · [Using characters in your engine](docs/engines.md) · [Architecture](docs/architecture.md)
 - [Bodies, clothing and looks](docs/characters.md) · [Faces and lip-sync](docs/faces.md) · [Animations](docs/animations.md) · [Rigging](docs/rigging.md) · [Exporting](docs/exporting.md)
-- [Ara Studio](docs/studio.md) · [Ara Play](docs/play.md)
+- [Ara Studio](docs/studio.md) · [Ara Play](docs/play.md) · [Ara Educate](docs/educate.md)
 - [Your own characters](docs/import-characters.md) · [Content packs](docs/packs.md) · [Your own sets](docs/studio-sets.md) · [Your own AI and voices](docs/keys.md)
 
 Questions and showcases: [Discussions](https://github.com/olatunde85/3d-gen/discussions). Bugs and ideas: [Issues](https://github.com/olatunde85/3d-gen/issues). What changed in each version: [Releases](https://github.com/olatunde85/3d-gen/releases).

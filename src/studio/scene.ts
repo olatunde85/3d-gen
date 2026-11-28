@@ -11,6 +11,7 @@ import { BAKED_LAYER } from './set-files';
 import { hasSet, loadedSet, loadSet } from './set-store';
 import { boardFocus, drawBoard, loadBoardFonts, type Board } from './board';
 import { BoardModel } from './board-model';
+import { onMouthReady, prepareMouths } from './mouths';
 
 /** What a shot frames: a character, or a board standing in the set. */
 interface Framed { stagePosition: THREE.Vector3; height: number; halfWidth?: number; framingPadding: number; framingBounds?: THREE.Box3; group: THREE.Object3D }
@@ -41,10 +42,12 @@ export class StudioScene {
   private boards = new Map<string, { model: BoardModel; built: string }>();
   private boardFonts?: Promise<void>;
   private boardFontKey = '';
+  /** Called when something arrives that a still frame should be drawn again with: a set, or a line's mouth. */
   onSetReady?: () => void;
   /** Under the cast on a baked set: catches the cast's shadows (the set's own light is baked). */
   private shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.42 }));
   constructor(readonly canvas: HTMLCanvasElement) {
+    onMouthReady(() => this.onSetReady?.());
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1); this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.NeutralToneMapping;
@@ -307,6 +310,6 @@ export class StudioScene {
     }
     ctx.restore();
   }
-  async warmup(project: StudioProject) { this.render(project, 0); await this.renderer.compileAsync(this.scene, this.camera); this.render(project, 0); }
+  async warmup(project: StudioProject) { await prepareMouths(project);this.render(project, 0); await this.renderer.compileAsync(this.scene, this.camera); this.render(project, 0); }
   dispose() { new Set(this.actors.values()).forEach(a => a.dispose()); if (this.set) disposeSet(this.set.group); this.environment.dispose(); this.key.shadow.map?.dispose(); this.renderer.dispose(); }
 }

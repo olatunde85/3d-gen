@@ -58,7 +58,9 @@ The 14 speech shapes (visemes) use the Oculus / Meta names that lip-sync tools o
 
 Rest (`sil`) is every shape at zero. The jaw, lower teeth and tongue open with the shapes. The **Talk** clip (Emotes) loops a stretch of babble with head nods and brow raises on stressed syllables, for background chatter and previews.
 
-To lip-sync real dialogue, drive the shapes from audio:
+In [Studio](studio.md#speech) and [Educate](educate.md#voices), a character's mouth follows their own dialogue: these shapes and the jaw, worked out from each line's audio and words.
+
+To lip-sync dialogue in an engine, drive the shapes from audio:
 
 - **Tools that output Oculus visemes** (for example Meta's lip-sync plugin for Unity and Unreal, or Ready Player Me-style pipelines): map each viseme to the blend shape of the same name, `viseme_<name>`.
 - **Rhubarb Lip Sync** (offline, from an audio file; works with any engine, including Godot): map its mouth cues A → `viseme_PP`, B → `viseme_kk` (or `viseme_SS`), C → `viseme_E`, D → `viseme_aa`, E → `viseme_O`, F → `viseme_U`, G → `viseme_FF`, H → `viseme_nn`, X → rest.

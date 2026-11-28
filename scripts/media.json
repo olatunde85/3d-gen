@@ -11,6 +11,11 @@
       "asset": "ara-studio-reel-99176c34.mp4",
       "sha256": "99176c34decfaf8f7d1eaac067a214284c2fc64023f7c4727affacc4ef14728f",
       "size": 13251104
+    },
+    "ara-educate-lesson.mp4": {
+      "asset": "ara-educate-lesson-5c7500d0.mp4",
+      "sha256": "5c7500d096d8dfcccc5cb4af20df67fc67503a75d2f09fda1cd20b4a4602f4a0",
+      "size": 15033127
     }
   }
 }

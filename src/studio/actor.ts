@@ -15,6 +15,8 @@ import {vehicleFor,vehicleLift,VEHICLE_FOR_CLIP,type VehicleChoice} from '../cor
 import { boneFor } from '../core/rig/poses';
 import { beatTurns, timelineAt } from './project';
 import { EXPRESSION_WEIGHTS, weightsArray } from '../core/face';
+import { MOUTH_SHAPES } from './lipsync';
+import { speakingMouth } from './mouths';
 import { parcelStateAt } from './parcel';
 import {VehicleStage,type VehicleBody} from './vehicle-stage';
 import {passengerFrame} from './vehicle-performance';
@@ -235,9 +237,21 @@ export class StudioActor {
     const w = weightsArray(EXPRESSION_WEIGHTS[id] ?? {}, face.names);
     return { ...frame, morph: frame.morph.map((v, i) => Math.min(1, Math.max(0, v - face.defaults[i] + w[i]))) };
   }
+  private mouthShapes?: number[];
+  /** A character with lines speaks them: the mouth follows their voice, whatever the body is doing. */
+  private speak(frame: Frame, project: StudioProject, time: number, track: ActorTrack) {
+    const face = this.character.face;
+    if (!face || !frame.morph) return;
+    const mouth = speakingMouth(project, track.id, time);
+    if (!mouth) return;
+    this.mouthShapes ??= MOUTH_SHAPES.map((name) => face.names.indexOf(name));
+    // The jaw adds to the face's own (a laugh, a gasp); the mouth shapes are the voice's alone.
+    this.mouthShapes.forEach((i, k) => { if (i >= 0) frame.morph![i] = Math.min(1, (MOUTH_SHAPES[k] === 'jawOpen' ? frame.morph![i] : face.defaults[i] ?? 0) + mouth[k]); });
+  }
   pose(project: StudioProject, time: number, track: ActorTrack = project.actors[0], seats: readonly Seat[] = [],vehicles?:VehicleStage) {
     this.vehiclePlan=vehicles;
     const frame = this.frame(project, time, track);
+    this.speak(frame, project, time, track);
     frame.rot.forEach((q, i) => {this.bones[i].quaternion.set(...q);this.bones[i].scale.set(...(frame.scale?.get(i)??[1,1,1]));});
     for (const [i, p] of frame.rootPos) this.bones[i].position.set(...p);
     frame.morph?.forEach((w, i) => { if (this.mesh.morphTargetInfluences) this.mesh.morphTargetInfluences[i] = w; });

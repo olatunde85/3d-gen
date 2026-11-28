@@ -501,7 +501,7 @@ async function showStart(replacing: boolean) {
   const { TEMPLATES } = await (templates ??= import('./templates'));
   const blank = { id: 'blank', subject: 'Blank', title: 'A blank lesson', about: 'A title and an underline, ready for your own steps.', lesson: newLesson() };
   $('templates').replaceChildren(...[blank, ...TEMPLATES].map((t) => {
-    const b = document.createElement('button');b.type = 'button';b.className = 'template';
+    const b = document.createElement('button');b.type = 'button';b.className = 'template';b.dataset.template = t.id;
     // A glimpse of it: the first thing written, on its board, or else its first code or slide, on a screen.
     const first = t.lesson.steps.find((s) => s.type === 'write') ?? t.lesson.steps.find((s) => s.type === 'slide' || s.type === 'code');
     const preview = document.createElement('div'), glimpse = document.createElement('span');
@@ -549,6 +549,17 @@ $('lesson-file').addEventListener('change', async () => {
 const linked = hasLinkedFile(location.hash, 'lesson');
 if (linked) void linkedFile(location.hash, 'lesson').then(async (text) => { if (text) { await openLessonText(text);notify('Opened the lesson from the link. Save it to keep a copy.'); } })
   .catch((error) => notify((error as Error).message)).finally(() => clearLinkedFile('lesson'));
+// A link to a ready-made lesson (`#template=equation`, from the landing page): it opens at once, unless a lesson of the
+// person's own is kept here, when the start screen comes up first with that lesson picked, to save theirs if they want.
+const wanted = new URLSearchParams(location.hash.slice(1)).get('template');
+if (wanted && !linked) void (templates ??= import('./templates')).then(async ({ TEMPLATES }) => {
+  history.replaceState(null, '', location.pathname + location.search);
+  const chosen = TEMPLATES.find((t) => t.id === wanted), same = (a: Lesson) => JSON.stringify(parseLesson(JSON.stringify(a))) === JSON.stringify(lesson);
+  const own = !firstVisit && !same(newLesson()) && !TEMPLATES.some((t) => same(t.lesson));
+  if (chosen && !own) { openLesson(parseLesson(JSON.stringify(chosen.lesson)));return; }
+  await showStart(!firstVisit);
+  document.querySelector<HTMLButtonElement>(`.template[data-template="${chosen?.id ?? ''}"]`)?.focus();
+});
 /** Saves a file to the person's downloads. */
 function download(blob: Blob, name: string) {
   const a = document.createElement('a');a.href = URL.createObjectURL(blob);a.download = name;document.body.append(a);a.click();a.remove();
@@ -647,4 +658,4 @@ requestAnimationFrame(tick);
   } catch (error) { notify((error as Error).message);$('loading').hidden = true; }
 })();
 if (new URLSearchParams(location.hash.slice(1)).has('demo')) Object.assign(window, { educate: { get lesson() { return lesson; }, get project() { return project; }, scene, open: (value: unknown) => openLesson(parseLesson(JSON.stringify(value))), seek, start: (replacing = true) => showStart(replacing), get ready() { return scene.actors.size > 0 && $('loading').hidden; }, get voices() { return $('voices-label').textContent; } } });
-else if (firstVisit && !linked) void showStart(false);
+else if (firstVisit && !linked && !wanted) void showStart(false);

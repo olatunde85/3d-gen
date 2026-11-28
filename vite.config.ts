@@ -1,8 +1,25 @@
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Connect, type Plugin } from 'vite';
 import { studioLicenses } from './scripts/build-studio-licenses.ts';
 import { playRuntime } from './scripts/build-play-runtime.ts';
 import { catalog } from './packages/cli/catalog-plugin.ts';
+
+/** /studio goes to /studio/ on the dev and preview servers, as it does on ara3dgen.com, instead of the landing page. */
+function folderSlash(): Plugin {
+  const redirect = (root: string): Connect.NextHandleFunction => (req, res, next) => {
+    const url = req.url ?? '', at = url.indexOf('?'), path = at < 0 ? url : url.slice(0, at), query = at < 0 ? '' : url.slice(at);
+    if (/^\/[\w-]+(\/[\w-]+)*$/.test(path) && existsSync(resolve(root, '.' + path, 'index.html'))) {
+      res.statusCode = 307;res.setHeader('Location', path + '/' + query);res.end();return;
+    }
+    next();
+  };
+  return {
+    name: 'folder-slash',
+    configureServer: (server) => { server.middlewares.use(redirect(server.config.root)); },
+    configurePreviewServer: (server) => { server.middlewares.use(redirect(resolve(server.config.root, server.config.build.outDir))); },
+  };
+}
 
 export default defineConfig({
   // Set BASE_PATH (e.g. /3d-gen/) when hosting under a sub-path, such as GitHub Pages.
@@ -12,7 +29,7 @@ export default defineConfig({
   // server never re-bundles mid-session, which would leave open pages with outdated copies ("Importing a module
   // script failed").
   optimizeDeps: { include: ['three/examples/jsm/loaders/FBXLoader.js', 'three/examples/jsm/loaders/GLTFLoader.js'] },
-  plugins: [studioLicenses(),playRuntime(),catalog()],
+  plugins: [folderSlash(),studioLicenses(),playRuntime(),catalog()],
   build: {
     target: 'es2022',
     rollupOptions: {

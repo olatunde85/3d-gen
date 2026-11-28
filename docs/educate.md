@@ -62,7 +62,7 @@ Free voices (F1, F2, M1 and M2) are made here in your browser, automatically, as
 
 Voices from your own Gemini or ElevenLabs account use your key and your allowance, so they're never made automatically: choose **Make voices**, or they're made when you export. Connect a key with **Connect AI voices…** in the voice list; see [Your own AI and voices](keys.md). Keys stay in your browser.
 
-Once its lines are voiced, a lesson is timed to their real length.
+Once its lines are voiced, a lesson is timed to their real length. The teacher's mouth follows the voice, while they talk, write and point; before a line is voiced, it follows the words.
 
 ## Images
 
@@ -121,3 +121,5 @@ With the [ara3d MCP server](mcp.md), assistants such as Claude, Cursor and VS Co
 ### Links
 
 `https://ara3dgen.com/educate/#lesson=<packed>` opens a lesson packed into the link (as the MCP server writes them), and `#src=<https address>` opens a lesson file hosted elsewhere (its host must allow other sites to read it). Everything after `#` stays in the browser, so a link sends nothing to ara3dgen.com. A link carries up to 512 KB: share a lesson with images as a file.
+
+`https://ara3dgen.com/educate/#template=<id>` opens one of the ready-made lessons: `equation`, `graphs`, `newton`, `python`, `paragraph` or `masterclass`. If a lesson of your own is open in that browser, the start screen comes up first, with that lesson picked and the option to save yours.

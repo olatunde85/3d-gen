@@ -45,7 +45,7 @@
             "license": "https://opensource.org/licenses/MIT",
             "isAccessibleForFree": true,
             "sameAs": ["https://github.com/olatunde85/3d-gen"],
-            "featureList": ["Realistic human characters", "Automatic rigging", "261 game-ready animations", "Ara 3D Studio: short films of up to five scenes, with 71 locations, dialogue, sound and MP4 export", "Ara Play: games with missions, races and runs, published online", "GLB, FBX and OBJ export", "A three.js library, an embed, a command-line tool and an MCP server for AI assistants", "Ask Ara: write, voice and score with your own AI and voice keys", "Unlimited, no account"]
+            "featureList": ["Realistic human characters", "Automatic rigging", "261 game-ready animations", "Ara 3D Studio: short films of up to five scenes, with 71 locations, dialogue, sound and MP4 export", "Ara Play: games with missions, races and runs, published online", "Ara Educate: lesson videos of up to ten minutes, with a teacher who writes on the board, shows code and slides, and explains", "GLB, FBX and OBJ export", "A three.js library, an embed, a command-line tool and an MCP server for AI assistants", "Ask Ara: write, voice and score with your own AI and voice keys", "Unlimited, no account"]
           },
           {
             "@type": "WebSite",
@@ -66,6 +66,7 @@
         <a href="characters/">Characters</a>
         <a href="#studio">Studio</a>
         <a href="#play">Play</a>
+        <a href="#educate">Educate</a>
         <a href="#ai">Ask Ara</a>
         <a href="#developers">Developers</a>
         <a href="docs/">Docs</a>
@@ -82,7 +83,7 @@
       <!-- Hero -->
       <section class="hero">
         <div class="hero-copy">
-          <a class="announce" href="#bring"><span class="announce-tag">New</span>Use your characters, animations and sets from other tools<span class="announce-arrow" aria-hidden="true">→</span></a>
+          <a class="announce" href="#educate"><span class="announce-tag">New</span>Ara Educate: lesson videos taught by your characters<span class="announce-arrow" aria-hidden="true">→</span></a>
           <h1>Build it. Film it.<br /><span class="grad">Play it.</span></h1>
           <p class="lede">Realistic 3D characters you can rig, animate, film and turn into games, in your browser. No account, no install, and everything you make is yours.</p>
           <div class="cta">
@@ -194,7 +195,7 @@
           <div><dt>Five characters a scene</dt><dd>Your own characters or presets, each with its own timeline of actions, placement and equipment.</dd></div>
           <div><dt>Vehicles</dt><dd>Cars, motorbikes, boats, a horse, a tank, a helicopter and a jet, with boarding, driving and crashes.</dd></div>
           <div><dt>Action</dt><dd>Fight scenes, sword combos, gunfights from cover and reactions when someone is hit.</dd></div>
-          <div><dt>Sound</dt><dd>Typed or recorded dialogue, 20 sound effects and 9 music tracks, mixed into the film. With your own key, natural voices, sounds and music made from a description.</dd></div>
+          <div><dt>Sound</dt><dd>Typed or recorded dialogue with lips that follow it, 20 sound effects and 9 music tracks, mixed into the film. With your own key, natural voices, sounds and music made from a description.</dd></div>
           <div><dt>Cameras and text</dt><dd>Wide, medium and close shots with their own angles, subtitles and speech bubbles.</dd></div>
           <div><dt>Assist</dt><dd>Describe a film and Ara writes it with your own AI, or use any AI assistant and paste back a complete, editable project.</dd></div>
           <div><dt>MP4 export</dt><dd>720p or 1080p at 30 fps with sound, landscape or portrait. Save projects and reopen them.</dd></div>
@@ -228,10 +229,56 @@
         </dl>
       </section>
 
-      <!-- 04 Connect: characters, animations, sets, AI and voices from elsewhere -->
+      <!-- 04 Teach -->
+      <section id="educate" class="chapter">
+        <header class="chapter-head reveal">
+          <p class="index"><span>04</span>Teach</p>
+          <h2>Lesson videos, taught by your characters.</h2>
+          <p class="chapter-lede">Write the steps and what to say. A teacher walks to the board, writes them out by hand, points and explains, and brings down a projector screen for code, slides and diagrams. Lessons run up to ten minutes and export as an MP4 with the voice and captions.</p>
+          <p class="more-row"><a class="more" href="educate/">Open Ara Educate <span aria-hidden="true">→</span></a><a class="more more-quiet" href="docs/educate/">Educate guide</a></p>
+        </header>
+        <ul class="lessons stagger" aria-label="Lessons to open in Ara Educate">
+          <li><a class="lesson-card" href="educate/#template=equation">
+            <img src="/media/lessons/equation.webp" width="800" height="450" loading="lazy" decoding="async" alt="A teacher beside a whiteboard where 2x + 3 = 11 is solved down to x = 4, circled and checked">
+            <span class="lesson-meta"><span><small>Maths</small><b>Solving for x</b></span><span class="lesson-edit" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg>Edit</span></span>
+          </a></li>
+          <li><a class="lesson-card" href="educate/#template=newton">
+            <img src="/media/lessons/newton.webp" width="800" height="450" loading="lazy" decoding="async" alt="A scientist in a laboratory beside a chalkboard working out F = 2 × 3 = 6 N">
+            <span class="lesson-meta"><span><small>Science</small><b>Newton’s laws of motion</b></span><span class="lesson-edit" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg>Edit</span></span>
+          </a></li>
+          <li><a class="lesson-card" href="educate/#template=python">
+            <img src="/media/lessons/python.webp" width="800" height="450" loading="lazy" decoding="async" alt="A Python function, greet, on a projector screen, run in a terminal that prints Hello, Ada">
+            <span class="lesson-meta"><span><small>Coding</small><b>Your first Python function</b></span><span class="lesson-edit" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg>Edit</span></span>
+          </a></li>
+          <li><a class="lesson-card" href="educate/#template=paragraph">
+            <img src="/media/lessons/paragraph.webp" width="800" height="450" loading="lazy" decoding="async" alt="A teacher in a home library beside a whiteboard listing Point, Evidence, Explain and Link">
+            <span class="lesson-meta"><span><small>English</small><b>Writing a strong paragraph</b></span><span class="lesson-edit" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg>Edit</span></span>
+          </a></li>
+          <li><a class="lesson-card" href="educate/#template=graphs">
+            <img src="/media/lessons/graphs.webp" width="800" height="450" loading="lazy" decoding="async" alt="A teacher pointing at a straight line drawn on axes beside y = mx + c">
+            <span class="lesson-meta"><span><small>Maths</small><b>Straight-line graphs</b></span><span class="lesson-edit" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg>Edit</span></span>
+          </a></li>
+          <li><a class="lesson-card" href="educate/#template=masterclass">
+            <img src="/media/lessons/masterclass.webp" width="800" height="450" loading="lazy" decoding="async" alt="A teacher talking to the class in front of a whiteboard listing what you can bring to Ara">
+            <span class="lesson-meta"><span><small>Five-minute tour</small><b>Ara 3D Gen in five minutes</b></span><span class="lesson-edit" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l4-1L19 8l-3-3L5 16z"/></svg>Edit</span></span>
+          </a></li>
+        </ul>
+        <dl class="specs stagger">
+          <div><dt>Handwriting on the board</dt><dd>A whiteboard or a chalkboard, three handwriting styles, and underlines, circles, ticks, arrows and graphs drawn from a formula.</dd></div>
+          <div><dt>Code that types itself</dt><dd>An editor with its colours, highlighted lines, mistakes underlined and fixed, and changes shown line by line, then a terminal that runs it.</dd></div>
+          <div><dt>Slides and images</dt><dd>Slides revealed point by point, and diagrams and photos zoomed into and highlighted.</dd></div>
+          <div><dt>A teacher who teaches</dt><dd>Any Ara character walks to the board, writes, points at what matters and talks to the class, with lips that follow the voice.</dd></div>
+          <div><dt>Voices and captions</dt><dd>Four free voices made on your device, or Gemini and ElevenLabs voices with your own key. Captions show every word.</dd></div>
+          <div><dt>Five rooms</dt><dd>A classroom, a laboratory, a studio, an office and a home library. The camera follows the lesson.</dd></div>
+          <div><dt>Save and share</dt><dd>Save a lesson as a file with its images, or send a link that opens it in Ara Educate, ready to play or change.</dd></div>
+          <div><dt>Assist and AI assistants</dt><dd>Describe a lesson and Ara writes it, or let Claude, Cursor or VS Code write one through the MCP server and open it with a link.</dd></div>
+        </dl>
+      </section>
+
+      <!-- 05 Connect: characters, animations, sets, AI and voices from elsewhere -->
       <section id="bring" class="chapter">
         <header class="chapter-head reveal">
-          <p class="index"><span>04</span>Connect</p>
+          <p class="index"><span>05</span>Connect</p>
           <h2>Made anywhere. <span class="grad">At home in Ara.</span></h2>
           <p class="chapter-lede">Characters rigged in other tools, animations you downloaded or captured, sets modelled in Blender, and your own AI and voices: Ara plays them together in the builder, Studio and the developer tools.</p>
         </header>
@@ -267,10 +314,10 @@
         </div>
       </section>
 
-      <!-- 05 Ask Ara -->
+      <!-- 06 Ask Ara -->
       <section id="ai" class="chapter">
         <header class="chapter-head reveal">
-          <p class="index"><span>05</span>Ask</p>
+          <p class="index"><span>06</span>Ask</p>
           <h2>Ask Ara. Bring your own AI and voices.</h2>
           <p class="chapter-lede">Connect your own Gemini, Claude, OpenAI or ElevenLabs account and Ara writes, voices and scores inside the apps. You pay the provider directly, usually a few cents, and your keys never leave your browser. Gemini’s free allowance is enough to start.</p>
           <p class="more-row"><a class="more" href="studio/">Try it in Studio <span aria-hidden="true">→</span></a><a class="more more-quiet" href="docs/keys/">Your own AI and voices</a></p>
@@ -290,10 +337,10 @@
         </dl>
       </section>
 
-      <!-- 06 Develop -->
+      <!-- 07 Develop -->
       <section id="developers" class="chapter dev">
         <header class="chapter-head reveal">
-          <p class="index"><span>06</span>Develop</p>
+          <p class="index"><span>07</span>Develop</p>
           <h2>Characters in your code, your pages and your AI assistant.</h2>
           <p class="chapter-lede">One free npm package: a three.js library, a one-tag embed, a command-line tool and an MCP server. Characters build on your users’ devices or your own machine, with no server to run.</p>
           <p class="more-row"><a class="more" href="developers/">Ara for Developers <span aria-hidden="true">→</span></a><a class="more more-quiet" href="developers/#playground">Playground</a></p>
@@ -318,7 +365,7 @@
         </div>
         <div class="devx-foot reveal">
           <code class="install"><span aria-hidden="true">$</span> npm install ara3d</code>
-          <nav aria-label="Developer guides"><a href="docs/library/">Library</a><a href="docs/embed/">Embed</a><a href="docs/cli/">Command line</a><a href="docs/mcp/">MCP</a><a href="developers/#templates">Templates</a><a href="https://github.com/olatunde85/3d-gen/tree/main/examples/godot-starter">Godot starter</a><a href="https://www.npmjs.com/package/ara3d">npm</a></nav>
+          <nav aria-label="Developer guides"><a href="docs/library/">Library</a><a href="docs/embed/">Embed</a><a href="docs/cli/">Command line</a><a href="docs/mcp/">MCP</a><a href="developers/#templates">Templates</a><a href="https://github.com/olatunde85/3d-gen/tree/main/examples/godot-starter">Godot starter</a><a href="https://www.npmjs.com/package/ara3d">npm package</a></nav>
         </div>
       </section>
 
@@ -380,9 +427,10 @@ npm run dev</code></pre>
         <p><i>Ara</i> is Yoruba for “body”.</p>
       </div>
       <nav class="footer-cols" aria-label="Footer">
-        <div><h3>Make</h3><a href="app/">Builder</a><a href="characters/">Characters</a><a href="studio/">Studio</a><a href="play/">Play</a></div>
-        <div><h3>Develop</h3><a href="developers/">Developers</a><a href="docs/library/">Library</a><a href="docs/embed/">Embed</a><a href="docs/cli/">Command line</a><a href="docs/mcp/">MCP</a><a href="developers/#templates">Templates</a></div>
-        <div><h3>Project</h3><a href="docs/">Docs</a><a href="https://github.com/olatunde85/3d-gen">GitHub</a><a href="terms/">Terms</a><a href="privacy/">Privacy</a><a href="privacy/#cookies">Cookies</a></div>
+        <div><h3>Make</h3><a href="app/">Builder</a><a href="characters/">Characters</a><a href="studio/">Studio</a><a href="play/">Play</a><a href="educate/">Educate</a></div>
+        <div><h3>Guides</h3><a href="docs/">Docs</a><a href="docs/studio/">Studio</a><a href="docs/play/">Play</a><a href="docs/educate/">Educate</a><a href="docs/import-characters/">Your own characters</a><a href="docs/keys/">Your own AI and voices</a><a href="docs/hosting-games/">Hosting your game</a></div>
+        <div><h3>Develop</h3><a href="developers/">Developers</a><a href="docs/library/">Library</a><a href="docs/embed/">Embed</a><a href="docs/cli/">Command line</a><a href="docs/mcp/">MCP</a><a href="developers/#templates">Templates</a><a href="https://www.npmjs.com/package/ara3d">npm package</a></div>
+        <div><h3>Project</h3><a href="https://github.com/olatunde85/3d-gen">GitHub</a><a href="terms/">Terms</a><a href="privacy/">Privacy</a><a href="privacy/#cookies">Cookies</a></div>
       </nav>
       <p class="footer-credits">Code: MIT · Character data: CC0 (MakeHuman) · Motion capture: <a href="http://mocap.cs.cmu.edu">CMU Graphics Lab</a> · Your exports are yours.</p>
     </footer>

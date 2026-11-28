@@ -207,6 +207,40 @@ figcaption { margin-top: 14px; color: var(--faint); font-size: 13.5px; }
 .locations img { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
 .locations figcaption { margin-top: 10px; color: var(--muted); font-size: 13.5px; }
 
+/* Educate's ready-made lessons, each a way into the app with that lesson open. */
+.lessons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 16px; margin: clamp(40px, 5vw, 56px) 0 0; padding: 0; list-style: none; }
+.lesson-card { position: relative; display: block; height: 100%; color: var(--muted); text-decoration: none; }
+.lesson-card img { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); transition: border-color 0.2s; }
+.lesson-meta { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.lesson-meta > span:first-child { display: grid; gap: 2px; }
+.lesson-meta small { color: var(--faint); font-size: 12.5px; font-weight: 560; letter-spacing: 0.02em; }
+.lesson-meta b { color: var(--text); font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; }
+.lesson-edit { display: none; }
+.lesson-card:hover img { border-color: var(--line-2); }
+/* With a mouse, the picture alone; its name and Edit come up over it on hover. */
+@media (hover: hover) and (pointer: fine) {
+  .lesson-meta {
+    position: absolute; inset: auto 1px 1px; margin: 0; padding: 48px 16px 14px; border-radius: 0 0 9px 9px;
+    background: linear-gradient(rgba(9, 9, 11, 0), rgba(9, 9, 11, 0.88)); opacity: 0; transform: translateY(4px); transition: opacity 0.2s, transform 0.2s;
+  }
+  .lesson-meta small { color: rgba(255, 255, 255, 0.7); }
+  .lesson-meta b { color: #fff; }
+  .lesson-card:hover .lesson-meta, .lesson-card:focus-visible .lesson-meta { opacity: 1; transform: none; }
+  .lesson-edit {
+    display: inline-flex; align-items: center; gap: 6px; flex: none; height: 30px; padding: 0 12px; border-radius: 999px;
+    background: #fff; color: #09090b; font: 600 13px/1 var(--sans);
+  }
+  .lesson-edit svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+  .lessons { row-gap: 16px; }
+}
+@media (max-width: 860px) { .lessons { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) {
+  /* On a phone, a row to swipe through. */
+  .lessons { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 78%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; gap: 14px; }
+  .lessons::-webkit-scrollbar { display: none; }
+  .lessons li { scroll-snap-align: start; }
+}
+
 /* --- Developers: tabs, real code, and the character that code makes --- */
 .devx { display: grid; grid-template-columns: 280px minmax(0, 1fr); margin-top: clamp(40px, 5vw, 56px); border: 1px solid var(--line); border-radius: 18px; background: var(--bg-2); overflow: hidden; }
 .devx-tabs { display: grid; align-content: start; border-right: 1px solid var(--line); }

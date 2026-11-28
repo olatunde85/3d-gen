@@ -2,6 +2,11 @@
 
 Releases of the `ara3d` package (command-line tool, browser library, `<ara-character>` embed and MCP server) and of `ara3d-data`, the character data the library loads. Versions follow [semantic versioning](https://semver.org/). While the version starts with 0, a minor release (0.6 → 0.7) can change how something behaves; patch releases only fix things.
 
+## 0.20.0 — 2026-11-26
+
+- **Lessons:** `ara3d schema lesson` prints the schema of an Ara Educate lesson file (also at ara3dgen.com/schemas/educate-lesson.v1.json). The MCP server's `lesson_guide` gives assistants the lesson format and how to teach well, and `create_lesson` checks a lesson as Educate does, lists anything worth a look, saves it and returns a link that opens it in Educate.
+- **Animations:** two teaching moves, writing on a board and pointing at it, bring the library to 261.
+
 ## 0.19.0 — 2026-11-26
 
 - **Moves danced upside down:** a headspin, handstand or any move whose feet never touch the ground stood on its feet in the air, so the body sank through the floor. `ara3d pack` (and Add animations in the apps) and the library now find the floor from the lowest point of the body, the crown of the head included. Ara's own animations play exactly as before.
